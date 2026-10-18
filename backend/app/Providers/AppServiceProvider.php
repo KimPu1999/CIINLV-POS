@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Models\Store;
+use App\Models\StoreMembership;
 use App\Models\Tenant;
+use App\Policies\StoreMembershipPolicy;
 use App\Policies\StorePolicy;
 use App\Policies\TenantPolicy;
 use App\Services\TenantContext;
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Tenant::class, TenantPolicy::class);
         Gate::policy(Store::class, StorePolicy::class);
+        Gate::policy(StoreMembership::class, StoreMembershipPolicy::class);
 
         RateLimiter::for('auth', function (Request $request): Limit {
             return Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip());

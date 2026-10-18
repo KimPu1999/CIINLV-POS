@@ -42,6 +42,11 @@ class User extends Authenticatable
         return $this->hasMany(TenantMembership::class);
     }
 
+    public function storeMemberships(): HasMany
+    {
+        return $this->hasMany(StoreMembership::class);
+    }
+
     public function getIsSuperAdminAttribute(): bool
     {
         return $this->platform_role === self::PLATFORM_ROLE_SUPER_ADMIN;

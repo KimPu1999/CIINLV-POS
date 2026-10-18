@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TenantMembership extends Model
 {
@@ -40,6 +41,12 @@ class TenantMembership extends Model
         return $this->belongsToMany(Store::class, 'store_memberships')
             ->withPivot('status')
             ->withTimestamps();
+    }
+
+    public function directStoreMemberships(): HasMany
+    {
+        return $this->hasMany(StoreMembership::class, 'user_id', 'user_id')
+            ->whereColumn('store_memberships.tenant_id', 'tenant_memberships.tenant_id');
     }
 
     public function isActive(): bool

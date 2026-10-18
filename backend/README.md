@@ -207,6 +207,60 @@ curl http://127.0.0.1:8000/api/v1/business/profile \
   -H 'Accept: application/json'
 ```
 
+## Phase 4 branches and dashboards
+
+Branch APIs use the same `X-Tenant-Id` context selector. The server resolves that header against the authenticated user’s active business membership; clients cannot choose a tenant by sending an arbitrary ID. Business admins can manage all branches in their selected business. Store managers, inventory managers, and cashiers must also have an active direct store assignment.
+
+```text
+GET    /api/v1/business/stores
+POST   /api/v1/business/stores
+GET    /api/v1/business/stores/{storeUuid}
+PATCH  /api/v1/business/stores/{storeUuid}
+POST   /api/v1/business/stores/{storeUuid}/activate
+POST   /api/v1/business/stores/{storeUuid}/suspend
+GET    /api/v1/business/stores/{storeUuid}/settings
+PATCH  /api/v1/business/stores/{storeUuid}/settings
+GET    /api/v1/business/stores/{storeUuid}/members
+POST   /api/v1/business/stores/{storeUuid}/members
+PATCH  /api/v1/business/stores/{storeUuid}/members/{membershipId}
+DELETE /api/v1/business/stores/{storeUuid}/members/{membershipId}
+GET    /api/v1/business/stores/{storeUuid}/dashboard
+GET    /api/v1/business/stores/{storeUuid}/dashboard/layout
+PUT    /api/v1/business/stores/{storeUuid}/dashboard/layout
+GET    /api/v1/business/stores/{storeUuid}/dashboard/widgets
+PUT    /api/v1/business/stores/{storeUuid}/dashboard/widgets
+GET    /api/v1/me/stores
+GET    /api/v1/me/permissions
+```
+
+Create a branch with actual persisted values:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/business/stores \
+  -H "Authorization: Bearer $CIINLV_ADMIN_TOKEN" \
+  -H "X-Tenant-Id: <business-uuid>" \
+  -H 'Accept: application/json' -H 'Content-Type: application/json' \
+  -d '{"name":"Main Store","store_code":"MAIN-001","currency_code":"MMK","timezone":"Asia/Yangon"}'
+```
+
+Dashboard APIs return configuration metadata only. Until inventory and sales phases exist, branch dashboard responses explicitly use `metrics_status: "not_implemented"`; no fake sales, stock, or financial values are generated. Supported widget keys are configured in `config/business.php`, and role-aware responses exclude widgets not authorized for the current store assignment.
+
+Trial branch limits default to four. Set `BUSINESS_ACTIVE_BRANCH_LIMIT` or `BUSINESS_DEFAULT_BRANCH_LIMIT` when a deployment uses a different subscription policy. The tenant row is locked during provisioning so concurrent requests for one tenant serialize limit checks; the database’s tenant/code unique constraint remains the final duplicate-code guard.
+
+Phase 4 adds `store_settings`, direct `store_memberships` assignment fields, `dashboard_widgets`, and `dashboard_layouts`. The original Phase 2 store pivot columns remain for compatibility and its legacy `tenant_membership_id` is now nullable for direct assignments. Internal tenant/store integer primary keys are preserved; public UUID columns continue to be used in API routes. Store suspension retains data and immediately blocks non-admin branch access. All branch mutations and assignment/dashboard changes create audit records without credentials or tokens.
+
+Phase 4 verification commands:
+
+```bash
+php artisan migrate --force
+APP_ENV=testing php artisan migrate --force
+php artisan route:list --path=api/v1/business/stores
+php artisan test
+vendor/bin/pint --test
+```
+
+PostgreSQL RLS remains prepared but not enabled. Application middleware, policies, tenant/store foreign keys, composite tenant/store integrity, and database constraints are active. Enabling RLS safely requires a non-owner application role plus transaction-local tenant context and pool reset behavior, which must be deployed together.
+
 ## Multi-tenant foundation
 
 The initial schema contains:
@@ -225,9 +279,11 @@ Every business-owned table starts with a `tenant_id` foreign key and indexes sup
 app/
   Http/Controllers/Api/V1/   # versioned API controllers
   Models/                    # Eloquent domain models
+  Services/                  # tenant, business, store, membership, dashboard services
+  Policies/                  # platform, tenant, store, and membership authorization
 bootstrap/                   # application and exception bootstrap
 config/                      # database, CORS, Sanctum, cache, queue
 database/migrations/         # framework + tenant foundation schema
 routes/api.php               # /api/v1 routes
-tests/Feature/               # API and database integration tests
+  tests/Feature/               # API and database integration tests
 ```

@@ -3,6 +3,7 @@
 use App\Http\Middleware\ActiveAccount;
 use App\Http\Middleware\PlatformAdmin;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\ResolveTenantAnyRole;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'active.account' => ActiveAccount::class,
             'platform.admin' => PlatformAdmin::class,
             'tenant.context' => ResolveTenant::class,
+            'tenant.context.any' => ResolveTenantAnyRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

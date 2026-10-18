@@ -18,6 +18,16 @@ class TenantContext
 
     public function resolveFor(Request $request, User $user): Tenant
     {
+        return $this->resolve($request, $user, true);
+    }
+
+    public function resolveForAnyRole(Request $request, User $user): Tenant
+    {
+        return $this->resolve($request, $user, false);
+    }
+
+    private function resolve(Request $request, User $user, bool $requireBusinessAdmin): Tenant
+    {
         if ($user->isSuperAdmin()) {
             throw new AccessDeniedHttpException('A tenant membership is required for this business endpoint.');
         }
@@ -65,7 +75,7 @@ class TenantContext
                 ->firstOrFail();
         }
 
-        if ($this->membership->role?->name !== 'business_admin') {
+        if ($requireBusinessAdmin && $this->membership->role?->name !== 'business_admin') {
             throw new AccessDeniedHttpException('Business administrator access is required.');
         }
 

@@ -76,4 +76,9 @@ class Tenant extends Model
     {
         return $this->hasMany(TenantMembership::class);
     }
+
+    public function storeMemberships(): HasMany
+    {
+        return $this->hasMany(StoreMembership::class);
+    }
 }
