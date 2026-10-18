@@ -261,6 +261,55 @@ vendor/bin/pint --test
 
 PostgreSQL RLS remains prepared but not enabled. Application middleware, policies, tenant/store foreign keys, composite tenant/store integrity, and database constraints are active. Enabling RLS safely requires a non-owner application role plus transaction-local tenant context and pool reset behavior, which must be deployed together.
 
+## Phase 5 inventory, purchasing, and stock management
+
+Phase 5 adds tenant-scoped categories, products, variants, barcodes, suppliers, warehouses, store stockroom locations, inventory balances, an append-only stock movement ledger, purchase receiving, stock transfers, adjustments, and inventory reports. Existing stores receive a corresponding `inventory_locations` stockroom record; newly provisioned stores create one automatically.
+
+Inventory quantities are changed only through transactional backend services. Balances use row locking, non-negative quantity constraints, idempotency keys, and weighted-average costing (`inventory_balances.average_cost`). Product edits never change stock. Stock transfers reserve source stock, deduct it only at dispatch, and add destination stock only at receipt. Transfer receipts are recorded in `stock_transfer_receipts` so retries cannot post the same receipt twice.
+
+Phase 5 APIs include:
+
+```text
+GET|POST|PATCH|DELETE /api/v1/categories
+GET|POST|PATCH|DELETE /api/v1/products
+GET                 /api/v1/products/barcode/{barcode}
+POST                /api/v1/products/{product}/variants
+POST                /api/v1/products/{product}/images
+GET|POST|PATCH|DELETE /api/v1/suppliers
+GET|POST|PATCH      /api/v1/warehouses
+GET                 /api/v1/inventory
+GET                 /api/v1/inventory/locations/{location}
+GET                 /api/v1/inventory/movements
+GET                 /api/v1/inventory/low-stock
+GET                 /api/v1/inventory/out-of-stock
+POST                /api/v1/inventory/opening-stock
+GET|POST            /api/v1/inventory/adjustments
+GET|POST            /api/v1/purchase-orders
+POST                /api/v1/purchase-orders/{order}/submit
+POST                /api/v1/purchase-orders/{order}/receive
+GET|POST            /api/v1/stock-transfers
+POST                /api/v1/stock-transfers/{transfer}/submit|approve|dispatch|receive|cancel
+GET                 /api/v1/reports/inventory
+GET                 /api/v1/reports/stock-movements
+GET                 /api/v1/reports/stock-transfers
+GET                 /api/v1/reports/stock-valuation
+```
+
+Use `X-Tenant-Id` only to select an already-authorized tenant context. Location access is checked against the authenticated membership and, for store-scoped users, their active store assignment. Every receiving, adjustment, and transfer receipt request requires an `Idempotency-Key` header. No credentials, tokens, or secrets are written to audit metadata.
+
+Phase 5 verification commands:
+
+```bash
+php artisan migrate --force
+APP_ENV=testing php artisan migrate --force
+vendor/bin/pint --test
+php artisan test
+php artisan route:list --path=api/v1/inventory
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+The test database must be separate from development and production databases. Never use `migrate:fresh`, `db:wipe`, or destructive reset commands against a real environment. PostgreSQL RLS remains prepared but is not enabled; application tenant/location authorization and database constraints are active until a non-owner RLS role and connection-pool context reset strategy are deployed together.
+
 ## Multi-tenant foundation
 
 The initial schema contains:

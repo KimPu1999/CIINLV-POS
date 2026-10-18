@@ -2,9 +2,19 @@
 
 namespace App\Providers;
 
+use App\Models\InventoryLocation;
+use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\StockAdjustment;
+use App\Models\StockTransfer;
 use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Tenant;
+use App\Policies\InventoryPolicy;
+use App\Policies\ProductPolicy;
+use App\Policies\PurchaseOrderPolicy;
+use App\Policies\StockAdjustmentPolicy;
+use App\Policies\StockTransferPolicy;
 use App\Policies\StoreMembershipPolicy;
 use App\Policies\StorePolicy;
 use App\Policies\TenantPolicy;
@@ -35,6 +45,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Tenant::class, TenantPolicy::class);
         Gate::policy(Store::class, StorePolicy::class);
         Gate::policy(StoreMembership::class, StoreMembershipPolicy::class);
+        Gate::policy(InventoryLocation::class, InventoryPolicy::class);
+        Gate::policy(Product::class, ProductPolicy::class);
+        Gate::policy(PurchaseOrder::class, PurchaseOrderPolicy::class);
+        Gate::policy(StockTransfer::class, StockTransferPolicy::class);
+        Gate::policy(StockAdjustment::class, StockAdjustmentPolicy::class);
 
         RateLimiter::for('auth', function (Request $request): Limit {
             return Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip());

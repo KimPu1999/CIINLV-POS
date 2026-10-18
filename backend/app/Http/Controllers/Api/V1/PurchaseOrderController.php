@@ -1,0 +1,115 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Requests\Inventory\CreatePurchaseOrderRequest;
+use App\Http\Requests\Inventory\ReceivePurchaseOrderRequest;
+use App\Http\Resources\PurchaseOrderResource;
+use App\Models\InventoryLocation;
+use App\Models\ProductVariant;
+use App\Models\PurchaseOrder;
+use App\Models\StoreMembership;
+use App\Models\Supplier;
+use App\Services\AuditLogger;
+use App\Services\GoodsReceivingService;
+use App\Services\TenantContext;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+
+class PurchaseOrderController
+{
+    public function index(TenantContext $context, Request $request): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => PurchaseOrderResource::collection(PurchaseOrder::where('tenant_id', $context->tenant()->id)->whereIn('destination_location_id', $this->accessibleLocationIds($request->user(), $context->tenant()->id))->with(['supplier', 'destination', 'items.variant.product'])->latest()->paginate(25))]);
+    }
+
+    public function store(CreatePurchaseOrderRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->requireManager($request->user(), $context->tenant()->id);
+        $data = $request->validated();
+        $supplier = Supplier::where('tenant_id', $context->tenant()->id)->where('uuid', $data['supplier_id'])->firstOrFail();
+        $location = InventoryLocation::where('tenant_id', $context->tenant()->id)->where('uuid', $data['destination_location_id'])->where('status', 'active')->firstOrFail();
+        Gate::forUser($request->user())->authorize('write', $location);
+        $order = DB::transaction(function () use ($data, $context, $request, $supplier, $location): PurchaseOrder {
+            if (PurchaseOrder::where('tenant_id', $context->tenant()->id)->where('purchase_order_number', $data['purchase_order_number'])->exists()) {
+                throw new ConflictHttpException('The purchase order number is already in use.');
+            } $order = PurchaseOrder::create(['tenant_id' => $context->tenant()->id, 'supplier_id' => $supplier->id, 'destination_location_id' => $location->id, 'purchase_order_number' => $data['purchase_order_number'], 'status' => 'draft', 'created_by' => $request->user()->id]);
+            foreach ($data['items'] as $item) {
+                $variant = ProductVariant::where('tenant_id', $context->tenant()->id)->where('uuid', $item['variant_id'])->where('status', 'active')->firstOrFail();
+                $order->items()->create(['product_variant_id' => $variant->id, 'ordered_quantity' => $item['ordered_quantity'], 'unit_cost' => $item['unit_cost']]);
+            }
+
+            return $order;
+        });
+        $auditLogger->record('inventory.purchase_order_created', $request->user(), $context->tenant(), $order);
+
+        return response()->json(['success' => true, 'data' => new PurchaseOrderResource($order->load(['supplier', 'destination', 'items.variant.product']))], 201);
+    }
+
+    public function show(PurchaseOrder $order, TenantContext $context, Request $request): JsonResponse
+    {
+        $this->assertTenant($order, $context);
+        Gate::authorize('view', $order);
+        Gate::forUser($request->user())->authorize('view', $order->destination);
+
+        return response()->json(['success' => true, 'data' => new PurchaseOrderResource($order->load(['supplier', 'destination', 'items.variant.product', 'receipts.items']))]);
+    }
+
+    public function submit(PurchaseOrder $order, TenantContext $context, Request $request, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->assertTenant($order, $context);
+        Gate::authorize('manage', $order);
+        Gate::forUser($request->user())->authorize('write', $order->destination);
+        if ($order->status !== 'draft') {
+            throw new ConflictHttpException('Only draft purchase orders can be submitted.');
+        } $order->update(['status' => 'submitted', 'ordered_at' => now()]);
+        $auditLogger->record('inventory.purchase_order_submitted', $request->user(), $context->tenant(), $order);
+
+        return response()->json(['success' => true, 'data' => new PurchaseOrderResource($order->refresh())]);
+    }
+
+    public function receive(ReceivePurchaseOrderRequest $request, PurchaseOrder $order, TenantContext $context, GoodsReceivingService $service, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->assertTenant($order, $context);
+        Gate::authorize('manage', $order);
+        Gate::forUser($request->user())->authorize('write', $order->destination);
+        $key = $request->header('Idempotency-Key');
+        if (! $key) {
+            throw new UnprocessableEntityHttpException('Idempotency-Key is required for goods receiving.');
+        } $receipt = $service->receive($order, $request->validated()['items'], $request->user(), $key);
+        $auditLogger->record('inventory.goods_received', $request->user(), $context->tenant(), $receipt, ['purchase_order_id' => $order->uuid]);
+
+        return response()->json(['success' => true, 'data' => $receipt], 201);
+    }
+
+    private function assertTenant(PurchaseOrder $order, TenantContext $context): void
+    {
+        abort_unless((int) $order->tenant_id === (int) $context->tenant()->id, 404);
+    }
+
+    private function requireManager($user, int $tenantId): void
+    {
+        abort_unless($user->memberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereHas('role', fn ($q) => $q->whereIn('name', ['business_admin', 'inventory_manager']))->exists(), 403);
+    }
+
+    private function accessibleLocationIds($user, int $tenantId): Collection
+    {
+        $role = $user->memberships()->where('tenant_id', $tenantId)->where('status', 'active')->with('role')->first()?->role?->name;
+        if ($role === 'business_admin') {
+            return InventoryLocation::where('tenant_id', $tenantId)->pluck('id');
+        }
+        $storeIds = StoreMembership::where('tenant_id', $tenantId)->where('user_id', $user->id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id');
+
+        return InventoryLocation::where('tenant_id', $tenantId)->where(function ($query) use ($role, $storeIds): void {
+            $query->whereIn('store_id', $storeIds);
+            if ($role === 'inventory_manager') {
+                $query->orWhere('location_type', 'warehouse');
+            }
+        })->pluck('id');
+    }
+}

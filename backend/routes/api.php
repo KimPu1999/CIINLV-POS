@@ -1,14 +1,18 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BarcodeController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessDashboardController;
 use App\Http\Controllers\Api\V1\BusinessInvitationController;
 use App\Http\Controllers\Api\V1\BusinessProfileController;
 use App\Http\Controllers\Api\V1\BusinessSettingsController;
 use App\Http\Controllers\Api\V1\BusinessStoreController;
+use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CurrentUserStoreController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\InventoryController;
+use App\Http\Controllers\Api\V1\InventoryReportController;
 use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAdminController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAuditController;
@@ -16,10 +20,15 @@ use App\Http\Controllers\Api\V1\PlatformBusinessController;
 use App\Http\Controllers\Api\V1\PlatformBusinessInvitationController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PlatformTenantController;
+use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\PurchaseOrderController;
+use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\StoreDashboardController;
 use App\Http\Controllers\Api\V1\StoreDashboardLayoutController;
 use App\Http\Controllers\Api\V1\StoreMembershipController;
 use App\Http\Controllers\Api\V1\StoreSettingsController;
+use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -95,6 +104,45 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/stores/{store}/dashboard/layout', [StoreDashboardLayoutController::class, 'update']);
             Route::get('/stores/{store}/dashboard/widgets', [StoreDashboardController::class, 'widgets']);
             Route::put('/stores/{store}/dashboard/widgets', [StoreDashboardLayoutController::class, 'updateWidgets']);
+        });
+
+        Route::middleware('tenant.context.any')->group(function (): void {
+            Route::apiResource('categories', CategoryController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+            Route::get('/products/barcode/{barcode}', [BarcodeController::class, 'show']);
+            Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+            Route::post('/products/{product}/variants', [ProductController::class, 'variant']);
+            Route::post('/products/{product}/images', [ProductController::class, 'images']);
+            Route::apiResource('suppliers', SupplierController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+            Route::apiResource('warehouses', WarehouseController::class)->parameters(['warehouses' => 'warehouse'])->only(['index', 'store', 'show', 'update']);
+
+            Route::get('/inventory', [InventoryController::class, 'index']);
+            Route::get('/inventory/locations/{location}', [InventoryController::class, 'location']);
+            Route::get('/inventory/movements', [InventoryController::class, 'movements']);
+            Route::get('/inventory/low-stock', [InventoryController::class, 'lowStock']);
+            Route::get('/inventory/out-of-stock', [InventoryController::class, 'outOfStock']);
+            Route::post('/inventory/opening-stock', [InventoryController::class, 'opening']);
+            Route::post('/inventory/adjustments', [InventoryController::class, 'adjustment']);
+            Route::get('/inventory/adjustments', [InventoryController::class, 'adjustments']);
+
+            Route::get('/purchase-orders', [PurchaseOrderController::class, 'index']);
+            Route::post('/purchase-orders', [PurchaseOrderController::class, 'store']);
+            Route::get('/purchase-orders/{order}', [PurchaseOrderController::class, 'show']);
+            Route::post('/purchase-orders/{order}/submit', [PurchaseOrderController::class, 'submit']);
+            Route::post('/purchase-orders/{order}/receive', [PurchaseOrderController::class, 'receive']);
+
+            Route::get('/stock-transfers', [StockTransferController::class, 'index']);
+            Route::post('/stock-transfers', [StockTransferController::class, 'store']);
+            Route::get('/stock-transfers/{transfer}', [StockTransferController::class, 'show']);
+            Route::post('/stock-transfers/{transfer}/submit', [StockTransferController::class, 'submit']);
+            Route::post('/stock-transfers/{transfer}/approve', [StockTransferController::class, 'approve']);
+            Route::post('/stock-transfers/{transfer}/dispatch', [StockTransferController::class, 'dispatch']);
+            Route::post('/stock-transfers/{transfer}/receive', [StockTransferController::class, 'receive']);
+            Route::post('/stock-transfers/{transfer}/cancel', [StockTransferController::class, 'cancel']);
+
+            Route::get('/reports/inventory', [InventoryReportController::class, 'inventory']);
+            Route::get('/reports/stock-movements', [InventoryReportController::class, 'movements']);
+            Route::get('/reports/stock-transfers', [InventoryReportController::class, 'transfers']);
+            Route::get('/reports/stock-valuation', [InventoryReportController::class, 'valuation']);
         });
     });
 });

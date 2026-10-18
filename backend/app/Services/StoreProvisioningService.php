@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\DashboardLayout;
 use App\Models\DashboardWidget;
+use App\Models\InventoryLocation;
 use App\Models\Store;
 use App\Models\StoreSetting;
 use App\Models\Tenant;
@@ -48,6 +49,7 @@ class StoreProvisioningService
             ]);
 
             StoreSetting::create(['tenant_id' => $tenantId, 'store_id' => $store->getKey()]);
+            InventoryLocation::create(['tenant_id' => $tenantId, 'location_type' => 'store', 'store_id' => $store->getKey(), 'name' => $store->name.' Stockroom', 'code' => $store->code, 'status' => 'active']);
             $this->createDashboardDefaults($store);
 
             $this->auditLogger->record('business.store_created', $actor, $tenant, $store, [
