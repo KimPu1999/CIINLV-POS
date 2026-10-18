@@ -84,6 +84,49 @@ php artisan test
 
 The test suite covers the health response, database connectivity, Sanctum-protected `/me`, and JSON API 404 behavior.
 
+## Phase 2 authentication
+
+Web clients use the `web` session guard through Sanctum. A React SPA should first request `/sanctum/csrf-cookie`, then send credentialed requests with the CSRF header; do not store session or bearer credentials in `localStorage`. Configure `SANCTUM_STATEFUL_DOMAINS`, `CORS_ALLOWED_ORIGINS`, and `CORS_SUPPORTS_CREDENTIALS=true` for the deployed SPA. Production must use HTTPS and `SESSION_SECURE_COOKIE=true`.
+
+Mobile clients send `client_type=mobile` and a validated `device_name` to `/api/v1/auth/login`. The response contains a device-specific Sanctum token with minimal `auth:mobile` ability and a 30-day expiry by default. Store it only in Flutter secure platform storage. `/api/v1/auth/logout` revokes the current token.
+
+Authentication endpoints:
+
+```text
+POST /api/v1/auth/login
+POST /api/v1/auth/logout
+GET  /api/v1/auth/me
+POST /api/v1/auth/change-password
+POST /api/v1/auth/forgot-password
+POST /api/v1/auth/reset-password
+```
+
+Provision the first platform administrator interactively; no default credentials are created:
+
+```bash
+php artisan ciinlv:create-super-admin
+```
+
+Platform management requires a Sanctum-authenticated user with the database-backed `users.platform_role=super_admin`. Business APIs require an active `tenant_memberships` row with a tenant-scoped `business_admin` role. The server validates `X-Tenant-Id` against that membership; changing the header cannot cross tenant boundaries.
+
+Platform dashboard and tenant management APIs:
+
+```text
+GET    /api/v1/platform/dashboard
+GET    /api/v1/platform/tenants
+POST   /api/v1/platform/tenants
+GET    /api/v1/platform/tenants/{uuid}
+PATCH  /api/v1/platform/tenants/{uuid}
+POST   /api/v1/platform/tenants/{uuid}/suspend
+POST   /api/v1/platform/tenants/{uuid}/activate
+POST   /api/v1/platform/tenants/{uuid}/admins
+GET    /api/v1/platform/tenants/{uuid}/admins
+PATCH  /api/v1/platform/tenants/{uuid}/admins/{userId}
+DELETE /api/v1/platform/tenants/{uuid}/admins/{userId}
+```
+
+Tenant and store primary keys remain the Phase 1 integer keys for compatibility. New unique UUID columns are used as public API identifiers and route keys. PostgreSQL RLS remains a planned defense-in-depth layer; application tenant context and policy checks are active now, with RLS deferred until the connection-role and transaction-local context design is finalized.
+
 ## Multi-tenant foundation
 
 The initial schema contains:

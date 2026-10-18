@@ -5,14 +5,27 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Tenant extends Model
 {
-    protected $fillable = ['name', 'slug', 'status', 'settings'];
+    protected $fillable = ['name', 'slug', 'status', 'subscription_status', 'settings'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Tenant $tenant): void {
+            $tenant->uuid ??= (string) Str::uuid();
+        });
+    }
 
     protected function casts(): array
     {
         return ['settings' => 'array'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 
     public function users(): BelongsToMany
@@ -30,5 +43,10 @@ class Tenant extends Model
     public function roles(): HasMany
     {
         return $this->hasMany(Role::class);
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(TenantMembership::class);
     }
 }
