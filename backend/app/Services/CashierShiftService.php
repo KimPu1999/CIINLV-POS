@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\CashierShiftClosed;
 use App\Models\CashierShift;
 use App\Models\CashMovement;
 use App\Models\PosRegister;
@@ -57,7 +58,7 @@ class CashierShiftService
 
     public function close(CashierShift $shift, User $actor, string $actualAmount): CashierShift
     {
-        return DB::transaction(function () use ($shift, $actor, $actualAmount): CashierShift {
+        $closed = DB::transaction(function () use ($shift, $actor, $actualAmount): CashierShift {
             $shift = CashierShift::whereKey($shift->id)->lockForUpdate()->with('store', 'register')->firstOrFail();
             if ($shift->status !== 'open') {
                 throw new ConflictHttpException('This cashier shift is already closed.');
@@ -78,6 +79,9 @@ class CashierShiftService
 
             return $shift->fresh(['store', 'register', 'cashier']);
         });
+        event(new CashierShiftClosed($closed->loadMissing(['tenant', 'store'])));
+
+        return $closed;
     }
 
     public function movement(CashierShift $shift, User $actor, string $type, string $amount, string $reason, string $idempotencyKey): CashMovement

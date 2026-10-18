@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Events\StockUpdated;
+use App\Jobs\EvaluateLowStock;
+use App\Jobs\RefreshReportingCache;
 use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
 use App\Models\ProductVariant;
@@ -15,7 +18,7 @@ class InventoryService
 {
     public function mutate(InventoryLocation $location, ProductVariant $variant, string $type, string $delta, User $actor, ?string $referenceType = null, ?string $referenceId = null, ?string $reason = null, ?string $idempotencyKey = null, ?string $unitCost = null): StockMovement
     {
-        return DB::transaction(function () use ($location, $variant, $type, $delta, $actor, $referenceType, $referenceId, $reason, $idempotencyKey, $unitCost): StockMovement {
+        $movement = DB::transaction(function () use ($location, $variant, $type, $delta, $actor, $referenceType, $referenceId, $reason, $idempotencyKey, $unitCost): StockMovement {
             $this->assertPair($location, $variant);
             if ($idempotencyKey && ($existing = StockMovement::where('tenant_id', $location->tenant_id)->where('idempotency_key', $idempotencyKey)->first())) {
                 return $existing;
@@ -31,6 +34,11 @@ class InventoryService
 
             return StockMovement::create(['tenant_id' => $location->tenant_id, 'inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'movement_type' => $type, 'quantity_delta' => $delta, 'quantity_before' => $before, 'quantity_after' => $after, 'reference_type' => $referenceType, 'reference_id' => $referenceId, 'reason' => $reason, 'actor_user_id' => $actor->id, 'idempotency_key' => $idempotencyKey]);
         });
+        event(new StockUpdated($location->loadMissing(['tenant', 'store']), $variant, (string) $movement->quantity_after));
+        EvaluateLowStock::dispatch($location->id, $variant->id)->afterCommit();
+        RefreshReportingCache::dispatch((int) $location->tenant_id)->afterCommit();
+
+        return $movement;
     }
 
     public function reserve(InventoryLocation $location, ProductVariant $variant, string $quantity): void

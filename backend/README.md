@@ -384,6 +384,66 @@ The initial schema contains:
 
 Every business-owned table starts with a `tenant_id` foreign key and indexes supporting tenant filtering. PostgreSQL Row-Level Security is intentionally deferred until request-scoped tenant resolution, connection role strategy, and policy tests are defined together in a later phase.
 
+## Phase 7 reports, analytics, alerts, exports, and real-time channels
+
+Phase 7 adds tenant/store-scoped reporting services and APIs backed by the existing Phase 5/6 ledger:
+
+```text
+GET /api/v1/dashboard/overview|sales-summary|inventory-summary|low-stock|recent-sales|top-products
+GET /api/v1/reports/sales/daily|weekly|monthly|custom
+GET /api/v1/reports/sales/by-payment-method|by-cashier
+GET /api/v1/reports/inventory/valuation|by-location|movements|low-stock|out-of-stock
+GET /api/v1/reports/profit/summary|by-product|by-branch
+GET /api/v1/reports/branches|comparison|{storeUuid}
+GET /api/v1/alerts|unread-count
+POST /api/v1/alerts/{alertUuid}/acknowledge
+GET|PATCH /api/v1/alerts/preferences
+POST /api/v1/reports/exports
+GET /api/v1/reports/exports|{exportUuid}|{exportUuid}/download
+```
+
+Reporting conventions are explicit:
+
+- Completed-sale metrics use `sales.completed_at`; verified collections use `payments.verified_at`; successful refunds use `refunds.processed_at`. Pending payments, held sales, and cancelled sales are excluded from collected revenue.
+- Date boundaries use the tenant `business_settings.timezone`, then convert to UTC for PostgreSQL. Responses include the basis and timezone.
+- Net sales before tax is merchandise subtotal minus discounts. Gross profit is net sales before tax minus `sale_items.quantity * unit_cost_at_sale`; it is not net profit.
+- Current valuation uses the Phase 5 weighted-average `inventory_balances.average_cost` and on-hand quantity. Same-tenant transfers do not create revenue. Arbitrary historical as-of valuation returns an explicit unavailable reason because the existing ledger has no valuation layers.
+- Low-stock state is on-hand minus reserved quantity against the variant reorder level. `stock_alerts` suppresses duplicate open alerts, records acknowledgements, and reopens a resolved condition when stock falls again.
+
+Exports are queued private local-disk files with a 24-hour expiry. CSV values beginning with `=`, `+`, `-`, or `@` are neutralized against spreadsheet formula injection. PDF exports use the installed Dompdf package; XLSX is intentionally not advertised until a spreadsheet package is selected. Download authorization is rechecked against the requesting user and tenant.
+
+The reporting cache key includes tenant, authorized store scope, metric, date filters, currency, and timezone. Local development defaults to the file cache and synchronous queue. Redis can be enabled with `CACHE_STORE=redis`, `QUEUE_CONNECTION=redis`, and a running Redis server. Stock alert evaluation is dispatched after successful inventory transactions.
+
+Broadcast events and private channel authorization are included for completed sales, verified payments, refunds, stock changes, low-stock changes, transfer receipts, and cashier shift closure. Channels are authorized against active tenant membership and store assignment in `routes/channels.php`; payloads contain identifiers and summary values only. Packagist DNS was unavailable during this implementation, so the safe default is the `null` broadcaster and live WebSocket delivery is not claimed. With network access, install and run Reverb:
+
+```bash
+composer require laravel/reverb
+php artisan reverb:install
+php artisan reverb:start
+```
+
+Then set `BROADCAST_CONNECTION=reverb` and the `REVERB_*` values in an uncommitted `.env`.
+
+Phase 7 verification commands:
+
+```bash
+cd /Users/kimpu/Desktop/CIINLV/CIINLV-POS/backend
+php artisan migrate --force
+APP_ENV=testing php artisan migrate --force
+vendor/bin/pint --test
+php artisan test
+php artisan route:list --path=api/v1/dashboard
+php artisan route:list --path=api/v1/reports
+```
+
+Example report requests:
+
+```bash
+curl "$API/dashboard/overview" -H "Authorization: Bearer $TOKEN" -H "X-Tenant-Id: $TENANT_UUID" -H 'Accept: application/json'
+curl "$API/reports/sales/custom?from=2026-10-01&to=2026-10-18" -H "Authorization: Bearer $TOKEN" -H "X-Tenant-Id: $TENANT_UUID" -H 'Accept: application/json'
+curl -X POST "$API/reports/exports" -H "Authorization: Bearer $TOKEN" -H "X-Tenant-Id: $TENANT_UUID" -H 'Content-Type: application/json' -d '{"report_type":"sales","format":"csv","from":"2026-10-01","to":"2026-10-18"}'
+```
+
 ## Structure
 
 ```text

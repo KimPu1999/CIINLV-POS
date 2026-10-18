@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\PaymentVerified;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\User;
@@ -16,7 +17,7 @@ class PosPaymentService
 
     public function add(Sale $sale, array $payload, User $actor, string $idempotencyKey): Payment
     {
-        return DB::transaction(function () use ($sale, $payload, $actor, $idempotencyKey): Payment {
+        $payment = DB::transaction(function () use ($sale, $payload, $actor, $idempotencyKey): Payment {
             $sale = Sale::whereKey($sale->id)->lockForUpdate()->with('store')->firstOrFail();
             if (! $this->access->canOperate($actor, $sale->store)) {
                 throw new AccessDeniedHttpException('You cannot accept payments in this store.');
@@ -53,11 +54,16 @@ class PosPaymentService
 
             return $payment;
         });
+        if ($payment->status === 'verified') {
+            event(new PaymentVerified($payment->loadMissing(['tenant', 'store', 'sale'])));
+        }
+
+        return $payment;
     }
 
     public function verify(Payment $payment, array $payload, User $actor): Payment
     {
-        return DB::transaction(function () use ($payment, $payload, $actor): Payment {
+        $verified = DB::transaction(function () use ($payment, $payload, $actor): Payment {
             $payment = Payment::whereKey($payment->id)->lockForUpdate()->with(['sale', 'store'])->firstOrFail();
             if (! $this->access->canManage($actor, $payment->store)) {
                 throw new AccessDeniedHttpException('Only an authorized manager can verify external payments.');
@@ -81,5 +87,8 @@ class PosPaymentService
 
             return $payment->fresh();
         });
+        event(new PaymentVerified($verified->loadMissing(['tenant', 'store', 'sale'])));
+
+        return $verified;
     }
 }

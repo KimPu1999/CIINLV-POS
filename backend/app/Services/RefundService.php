@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\SaleRefunded;
+use App\Jobs\RefreshReportingCache;
 use App\Models\CashierShift;
 use App\Models\CashMovement;
 use App\Models\InventoryLocation;
@@ -21,7 +23,7 @@ class RefundService
 
     public function process(SaleReturn $return, array $payload, User $actor, string $idempotencyKey): Refund
     {
-        return DB::transaction(function () use ($return, $payload, $actor, $idempotencyKey): Refund {
+        $refund = DB::transaction(function () use ($return, $payload, $actor, $idempotencyKey): Refund {
             $return = SaleReturn::whereKey($return->id)->lockForUpdate()->with(['sale', 'store', 'items.variant'])->firstOrFail();
             if (! $this->access->canManage($actor, $return->store)) {
                 throw new AccessDeniedHttpException('Only an authorized manager can process refunds.');
@@ -75,5 +77,11 @@ class RefundService
 
             return $refund->fresh(['return', 'payment']);
         });
+        if ($refund->status === 'succeeded') {
+            event(new SaleRefunded($refund->loadMissing(['tenant', 'store', 'sale'])));
+            RefreshReportingCache::dispatch((int) $refund->tenant_id)->afterCommit();
+        }
+
+        return $refund;
     }
 }

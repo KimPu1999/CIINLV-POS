@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\StockTransferDispatched;
+use App\Events\StockTransferReceived;
 use App\Models\InventoryLocation;
 use App\Models\ProductVariant;
 use App\Models\StockTransfer;
@@ -43,7 +45,7 @@ class StockTransferService
 
     public function dispatch(StockTransfer $transfer, User $actor): StockTransfer
     {
-        return DB::transaction(function () use ($transfer, $actor): StockTransfer {
+        $dispatched = DB::transaction(function () use ($transfer, $actor): StockTransfer {
             $transfer = StockTransfer::whereKey($transfer->id)->lockForUpdate()->with('items.variant', 'source')->firstOrFail();
             if ($transfer->status !== 'approved') {
                 throw new ConflictHttpException('Only approved transfers can be dispatched.');
@@ -56,11 +58,14 @@ class StockTransferService
 
             return $transfer->fresh('items.variant');
         });
+        event(new StockTransferDispatched($dispatched->loadMissing('tenant')));
+
+        return $dispatched;
     }
 
     public function receive(StockTransfer $transfer, array $items, User $actor, string $idempotencyKey): StockTransfer
     {
-        return DB::transaction(function () use ($transfer, $items, $actor, $idempotencyKey): StockTransfer {
+        $received = DB::transaction(function () use ($transfer, $items, $actor, $idempotencyKey): StockTransfer {
             $transfer = StockTransfer::whereKey($transfer->id)->lockForUpdate()->with('items.variant', 'destination')->firstOrFail();
             $existingReceipt = StockTransferReceipt::where('tenant_id', $transfer->tenant_id)
                 ->where('idempotency_key', $idempotencyKey)
@@ -106,6 +111,9 @@ class StockTransferService
 
             return $transfer->fresh('items.variant');
         });
+        event(new StockTransferReceived($received->loadMissing('tenant')));
+
+        return $received;
     }
 
     public function cancel(StockTransfer $transfer): StockTransfer

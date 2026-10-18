@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Events\SaleCompleted;
+use App\Jobs\RefreshReportingCache;
 use App\Models\CashierShift;
 use App\Models\CashMovement;
 use App\Models\InventoryBalance;
@@ -83,7 +85,7 @@ class PosSaleService
 
     public function complete(Sale $sale, User $actor): Sale
     {
-        return DB::transaction(function () use ($sale, $actor): Sale {
+        $completed = DB::transaction(function () use ($sale, $actor): Sale {
             $sale = Sale::whereKey($sale->id)->lockForUpdate()->with(['items.variant.product', 'store', 'register'])->firstOrFail();
             if ($sale->status === 'completed' || $sale->status === 'partially_refunded' || $sale->status === 'refunded') {
                 return $sale->load(['items.variant', 'payments', 'store', 'register', 'receipt']);
@@ -129,6 +131,12 @@ class PosSaleService
 
             return $sale->fresh(['items.variant', 'payments', 'store', 'register', 'receipt']);
         });
+        if ($completed->status === 'completed') {
+            event(new SaleCompleted($completed->loadMissing(['tenant', 'store'])));
+            RefreshReportingCache::dispatch((int) $completed->tenant_id)->afterCommit();
+        }
+
+        return $completed;
     }
 
     public function hold(Sale $sale, User $actor): Sale

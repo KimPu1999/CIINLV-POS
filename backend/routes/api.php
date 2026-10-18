@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\BusinessStoreController;
 use App\Http\Controllers\Api\V1\CashierShiftController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CurrentUserStoreController;
+use App\Http\Controllers\Api\V1\DashboardOverviewController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\InventoryReportController;
@@ -31,7 +32,11 @@ use App\Http\Controllers\Api\V1\PosReportController;
 use App\Http\Controllers\Api\V1\PosReturnController;
 use App\Http\Controllers\Api\V1\PosSaleController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProfitReportController;
 use App\Http\Controllers\Api\V1\PurchaseOrderController;
+use App\Http\Controllers\Api\V1\ReportExportController;
+use App\Http\Controllers\Api\V1\SalesReportController;
+use App\Http\Controllers\Api\V1\StockAlertController;
 use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\StoreDashboardController;
 use App\Http\Controllers\Api\V1\StoreDashboardLayoutController;
@@ -117,6 +122,41 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::middleware('tenant.context.any')->group(function (): void {
+            Route::get('/dashboard/overview', [DashboardOverviewController::class, 'overview']);
+            Route::get('/dashboard/sales-summary', [DashboardOverviewController::class, 'salesSummary']);
+            Route::get('/dashboard/inventory-summary', [DashboardOverviewController::class, 'inventorySummary']);
+            Route::get('/dashboard/low-stock', [DashboardOverviewController::class, 'lowStock']);
+            Route::get('/dashboard/recent-sales', [DashboardOverviewController::class, 'recentSales']);
+            Route::get('/dashboard/top-products', [DashboardOverviewController::class, 'topProducts']);
+
+            Route::get('/reports/sales/daily', [SalesReportController::class, 'daily']);
+            Route::get('/reports/sales/weekly', [SalesReportController::class, 'weekly']);
+            Route::get('/reports/sales/monthly', [SalesReportController::class, 'monthly']);
+            Route::get('/reports/sales/custom', [SalesReportController::class, 'custom']);
+            Route::get('/reports/sales/by-payment-method', [SalesReportController::class, 'byPaymentMethod']);
+            Route::get('/reports/sales/by-cashier', [SalesReportController::class, 'byCashier']);
+            Route::get('/reports/inventory/valuation', [InventoryReportController::class, 'valuationDetail']);
+            Route::get('/reports/inventory/by-location', [InventoryReportController::class, 'byLocation']);
+            Route::get('/reports/inventory/movements', [InventoryReportController::class, 'movementsDetail']);
+            Route::get('/reports/inventory/low-stock', [InventoryReportController::class, 'lowStockDetail']);
+            Route::get('/reports/inventory/out-of-stock', [InventoryReportController::class, 'outOfStockDetail']);
+            Route::get('/reports/profit/summary', [ProfitReportController::class, 'summary']);
+            Route::get('/reports/profit/by-product', [ProfitReportController::class, 'byProduct']);
+            Route::get('/reports/profit/by-branch', [ProfitReportController::class, 'byBranch']);
+            Route::get('/reports/branches', [ProfitReportController::class, 'byBranch']);
+            Route::get('/reports/branches/comparison', [ProfitReportController::class, 'byBranch']);
+            Route::get('/reports/branches/{store}', [ProfitReportController::class, 'byBranch']);
+
+            Route::get('/alerts', [StockAlertController::class, 'index']);
+            Route::get('/alerts/unread-count', [StockAlertController::class, 'unreadCount']);
+            Route::post('/alerts/{alert}/acknowledge', [StockAlertController::class, 'acknowledge']);
+            Route::get('/alerts/preferences', [StockAlertController::class, 'preferences']);
+            Route::patch('/alerts/preferences', [StockAlertController::class, 'updatePreferences']);
+            Route::post('/reports/exports', [ReportExportController::class, 'store']);
+            Route::get('/reports/exports', [ReportExportController::class, 'index']);
+            Route::get('/reports/exports/{export}', [ReportExportController::class, 'show']);
+            Route::get('/reports/exports/{export}/download', [ReportExportController::class, 'download']);
+
             Route::apiResource('categories', CategoryController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
             Route::get('/products/barcode/{barcode}', [BarcodeController::class, 'show']);
             Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
