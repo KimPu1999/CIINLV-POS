@@ -47,6 +47,16 @@ class User extends Authenticatable
         return $this->hasMany(StoreMembership::class);
     }
 
+    public function cashierShifts(): HasMany
+    {
+        return $this->hasMany(CashierShift::class, 'cashier_user_id');
+    }
+
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class, 'cashier_user_id');
+    }
+
     public function getIsSuperAdminAttribute(): bool
     {
         return $this->platform_role === self::PLATFORM_ROLE_SUPER_ADMIN;

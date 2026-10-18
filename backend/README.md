@@ -310,6 +310,68 @@ php artisan serve --host=127.0.0.1 --port=8000
 
 The test database must be separate from development and production databases. Never use `migrate:fresh`, `db:wipe`, or destructive reset commands against a real environment. PostgreSQL RLS remains prepared but is not enabled; application tenant/location authorization and database constraints are active until a non-owner RLS role and connection-pool context reset strategy are deployed together.
 
+## Phase 6 POS sales, payments, receipts, and returns
+
+Phase 6 adds tenant/store-scoped POS registers, register cashier assignments, cashier shifts, cash movements, immutable sale snapshots, split payments, receipt records/PDFs, returns, refunds, and POS reports. Internal integer keys remain compatible with earlier phases; public API resources use UUIDs.
+
+Core POS endpoints:
+
+```text
+GET|POST|PATCH /api/v1/pos/registers
+GET|POST|DELETE /api/v1/pos/registers/{register}/members
+POST            /api/v1/pos/shifts/open
+GET             /api/v1/pos/shifts/current
+GET             /api/v1/pos/shifts
+POST            /api/v1/pos/shifts/{shift}/close
+POST            /api/v1/pos/shifts/{shift}/cash-movements
+POST            /api/v1/pos/checkout/preview
+GET|POST        /api/v1/pos/sales
+GET             /api/v1/pos/sales/{sale}
+POST            /api/v1/pos/sales/{sale}/hold|resume|cancel|complete
+GET|POST        /api/v1/pos/sales/{sale}/payments
+POST            /api/v1/pos/payments/{payment}/verify
+GET             /api/v1/pos/sales/{sale}/receipt
+GET             /api/v1/pos/sales/{sale}/receipt/pdf?format=58mm|80mm|a4
+GET             /api/v1/pos/returns
+POST            /api/v1/pos/sales/{sale}/returns
+POST            /api/v1/pos/returns/{return}/approve|refund
+GET             /api/v1/pos/reports/daily|payments|cashiers|returns
+```
+
+Checkout prices, taxes, stock, totals, payment state, and sale snapshots are calculated server-side. Held sales do not reserve inventory; completion revalidates and locks current stock. Completed sales deduct inventory through `InventoryService` and append `sale` movements exactly once. Cash overpayment is represented as `change_due`; only the retained cash amount enters reconciliation.
+
+Cash is verified immediately. Card terminal, QR, and bank-transfer payments remain `pending` until trusted provider integration is added or an explicitly enabled, authorized manual reconciliation is used. Set `POS_ALLOW_MANUAL_PAYMENT_VERIFICATION=true` only for a controlled reconciliation workflow; the API never treats a client screenshot or client-side success flag as proof of payment. No raw card number, CVV, or authentication data is stored.
+
+Receipts are generated from completed persisted sale data using Dompdf. `58mm`, `80mm`, and `a4` formats are supported. Return requests reserve refundable quantities while pending/approved, approval is manager-only, cash refunds are transactional and can restock only `sellable` items, and external refunds remain pending until a provider callback is implemented.
+
+Phase 6 verification commands:
+
+```bash
+cd /Users/kimpu/Desktop/CIINLV/CIINLV-POS/backend
+php artisan migrate --force
+APP_ENV=testing php artisan migrate --force
+vendor/bin/pint --test
+php artisan test
+php artisan route:list --path=api/v1/pos
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Example request sequence after authentication and register/cashier assignment:
+
+```bash
+export API=http://127.0.0.1:8000/api/v1
+export TENANT_UUID=<business-uuid>
+export STORE_UUID=<store-uuid>
+export REGISTER_UUID=<register-uuid>
+export VARIANT_UUID=<variant-uuid>
+export TOKEN=<sanctum-token>
+
+curl -X POST "$API/pos/shifts/open" -H "Authorization: Bearer $TOKEN" -H "X-Tenant-Id: $TENANT_UUID" -H 'Content-Type: application/json' -d "{\"store_id\":\"$STORE_UUID\",\"register_id\":\"$REGISTER_UUID\",\"opening_amount\":100000}"
+curl -X POST "$API/pos/checkout/preview" -H "Authorization: Bearer $TOKEN" -H "X-Tenant-Id: $TENANT_UUID" -H 'Content-Type: application/json' -d "{\"store_id\":\"$STORE_UUID\",\"items\":[{\"variant_id\":\"$VARIANT_UUID\",\"quantity\":1}]}"
+```
+
+Phase 6 does not include a live card, QR, bank, or refund provider integration because provider credentials and PCI-compliant contracts were not supplied. Those payment states are deliberately pending until a trusted adapter/callback is configured. React and Flutter clients are not included.
+
 ## Multi-tenant foundation
 
 The initial schema contains:

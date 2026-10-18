@@ -106,4 +106,19 @@ class Tenant extends Model
     {
         return $this->hasMany(StockMovement::class);
     }
+
+    public function registers(): HasMany
+    {
+        return $this->hasMany(PosRegister::class);
+    }
+
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
 }

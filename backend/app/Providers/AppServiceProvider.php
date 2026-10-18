@@ -3,16 +3,26 @@
 namespace App\Providers;
 
 use App\Models\InventoryLocation;
+use App\Models\Payment;
+use App\Models\PosRegister;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\Refund;
+use App\Models\Sale;
+use App\Models\SaleReturn;
 use App\Models\StockAdjustment;
 use App\Models\StockTransfer;
 use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Tenant;
 use App\Policies\InventoryPolicy;
+use App\Policies\PaymentPolicy;
+use App\Policies\PosRegisterPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\PurchaseOrderPolicy;
+use App\Policies\RefundPolicy;
+use App\Policies\ReturnPolicy;
+use App\Policies\SalePolicy;
 use App\Policies\StockAdjustmentPolicy;
 use App\Policies\StockTransferPolicy;
 use App\Policies\StoreMembershipPolicy;
@@ -47,6 +57,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(StoreMembership::class, StoreMembershipPolicy::class);
         Gate::policy(InventoryLocation::class, InventoryPolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
+        Gate::policy(PosRegister::class, PosRegisterPolicy::class);
+        Gate::policy(Sale::class, SalePolicy::class);
+        Gate::policy(Payment::class, PaymentPolicy::class);
+        Gate::policy(SaleReturn::class, ReturnPolicy::class);
+        Gate::policy(Refund::class, RefundPolicy::class);
         Gate::policy(PurchaseOrder::class, PurchaseOrderPolicy::class);
         Gate::policy(StockTransfer::class, StockTransferPolicy::class);
         Gate::policy(StockAdjustment::class, StockAdjustmentPolicy::class);

@@ -1,0 +1,148 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\InventoryLocation;
+use App\Models\Product;
+use App\Models\Role;
+use App\Models\Store;
+use App\Models\StoreMembership;
+use App\Models\Tenant;
+use App\Models\TenantMembership;
+use App\Models\User;
+use App\Services\InventoryService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Tests\TestCase;
+
+class PhaseSixPosTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_cash_sale_is_server_priced_idempotent_deducts_stock_and_generates_receipt_pdf(): void
+    {
+        [$tenant, $admin, $cashier, $store, $location, $variant] = $this->posFixture('BUS-A', 'cash-sale');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $registerId = $this->register($admin, $store, $headers);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $registerId, 'opening_amount' => 100])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/checkout/preview', ['store_id' => $store->uuid, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 2]], 'discount_amount' => 999999])->assertStatus(403);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/checkout/preview', ['store_id' => $store->uuid, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 2]]])->assertOk()->assertJsonPath('data.grand_total', '20.00');
+        $salePayload = ['store_id' => $store->uuid, 'register_id' => $registerId, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 2]]];
+        $sale = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'sale-cash-1')->postJson('/api/v1/pos/sales', $salePayload)->assertCreated();
+        $saleId = $sale->json('data.id');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'sale-cash-1')->postJson('/api/v1/pos/sales', $salePayload)->assertCreated();
+        $this->assertDatabaseCount('sales', 1);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'payment-cash-1')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'cash', 'amount' => 25])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk()->assertJsonPath('data.change_due', '5.00');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk();
+        $shiftId = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/current')->assertOk()->json('data.id');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shiftId.'/close', ['actual_amount' => 120])->assertOk()->assertJsonPath('data.expected_amount', '120.00');
+        $this->assertDatabaseHas('inventory_balances', ['inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 8]);
+        $this->assertDatabaseCount('stock_movements', 2);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/sales/'.$saleId.'/receipt')->assertOk()->assertJsonPath('data.content.grand_total', '20.00');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->get('/api/v1/pos/sales/'.$saleId.'/receipt/pdf?format=58mm')->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_unverified_external_payment_cannot_complete_and_authorized_manual_verification_is_idempotent(): void
+    {
+        [$tenant, $admin, $cashier, $store, $location, $variant] = $this->posFixture('BUS-A', 'card-sale');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $store, $headers);
+        $this->openShift($cashier, $store, $register, $headers);
+        $sale = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'sale-card-1')->postJson('/api/v1/pos/sales', ['store_id' => $store->uuid, 'register_id' => $register, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 1]]])->assertCreated();
+        $saleId = $sale->json('data.id');
+        $payment = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'payment-card-1')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'card_terminal', 'amount' => 10, 'provider' => 'terminal-dev', 'external_reference' => 'TERM-001'])->assertCreated();
+        $paymentId = $payment->json('data.id');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertUnprocessable();
+        config(['pos.allow_manual_payment_verification' => true]);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/payments/'.$paymentId.'/verify', ['provider' => 'terminal-dev', 'external_reference' => 'TERM-001', 'verification_note' => 'Authorized terminal reconciliation'])->assertOk();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/payments/'.$paymentId.'/verify', ['provider' => 'terminal-dev', 'external_reference' => 'TERM-001', 'verification_note' => 'Retry'])->assertOk();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk();
+        $this->assertDatabaseHas('payments', ['uuid' => $paymentId, 'status' => 'verified']);
+        config(['pos.allow_manual_payment_verification' => false]);
+    }
+
+    public function test_cross_tenant_sale_access_and_unassigned_cashier_access_are_blocked(): void
+    {
+        [$tenantA, $adminA, $cashierA, $storeA, $locationA, $variantA] = $this->posFixture('BUS-A', 'tenant-a');
+        [$tenantB, $adminB, $cashierB, $storeB] = $this->posFixture('BUS-B', 'tenant-b');
+        $headersA = ['X-Tenant-Id' => $tenantA->uuid];
+        $registerA = $this->register($adminA, $storeA, $headersA);
+        $this->openShift($cashierA, $storeA, $registerA, $headersA);
+        $sale = $this->actingAs($cashierA, 'sanctum')->withHeaders($headersA)->withHeader('Idempotency-Key', 'sale-tenant-a')->postJson('/api/v1/pos/sales', ['store_id' => $storeA->uuid, 'register_id' => $registerA, 'items' => [['variant_id' => $variantA->uuid, 'quantity' => 1]]])->assertCreated();
+        $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/pos/sales/'.$sale->json('data.id'))->assertNotFound();
+        $this->actingAs($cashierB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->postJson('/api/v1/pos/shifts/open', ['store_id' => $storeA->uuid, 'register_id' => $registerA, 'opening_amount' => 0])->assertNotFound();
+        $this->assertNotSame($tenantA->id, $tenantB->id);
+    }
+
+    public function test_partial_cash_return_restock_and_duplicate_refund_are_safe(): void
+    {
+        [$tenant, $admin, $cashier, $store, $location, $variant] = $this->posFixture('BUS-A', 'returns');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $store, $headers);
+        $this->openShift($cashier, $store, $register, $headers);
+        $sale = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'sale-return-1')->postJson('/api/v1/pos/sales', ['store_id' => $store->uuid, 'register_id' => $register, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 3]]])->assertCreated();
+        $saleId = $sale->json('data.id');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'payment-return-1')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'cash', 'amount' => 30])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk();
+        $saleItemId = $sale->json('data.items.0.id');
+        $return = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'return-1')->postJson('/api/v1/pos/sales/'.$saleId.'/returns', ['reason' => 'Customer changed mind', 'items' => [['sale_item_id' => $saleItemId, 'quantity' => 1, 'restock' => true, 'disposition' => 'sellable']]])->assertCreated();
+        $returnId = $return->json('data.id');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/returns/'.$returnId.'/approve')->assertOk();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'refund-1')->postJson('/api/v1/pos/returns/'.$returnId.'/refund', ['method' => 'cash'])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'refund-1')->postJson('/api/v1/pos/returns/'.$returnId.'/refund', ['method' => 'cash'])->assertCreated();
+        $this->assertDatabaseHas('inventory_balances', ['inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 8]);
+        $this->assertDatabaseCount('refunds', 1);
+        $this->assertDatabaseHas('sale_items', ['uuid' => $saleItemId, 'returned_quantity' => 1]);
+    }
+
+    public function test_duplicate_open_shift_is_rejected_and_reconciliation_uses_cash_tender_after_change(): void
+    {
+        [$tenant, $admin, $cashier, $store] = $this->posFixture('BUS-A', 'shift');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $store, $headers);
+        $this->openShift($cashier, $store, $register, $headers);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => 100])->assertConflict();
+        $shift = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/current')->assertOk()->json('data.id');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-in-1')->postJson('/api/v1/pos/shifts/'.$shift.'/cash-movements', ['type' => 'cash_in', 'amount' => 10, 'reason' => 'Till top-up'])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shift.'/close', ['actual_amount' => 110])->assertOk()->assertJsonPath('data.cash_difference', '0.00');
+    }
+
+    private function posFixture(string $code, string $suffix): array
+    {
+        $tenant = Tenant::create(['name' => $code, 'slug' => strtolower($code.'-'.$suffix), 'business_code' => $code.'-'.strtoupper(substr($suffix, 0, 3)), 'status' => 'active', 'subscription_status' => 'active']);
+        $admin = $this->userWithMembership($tenant, 'admin-'.$suffix.'@example.com', 'business_admin');
+        $cashier = $this->userWithMembership($tenant, 'cashier-'.$suffix.'@example.com', 'cashier');
+        $store = Store::create(['tenant_id' => $tenant->id, 'name' => 'Store '.$suffix, 'code' => 'STORE-'.strtoupper(substr($suffix, 0, 3)), 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $admin->id]);
+        StoreMembership::create(['tenant_id' => $tenant->id, 'store_id' => $store->id, 'user_id' => $cashier->id, 'role' => 'cashier', 'status' => 'active', 'assigned_by' => $admin->id, 'assigned_at' => now()]);
+        $location = InventoryLocation::create(['tenant_id' => $tenant->id, 'location_type' => 'store', 'store_id' => $store->id, 'name' => 'Store Stockroom', 'code' => 'STOCK-'.strtoupper(substr($suffix, 0, 3)), 'status' => 'active']);
+        $product = Product::create(['tenant_id' => $tenant->id, 'name' => 'Coffee '.$suffix, 'slug' => strtolower('coffee-'.$suffix), 'status' => 'active', 'track_inventory' => true, 'created_by' => $admin->id]);
+        $variant = $product->variants()->create(['tenant_id' => $tenant->id, 'sku' => 'SKU-'.strtoupper(substr($suffix, 0, 3)), 'selling_price' => 10, 'purchase_cost' => 5, 'status' => 'active']);
+        app(InventoryService::class)->mutate($location, $variant, 'opening_stock', '10', $admin, 'test', 'opening-'.$suffix, null, 'test-opening', '5');
+
+        return [$tenant, $admin, $cashier, $store, $location, $variant];
+    }
+
+    private function userWithMembership(Tenant $tenant, string $email, string $roleName): User
+    {
+        $role = Role::firstOrCreate(['tenant_id' => $tenant->id, 'name' => $roleName]);
+        $user = User::factory()->create(['email' => $email, 'password' => Hash::make('CorrectPassword1!')]);
+        TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $user->id, 'role_id' => $role->id, 'status' => 'active', 'joined_at' => now()]);
+
+        return $user;
+    }
+
+    private function register(User $admin, Store $store, array $headers): string
+    {
+        $register = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/registers', ['store_id' => $store->uuid, 'name' => 'Register 1', 'code' => 'REG-001'])->assertCreated();
+        $cashierId = StoreMembership::where('store_id', $store->id)->where('role', 'cashier')->value('user_id');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/registers/'.$register->json('data.id').'/members', ['user_id' => $cashierId])->assertCreated();
+
+        return $register->json('data.id');
+    }
+
+    private function openShift(User $cashier, Store $store, string $register, array $headers): void
+    {
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => 100])->assertCreated();
+    }
+}

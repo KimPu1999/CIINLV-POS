@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\BusinessInvitationController;
 use App\Http\Controllers\Api\V1\BusinessProfileController;
 use App\Http\Controllers\Api\V1\BusinessSettingsController;
 use App\Http\Controllers\Api\V1\BusinessStoreController;
+use App\Http\Controllers\Api\V1\CashierShiftController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CurrentUserStoreController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -20,6 +21,15 @@ use App\Http\Controllers\Api\V1\PlatformBusinessController;
 use App\Http\Controllers\Api\V1\PlatformBusinessInvitationController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PlatformTenantController;
+use App\Http\Controllers\Api\V1\PosCheckoutController;
+use App\Http\Controllers\Api\V1\PosPaymentController;
+use App\Http\Controllers\Api\V1\PosReceiptController;
+use App\Http\Controllers\Api\V1\PosRefundController;
+use App\Http\Controllers\Api\V1\PosRegisterController;
+use App\Http\Controllers\Api\V1\PosRegisterMembershipController;
+use App\Http\Controllers\Api\V1\PosReportController;
+use App\Http\Controllers\Api\V1\PosReturnController;
+use App\Http\Controllers\Api\V1\PosSaleController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\PurchaseOrderController;
 use App\Http\Controllers\Api\V1\StockTransferController;
@@ -143,6 +153,43 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reports/stock-movements', [InventoryReportController::class, 'movements']);
             Route::get('/reports/stock-transfers', [InventoryReportController::class, 'transfers']);
             Route::get('/reports/stock-valuation', [InventoryReportController::class, 'valuation']);
+
+            Route::prefix('pos')->group(function (): void {
+                Route::apiResource('registers', PosRegisterController::class)->only(['index', 'store', 'show', 'update']);
+                Route::get('/registers/{register}/members', [PosRegisterMembershipController::class, 'index']);
+                Route::post('/registers/{register}/members', [PosRegisterMembershipController::class, 'store']);
+                Route::delete('/registers/{register}/members/{membership}', [PosRegisterMembershipController::class, 'destroy']);
+                Route::post('/shifts/open', [CashierShiftController::class, 'open']);
+                Route::get('/shifts/current', [CashierShiftController::class, 'current']);
+                Route::get('/shifts', [CashierShiftController::class, 'index']);
+                Route::post('/shifts/{shift}/close', [CashierShiftController::class, 'close']);
+                Route::post('/shifts/{shift}/cash-movements', [CashierShiftController::class, 'movement']);
+
+                Route::post('/checkout/preview', [PosCheckoutController::class, 'preview']);
+                Route::get('/sales', [PosSaleController::class, 'index']);
+                Route::post('/sales', [PosSaleController::class, 'store']);
+                Route::get('/sales/{sale}', [PosSaleController::class, 'show']);
+                Route::post('/sales/{sale}/hold', [PosSaleController::class, 'hold']);
+                Route::post('/sales/{sale}/resume', [PosSaleController::class, 'resume']);
+                Route::post('/sales/{sale}/cancel', [PosSaleController::class, 'cancel']);
+                Route::post('/sales/{sale}/complete', [PosSaleController::class, 'complete']);
+                Route::get('/sales/{sale}/payments', [PosPaymentController::class, 'index']);
+                Route::post('/sales/{sale}/payments', [PosPaymentController::class, 'store']);
+                Route::get('/sales/{sale}/receipt', [PosReceiptController::class, 'show']);
+                Route::get('/sales/{sale}/receipt/pdf', [PosReceiptController::class, 'pdf']);
+                Route::post('/sales/{sale}/returns', [PosReturnController::class, 'store']);
+
+                Route::post('/payments/{payment}/verify', [PosPaymentController::class, 'verify']);
+                Route::get('/returns', [PosReturnController::class, 'index']);
+                Route::get('/returns/{return}', [PosReturnController::class, 'show']);
+                Route::post('/returns/{return}/approve', [PosReturnController::class, 'approve']);
+                Route::post('/returns/{return}/refund', [PosRefundController::class, 'store']);
+
+                Route::get('/reports/daily', [PosReportController::class, 'daily']);
+                Route::get('/reports/payments', [PosReportController::class, 'payments']);
+                Route::get('/reports/cashiers', [PosReportController::class, 'cashiers']);
+                Route::get('/reports/returns', [PosReportController::class, 'returns']);
+            });
         });
     });
 });

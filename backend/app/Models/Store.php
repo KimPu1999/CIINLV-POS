@@ -72,4 +72,19 @@ class Store extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function registers(): HasMany
+    {
+        return $this->hasMany(PosRegister::class);
+    }
+
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(CashierShift::class);
+    }
+
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
+    }
 }
