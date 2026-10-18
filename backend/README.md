@@ -127,6 +127,86 @@ DELETE /api/v1/platform/tenants/{uuid}/admins/{userId}
 
 Tenant and store primary keys remain the Phase 1 integer keys for compatibility. New unique UUID columns are used as public API identifiers and route keys. PostgreSQL RLS remains a planned defense-in-depth layer; application tenant context and policy checks are active now, with RLS deferred until the connection-role and transaction-local context design is finalized.
 
+## Phase 3 business management
+
+Super Admin business APIs use public tenant UUIDs:
+
+```text
+GET    /api/v1/platform/businesses
+POST   /api/v1/platform/businesses
+GET    /api/v1/platform/businesses/{uuid}
+PATCH  /api/v1/platform/businesses/{uuid}
+POST   /api/v1/platform/businesses/{uuid}/activate
+POST   /api/v1/platform/businesses/{uuid}/suspend
+GET    /api/v1/platform/businesses/{uuid}/admins
+POST   /api/v1/platform/businesses/{uuid}/admins
+PATCH  /api/v1/platform/businesses/{uuid}/admins/{userId}
+DELETE /api/v1/platform/businesses/{uuid}/admins/{userId}
+POST   /api/v1/platform/businesses/{uuid}/admins/{userId}/resend-invitation
+GET    /api/v1/platform/businesses/{uuid}/audit-logs
+```
+
+Business administrators use the validated business context header:
+
+```text
+GET   /api/v1/business/profile
+PATCH /api/v1/business/profile
+GET   /api/v1/business/settings
+PATCH /api/v1/business/settings
+GET   /api/v1/business/members
+GET   /api/v1/business/dashboard
+```
+
+For users with multiple memberships, send `X-Tenant-Id: <business-uuid>`. The header is only a context selector; every request is checked against the authenticated user’s active membership, role, and tenant status. Suspended tenants and revoked memberships are rejected even when a session or Sanctum token remains valid.
+
+Business creation is atomic and creates the tenant, default settings, normalized business-admin role, membership, invitation record, and audit event in one transaction. Send an `Idempotency-Key` header to make retries return the original persisted business instead of creating another one. Business codes are unique and are also enforced at the database layer.
+
+Invitation tokens are stored only as SHA-256 hashes. Activation is handled by:
+
+```text
+POST /api/v1/auth/invitations/accept
+```
+
+Invitation email delivery is queued after commit. Configure a real mail transport before production use; local development may use `MAIL_MAILER=log`, while the activation token is never returned by the business-creation API or written to PostgreSQL.
+
+Phase 3 added `business_settings`, `business_invitations`, and `business_idempotency_keys`, plus tenant contact/business-code fields, membership inviter tracking, and platform audit history. Existing Phase 1/2 routes remain available for compatibility.
+
+Useful commands:
+
+```bash
+php artisan migrate
+php artisan route:list --path=api/v1/platform/businesses
+php artisan test
+php artisan queue:work
+```
+
+Example platform request after obtaining a mobile Sanctum token:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/platform/businesses \
+  -H "Authorization: Bearer $CIINLV_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: business-a-2026-unique-key' \
+  -d '{
+    "business_name": "Business A",
+    "business_code": "BUS-A",
+    "admin_name": "Admin A",
+    "admin_email": "admin-a@example.com",
+    "currency_code": "MMK",
+    "timezone": "Asia/Yangon"
+  }'
+```
+
+Example tenant-scoped request:
+
+```bash
+curl http://127.0.0.1:8000/api/v1/business/profile \
+  -H "Authorization: Bearer $CIINLV_ADMIN_TOKEN" \
+  -H 'X-Tenant-Id: <business-uuid>' \
+  -H 'Accept: application/json'
+```
+
 ## Multi-tenant foundation
 
 The initial schema contains:

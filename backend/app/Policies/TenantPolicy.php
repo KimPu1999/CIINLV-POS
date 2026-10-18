@@ -16,4 +16,13 @@ class TenantPolicy
     {
         return $user->isSuperAdmin();
     }
+
+    public function updateProfile(User $user, Tenant $tenant): bool
+    {
+        return $user->tenants()
+            ->whereKey($tenant->getKey())
+            ->wherePivot('status', 'active')
+            ->whereHas('roles', fn ($query) => $query->where('name', 'business_admin'))
+            ->exists();
+    }
 }

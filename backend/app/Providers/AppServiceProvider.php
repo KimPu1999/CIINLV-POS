@@ -6,6 +6,8 @@ use App\Models\Store;
 use App\Models\Tenant;
 use App\Policies\StorePolicy;
 use App\Policies\TenantPolicy;
+use App\Services\TenantContext;
+use App\Services\TenantContextService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +21,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(TenantContextService::class);
+        $this->app->singleton(TenantContext::class, fn ($app) => $app->make(TenantContextService::class));
     }
 
     /**

@@ -3,13 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Tenant extends Model
 {
-    protected $fillable = ['name', 'slug', 'status', 'subscription_status', 'settings'];
+    protected $fillable = [
+        'name', 'slug', 'business_code', 'email', 'phone', 'address', 'status', 'subscription_status', 'settings', 'created_by',
+    ];
 
     protected static function booted(): void
     {
@@ -20,7 +24,10 @@ class Tenant extends Model
 
     protected function casts(): array
     {
-        return ['settings' => 'array'];
+        return [
+            'settings' => 'array',
+            'suspended_at' => 'datetime',
+        ];
     }
 
     public function getRouteKeyName(): string
@@ -43,6 +50,26 @@ class Tenant extends Model
     public function roles(): HasMany
     {
         return $this->hasMany(Role::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function businessSetting(): HasOne
+    {
+        return $this->hasOne(BusinessSetting::class);
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(BusinessInvitation::class);
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
     }
 
     public function memberships(): HasMany

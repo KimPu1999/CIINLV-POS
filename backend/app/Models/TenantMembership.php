@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class TenantMembership extends Model
 {
-    protected $fillable = ['tenant_id', 'user_id', 'role_id', 'status', 'joined_at'];
+    protected $fillable = ['tenant_id', 'user_id', 'role_id', 'status', 'invited_by', 'joined_at'];
 
     protected function casts(): array
     {
@@ -23,6 +23,11 @@ class TenantMembership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function inviter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'invited_by');
     }
 
     public function role(): BelongsTo
