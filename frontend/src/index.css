@@ -12,3 +12,178 @@
 
 body { margin: 0; min-width: 320px; }
 button, a { -webkit-tap-highlight-color: transparent; }
+
+/* Shared compact form controls used by dashboard filters and forms. Keeping
+   these tokens in one place avoids page-specific sizing drift while leaving
+   checkboxes, file inputs, scanners, and third-party controls untouched. */
+:root {
+  --compact-field-shadow: 0 2px 10px rgba(15, 23, 42, 0.07);
+  --compact-field-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+}
+
+.compact-field {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 12px;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: var(--compact-field-shadow);
+  outline: none;
+  transition: box-shadow 200ms ease, background-color 200ms ease, opacity 200ms ease;
+}
+
+.compact-field:focus,
+.compact-field:focus-visible {
+  box-shadow: var(--compact-field-focus-shadow);
+}
+
+.compact-field::placeholder {
+  color: #94a3b8;
+}
+
+.compact-field:disabled {
+  cursor: not-allowed;
+  background: #f8fafc;
+  color: #94a3b8;
+  opacity: 0.85;
+}
+
+select.compact-field {
+  padding-right: 32px;
+}
+
+.compact-field--search {
+  min-height: 38px;
+  padding-left: 40px;
+}
+
+.compact-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.compact-field--textarea {
+  min-height: 80px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  resize: vertical;
+}
+
+.compact-label {
+  display: block;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.compact-label > .compact-field {
+  margin-top: 6px;
+}
+
+.compact-field-grid,
+.compact-field-toolbar {
+  gap: 12px;
+}
+
+/* The current dashboard pages use inline Tailwind classes rather than a
+   shared Input/Select/Textarea component. Scope the compact treatment to the
+   authenticated dashboard shell so public/auth controls and native checkbox,
+   radio, file, hidden, range, and color inputs are not affected. */
+.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+.min-h-screen.bg-slate-50 > aside + div select,
+.min-h-screen.bg-slate-50 > aside + div textarea {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 12px;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: var(--compact-field-shadow);
+  outline: none;
+  transition: box-shadow 200ms ease, background-color 200ms ease, opacity 200ms ease;
+}
+
+.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus,
+.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus-visible,
+.min-h-screen.bg-slate-50 > aside + div select:focus,
+.min-h-screen.bg-slate-50 > aside + div select:focus-visible,
+.min-h-screen.bg-slate-50 > aside + div textarea:focus,
+.min-h-screen.bg-slate-50 > aside + div textarea:focus-visible {
+  box-shadow: var(--compact-field-focus-shadow);
+}
+
+.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])::placeholder {
+  color: #94a3b8;
+}
+
+.min-h-screen.bg-slate-50 > aside + div select {
+  padding-right: 32px;
+}
+
+.min-h-screen.bg-slate-50 > aside + div input.pl-9,
+.min-h-screen.bg-slate-50 > aside + div input.pl-10 {
+  min-height: 38px;
+  padding-left: 40px;
+}
+
+.min-h-screen.bg-slate-50 > aside + div input[placeholder*="search" i],
+.min-h-screen.bg-slate-50 > aside + div input[placeholder*="barcode" i],
+.min-h-screen.bg-slate-50 > aside + div input[placeholder*="sku" i] {
+  min-height: 38px;
+}
+
+.min-h-screen.bg-slate-50 > aside + div label:has(> input.pl-9) > svg,
+.min-h-screen.bg-slate-50 > aside + div label:has(> input.pl-10) > svg {
+  top: 50%;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+}
+
+.min-h-screen.bg-slate-50 > aside + div textarea {
+  min-height: 80px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  resize: vertical;
+}
+
+.min-h-screen.bg-slate-50 > aside + div label:has(> input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])),
+.min-h-screen.bg-slate-50 > aside + div label:has(> select),
+.min-h-screen.bg-slate-50 > aside + div label:has(> textarea) {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.min-h-screen.bg-slate-50 > aside + div label:has(> input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])):not(:has(> input.pl-10)) > input,
+.min-h-screen.bg-slate-50 > aside + div label:has(> select) > select,
+.min-h-screen.bg-slate-50 > aside + div label:has(> textarea) > textarea {
+  margin-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .min-h-screen.bg-slate-50 > aside + div input,
+  .min-h-screen.bg-slate-50 > aside + div select,
+  .min-h-screen.bg-slate-50 > aside + div textarea {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compact-field {
+    transition: none;
+  }
+}
