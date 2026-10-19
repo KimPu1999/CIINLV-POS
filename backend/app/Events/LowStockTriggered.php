@@ -5,11 +5,16 @@ namespace App\Events;
 use App\Models\StockAlert;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldRescue;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\Attributes\Backoff;
+use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\SerializesModels;
 
-class LowStockTriggered implements ShouldBroadcast, ShouldDispatchAfterCommit
+#[Tries(5)]
+#[Backoff(5, 30, 120)]
+class LowStockTriggered implements ShouldBroadcast, ShouldDispatchAfterCommit, ShouldRescue
 {
     use Dispatchable, SerializesModels;
 

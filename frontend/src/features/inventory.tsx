@@ -19,6 +19,7 @@ function StockOperation({ type, locations, variants, onClose, onDone }: { type: 
   const [form, setForm] = useState({ location_id: '', variant_id: '', quantity: '', unit_cost: '', reason: type === 'in' ? 'Manual receiving' : 'Damaged / loss' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [idempotencyKey] = useState(() => newIdempotencyKey(type))
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -40,7 +41,6 @@ function StockOperation({ type, locations, variants, onClose, onDone }: { type: 
 
     setSaving(true)
     try {
-      const key = newIdempotencyKey(type)
       if (type === 'in') {
         await request({
           method: 'POST',
@@ -52,7 +52,7 @@ function StockOperation({ type, locations, variants, onClose, onDone }: { type: 
             unit_cost: form.unit_cost ? Number(form.unit_cost) : null,
             reason: form.reason.trim(),
           },
-          headers: { 'Idempotency-Key': key },
+          headers: { 'Idempotency-Key': idempotencyKey },
         })
       } else {
         await request({
@@ -64,7 +64,7 @@ function StockOperation({ type, locations, variants, onClose, onDone }: { type: 
             quantity_delta: -Math.abs(quantity),
             reason: form.reason.trim(),
           },
-          headers: { 'Idempotency-Key': key },
+          headers: { 'Idempotency-Key': idempotencyKey },
         })
       }
       onDone()
