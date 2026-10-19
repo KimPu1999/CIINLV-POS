@@ -94,6 +94,50 @@ export function FilterToggle({ open, activeCount = 0, onClick }: { open: boolean
   return <ToolbarTooltip label="Filters"><button type="button" aria-expanded={visibleOpen} aria-label="Filters" onClick={() => { announceToolbarPanel('filter'); onClick() }} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={19} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-0.5 top-0.5 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
 }
 
+export function FilterPopover({ open, activeCount = 0, statusLabel, statusActive = false, onOpen, onClose, onClear, children }: { open: boolean; activeCount?: number; statusLabel: string; statusActive?: boolean; onOpen: () => void; onClose: () => void; onClear?: () => void; children: ReactNode }) {
+  const [suppressed, setSuppressed] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const source = useRef(Symbol('filter-popover'))
+  const visibleOpen = open && !suppressed
+  const active = visibleOpen || activeCount > 0
+
+  useEffect(() => {
+    const closeOnOtherPanel = (event: Event) => {
+      const detail = (event as CustomEvent<{ type?: ToolbarPanel; source?: symbol }>).detail
+      if (detail?.source !== source.current && detail?.type !== 'filter') {
+        setSuppressed(true)
+        onClose()
+      }
+      if (detail?.type === 'filter') setSuppressed(false)
+    }
+    window.addEventListener(toolbarPanelEvent, closeOnOtherPanel)
+    return () => window.removeEventListener(toolbarPanelEvent, closeOnOtherPanel)
+  }, [onClose])
+
+  useEffect(() => {
+    if (!visibleOpen) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) onClose()
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        window.setTimeout(() => triggerRef.current?.focus(), 0)
+      }
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [onClose, visibleOpen])
+
+  return <div ref={rootRef} className="relative inline-flex flex-col items-center"><ToolbarTooltip label={`Filters: ${statusLabel}`}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={`Filters: ${statusLabel}`} onClick={() => { if (visibleOpen) { onClose(); return } announceToolbarPanel('filter', source.current); setSuppressed(false); onOpen() }} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={19} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-0.5 top-0.5 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip><span className={`max-w-24 truncate text-[11px] font-semibold leading-4 ${statusActive ? 'text-blue-600' : 'text-slate-500'}`}>{statusLabel}</span>{visibleOpen && <div role="dialog" aria-label={`Filter options: ${statusLabel}`} className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl bg-white p-3 shadow-xl ring-1 ring-slate-900/5 animate-[toolbar-search-in_180ms_ease-out]">{children}{onClear && <button type="button" onClick={() => { onClear(); onClose(); window.setTimeout(() => triggerRef.current?.focus(), 0) }} className="mt-3 text-xs font-semibold text-slate-500 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">Clear filter</button>}</div>}</div>
+}
+
 export function FilterPanel({ open, children }: { open: boolean; children: ReactNode }) {
   const [suppressed, setSuppressed] = useState(false)
   useEffect(() => {
