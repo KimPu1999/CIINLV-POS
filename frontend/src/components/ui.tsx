@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 import { AlertCircle, Inbox, LoaderCircle } from 'lucide-react'
 
 export function PageHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h1 className="text-2xl font-bold tracking-tight text-slate-950">{title}</h1>{description && <p className="mt-1 text-sm text-slate-500">{description}</p>}</div>{action}</div>
+  if (!action) return <div className="sr-only"><h1>{title}</h1>{description && <p>{description}</p>}</div>
+  return <div className="mb-1 flex min-h-9 items-center justify-end"><div className="sr-only"><h1>{title}</h1>{description && <p>{description}</p>}</div>{action}</div>
 }
 
 export function StatCard({ label, value, detail, icon: Icon, tone = 'blue' }: { label: string; value: string | number; detail?: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone?: 'blue' | 'emerald' | 'amber' | 'violet' }) {
