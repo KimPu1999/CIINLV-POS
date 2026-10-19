@@ -2,16 +2,45 @@
 
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #0f172a;
-  background: #f8fafc;
+  --theme-background: #f8fafc;
+  --theme-surface: #ffffff;
+  --theme-surface-muted: #f1f5f9;
+  --theme-text: #0f172a;
+  --theme-text-secondary: #64748b;
+  --theme-border: #e2e8f0;
+  --theme-primary: #2563eb;
+  --theme-primary-soft: #eff6ff;
+  --theme-focus: rgba(37, 99, 235, 0.2);
+  color: var(--theme-text);
+  background: var(--theme-background);
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-body { margin: 0; min-width: 320px; }
+:root[data-theme="dark"] {
+  --theme-background: #0b1220;
+  --theme-surface: #182335;
+  --theme-surface-muted: #223047;
+  --theme-text: #f1f5f9;
+  --theme-text-secondary: #94a3b8;
+  --theme-border: #334155;
+  --theme-primary: #3b82f6;
+  --theme-primary-soft: rgba(59, 130, 246, 0.18);
+  --theme-focus: rgba(96, 165, 250, 0.35);
+  color-scheme: dark;
+}
+
+html,
+body,
+#root { min-height: 100%; }
+
+body { margin: 0; min-width: 320px; background: var(--theme-background); color: var(--theme-text); transition: background-color 180ms ease, color 180ms ease; }
 button, a { -webkit-tap-highlight-color: transparent; }
+
+*, *::before, *::after { transition-property: background-color, border-color, color, fill, stroke, box-shadow; transition-duration: 180ms; transition-timing-function: ease; }
 
 @keyframes toolbar-search-in {
   from { opacity: 0; transform: translateY(-3px); }
@@ -206,5 +235,114 @@ div:has(> [data-page-toolbar="true"]) {
 @media (prefers-reduced-motion: reduce) {
   .compact-field {
     transition: none;
+  }
+}
+
+/* Existing dashboard pages use Tailwind utility classes directly. These
+   semantic overrides apply the shared theme without changing page behavior or
+   requiring every feature component to duplicate dark-mode classes. */
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100,
+[data-theme="dark"] [class~="bg-slate-50/50"],
+[data-theme="dark"] [class~="bg-slate-50/70"] {
+  background-color: var(--theme-background) !important;
+}
+
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] [class~="bg-white/90"] {
+  background-color: var(--theme-surface) !important;
+}
+
+[data-theme="dark"] .text-slate-950,
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-700 {
+  color: var(--theme-text) !important;
+}
+
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-500,
+[data-theme="dark"] .text-slate-400,
+[data-theme="dark"] .text-slate-300 {
+  color: var(--theme-text-secondary) !important;
+}
+
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-300,
+[data-theme="dark"] .border:not([class~="border-white/10"]) {
+  border-color: var(--theme-border) !important;
+}
+
+[data-theme="dark"] [class~="divide-slate-100"] > :not([hidden]) ~ :not([hidden]),
+[data-theme="dark"] [class~="divide-slate-200"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--theme-border) !important;
+}
+
+[data-theme="dark"] .bg-blue-50,
+[data-theme="dark"] .bg-blue-100 {
+  background-color: var(--theme-primary-soft) !important;
+}
+
+[data-theme="dark"] .bg-blue-600,
+[data-theme="dark"] .bg-blue-700 {
+  background-color: var(--theme-primary) !important;
+}
+
+[data-theme="dark"] .text-blue-700,
+[data-theme="dark"] .text-blue-600,
+[data-theme="dark"] .text-blue-500 {
+  color: #60a5fa !important;
+}
+
+[data-theme="dark"] .text-emerald-700,
+[data-theme="dark"] .text-emerald-600 { color: #6ee7b7 !important; }
+[data-theme="dark"] .text-amber-700,
+[data-theme="dark"] .text-amber-600 { color: #fbbf24 !important; }
+[data-theme="dark"] .text-red-700 { color: #fca5a5 !important; }
+[data-theme="dark"] .text-violet-700,
+[data-theme="dark"] .text-violet-600 { color: #c4b5fd !important; }
+
+[data-theme="dark"] .bg-emerald-50,
+[data-theme="dark"] .bg-amber-50,
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] .bg-violet-50 {
+  background-color: var(--theme-surface-muted) !important;
+}
+
+[data-theme="dark"] [class~="hover:bg-slate-50"]:hover,
+[data-theme="dark"] [class~="hover:bg-slate-100"]:hover,
+[data-theme="dark"] [class~="hover:bg-blue-50"]:hover {
+  background-color: var(--theme-primary-soft) !important;
+}
+
+[data-theme="dark"] .compact-field,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div input,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div select,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div textarea {
+  background-color: var(--theme-surface) !important;
+  color: var(--theme-text) !important;
+  border-color: var(--theme-border) !important;
+}
+
+[data-theme="dark"] .compact-field::placeholder,
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--theme-text-secondary) !important;
+}
+
+[data-theme="dark"] [class~="focus:ring-blue-100"]:focus,
+[data-theme="dark"] [class~="focus-visible:ring-blue-100"]:focus-visible,
+[data-theme="dark"] .compact-field:focus,
+[data-theme="dark"] .compact-field:focus-visible {
+  --tw-ring-color: var(--theme-focus) !important;
+  box-shadow: 0 0 0 3px var(--theme-focus) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

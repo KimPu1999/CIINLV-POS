@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShoppingCart, Store, Truck, X } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
 import { DataTable, ErrorState, LoadingState, PageHeader, StatCard } from './components/ui'
 import { SidebarNavItem } from './components/SidebarNavItem'
+import { ThemeProvider, useTheme } from './lib/theme'
 import './App.css'
 
 const BusinessAdminsPage = lazy(() => import('./features/businesses').then(({ BusinessAdminsPage: Page }) => ({ default: Page })))
@@ -69,7 +70,7 @@ const businessNav: NavItem[] = [
 ]
 
 function App() {
-  return <BrowserRouter><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter>
+  return <ThemeProvider><BrowserRouter><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter></ThemeProvider>
 }
 
 function AppRoutes() {
@@ -197,7 +198,58 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const selectTenant = (tenantId: string) => { window.localStorage.setItem('ciinlv_tenant_id', tenantId); setSelectedTenant(tenantId) }
   const needsTenantSelection = role === 'business' && memberships.length > 1 && !memberships.some((membership) => membership.business.id === selectedTenant)
 
-  return <div className="min-h-screen bg-slate-50"><aside className={`fixed inset-y-0 left-0 z-40 flex dashboard-sidebar flex-col bg-slate-950 text-white transition-transform lg:translate-x-0 ${mobile ? 'translate-x-0' : '-translate-x-full'} ${collapsed ? 'sidebar-collapsed' : ''}`}><div className="flex h-20 items-center justify-between border-b border-white/10 px-5"><div className="flex items-center gap-3 overflow-hidden"><div className="shrink-0 rounded-xl bg-blue-600 p-2"><ShoppingCart size={21} /></div>{!collapsed && <span className="whitespace-nowrap text-lg font-bold">CIINLV POS</span>}</div><button className="lg:hidden" onClick={() => setMobile(false)} aria-label="Close navigation"><X size={20} /></button></div><nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon }) => <SidebarNavItem key={`${path}-${collapsed ? 'collapsed' : 'expanded'}`} label={label} path={path} icon={Icon} collapsed={collapsed} onNavigate={() => setMobile(false)} />)}</nav><div className="border-t border-white/10 p-3"><button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white"><LogOut size={19} />{!collapsed && 'Sign out'}</button></div></aside>{mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}<div className={`min-h-screen transition-[padding]`}><header className="sticky top-0 z-20 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur sm:px-8"><div className="flex items-center gap-3"><button className="text-slate-600 lg:hidden" onClick={() => setMobile(true)} aria-label="Open navigation"><Menu size={23} /></button><button className="hidden text-slate-400 lg:block" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}>{collapsed ? <PanelLeftOpen size={21} /> : <PanelLeftClose size={21} />}</button><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{role === 'super_admin' ? 'Platform control' : 'Business workspace'}</p><p className="font-semibold text-slate-900">{location.pathname.endsWith('/dashboard') || platformLanding ? 'Overview' : nav.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Workspace'}</p></div></div><div className="flex items-center gap-3"><TenantSwitcher user={user} onChange={selectTenant} /><div className="hidden text-right sm:block"><p className="text-sm font-semibold text-slate-800">{user.name}</p><p className="text-xs capitalize text-slate-400">{user.platform_role?.replaceAll('_', ' ') ?? 'business admin'}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{user.name.charAt(0).toUpperCase()}</div></div></header><main className="mx-auto mt-[10px] max-w-[1600px] px-5 pb-5 pt-1 sm:px-8 sm:pb-8 sm:pt-1">{needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}><Route index element={<OverviewPage user={user} />} /><Route path="dashboard" element={<OverviewPage user={user} />} /><Route path="businesses" element={<BusinessListPage />} /><Route path="businesses/new" element={<BusinessRegistrationScreen />} /><Route path="businesses/:id/edit" element={<BusinessEditPage />} /><Route path="businesses/:id/admins" element={<BusinessAdminsPage />} /><Route path="businesses/:id" element={<BusinessDetailsPage />} /><Route path="audit" element={<ResourcePage title="Audit & security" description="Review platform audit records from the backend." endpoint="/api/v1/platform/businesses" columns={['name', 'status', 'created_at']} />} /><Route path="branches" element={<BranchListPage />} /><Route path="branches/:id/dashboard" element={<BranchDashboardPage />} /><Route path="store-manager" element={<BranchDashboardPage />} /><Route path="products" element={<ResourcePage title="Products" description="Catalog, variants, SKU and barcode management." endpoint="/api/v1/products" columns={['name', 'sku', 'status']} />} /><Route path="categories" element={<ResourcePage title="Categories" description="Organize products with tenant-scoped categories." endpoint="/api/v1/categories" columns={['name', 'slug', 'status']} />} /><Route path="barcode" element={<BarcodePage />} /><Route path="suppliers" element={<ResourcePage title="Suppliers" description="Supplier directory backed by your business data." endpoint="/api/v1/suppliers" columns={['name', 'supplier_code', 'status']} />} /><Route path="warehouses" element={<ResourcePage title="Warehouses" description="Warehouse and inventory location management." endpoint="/api/v1/warehouses" columns={['name', 'code', 'status']} />} /><Route path="inventory" element={<ResourcePage title="Inventory" description="Balances, stock movement and valuation endpoints." endpoint="/api/v1/inventory" columns={['sku', 'product', 'on_hand_quantity', 'available_quantity']} />} /><Route path="purchase-orders" element={<ResourcePage title="Purchase orders & receiving" description="Create and receive purchase orders through the Laravel workflow." endpoint="/api/v1/purchase-orders" columns={['order_number', 'status', 'ordered_at']} />} /><Route path="stock-transfers" element={<ResourcePage title="Stock transfers" description="Track branch and warehouse stock transfers." endpoint="/api/v1/stock-transfers" columns={['transfer_number', 'status']} />} /><Route path="pos" element={<PosPage />} /><Route path="sales" element={<ResourcePage title="Sales history" description="Completed, held and cancelled POS sales." endpoint="/api/v1/pos/sales" columns={['sale_number', 'status', 'grand_total', 'completed_at']} />} /><Route path="returns" element={<ResourcePage title="Returns & refunds" description="Review return requests and refund states." endpoint="/api/v1/pos/returns" columns={['return_number', 'status', 'refund_total']} />} /><Route path="reports" element={<ReportsPage />} /><Route path="alerts" element={<ResourcePage title="Low-stock alerts" description="Live inventory alerts from the backend." endpoint="/api/v1/alerts" columns={['alert_type', 'status', 'available_quantity']} />} /><Route path="settings" element={<SettingsPage />} /></Routes></Suspense>}</main></div></div>
+  return <div className="min-h-screen bg-slate-50">
+    <aside className={`fixed inset-y-0 left-0 z-40 flex dashboard-sidebar flex-col bg-slate-950 text-white transition-transform lg:translate-x-0 ${mobile ? 'translate-x-0' : '-translate-x-full'} ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
+        <div className="flex items-center gap-3 overflow-hidden"><div className="shrink-0 rounded-xl bg-blue-600 p-2"><ShoppingCart size={21} /></div>{!collapsed && <span className="whitespace-nowrap text-lg font-bold">CIINLV POS</span>}</div>
+        <button className="lg:hidden" onClick={() => setMobile(false)} aria-label="Close navigation"><X size={20} /></button>
+      </div>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon }) => <SidebarNavItem key={`${path}-${collapsed ? 'collapsed' : 'expanded'}`} label={label} path={path} icon={Icon} collapsed={collapsed} onNavigate={() => setMobile(false)} />)}</nav>
+      <div className="border-t border-white/10 p-3"><button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white"><LogOut size={19} />{!collapsed && 'Sign out'}</button></div>
+    </aside>
+    {mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}
+    <div className="min-h-screen transition-[padding]">
+      <header className="sticky top-0 z-20 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur sm:px-8">
+        <div className="flex items-center gap-3"><button className="text-slate-600 lg:hidden" onClick={() => setMobile(true)} aria-label="Open navigation"><Menu size={23} /></button><button className="hidden text-slate-400 lg:block" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}>{collapsed ? <PanelLeftOpen size={21} /> : <PanelLeftClose size={21} />}</button><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{role === 'super_admin' ? 'Platform control' : 'Business workspace'}</p><p className="font-semibold text-slate-900">{location.pathname.endsWith('/dashboard') || platformLanding ? 'Overview' : nav.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Workspace'}</p></div></div>
+        <div className="flex items-center gap-2 sm:gap-3"><ThemeToggle /><TenantSwitcher user={user} onChange={selectTenant} /><div className="hidden text-right sm:block"><p className="text-sm font-semibold text-slate-800">{user.name}</p><p className="text-xs capitalize text-slate-400">{user.platform_role?.replaceAll('_', ' ') ?? 'business admin'}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{user.name.charAt(0).toUpperCase()}</div></div>
+      </header>
+      <main className="mx-auto mt-[10px] max-w-[1600px] px-5 pb-5 pt-1 sm:px-8 sm:pb-8 sm:pt-1">
+        {needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
+          <Route index element={<OverviewPage user={user} />} />
+          <Route path="dashboard" element={<OverviewPage user={user} />} />
+          <Route path="businesses" element={<BusinessListPage />} />
+          <Route path="businesses/new" element={<BusinessRegistrationScreen />} />
+          <Route path="businesses/:id/edit" element={<BusinessEditPage />} />
+          <Route path="businesses/:id/admins" element={<BusinessAdminsPage />} />
+          <Route path="businesses/:id" element={<BusinessDetailsPage />} />
+          <Route path="audit" element={<ResourcePage title="Audit & security" description="Review platform audit records from the backend." endpoint="/api/v1/platform/businesses" columns={['name', 'status', 'created_at']} />} />
+          <Route path="branches" element={<BranchListPage />} />
+          <Route path="branches/:id/dashboard" element={<BranchDashboardPage />} />
+          <Route path="store-manager" element={<BranchDashboardPage />} />
+          <Route path="products" element={<ResourcePage title="Products" description="Catalog, variants, SKU and barcode management." endpoint="/api/v1/products" columns={['name', 'sku', 'status']} />} />
+          <Route path="categories" element={<ResourcePage title="Categories" description="Organize products with tenant-scoped categories." endpoint="/api/v1/categories" columns={['name', 'slug', 'status']} />} />
+          <Route path="barcode" element={<BarcodePage />} />
+          <Route path="suppliers" element={<ResourcePage title="Suppliers" description="Supplier directory backed by your business data." endpoint="/api/v1/suppliers" columns={['name', 'supplier_code', 'status']} />} />
+          <Route path="warehouses" element={<ResourcePage title="Warehouses" description="Warehouse and inventory location management." endpoint="/api/v1/warehouses" columns={['name', 'code', 'status']} />} />
+          <Route path="inventory" element={<ResourcePage title="Inventory" description="Balances, stock movement and valuation endpoints." endpoint="/api/v1/inventory" columns={['sku', 'product', 'on_hand_quantity', 'available_quantity']} />} />
+          <Route path="purchase-orders" element={<ResourcePage title="Purchase orders & receiving" description="Create and receive purchase orders through the Laravel workflow." endpoint="/api/v1/purchase-orders" columns={['order_number', 'status', 'ordered_at']} />} />
+          <Route path="stock-transfers" element={<ResourcePage title="Stock transfers" description="Track branch and warehouse stock transfers." endpoint="/api/v1/stock-transfers" columns={['transfer_number', 'status']} />} />
+          <Route path="pos" element={<PosPage />} />
+          <Route path="sales" element={<ResourcePage title="Sales history" description="Completed, held and cancelled POS sales." endpoint="/api/v1/pos/sales" columns={['sale_number', 'status', 'grand_total', 'completed_at']} />} />
+          <Route path="returns" element={<ResourcePage title="Returns & refunds" description="Review return requests and refund states." endpoint="/api/v1/pos/returns" columns={['return_number', 'status', 'refund_total']} />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="alerts" element={<ResourcePage title="Low-stock alerts" description="Live inventory alerts from the backend." endpoint="/api/v1/alerts" columns={['alert_type', 'status', 'available_quantity']} />} />
+          <Route path="settings" element={<SettingsPage />} />
+        </Routes></Suspense>}
+      </main>
+    </div>
+  </div>
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme()
+  const dark = theme === 'dark'
+  return <button type="button" onClick={toggleTheme} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} aria-pressed={dark} title={dark ? 'Switch to light mode' : 'Switch to dark mode'} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-colors duration-200 hover:bg-slate-100 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">{dark ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}</button>
 }
 
 function TenantSwitcher({ user, onChange }: { user: User; onChange: (tenantId: string) => void }) {
