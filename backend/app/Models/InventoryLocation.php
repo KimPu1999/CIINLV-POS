@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class InventoryLocation extends Model
 {
-    protected $fillable = ['tenant_id', 'location_type', 'store_id', 'name', 'code', 'address', 'status'];
+    protected $fillable = ['tenant_id', 'location_type', 'store_id', 'name', 'description', 'code', 'warehouse_type', 'address', 'contact_phone', 'contact_email', 'city', 'region', 'country', 'manager_user_id', 'status'];
 
     protected static function booted(): void
     {
@@ -39,5 +39,10 @@ class InventoryLocation extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'manager_user_id');
     }
 }

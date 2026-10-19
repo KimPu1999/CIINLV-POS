@@ -28,7 +28,7 @@ class InventoryValuationService
     {
         [$from, $to] = app(SalesAnalyticsService::class)->range($tenant, $request->input('from'), $request->input('to'));
         $stores = $this->scope->storeIds($request->user(), $tenant, $request->input('store_id'));
-        $cost = (float) SaleItem::whereHas('sale', fn ($q) => $q->where('tenant_id', $tenant->id)->whereIn('store_id', $stores)->where('status', 'completed')->whereBetween('completed_at', [$from, $to]))->selectRaw('COALESCE(SUM(quantity * unit_cost_at_sale),0) AS c')->value('c');
+        $cost = (float) SaleItem::whereHas('sale', fn ($q) => $q->where('sales.tenant_id', $tenant->id)->whereIn('sales.store_id', $stores)->whereIn('sales.status', ['completed', 'partially_refunded', 'refunded'])->whereBetween('sales.completed_at', [$from, $to]))->selectRaw('COALESCE(SUM(sale_items.quantity * sale_items.unit_cost_at_sale),0) AS c')->value('c');
         $returns = (float) SaleItem::whereHas('returnItems.return', fn ($q) => $q->where('tenant_id', $tenant->id)->whereIn('store_id', $stores)->where('status', 'refunded')->whereBetween('refunded_at', [$from, $to]))->selectRaw('COALESCE(SUM(returned_quantity * unit_cost_at_sale),0) AS c')->value('c');
 
         return ['basis' => 'completed sale date for COGS; refunded return date for sellable return cost reversal', 'cogs' => number_format($cost, 4, '.', ''), 'sellable_return_cost_reversal' => number_format($returns, 4, '.', ''), 'return_adjusted_cogs' => number_format($cost - $returns, 4, '.', '')];

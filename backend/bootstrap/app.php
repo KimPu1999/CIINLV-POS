@@ -1,15 +1,22 @@
 <?php
 
 use App\Http\Middleware\ActiveAccount;
+use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\PlatformAdmin;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\ResolveTenantAnyRole;
+use App\Http\Middleware\SecurityHeaders;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -23,9 +30,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: env('TRUSTED_PROXIES'));
+        $middleware->append(ForceHttps::class);
+        $middleware->statefulApi();
+
         $middleware->api(append: [
             HandleCors::class,
+            SecurityHeaders::class,
         ]);
+        $middleware->web(append: [SecurityHeaders::class]);
 
         $middleware->alias([
             'active.account' => ActiveAccount::class,
@@ -71,5 +84,37 @@ return Application::configure(basePath: dirname(__DIR__))
                 'success' => false,
                 'message' => 'CSRF token mismatch. Obtain a fresh CSRF cookie and retry the request.',
             ], 419);
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            $headers = $exception->getHeaders();
+            $retryAfter = max(1, (int) ($headers['Retry-After'] ?? 60));
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many login attempts. Try again later.',
+                'retry_after' => $retryAfter,
+            ], 429, $headers);
+        });
+
+        $exceptions->render(function (Throwable $exception, Request $request) {
+            if (! $request->is('api/*') || config('app.debug') || $exception instanceof HttpExceptionInterface
+                || $exception instanceof AuthenticationException
+                || $exception instanceof AuthorizationException
+                || $exception instanceof ValidationException
+                || $exception instanceof HttpResponseException) {
+                return null;
+            }
+
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected server error occurred.',
+            ], 500);
         });
     })->create();

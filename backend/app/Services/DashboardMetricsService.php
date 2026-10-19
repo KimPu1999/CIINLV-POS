@@ -20,7 +20,7 @@ class DashboardMetricsService
             $summary = $this->sales->summary($request, $tenant);
             $valuation = $this->valuation->current($request, $tenant);
             $locations = app(ReportScopeService::class)->locationIds($request->user(), $tenant, $request->input('store_id'));
-            $low = InventoryBalance::where('tenant_id', $tenant->id)->whereIn('inventory_location_id', $locations)->whereRaw('(on_hand_quantity - reserved_quantity) <= (SELECT reorder_level FROM product_variants WHERE product_variants.id = inventory_balances.product_variant_id)')->count();
+            $low = InventoryBalance::where('inventory_balances.tenant_id', $tenant->id)->whereIn('inventory_balances.inventory_location_id', $locations)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= (SELECT product_variants.reorder_level FROM product_variants WHERE product_variants.id = inventory_balances.product_variant_id AND product_variants.tenant_id = inventory_balances.tenant_id)')->count();
             $out = InventoryBalance::where('tenant_id', $tenant->id)->whereIn('inventory_location_id', $locations)->whereRaw('(on_hand_quantity - reserved_quantity) <= 0')->count();
 
             return ['currency' => $summary['currency'], 'total_sales' => $summary['gross_sales'], 'total_transactions' => $summary['transaction_count'], 'gross_profit' => $summary['gross_profit'], 'low_stock_products' => $low, 'out_of_stock_products' => $out, 'inventory_value' => $valuation['total_value'], 'last_updated_at' => now()->toIso8601String(), 'accounting_basis' => $summary['basis']];

@@ -15,8 +15,8 @@ class Store extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'name', 'code', 'description', 'email', 'phone', 'address', 'city', 'country',
-        'currency_code', 'timezone', 'status', 'settings', 'created_by',
+        'tenant_id', 'name', 'code', 'description', 'email', 'phone', 'address', 'city', 'region', 'country',
+        'currency_code', 'timezone', 'status', 'is_main', 'settings', 'created_by',
     ];
 
     protected static function booted(): void
@@ -28,7 +28,7 @@ class Store extends Model
 
     protected function casts(): array
     {
-        return ['settings' => 'array'];
+        return ['settings' => 'array', 'is_main' => 'boolean'];
     }
 
     public function getRouteKeyName(): string

@@ -1,0 +1,18 @@
+# Point-in-time recovery design notes. Apply only through your PostgreSQL
+# configuration management after staging verification.
+wal_level = replica
+archive_mode = on
+archive_timeout = 60s
+# Use an authenticated, encrypted off-host archive destination in production.
+# archive_command = 'wal-g wal-push %p'
+
+# Recovery procedure:
+# 1. Stop writes and preserve the current data directory.
+# 2. Restore the latest base backup to a new isolated PostgreSQL instance.
+# 3. Restore WAL segments through the chosen recovery tool.
+# 4. Set recovery_target_time to the last known-good UTC timestamp.
+# 5. Start the isolated instance and run verify-restored-database.sh.
+# 6. Obtain explicit human approval before any production promotion.
+#
+# RPO/RTO targets are deployment decisions. Set them in the runbook and alert
+# when base-backup age or WAL archive lag exceeds those targets.

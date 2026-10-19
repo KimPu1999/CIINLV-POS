@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Requests\Platform\CreateBusinessAdminRequest;
 use App\Http\Requests\Platform\CreateInvitedBusinessAdminRequest;
 use App\Http\Requests\Platform\UpdateBusinessAdminRequest;
 use App\Http\Resources\BusinessMembershipResource;
+use App\Http\Resources\BusinessInvitationResource;
+use App\Models\BusinessInvitation;
 use App\Http\Resources\UserResource;
-use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -15,10 +15,6 @@ use App\Services\AuditLogger;
 use App\Services\BusinessMembershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 
 class PlatformBusinessAdminController
 {
@@ -28,26 +24,44 @@ class PlatformBusinessAdminController
             ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))
             ->latest()->get();
 
-        return response()->json(['success' => true, 'data' => BusinessMembershipResource::collection($members)]);
+        $invitations = BusinessInvitation::query()
+            ->where('tenant_id', $business->getKey())
+            ->whereIn('email', $members->pluck('user.email')->filter()->values())
+            ->latest('id')
+            ->get()
+            ->unique('email')
+            ->keyBy('email');
+
+        return response()->json(['success' => true, 'data' => $members->map(function (TenantMembership $membership) use ($invitations): array {
+            $data = (new BusinessMembershipResource($membership))->resolve();
+            $invitation = $invitations->get($membership->user?->email);
+            $data['invitation'] = $invitation
+                ? (new BusinessInvitationResource($invitation->load(['tenant', 'user'])))->resolve()
+                : null;
+
+            return $data;
+        })->values()]);
     }
 
     public function businessStore(CreateInvitedBusinessAdminRequest $request, Tenant $business, BusinessMembershipService $membershipService): JsonResponse
     {
-        [$user, $membership, $invitation, $invitationStatus] = $membershipService->inviteBusinessAdmin(
+        [$user, $membership, $invitation] = $membershipService->inviteBusinessAdmin(
             $business,
             $request->validated('name'),
             $request->validated('email'),
             $request->user(),
         );
 
+        $data = [
+            'user' => new UserResource($user),
+            'membership' => new BusinessMembershipResource($membership->load(['user', 'role'])),
+            'invitation_status' => $invitation->refresh()->status(),
+            'invitation' => new BusinessInvitationResource($invitation->load(['tenant', 'user'])),
+        ];
         return response()->json([
             'success' => true,
             'message' => 'Business administrator invitation created successfully',
-            'data' => [
-                'user' => new UserResource($user),
-                'membership' => new BusinessMembershipResource($membership->load(['user', 'role'])),
-                'invitation_status' => $invitationStatus,
-            ],
+            'data' => $data,
         ], 201);
     }
 
@@ -103,31 +117,14 @@ class PlatformBusinessAdminController
         ]);
     }
 
-    public function store(CreateBusinessAdminRequest $request, Tenant $tenant, AuditLogger $auditLogger): JsonResponse
+    public function store(CreateInvitedBusinessAdminRequest $request, Tenant $tenant, BusinessMembershipService $membershipService, AuditLogger $auditLogger): JsonResponse
     {
-        $data = $request->validated();
-
-        [$user, $membership, $invitationToken] = DB::transaction(function () use ($data, $tenant): array {
-            $role = Role::firstOrCreate(['tenant_id' => $tenant->getKey(), 'name' => 'business_admin']);
-            $hasPassword = filled($data['password'] ?? null);
-            $user = User::create([
-                'name' => $data['name'],
-                'email' => strtolower($data['email']),
-                'password' => Hash::make($hasPassword ? $data['password'] : Str::random(64)),
-                'status' => $hasPassword ? User::STATUS_ACTIVE : User::STATUS_INVITED,
-                'email_verified_at' => $hasPassword ? now() : null,
-            ]);
-            $membership = TenantMembership::create([
-                'tenant_id' => $tenant->getKey(),
-                'user_id' => $user->getKey(),
-                'role_id' => $role->getKey(),
-                'status' => 'active',
-                'joined_at' => now(),
-            ]);
-            $invitationToken = $hasPassword ? null : Password::broker()->createToken($user);
-
-            return [$user, $membership, $invitationToken];
-        });
+        [$user, $membership, $invitation] = $membershipService->inviteBusinessAdmin(
+            $tenant,
+            $request->validated('name'),
+            $request->validated('email'),
+            $request->user(),
+        );
 
         $auditLogger->record('platform.business_admin_created', $request->user(), $tenant, $user);
         $response = [
@@ -135,13 +132,11 @@ class PlatformBusinessAdminController
             'data' => [
                 'user' => new UserResource($user),
                 'membership_id' => $membership->id,
-                'invitation_sent' => false,
+                'invitation_sent' => true,
+                'invitation_status' => $invitation->refresh()->status(),
+                'invitation' => new BusinessInvitationResource($invitation->load(['tenant', 'user'])),
             ],
         ];
-
-        if ($invitationToken && app()->environment(['local', 'testing'])) {
-            $response['data']['development_invitation_token'] = $invitationToken;
-        }
 
         return response()->json($response, 201);
     }

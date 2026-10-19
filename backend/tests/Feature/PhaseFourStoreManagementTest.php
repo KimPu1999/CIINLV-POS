@@ -97,7 +97,8 @@ class PhaseFourStoreManagementTest extends TestCase
         $keys = collect($response->json('data.widgets'))->pluck('widget_key')->all();
         $this->assertContains('sales_overview', $keys);
         $this->assertNotContains('supplier_overview', $keys);
-        $this->assertSame('not_implemented', $response->json('data.metrics_status'));
+        $this->assertSame('available', $response->json('data.metrics_status'));
+        $this->assertSame('0.00', $response->json('data.metrics.sales_overview.today'));
     }
 
     public function test_branch_limit_is_enforced_for_trial_businesses(): void
@@ -108,6 +109,21 @@ class PhaseFourStoreManagementTest extends TestCase
             $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/stores', ['name' => 'Branch '.$i, 'store_code' => 'BR-'.$i])->assertCreated();
         }
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/stores', ['name' => 'Branch 5', 'store_code' => 'BR-5'])->assertUnprocessable();
+    }
+
+    public function test_main_branch_switch_is_transactional_and_unique_per_business(): void
+    {
+        [$tenant, $admin] = $this->business('BUS-A', 'admin-a@example.com', 'business_admin');
+        $first = $this->createStore($tenant, $admin, 'A-001');
+        $second = $this->createStore($tenant, $admin, 'A-002');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->assertTrue($first->fresh()->is_main);
+        $this->assertFalse($second->fresh()->is_main);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/stores/'.$second->uuid.'/set-main')->assertOk()->assertJsonPath('data.is_main', true);
+        $this->assertFalse($first->fresh()->is_main);
+        $this->assertTrue($second->fresh()->is_main);
+        $this->assertSame(1, Store::where('tenant_id', $tenant->id)->where('is_main', true)->count());
     }
 
     private function business(string $code, string $email, string $roleName): array

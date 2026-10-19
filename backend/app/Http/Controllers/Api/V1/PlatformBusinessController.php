@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\Platform\CreateBusinessRequest;
 use App\Http\Requests\Platform\UpdateBusinessRequest;
 use App\Http\Resources\TenantResource;
+use App\Http\Resources\BusinessInvitationResource;
 use App\Models\Tenant;
 use App\Services\AuditLogger;
 use App\Services\BusinessProvisioningService;
@@ -81,14 +82,18 @@ class PlatformBusinessController
 
     private function creationPayload(array $result): array
     {
-        return [
+        $invitation = $result['invitation']?->refresh()?->load(['tenant', 'user']);
+        $payload = [
             'business' => new TenantResource($result['tenant']),
             'administrator' => [
                 'name' => $result['admin']->name,
                 'email' => $result['admin']->email,
                 'role' => $result['membership']->role?->name,
-                'invitation_status' => $result['invitation_status'],
+                'invitation_status' => $invitation?->status() ?? $result['invitation_status'],
             ],
+            'invitation' => $invitation ? (new BusinessInvitationResource($invitation))->resolve() : null,
         ];
+
+        return $payload;
     }
 }

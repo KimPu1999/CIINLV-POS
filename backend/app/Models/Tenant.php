@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 class Tenant extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'business_code', 'email', 'phone', 'address', 'status', 'subscription_status', 'settings', 'created_by',
+        'name', 'display_name', 'description', 'business_type', 'slug', 'business_code', 'email', 'website', 'phone', 'address', 'city', 'state', 'postal_code', 'country', 'status', 'subscription_status', 'approval_status', 'email_verification_status', 'email_verified_at', 'approved_at', 'approved_by', 'settings', 'created_by', 'archived_at', 'archived_by', 'archived_previous_status', 'logo_path',
     ];
 
     protected static function booted(): void
@@ -27,6 +27,9 @@ class Tenant extends Model
         return [
             'settings' => 'array',
             'suspended_at' => 'datetime',
+            'email_verified_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
     }
 

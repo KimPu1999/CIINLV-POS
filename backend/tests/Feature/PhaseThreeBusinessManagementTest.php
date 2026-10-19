@@ -7,16 +7,86 @@ use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
+use App\Jobs\SendBusinessInvitation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
+use App\Services\BusinessInvitationService;
 use Tests\TestCase;
 
 class PhaseThreeBusinessManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_web_super_admin_session_can_restore_me_and_provision_a_business(): void
+    {
+        $superAdmin = User::factory()->create([
+            'email' => 'platform-session@example.com',
+            'password' => Hash::make('CorrectPassword1!'),
+            'platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $superAdmin->email,
+            'password' => 'CorrectPassword1!',
+            'client_type' => 'web',
+        ])->assertOk()->assertJsonPath('data.platform_role', User::PLATFORM_ROLE_SUPER_ADMIN);
+
+        $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.id', $superAdmin->id)
+            ->assertJsonPath('data.platform_role', User::PLATFORM_ROLE_SUPER_ADMIN);
+
+        $created = $this->postJson('/api/v1/platform/businesses', [
+            'business_name' => 'Business Session A',
+            'business_code' => 'BUS-SESSION-A',
+            'admin_name' => 'Session Admin',
+            'admin_email' => 'session-admin@example.com',
+        ])->assertCreated();
+
+        $tenantUuid = $created->json('data.business.id');
+        $tenant = Tenant::query()->where('uuid', $tenantUuid)->firstOrFail();
+
+        $this->getJson('/api/v1/platform/businesses')
+            ->assertOk()
+            ->assertJsonFragment(['business_code' => 'BUS-SESSION-A']);
+        $this->assertDatabaseHas('business_settings', ['tenant_id' => $tenant->id, 'currency_code' => 'MMK']);
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $tenant->id, 'status' => 'pending']);
+        $this->assertDatabaseHas('business_invitations', ['tenant_id' => $tenant->id, 'email' => 'session-admin@example.com']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'platform.business_created', 'tenant_id' => $tenant->id]);
+    }
+
+    public function test_unauthenticated_user_cannot_provision_a_business(): void
+    {
+        $this->postJson('/api/v1/platform/businesses', [
+            'business_name' => 'Unauthenticated Business',
+            'business_code' => 'BUS-UNAUTH',
+            'admin_name' => 'Admin',
+            'admin_email' => 'unauth-admin@example.com',
+        ])->assertUnauthorized();
+
+        $this->assertDatabaseCount('tenants', 0);
+    }
+
+    public function test_business_admin_cannot_provision_a_business(): void
+    {
+        [, , $businessAdmin] = $this->businessWithAdmin('BUS-OWNER', 'owner@example.com');
+
+        $this->actingAs($businessAdmin, 'sanctum')
+            ->postJson('/api/v1/platform/businesses', [
+                'business_name' => 'Unauthorized Business',
+                'business_code' => 'BUS-UNAUTHORIZED',
+                'admin_name' => 'Admin',
+                'admin_email' => 'unauthorized-admin@example.com',
+            ])->assertForbidden();
+
+        $this->assertDatabaseMissing('tenants', ['business_code' => 'BUS-UNAUTHORIZED']);
+    }
+
     public function test_super_admin_can_provision_business_and_idempotency_prevents_duplicates(): void
     {
+        Queue::fake();
         $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
         $payload = [
             'business_name' => 'Business A',
@@ -32,7 +102,8 @@ class PhaseThreeBusinessManagementTest extends TestCase
             ->postJson('/api/v1/platform/businesses', $payload)
             ->assertCreated()
             ->assertJsonPath('data.business.business_code', 'BUS-A')
-            ->assertJsonPath('data.administrator.invitation_status', 'pending');
+            ->assertJsonPath('data.administrator.invitation_status', 'pending')
+            ->assertJsonMissingPath('data.administrator.development_invitation_token');
 
         $this->actingAs($superAdmin, 'sanctum')
             ->withHeader('Idempotency-Key', 'business-a-creation')
@@ -42,8 +113,28 @@ class PhaseThreeBusinessManagementTest extends TestCase
         $this->assertDatabaseCount('tenants', 1);
         $this->assertDatabaseCount('business_settings', 1);
         $this->assertDatabaseCount('business_invitations', 1);
+        Queue::assertPushed(SendBusinessInvitation::class);
         $this->assertDatabaseHas('audit_logs', ['action' => 'platform.business_created']);
         $this->assertSame($first->json('data.business.id'), Tenant::first()->uuid);
+    }
+
+    public function test_existing_user_email_is_not_silently_assigned_to_a_new_business(): void
+    {
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        User::factory()->create(['email' => 'existing@example.com']);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson('/api/v1/platform/businesses', [
+                'business_name' => 'Business A',
+                'business_code' => 'BUS-A',
+                'admin_name' => 'Existing User',
+                'admin_email' => 'existing@example.com',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('admin_email');
+
+        $this->assertDatabaseCount('tenants', 0);
+        $this->assertDatabaseCount('tenant_memberships', 0);
     }
 
     public function test_duplicate_code_and_invalid_admin_email_are_rejected(): void
@@ -94,6 +185,38 @@ class PhaseThreeBusinessManagementTest extends TestCase
             ->getJson('/api/v1/business/dashboard')->assertOk()->assertJsonPath('data.active_members', 1);
     }
 
+    public function test_business_admin_login_returns_active_memberships_for_dashboard_selection(): void
+    {
+        [$tenantA, , $admin] = $this->businessWithAdmin('BUS-A', 'multi-business-admin@example.com');
+        [$tenantB] = $this->businessWithAdmin('BUS-B', 'other-admin@example.com');
+        $roleB = Role::firstOrCreate(['tenant_id' => $tenantB->id, 'name' => 'business_admin']);
+        TenantMembership::create([
+            'tenant_id' => $tenantB->id,
+            'user_id' => $admin->id,
+            'role_id' => $roleB->id,
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $admin->email,
+            'password' => 'CorrectPassword1!',
+            'client_type' => 'web',
+        ])->assertOk()
+            ->assertJsonCount(2, 'data.memberships')
+            ->assertJsonPath('data.memberships.0.role', 'business_admin')
+            ->assertJsonPath('data.memberships.0.status', 'active');
+
+        $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonCount(2, 'data.memberships');
+
+        $this->withHeader('X-Tenant-Id', $tenantA->uuid)
+            ->getJson('/api/v1/business/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.business.id', $tenantA->uuid);
+    }
+
     public function test_suspension_blocks_existing_business_sessions_and_activation_restores_access(): void
     {
         $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
@@ -128,18 +251,147 @@ class PhaseThreeBusinessManagementTest extends TestCase
         ])->assertUnprocessable();
 
         $invitation->update(['expires_at' => now()->addDay()]);
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/auth/invitations/accept', [
+            'email' => $user->email,
+            'token' => $token,
+        ])->assertOk();
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'CorrectPassword1!',
+            'client_type' => 'web',
+        ])->assertOk()
+            ->assertJsonPath('data.memberships.0.role', 'business_admin')
+            ->assertJsonPath('data.memberships.0.business.id', $tenant->uuid);
+
+        $user->refresh();
+        $this->assertTrue(Hash::check('CorrectPassword1!', $user->password));
+        $this->assertNotSame('StrongInvitePassword1!', $user->password);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/auth/invitations/accept', [
+            'email' => $user->email,
+            'token' => $token,
+        ])->assertUnprocessable();
+    }
+
+    public function test_invitation_preview_hides_secrets_and_acceptance_is_single_use(): void
+    {
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $tenant = Tenant::create(['name' => 'Preview Business', 'slug' => 'preview-business', 'business_code' => 'BUS-PREVIEW', 'status' => 'active']);
+        $role = Role::create(['tenant_id' => $tenant->id, 'name' => 'business_admin']);
+        $user = User::factory()->create(['email' => 'preview-admin@example.com', 'status' => User::STATUS_INVITED]);
+        TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $user->id, 'role_id' => $role->id, 'status' => 'pending', 'invited_by' => $superAdmin->id]);
+        $token = 'preview-token-with-at-least-32-characters-123';
+        $invitation = BusinessInvitation::create([
+            'tenant_id' => $tenant->id,
+            'email' => $user->email,
+            'role' => 'business_admin',
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addDay(),
+            'invited_by' => $superAdmin->id,
+        ]);
+
+        $this->getJson('/api/v1/auth/invitations/'.rawurlencode($token))
+            ->assertOk()
+            ->assertJsonPath('data.email', $user->email)
+            ->assertJsonPath('data.business.name', $tenant->name)
+            ->assertJsonPath('data.password_setup_required', true)
+            ->assertJsonMissingPath('data.token_hash')
+            ->assertJsonMissingPath('data.token');
+
         $this->postJson('/api/v1/auth/invitations/accept', [
             'email' => $user->email,
             'token' => $token,
             'password' => 'StrongInvitePassword1!',
             'password_confirmation' => 'StrongInvitePassword1!',
         ])->assertOk();
+
+        $user->refresh();
+        $invitation->refresh();
+        $this->assertTrue(Hash::check('StrongInvitePassword1!', $user->password));
+        $this->assertNotSame($token, $invitation->token_hash);
+        $this->assertNotNull($invitation->accepted_at);
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $tenant->id, 'user_id' => $user->id, 'status' => 'active']);
+
         $this->postJson('/api/v1/auth/invitations/accept', [
             'email' => $user->email,
             'token' => $token,
             'password' => 'AnotherStrongPassword2@',
             'password_confirmation' => 'AnotherStrongPassword2@',
         ])->assertUnprocessable();
+    }
+
+    public function test_existing_active_user_must_be_authenticated_to_accept_membership_invitation(): void
+    {
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $tenant = Tenant::create(['name' => 'Existing Account Business', 'slug' => 'existing-account-business', 'business_code' => 'BUS-EXISTING', 'status' => 'active']);
+        $user = User::factory()->create(['email' => 'existing-admin@example.com', 'password' => Hash::make('OriginalPassword1!'), 'status' => User::STATUS_ACTIVE]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson("/api/v1/platform/businesses/{$tenant->uuid}/admins", ['name' => 'Existing Admin', 'email' => $user->email])
+            ->assertCreated()
+            ->assertJsonPath('data.invitation_status', 'sent');
+
+        [$invitation, $token] = app(BusinessInvitationService::class)->createPending($tenant, $user->email, 'business_admin', $superAdmin);
+
+        $this->postJson('/api/v1/auth/invitations/accept', ['email' => $user->email, 'token' => $token])
+            ->assertForbidden();
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/v1/auth/invitations/accept', ['email' => $user->email, 'token' => $token])
+            ->assertOk();
+
+        $user->refresh();
+        $this->assertTrue(Hash::check('OriginalPassword1!', $user->password));
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $tenant->id, 'user_id' => $user->id, 'status' => 'active']);
+        $this->assertNotNull($invitation->refresh()->accepted_at);
+    }
+
+    public function test_super_admin_can_revoke_pending_invitation_and_business_admin_cannot(): void
+    {
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $tenant = Tenant::create(['name' => 'Revoke Business', 'slug' => 'revoke-business', 'business_code' => 'BUS-REVOKE', 'status' => 'active']);
+        $role = Role::create(['tenant_id' => $tenant->id, 'name' => 'business_admin']);
+        $user = User::factory()->create(['email' => 'revoke-admin@example.com', 'status' => User::STATUS_INVITED]);
+        TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $user->id, 'role_id' => $role->id, 'status' => 'pending']);
+        $token = 'revoke-token-with-at-least-32-characters-123';
+        $invitation = BusinessInvitation::create(['tenant_id' => $tenant->id, 'email' => $user->email, 'role' => 'business_admin', 'token_hash' => hash('sha256', $token), 'expires_at' => now()->addDay()]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/v1/platform/businesses/{$tenant->uuid}/admins/{$user->id}/revoke-invitation")
+            ->assertForbidden();
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->postJson("/api/v1/platform/businesses/{$tenant->uuid}/admins/{$user->id}/revoke-invitation")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'revoked');
+
+        $this->assertNotNull($invitation->refresh()->revoked_at);
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $tenant->id, 'user_id' => $user->id, 'status' => 'revoked']);
+        $this->postJson('/api/v1/auth/invitations/accept', ['email' => $user->email, 'token' => $token, 'password' => 'StrongInvitePassword1!', 'password_confirmation' => 'StrongInvitePassword1!'])->assertUnprocessable();
+    }
+
+    public function test_invitation_password_rules_are_enforced(): void
+    {
+        [$tenant, $membership] = $this->businessWithAdmin('BUS-PASSWORD', 'password-admin@example.com');
+        $user = User::query()->where('email', 'password-admin@example.com')->firstOrFail();
+        $user->update(['status' => User::STATUS_INVITED]);
+        $membership->update(['status' => 'pending', 'joined_at' => null]);
+        $token = 'password-rules-invitation-token-123456789';
+        BusinessInvitation::create([
+            'tenant_id' => $tenant->id,
+            'email' => $user->email,
+            'role' => 'business_admin',
+            'token_hash' => hash('sha256', $token),
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $this->postJson('/api/v1/auth/invitations/accept', [
+            'email' => $user->email,
+            'token' => $token,
+            'password' => 'short',
+            'password_confirmation' => 'different',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
     }
 
     public function test_revoked_membership_cannot_access_business_resources(): void

@@ -22,13 +22,30 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class StockTransferController
 {
-    public function index(TenantContext $context): JsonResponse
+    public function index(TenantContext $context, Request $request): JsonResponse
+    {
+        $ids = $this->accessibleLocationIds(request()->user(), $context->tenant()->id);
+        $transfers = StockTransfer::query()->where('stock_transfers.tenant_id', $context->tenant()->id)->where(function ($query) use ($ids): void {
+            $query->whereIn('source_location_id', $ids)->orWhereIn('destination_location_id', $ids);
+        })->with(['source', 'destination', 'items.variant.product'])->withCount('items')->when($request->filled('search'), fn ($q) => $q->where(fn ($inner) => $inner->where('stock_transfers.transfer_number', 'ilike', '%'.$request->string('search').'%')->orWhereHas('items.variant', fn ($variant) => $variant->where('product_variants.sku', 'ilike', '%'.$request->string('search').'%'))))->when($request->filled('status'), fn ($q) => $q->where('stock_transfers.status', $request->string('status')))->latest('stock_transfers.created_at')->paginate(min((int) $request->input('per_page', 25), 100));
+
+        return response()->json(['success' => true, 'data' => StockTransferResource::collection($transfers), 'meta' => ['total' => $transfers->total(), 'current_page' => $transfers->currentPage(), 'last_page' => $transfers->lastPage()]]);
+    }
+
+    public function statistics(TenantContext $context): JsonResponse
+    {
+        $tenantId = $context->tenant()->id;
+        $ids = $this->accessibleLocationIds(request()->user(), $tenantId);
+        $query = StockTransfer::query()->where('tenant_id', $tenantId)->where(function ($q) use ($ids): void { $q->whereIn('source_location_id', $ids)->orWhereIn('destination_location_id', $ids); });
+
+        return response()->json(['success' => true, 'data' => ['total_transfers' => (clone $query)->count(), 'draft_transfers' => (clone $query)->where('status', 'draft')->count(), 'pending_approval' => (clone $query)->where('status', 'pending_approval')->count(), 'approved_transfers' => (clone $query)->where('status', 'approved')->count(), 'in_transit' => (clone $query)->where('status', 'dispatched')->count(), 'partially_received' => (clone $query)->where('status', 'partially_received')->count(), 'completed_transfers' => (clone $query)->where('status', 'received')->count(), 'cancelled_transfers' => (clone $query)->where('status', 'cancelled')->count(), 'unresolved_discrepancies' => DB::table('stock_transfer_items')->join('stock_transfers', 'stock_transfers.id', '=', 'stock_transfer_items.stock_transfer_id')->where('stock_transfers.tenant_id', $tenantId)->where(function ($q) use ($ids): void { $q->whereIn('stock_transfers.source_location_id', $ids)->orWhereIn('stock_transfers.destination_location_id', $ids); })->where(fn ($q) => $q->where('stock_transfer_items.damaged_quantity', '>', 0)->orWhere('stock_transfer_items.missing_quantity', '>', 0))->count()]]);
+    }
+
+    public function locations(TenantContext $context): JsonResponse
     {
         $ids = $this->accessibleLocationIds(request()->user(), $context->tenant()->id);
 
-        return response()->json(['success' => true, 'data' => StockTransferResource::collection(StockTransfer::where('tenant_id', $context->tenant()->id)->where(function ($query) use ($ids): void {
-            $query->whereIn('source_location_id', $ids)->orWhereIn('destination_location_id', $ids);
-        })->with(['source', 'destination', 'items.variant'])->latest()->paginate(25))]);
+        return response()->json(['success' => true, 'data' => InventoryLocation::where('tenant_id', $context->tenant()->id)->whereIn('id', $ids)->where('status', 'active')->orderBy('name')->get()->map(fn (InventoryLocation $location): array => ['id' => $location->uuid, 'name' => $location->name, 'code' => $location->code, 'location_type' => $location->location_type])]);
     }
 
     public function store(CreateStockTransferRequest $request, TenantContext $context, StockTransferService $service, AuditLogger $auditLogger): JsonResponse

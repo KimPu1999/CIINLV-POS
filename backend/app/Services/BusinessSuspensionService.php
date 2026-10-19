@@ -10,6 +10,7 @@ class BusinessSuspensionService
 {
     public function suspend(Tenant $tenant, User $actor, AuditLogger $auditLogger): Tenant
     {
+        abort_if($tenant->status === 'archived', 409, 'Restore the archived business before suspending it.');
         return DB::transaction(function () use ($tenant, $actor, $auditLogger): Tenant {
             $tenant->forceFill([
                 'status' => 'suspended',
@@ -23,6 +24,7 @@ class BusinessSuspensionService
 
     public function activate(Tenant $tenant, User $actor, AuditLogger $auditLogger): Tenant
     {
+        abort_if($tenant->status === 'archived', 409, 'Restore the archived business before activating it.');
         return DB::transaction(function () use ($tenant, $actor, $auditLogger): Tenant {
             $tenant->forceFill([
                 'status' => 'active',

@@ -36,6 +36,10 @@ class BusinessProvisioningService
                     return $this->hydrateResult(Tenant::query()->findOrFail($existingKey->tenant_id));
                 }
 
+                if (User::query()->where('email', strtolower(trim($data['admin_email'])))->exists()) {
+                    throw ValidationException::withMessages(['admin_email' => ['This email already belongs to an account. Use a new email for a Business Admin invitation.']]);
+                }
+
                 $businessCode = Str::upper(trim($data['business_code']));
                 if (Tenant::query()->where('business_code', $businessCode)->exists()) {
                     throw ValidationException::withMessages(['business_code' => ['This business code is already in use.']]);
@@ -48,7 +52,10 @@ class BusinessProvisioningService
                     'email' => $data['business_email'] ?? null,
                     'phone' => $data['phone'] ?? null,
                     'address' => $data['address'] ?? null,
-                    'status' => 'active',
+                    'country' => $data['country'] ?? null,
+                    'status' => 'pending',
+                    'approval_status' => config('business.require_super_admin_approval') ? 'pending' : 'approved',
+                    'email_verification_status' => 'pending_email_verification',
                     'subscription_status' => 'trial',
                     'created_by' => $actor->getKey(),
                 ]);
@@ -61,7 +68,7 @@ class BusinessProvisioningService
                     'receipt_configuration' => $data['receipt_configuration'] ?? [],
                 ]);
 
-                [$admin, $membership, $invitation, $invitationStatus] = $this->membershipService->inviteBusinessAdmin(
+                [$admin, $membership, $invitation, $invitationStatus, $invitationToken] = $this->membershipService->inviteBusinessAdmin(
                     $tenant,
                     $data['admin_name'],
                     $data['admin_email'],
@@ -89,6 +96,7 @@ class BusinessProvisioningService
                     'membership' => $membership->load('role'),
                     'invitation' => $invitation,
                     'invitation_status' => $invitationStatus,
+                    'invitation_token' => $invitationToken,
                 ];
             });
         } catch (UniqueConstraintViolationException $exception) {
@@ -104,12 +112,18 @@ class BusinessProvisioningService
     {
         $membership = $tenant->memberships()->with(['user', 'role'])->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))->latest()->firstOrFail();
 
+        $invitation = $tenant->invitations()
+            ->where('email', $membership->user->email)
+            ->latest()
+            ->first();
+
         return [
             'tenant' => $tenant->load('businessSetting'),
             'admin' => $membership->user,
             'membership' => $membership,
-            'invitation' => $tenant->invitations()->where('email', $membership->user->email)->whereNull('accepted_at')->latest()->first(),
-            'invitation_status' => $membership->user->isActive() ? 'not_required' : 'pending',
+            'invitation' => $invitation,
+            'invitation_status' => $invitation?->status() ?? ($membership->user->isActive() ? 'not_required' : 'pending'),
+            'invitation_token' => null,
         ];
     }
 }

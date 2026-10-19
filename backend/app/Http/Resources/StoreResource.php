@@ -18,10 +18,12 @@ class StoreResource extends JsonResource
             'phone' => $this->phone,
             'address' => $this->address,
             'city' => $this->city,
+            'region' => $this->region,
             'country' => $this->country,
             'currency_code' => $this->currency_code,
             'timezone' => $this->timezone,
             'status' => $this->status,
+            'is_main' => (bool) $this->is_main,
             'created_at' => $this->created_at,
         ];
     }

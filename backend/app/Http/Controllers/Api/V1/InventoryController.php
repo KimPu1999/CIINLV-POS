@@ -30,6 +30,18 @@ class InventoryController
         return response()->json(['success' => true, 'data' => $balances]);
     }
 
+    public function statistics(Request $request, TenantContext $context): JsonResponse
+    {
+        $tenantId = $context->tenant()->id;
+        $locationIds = $this->accessibleLocationIds($request->user(), $tenantId);
+        $balances = InventoryBalance::query()->where('inventory_balances.tenant_id', $tenantId)->whereIn('inventory_balances.inventory_location_id', $locationIds);
+        $totals = (clone $balances)->selectRaw('COALESCE(SUM(on_hand_quantity), 0) AS on_hand, COALESCE(SUM(reserved_quantity), 0) AS reserved, COALESCE(SUM(on_hand_quantity * average_cost), 0) AS value')->first();
+        $lowStock = (clone $balances)->join('product_variants', function ($join): void { $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id'); })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')->count();
+        $outOfStock = (clone $balances)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= 0')->count();
+
+        return response()->json(['success' => true, 'data' => ['total_stock_units' => $totals?->on_hand ?? '0', 'available_stock' => bcsub((string) ($totals?->on_hand ?? 0), (string) ($totals?->reserved ?? 0), 3), 'reserved_stock' => $totals?->reserved ?? '0', 'total_inventory_value' => $totals?->value ?? '0', 'low_stock_products' => $lowStock, 'out_of_stock_products' => $outOfStock, 'locations' => $locationIds->count(), 'recent_movements' => StockMovement::with(['location', 'variant.product'])->where('tenant_id', $tenantId)->whereIn('inventory_location_id', $locationIds)->latest('created_at')->limit(8)->get()->map(fn (StockMovement $movement): array => ['id' => $movement->uuid, 'movement_type' => $movement->movement_type, 'quantity_delta' => $movement->quantity_delta, 'sku' => $movement->variant?->sku, 'product' => $movement->variant?->product?->name, 'location' => $movement->location?->name, 'created_at' => $movement->created_at])]]);
+    }
+
     public function location(InventoryLocation $location, TenantContext $context): JsonResponse
     {
         $this->assertTenant($location, $context);
@@ -111,7 +123,15 @@ class InventoryController
 
     private function stockList(TenantContext $context, bool $out): JsonResponse
     {
-        $query = InventoryBalance::with(['location', 'variant.product'])->join('product_variants', 'product_variants.id', '=', 'inventory_balances.product_variant_id')->where('inventory_balances.tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $this->accessibleLocationIds(request()->user(), $context->tenant()->id))->select('inventory_balances.*')->when($out, fn ($q) => $q->whereRaw('inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity <= 0'), fn ($q) => $q->whereRaw('inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity <= product_variants.reorder_level'));
+        $query = InventoryBalance::with(['location', 'variant.product'])
+            ->join('product_variants', function ($join): void {
+                $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')
+                    ->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+            })
+            ->where('inventory_balances.tenant_id', $context->tenant()->id)
+            ->whereIn('inventory_balances.inventory_location_id', $this->accessibleLocationIds(request()->user(), $context->tenant()->id))
+            ->select('inventory_balances.*')
+            ->when($out, fn ($q) => $q->whereRaw('inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity <= 0'), fn ($q) => $q->whereRaw('inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity <= product_variants.reorder_level'));
 
         return response()->json(['success' => true, 'data' => $query->paginate(50)]);
     }

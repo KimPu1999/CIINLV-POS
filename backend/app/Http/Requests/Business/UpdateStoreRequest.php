@@ -13,6 +13,6 @@ class UpdateStoreRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['name' => ['sometimes', 'string', 'max:150'], 'description' => ['nullable', 'string', 'max:2000'], 'email' => ['nullable', 'email', 'max:255'], 'phone' => ['nullable', 'string', 'max:50'], 'address' => ['nullable', 'string', 'max:1000'], 'city' => ['nullable', 'string', 'max:100'], 'country' => ['nullable', 'string', 'max:100'], 'currency_code' => ['sometimes', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'], 'timezone' => ['sometimes', 'timezone']];
+        return ['name' => ['sometimes', 'string', 'max:150'], 'description' => ['nullable', 'string', 'max:2000'], 'email' => ['nullable', 'email', 'max:255'], 'phone' => ['nullable', 'string', 'max:50'], 'address' => ['nullable', 'string', 'max:1000'], 'city' => ['nullable', 'string', 'max:100'], 'region' => ['nullable', 'string', 'max:100'], 'country' => ['nullable', 'string', 'max:100'], 'currency_code' => ['sometimes', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'], 'timezone' => ['sometimes', 'timezone']];
     }
 }

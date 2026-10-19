@@ -6,10 +6,12 @@ use App\Http\Requests\Inventory\CreateSupplierRequest;
 use App\Http\Requests\Inventory\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
+use App\Models\PurchaseOrder;
 use App\Services\AuditLogger;
 use App\Services\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class SupplierController
@@ -17,9 +19,23 @@ class SupplierController
     public function index(Request $request, TenantContext $context): JsonResponse
     {
         $this->requireManager($request->user(), $context->tenant()->id);
-        $suppliers = Supplier::where('tenant_id', $context->tenant()->id)->when($request->filled('search'), fn ($q) => $q->where(fn ($q) => $q->where('name', 'ilike', '%'.$request->string('search').'%')->orWhere('supplier_code', 'ilike', '%'.$request->string('search').'%')))->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))->orderBy('name')->paginate(min((int) $request->input('per_page', 25), 100));
+        $suppliers = Supplier::query()->where('suppliers.tenant_id', $context->tenant()->id)->withCount('purchaseOrders')->withMax('purchaseOrders as last_purchase_at', 'ordered_at')
+            ->when($request->filled('search'), fn ($q) => $q->where(fn ($q) => $q->where('suppliers.name', 'ilike', '%'.$request->string('search').'%')->orWhere('suppliers.supplier_code', 'ilike', '%'.$request->string('search').'%')->orWhere('suppliers.contact_person', 'ilike', '%'.$request->string('search').'%')->orWhere('suppliers.email', 'ilike', '%'.$request->string('search').'%')->orWhere('suppliers.phone', 'ilike', '%'.$request->string('search').'%')))
+            ->when($request->filled('status'), fn ($q) => $q->where('suppliers.status', $request->string('status')))
+            ->when($request->filled('supplier_type'), fn ($q) => $q->where('suppliers.supplier_type', $request->string('supplier_type')))
+            ->orderBy('suppliers.name')->paginate(min((int) $request->input('per_page', 25), 100));
 
-        return response()->json(['success' => true, 'data' => SupplierResource::collection($suppliers)]);
+        return response()->json(['success' => true, 'data' => SupplierResource::collection($suppliers), 'meta' => ['total' => $suppliers->total(), 'per_page' => $suppliers->perPage(), 'current_page' => $suppliers->currentPage(), 'last_page' => $suppliers->lastPage()]]);
+    }
+
+    public function statistics(TenantContext $context): JsonResponse
+    {
+        $tenantId = $context->tenant()->id;
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
+        $purchaseMonth = PurchaseOrder::query()->where('purchase_orders.tenant_id', $tenantId)->whereBetween('purchase_orders.ordered_at', [$monthStart, $monthEnd])->whereNotIn('purchase_orders.status', ['cancelled', 'draft'])->join('purchase_order_items', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')->sum(DB::raw('purchase_order_items.ordered_quantity * purchase_order_items.unit_cost'));
+
+        return response()->json(['success' => true, 'data' => ['total_suppliers' => Supplier::where('tenant_id', $tenantId)->count(), 'active_suppliers' => Supplier::where('tenant_id', $tenantId)->where('status', 'active')->count(), 'inactive_suppliers' => Supplier::where('tenant_id', $tenantId)->whereIn('status', ['inactive', 'archived'])->count(), 'total_purchase_orders' => PurchaseOrder::where('tenant_id', $tenantId)->count(), 'open_purchase_orders' => PurchaseOrder::where('tenant_id', $tenantId)->whereIn('status', ['draft', 'submitted', 'approved', 'partially_received'])->count(), 'purchases_this_month' => number_format((float) $purchaseMonth, 2, '.', ''), 'outstanding_payables' => null, 'payables_available' => false]]);
     }
 
     public function store(CreateSupplierRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse

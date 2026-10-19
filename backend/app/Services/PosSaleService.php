@@ -141,6 +141,9 @@ class PosSaleService
 
     public function hold(Sale $sale, User $actor): Sale
     {
+        if (! $this->holdResumeEnabled($sale->store)) {
+            throw new ConflictHttpException('Hold and resume is disabled for this business.');
+        }
         if ($sale->status !== 'draft') {
             throw new ConflictHttpException('Only draft sales can be held.');
         }
@@ -152,6 +155,9 @@ class PosSaleService
 
     public function resume(Sale $sale, User $actor): Sale
     {
+        if (! $this->holdResumeEnabled($sale->store)) {
+            throw new ConflictHttpException('Hold and resume is disabled for this business.');
+        }
         if ($sale->status !== 'held') {
             throw new ConflictHttpException('Only held sales can be resumed.');
         }
@@ -223,6 +229,7 @@ class PosSaleService
             throw new UnprocessableEntityHttpException('The sale discount cannot exceed the subtotal.');
         }
         $taxRate = $this->taxRate($store);
+        $taxMode = $this->taxMode($store);
         $taxTotal = '0.00';
         $lineItems = [];
         $allocated = '0.00';
@@ -230,11 +237,17 @@ class PosSaleService
             $lineDiscount = $index === count($lines) - 1 ? $this->money($this->subtract($discount, $allocated)) : $this->money($this->divide($this->multiply($discount, $line['base']), $subtotal ?: '1'));
             $allocated = $this->money($this->add($allocated, $lineDiscount));
             $taxable = $this->money($this->subtract($line['base'], $lineDiscount));
-            $tax = $this->money($this->divide($this->multiply($taxable, $taxRate), '100'));
-            $lineTotal = $this->money($this->add($taxable, $tax));
+            if ($taxMode === 'inclusive' && bccomp($taxRate, '0', 4) > 0) {
+                $net = $this->money($this->divide($this->multiply($taxable, '100'), $this->add('100', $taxRate)));
+                $tax = $this->money($this->subtract($taxable, $net));
+                $lineTotal = $this->money($taxable);
+            } else {
+                $tax = $this->money($this->divide($this->multiply($taxable, $taxRate), '100'));
+                $lineTotal = $this->money($this->add($taxable, $tax));
+            }
             $taxTotal = $this->money($this->add($taxTotal, $tax));
             $variant = $line['variant'];
-            $lineItems[] = ['tenant_id' => $store->tenant_id, 'product_variant_id' => $variant->id, 'product_name_snapshot' => $variant->product->name, 'sku_snapshot' => $variant->sku, 'barcode_snapshot' => $variant->barcode, 'unit_snapshot' => $variant->unit, 'quantity' => $line['quantity'], 'unit_price' => $this->money((string) $variant->selling_price), 'discount_amount' => $lineDiscount, 'tax_amount' => $tax, 'line_total' => $lineTotal, 'unit_cost_at_sale' => $this->money((string) $line['cost'], 4), 'tax_snapshot' => ['rate' => $taxRate]];
+            $lineItems[] = ['tenant_id' => $store->tenant_id, 'product_variant_id' => $variant->id, 'product_name_snapshot' => $variant->product->name, 'sku_snapshot' => $variant->sku, 'barcode_snapshot' => $variant->barcode, 'unit_snapshot' => $variant->unit, 'quantity' => $line['quantity'], 'unit_price' => $this->money((string) $variant->selling_price), 'discount_amount' => $lineDiscount, 'tax_amount' => $tax, 'line_total' => $lineTotal, 'unit_cost_at_sale' => $this->money((string) $line['cost'], 4), 'tax_snapshot' => ['rate' => $taxRate, 'mode' => $taxMode]];
         }
         $grand = $this->money($this->add($this->subtract($subtotal, $discount), $taxTotal));
 
@@ -284,6 +297,21 @@ class PosSaleService
         $decimalRate = BigDecimal::of((string) $rate);
 
         return $decimalRate->isNegative() ? '0.0000' : $decimalRate->toScale(4, RoundingMode::HalfUp)->__toString();
+    }
+
+    private function taxMode(Store $store): string
+    {
+        $configuration = $store->setting?->tax_configuration ?? [];
+
+        return (($configuration['mode'] ?? 'exclusive') === 'inclusive') ? 'inclusive' : 'exclusive';
+    }
+
+    private function holdResumeEnabled(Store $store): bool
+    {
+        $store->loadMissing('tenant.businessSetting');
+        $configuration = $store->tenant?->businessSetting?->pos_configuration ?? [];
+
+        return ($configuration['hold_resume_enabled'] ?? true) === true;
     }
 
     private function currency(Store $store): string

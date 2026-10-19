@@ -18,6 +18,7 @@ class UpdateBusinessRequest extends FormRequest
             'email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'address' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'country' => ['sometimes', 'nullable', 'string', 'max:100'],
             'subscription_status' => ['sometimes', 'in:trial,active,past_due,cancelled'],
         ];
     }

@@ -15,6 +15,8 @@ class AuditLogger
         ?object $subject = null,
         array $metadata = [],
     ): void {
+        $tenant ??= $subject instanceof Tenant ? $subject : null;
+
         AuditLog::create([
             'actor_user_id' => $actor?->getKey(),
             'tenant_id' => $tenant?->getKey(),

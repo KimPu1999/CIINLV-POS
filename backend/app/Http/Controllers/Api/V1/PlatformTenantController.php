@@ -69,6 +69,7 @@ class PlatformTenantController
     public function suspend(Tenant $tenant, AuditLogger $auditLogger, Request $request): JsonResponse
     {
         Gate::authorize('manage', $tenant);
+        abort_if($tenant->status === 'archived', 409, 'Restore the archived business before suspending it.');
         $tenant->forceFill(['status' => 'suspended', 'suspended_at' => now()])->save();
         $auditLogger->record('platform.tenant_suspended', $request->user(), subject: $tenant);
 
@@ -78,6 +79,7 @@ class PlatformTenantController
     public function activate(Tenant $tenant, AuditLogger $auditLogger, Request $request): JsonResponse
     {
         Gate::authorize('manage', $tenant);
+        abort_if($tenant->status === 'archived', 409, 'Restore the archived business before activating it.');
         $tenant->forceFill(['status' => 'active', 'suspended_at' => null, 'suspension_reason' => null])->save();
         $auditLogger->record('platform.tenant_activated', $request->user(), subject: $tenant);
 

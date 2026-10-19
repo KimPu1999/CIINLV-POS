@@ -9,6 +9,6 @@ class StockTransferItemResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        return ['variant_id' => $this->variant?->uuid, 'sku' => $this->variant?->sku, 'requested_quantity' => $this->requested_quantity, 'reserved_quantity' => $this->reserved_quantity, 'dispatched_quantity' => $this->dispatched_quantity, 'received_quantity' => $this->received_quantity, 'damaged_quantity' => $this->damaged_quantity, 'missing_quantity' => $this->missing_quantity];
+        return ['variant_id' => $this->variant?->uuid, 'sku' => $this->variant?->sku, 'product' => $this->variant?->product?->name, 'requested_quantity' => $this->requested_quantity, 'reserved_quantity' => $this->reserved_quantity, 'dispatched_quantity' => $this->dispatched_quantity, 'received_quantity' => $this->received_quantity, 'damaged_quantity' => $this->damaged_quantity, 'missing_quantity' => $this->missing_quantity, 'outstanding_quantity' => bcsub((string) $this->dispatched_quantity, bcadd(bcadd((string) $this->received_quantity, (string) $this->damaged_quantity, 3), (string) $this->missing_quantity, 3), 3)];
     }
 }

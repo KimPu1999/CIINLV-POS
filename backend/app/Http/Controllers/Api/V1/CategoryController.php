@@ -17,9 +17,15 @@ class CategoryController
 {
     public function index(Request $request, TenantContext $context): JsonResponse
     {
-        $categories = $context->tenant()->categories()->with('parent')->when($request->filled('search'), fn ($q) => $q->where('name', 'ilike', '%'.$request->string('search').'%'))->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))->orderBy('sort_order')->paginate(min((int) $request->input('per_page', 50), 100));
+        $query = $context->tenant()->categories()->with('parent')->withCount(['products', 'children'])
+            ->when($request->filled('search'), fn ($q) => $q->where(fn ($search) => $search->where('categories.name', 'ilike', '%'.$request->string('search').'%')->orWhere('categories.slug', 'ilike', '%'.$request->string('search').'%')))
+            ->when($request->filled('status'), fn ($q) => $q->where('categories.status', $request->string('status')))
+            ->when($request->filled('parent_id'), fn ($q) => $q->whereHas('parent', fn ($parent) => $parent->where('categories.uuid', $request->string('parent_id'))));
+        $sort = in_array($request->input('sort'), ['name', 'sort_order', 'created_at', 'products_count', 'children_count'], true) ? $request->input('sort') : 'sort_order';
+        $direction = $request->input('direction') === 'desc' ? 'desc' : 'asc';
+        $categories = $query->orderBy($sort, $direction)->paginate(min((int) $request->input('per_page', 50), 100));
 
-        return response()->json(['success' => true, 'data' => CategoryResource::collection($categories)]);
+        return response()->json(['success' => true, 'data' => CategoryResource::collection($categories), 'meta' => ['total' => $categories->total(), 'per_page' => $categories->perPage(), 'current_page' => $categories->currentPage(), 'last_page' => $categories->lastPage()]]);
     }
 
     public function store(CreateCategoryRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse

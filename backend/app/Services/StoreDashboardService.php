@@ -16,7 +16,7 @@ class StoreDashboardService
         $isAdmin = $user->memberships()->where('tenant_id', $store->tenant_id)->where('status', 'active')
             ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))->exists();
 
-        return $store->dashboardWidgets()->orderBy('position')->get()->filter(function ($widget) use ($user, $store, $isAdmin) {
+        return $store->dashboardWidgets()->where('is_enabled', true)->orderBy('position')->get()->filter(function ($widget) use ($user, $store, $isAdmin) {
             if ($isAdmin) {
                 return true;
             }

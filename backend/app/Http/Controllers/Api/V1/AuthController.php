@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -41,7 +42,7 @@ class AuthController
             'last_login_ip' => $request->ip(),
         ])->save();
 
-        $response = ['success' => true, 'data' => new UserResource($user)];
+        $response = ['success' => true, 'data' => new UserResource($this->withActiveMemberships($user))];
 
         if ($data['client_type'] === 'mobile') {
             $expiresAt = now()->addDays((int) env('SANCTUM_MOBILE_TOKEN_DAYS', 30));
@@ -84,6 +85,23 @@ class AuthController
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => new UserResource($request->user())]);
+        return response()->json(['success' => true, 'data' => new UserResource($this->withActiveMemberships($request->user()))]);
+    }
+
+    public function updateProfile(UpdateProfileRequest $request, AuditLogger $auditLogger): JsonResponse
+    {
+        $user = $request->user();
+        $user->forceFill(['name' => $request->validated('name')])->save();
+        $auditLogger->record('auth.profile_updated', $user);
+        return response()->json(['success' => true, 'data' => new UserResource($user->refresh())]);
+    }
+
+    private function withActiveMemberships(User $user): User
+    {
+        return $user->load(['memberships' => function ($query): void {
+            $query->where('status', 'active')
+                ->whereHas('tenant', fn ($tenantQuery) => $tenantQuery->where('status', 'active'))
+                ->with(['tenant', 'role']);
+        }]);
     }
 }

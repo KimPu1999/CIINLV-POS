@@ -7,6 +7,11 @@ use App\Models\User;
 
 class TenantPolicy
 {
+    public function create(User $user): bool
+    {
+        return $user->isSuperAdmin();
+    }
+
     public function view(User $user, Tenant $tenant): bool
     {
         return $user->isSuperAdmin() || $user->tenants()->whereKey($tenant->getKey())->wherePivot('status', 'active')->exists();
@@ -19,10 +24,10 @@ class TenantPolicy
 
     public function updateProfile(User $user, Tenant $tenant): bool
     {
-        return $user->tenants()
-            ->whereKey($tenant->getKey())
-            ->wherePivot('status', 'active')
-            ->whereHas('roles', fn ($query) => $query->where('name', 'business_admin'))
+        return $user->memberships()
+            ->where('tenant_id', $tenant->getKey())
+            ->where('status', 'active')
+            ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))
             ->exists();
     }
 }

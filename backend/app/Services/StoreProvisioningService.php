@@ -41,10 +41,12 @@ class StoreProvisioningService
                 'phone' => $data['phone'] ?? null,
                 'address' => $data['address'] ?? null,
                 'city' => $data['city'] ?? null,
+                'region' => $data['region'] ?? null,
                 'country' => $data['country'] ?? null,
                 'currency_code' => $data['currency_code'] ?? 'MMK',
                 'timezone' => $data['timezone'] ?? 'Asia/Yangon',
                 'status' => 'active',
+                'is_main' => $existing === 0,
                 'created_by' => $actor->getKey(),
             ]);
 
@@ -57,6 +59,24 @@ class StoreProvisioningService
             ]);
 
             return $store->fresh(['setting', 'dashboardWidgets', 'dashboardLayouts']);
+        });
+    }
+
+    public function setMain(Store $store, User $actor): Store
+    {
+        return DB::transaction(function () use ($store, $actor): Store {
+            $tenant = Tenant::query()->whereKey($store->tenant_id)->lockForUpdate()->firstOrFail();
+            $lockedStore = Store::query()->whereKey($store->getKey())->where('tenant_id', $tenant->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($lockedStore->status !== 'active') {
+                throw new UnprocessableEntityHttpException('Only an active branch can be the main branch.');
+            }
+
+            Store::query()->where('tenant_id', $tenant->getKey())->where('id', '!=', $lockedStore->getKey())->update(['is_main' => false]);
+            $lockedStore->update(['is_main' => true]);
+            $this->auditLogger->record('business.store_main_changed', $actor, $tenant, $lockedStore, ['store_id' => $lockedStore->uuid]);
+
+            return $lockedStore->fresh(['setting']);
         });
     }
 

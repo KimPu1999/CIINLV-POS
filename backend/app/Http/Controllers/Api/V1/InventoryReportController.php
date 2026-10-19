@@ -95,7 +95,15 @@ class InventoryReportController
     private function stockListForReport(Request $request, TenantContext $context, ReportScopeService $scope, bool $out): JsonResponse
     {
         $ids = $scope->locationIds($request->user(), $context->tenant(), $request->input('store_id'));
-        $query = InventoryBalance::with(['location', 'variant.product'])->join('product_variants', 'product_variants.id', '=', 'inventory_balances.product_variant_id')->where('inventory_balances.tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $ids)->select('inventory_balances.*')->when($out, fn ($q) => $q->whereRaw('(on_hand_quantity - reserved_quantity) <= 0'), fn ($q) => $q->whereRaw('(on_hand_quantity - reserved_quantity) <= product_variants.reorder_level'));
+        $query = InventoryBalance::with(['location', 'variant.product'])
+            ->join('product_variants', function ($join): void {
+                $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')
+                    ->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+            })
+            ->where('inventory_balances.tenant_id', $context->tenant()->id)
+            ->whereIn('inventory_balances.inventory_location_id', $ids)
+            ->select('inventory_balances.*')
+            ->when($out, fn ($q) => $q->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= 0'), fn ($q) => $q->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level'));
 
         return response()->json(['success' => true, 'data' => $query->paginate(50)]);
     }

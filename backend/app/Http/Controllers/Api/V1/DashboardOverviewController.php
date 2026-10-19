@@ -31,7 +31,18 @@ class DashboardOverviewController
 
     public function lowStock(Request $request, TenantContext $context): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => InventoryBalance::with(['location', 'variant.product'])->where('tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', app(ReportScopeService::class)->locationIds($request->user(), $context->tenant(), $request->input('store_id')))->join('product_variants', 'product_variants.id', '=', 'inventory_balances.product_variant_id')->whereRaw('(on_hand_quantity - reserved_quantity) <= product_variants.reorder_level')->select('inventory_balances.*')->paginate(50)]);
+        $locations = app(ReportScopeService::class)->locationIds($request->user(), $context->tenant(), $request->input('store_id'));
+        $query = InventoryBalance::with(['location', 'variant.product'])
+            ->join('product_variants', function ($join): void {
+                $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')
+                    ->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+            })
+            ->where('inventory_balances.tenant_id', $context->tenant()->id)
+            ->whereIn('inventory_balances.inventory_location_id', $locations)
+            ->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')
+            ->select('inventory_balances.*');
+
+        return response()->json(['success' => true, 'data' => $query->paginate(50)]);
     }
 
     public function recentSales(Request $request, TenantContext $context): JsonResponse
@@ -45,5 +56,10 @@ class DashboardOverviewController
     public function topProducts(Request $request, TenantContext $context, SalesAnalyticsService $analytics): JsonResponse
     {
         return response()->json(['success' => true, 'data' => $analytics->topProducts($request, $context->tenant())]);
+    }
+
+    public function salesTrend(Request $request, TenantContext $context, SalesAnalyticsService $analytics): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $analytics->trend($request, $context->tenant())]);
     }
 }

@@ -27,6 +27,24 @@ class PhaseTwoSecurityTest extends TestCase
         $this->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.id', $user->id);
     }
 
+    public function test_super_admin_can_login_and_access_platform_dashboard(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'platform-admin@example.com',
+            'password' => Hash::make('CorrectPassword1!'),
+            'platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'CorrectPassword1!',
+            'client_type' => 'web',
+        ])->assertOk()->assertJsonPath('data.platform_role', User::PLATFORM_ROLE_SUPER_ADMIN);
+
+        $this->getJson('/api/v1/platform/dashboard')->assertOk();
+    }
+
     public function test_wrong_password_is_rejected_and_login_is_rate_limited(): void
     {
         $user = User::factory()->create(['email' => 'throttle@example.com', 'password' => Hash::make('CorrectPassword1!')]);
@@ -36,7 +54,11 @@ class PhaseTwoSecurityTest extends TestCase
             $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'wrong']);
         }
 
-        $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'wrong'])->assertStatus(429);
+        $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'wrong'])
+            ->assertStatus(429)
+            ->assertJsonPath('message', 'Too many login attempts. Try again later.')
+            ->assertJsonStructure(['retry_after'])
+            ->assertHeader('Retry-After');
     }
 
     public function test_mobile_login_issues_device_token_and_logout_revokes_it(): void
@@ -73,14 +95,15 @@ class PhaseTwoSecurityTest extends TestCase
         $this->actingAs($superAdmin, 'sanctum')
             ->postJson("/api/v1/platform/tenants/{$tenantId}/admins", ['name' => 'Admin A', 'email' => 'admin-a@example.com'])
             ->assertCreated()
-            ->assertJsonStructure(['data' => ['development_invitation_token']]);
+            ->assertJsonPath('data.invitation_status', 'sent')
+            ->assertJsonMissingPath('data.development_invitation_token');
 
         $this->actingAs($superAdmin, 'sanctum')
             ->postJson("/api/v1/platform/tenants/{$tenantId}/admins", ['name' => 'Admin A2', 'email' => 'admin-a@example.com'])
             ->assertUnprocessable();
 
         $this->assertDatabaseHas('tenants', ['name' => 'Business A']);
-        $this->assertDatabaseHas('tenant_memberships', ['status' => 'active']);
+        $this->assertDatabaseHas('tenant_memberships', ['status' => 'pending']);
     }
 
     public function test_business_members_cannot_select_another_tenant(): void

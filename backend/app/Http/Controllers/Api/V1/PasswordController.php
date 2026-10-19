@@ -6,6 +6,7 @@ use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Services\AuditLogger;
+use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -31,7 +32,10 @@ class PasswordController
 
     public function forgot(ForgotPasswordRequest $request, AuditLogger $auditLogger): JsonResponse
     {
-        $status = Password::sendResetLink($request->only('email'));
+        $user = User::query()->where('email', $request->validated('email'))->first();
+        $status = $user?->isActive()
+            ? Password::sendResetLink($request->only('email'))
+            : Password::INVALID_USER;
 
         if ($status === Password::RESET_LINK_SENT) {
             $auditLogger->record('auth.password_reset_requested', metadata: ['email_hash' => hash('sha256', strtolower($request->validated('email')))]);
@@ -50,8 +54,6 @@ class PasswordController
             function ($user, string $password) use ($auditLogger): void {
                 $user->forceFill([
                     'password' => Hash::make($password),
-                    'status' => 'active',
-                    'email_verified_at' => $user->email_verified_at ?: now(),
                 ])->save();
                 $user->tokens()->delete();
                 event(new PasswordReset($user));

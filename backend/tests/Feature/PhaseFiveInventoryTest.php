@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\InventoryLocation;
+use App\Models\InventoryBalance;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\Store;
@@ -24,6 +25,7 @@ class PhaseFiveInventoryTest extends TestCase
         $headersA = ['X-Tenant-Id' => $tenantA->uuid];
         $category = $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/categories', ['name' => 'Beverages'])->assertCreated();
         $product = $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/products', ['category_id' => $category->json('data.id'), 'name' => 'Cola', 'variants' => [['sku' => 'COLA-001', 'barcode' => '4006381333931', 'barcode_type' => 'ean-13', 'selling_price' => 1000, 'purchase_cost' => 700]]])->assertCreated();
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->getJson('/api/v1/categories?search=beverages')->assertOk()->assertJsonPath('data.0.product_count', 1);
         $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->getJson('/api/v1/products/barcode/4006381333931')->assertOk()->assertJsonPath('data.sku', 'COLA-001');
         $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/products', ['name' => 'Duplicate SKU', 'variants' => [['sku' => 'COLA-001', 'selling_price' => 1]]])->assertStatus(409);
         $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/products/'.$product->json('data.id'))->assertNotFound();
@@ -47,6 +49,35 @@ class PhaseFiveInventoryTest extends TestCase
         $cashier = $this->userWithMembership($tenant, 'cashier@example.com', 'cashier');
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cashier-adjustment')->postJson('/api/v1/inventory/adjustments', ['location_id' => $location->uuid, 'variant_id' => $variant->uuid, 'quantity_delta' => -1, 'reason' => 'unauthorized'])->assertForbidden();
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'negative-stock')->postJson('/api/v1/inventory/adjustments', ['location_id' => $location->uuid, 'variant_id' => $variant->uuid, 'quantity_delta' => -11, 'reason' => 'count'])->assertUnprocessable();
+    }
+
+    public function test_internal_barcode_generation_is_tenant_scoped_and_does_not_overwrite(): void
+    {
+        [$tenant, $admin] = $this->business('BUS-BAR', 'barcode-admin@example.com', 'business_admin');
+        $product = $this->product($tenant, $admin, 'BAR-001');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $variant = $product->variants()->firstOrFail();
+
+        $generated = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/product-variants/'.$variant->uuid.'/barcode/generate', ['type' => 'internal'])->assertOk();
+        $generated->assertJsonPath('data.barcode_type', 'internal');
+        $this->assertNotEmpty($generated->json('data.barcode'));
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/product-variants/'.$variant->uuid.'/barcode/generate', ['type' => 'internal'])->assertStatus(409);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/barcodes/statistics')->assertOk()->assertJsonPath('data.with_barcode', 1);
+    }
+
+    public function test_product_listing_returns_inventory_summary_and_server_side_filters(): void
+    {
+        [$tenant, $admin] = $this->business('BUS-LIST', 'products-list@example.com', 'business_admin');
+        $product = $this->product($tenant, $admin, 'LIST-001');
+        $variant = $product->variants()->firstOrFail();
+        $variant->update(['reorder_level' => 15]);
+        $store = Store::create(['tenant_id' => $tenant->id, 'name' => 'List Store', 'code' => 'LIST-STORE', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $admin->id]);
+        $location = InventoryLocation::create(['tenant_id' => $tenant->id, 'location_type' => 'store', 'store_id' => $store->id, 'name' => 'List Stockroom', 'code' => 'LIST-STOCK', 'status' => 'active']);
+        InventoryBalance::create(['tenant_id' => $tenant->id, 'inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 10, 'reserved_quantity' => 0, 'average_cost' => 5, 'version' => 0]);
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/products?search=LIST-001&stock_status=low_stock')
+            ->assertOk()->assertJsonPath('data.0.sku', 'LIST-001')->assertJsonPath('data.0.available_stock', 10);
     }
 
     public function test_purchase_receiving_partial_receipts_and_stock_transfer_update_balances_once(): void

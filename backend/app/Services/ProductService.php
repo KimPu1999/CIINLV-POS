@@ -39,7 +39,7 @@ class ProductService
         if (ProductVariant::where('tenant_id', $tenantId)->where('sku', $sku)->exists()) {
             throw new ConflictHttpException('The SKU is already in use in this business.');
         }
-        $barcodeType = $data['barcode_type'] ?? ($data['barcode'] ? 'internal' : null);
+        $barcodeType = $data['barcode_type'] ?? (! empty($data['barcode']) ? 'internal' : null);
         $barcode = $this->barcodeService->validate($data['barcode'] ?? null, $barcodeType);
         if ($barcode && ProductVariant::where('tenant_id', $tenantId)->where('barcode', $barcode)->where('status', 'active')->exists()) {
             throw new ConflictHttpException('The barcode is already in use in this business.');

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\User;
 use Illuminate\Validation\Rules\Password;
 
 class AcceptBusinessInvitationRequest extends FormRequest
@@ -19,10 +20,18 @@ class AcceptBusinessInvitationRequest extends FormRequest
 
     public function rules(): array
     {
+        $user = User::query()->where('email', $this->input('email'))->first();
+        $passwordRequired = ! $user?->isActive();
+
         return [
             'email' => ['required', 'email:rfc', 'max:255'],
             'token' => ['required', 'string', 'min:32'],
-            'password' => ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()],
+            'password' => $passwordRequired
+                ? ['required', 'string', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()]
+                : ['nullable', 'string'],
+            'password_confirmation' => $passwordRequired
+                ? ['required', 'same:password']
+                : ['nullable', 'same:password'],
         ];
     }
 }

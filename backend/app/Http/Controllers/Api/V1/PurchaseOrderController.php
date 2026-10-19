@@ -25,7 +25,20 @@ class PurchaseOrderController
 {
     public function index(TenantContext $context, Request $request): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => PurchaseOrderResource::collection(PurchaseOrder::where('tenant_id', $context->tenant()->id)->whereIn('destination_location_id', $this->accessibleLocationIds($request->user(), $context->tenant()->id))->with(['supplier', 'destination', 'items.variant.product'])->latest()->paginate(25))]);
+        $orders = PurchaseOrder::query()->where('purchase_orders.tenant_id', $context->tenant()->id)->whereIn('purchase_orders.destination_location_id', $this->accessibleLocationIds($request->user(), $context->tenant()->id))->with(['supplier', 'destination', 'items.variant.product'])->withCount('items')->when($request->filled('search'), fn ($q) => $q->where(fn ($inner) => $inner->where('purchase_orders.purchase_order_number', 'ilike', '%'.$request->string('search').'%')->orWhereHas('supplier', fn ($supplier) => $supplier->where('suppliers.name', 'ilike', '%'.$request->string('search').'%'))))->when($request->filled('status'), fn ($q) => $q->where('purchase_orders.status', $request->string('status')))->latest('purchase_orders.created_at')->paginate(min((int) $request->input('per_page', 25), 100));
+
+        return response()->json(['success' => true, 'data' => PurchaseOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);
+    }
+
+    public function statistics(TenantContext $context, Request $request): JsonResponse
+    {
+        $tenantId = $context->tenant()->id;
+        $locations = $this->accessibleLocationIds($request->user(), $tenantId);
+        $orders = PurchaseOrder::query()->where('purchase_orders.tenant_id', $tenantId)->whereIn('purchase_orders.destination_location_id', $locations);
+        $value = (clone $orders)->whereNotIn('status', ['cancelled'])->join('purchase_order_items', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')->sum(DB::raw('purchase_order_items.ordered_quantity * purchase_order_items.unit_cost'));
+        $month = (clone $orders)->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfMonth()])->whereNotIn('status', ['cancelled', 'draft'])->join('purchase_order_items', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')->sum(DB::raw('purchase_order_items.ordered_quantity * purchase_order_items.unit_cost'));
+
+        return response()->json(['success' => true, 'data' => ['total_orders' => (clone $orders)->count(), 'draft_orders' => (clone $orders)->where('status', 'draft')->count(), 'pending_approval' => (clone $orders)->where('status', 'submitted')->count(), 'approved_orders' => (clone $orders)->where('status', 'approved')->count(), 'partially_received_orders' => (clone $orders)->where('status', 'partially_received')->count(), 'received_orders' => (clone $orders)->where('status', 'received')->count(), 'cancelled_orders' => (clone $orders)->where('status', 'cancelled')->count(), 'outstanding_order_value' => number_format((float) $value, 2, '.', ''), 'purchases_this_month' => number_format((float) $month, 2, '.', ''), 'payments_available' => false]]);
     }
 
     public function store(CreatePurchaseOrderRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
@@ -69,6 +82,32 @@ class PurchaseOrderController
             throw new ConflictHttpException('Only draft purchase orders can be submitted.');
         } $order->update(['status' => 'submitted', 'ordered_at' => now()]);
         $auditLogger->record('inventory.purchase_order_submitted', $request->user(), $context->tenant(), $order);
+
+        return response()->json(['success' => true, 'data' => new PurchaseOrderResource($order->refresh())]);
+    }
+
+    public function approve(PurchaseOrder $order, TenantContext $context, Request $request, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->assertTenant($order, $context);
+        Gate::authorize('manage', $order);
+        if ($order->status !== 'submitted') {
+            throw new ConflictHttpException('Only submitted purchase orders can be approved.');
+        }
+        $order->update(['status' => 'approved']);
+        $auditLogger->record('inventory.purchase_order_approved', $request->user(), $context->tenant(), $order);
+
+        return response()->json(['success' => true, 'data' => new PurchaseOrderResource($order->refresh())]);
+    }
+
+    public function cancel(PurchaseOrder $order, TenantContext $context, Request $request, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->assertTenant($order, $context);
+        Gate::authorize('manage', $order);
+        if (! in_array($order->status, ['draft', 'submitted', 'approved'], true)) {
+            throw new ConflictHttpException('A received purchase order cannot be cancelled.');
+        }
+        $order->update(['status' => 'cancelled']);
+        $auditLogger->record('inventory.purchase_order_cancelled', $request->user(), $context->tenant(), $order);
 
         return response()->json(['success' => true, 'data' => new PurchaseOrderResource($order->refresh())]);
     }

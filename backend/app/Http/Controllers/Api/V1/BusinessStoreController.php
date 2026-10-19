@@ -71,4 +71,12 @@ class BusinessStoreController
 
         return response()->json(['success' => true, 'data' => new StoreResource($store->refresh())]);
     }
+
+    public function setMain(Store $store, StoreContextService $storeContext, Request $request, StoreProvisioningService $service): JsonResponse
+    {
+        $storeContext->store($store);
+        Gate::authorize('manage', $store);
+
+        return response()->json(['success' => true, 'message' => 'Main branch updated.', 'data' => new StoreResource($service->setMain($store, $request->user()))]);
+    }
 }

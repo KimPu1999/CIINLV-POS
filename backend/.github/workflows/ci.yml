@@ -1,0 +1,59 @@
+name: CIINLV POS backend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ciinlv_pos_test
+          POSTGRES_USER: ciinlv_user
+          POSTGRES_PASSWORD: ciinlv_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ciinlv_user -d ciinlv_pos_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: testing
+      APP_DEBUG: false
+      APP_KEY: base64:eHyPoJKACkMghruW/lKblHDFRnYGpTubr/Gtrer5U9I=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: ciinlv_pos_test
+      DB_USERNAME: ciinlv_user
+      DB_PASSWORD: ciinlv_test_password
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: find app config routes database tests -name '*.php' -print0 | xargs -0 -n1 php -l
+      - run: vendor/bin/pint --test
+      - run: php artisan migrate --force
+      - run: php artisan test --no-coverage
+      - run: composer audit --no-interaction
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

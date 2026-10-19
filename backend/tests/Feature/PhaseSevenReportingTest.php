@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\InventoryLocation;
+use App\Models\InventoryBalance;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\Store;
@@ -33,6 +34,8 @@ class PhaseSevenReportingTest extends TestCase
 
         $response = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/dashboard/overview');
         $response->assertOk()->assertJsonPath('data.total_sales', '20.00')->assertJsonPath('data.total_transactions', 1)->assertJsonPath('data.gross_profit', '10.0000');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/reports/sales/by-cashier')->assertOk()->assertJsonPath('data.rows.0.transaction_count', 1);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/reports/sales/by-payment-method')->assertOk()->assertJsonPath('data.rows.0.method', 'cash')->assertJsonPath('data.rows.0.amount', '20.00');
     }
 
     public function test_business_report_scope_blocks_another_tenant(): void
@@ -42,6 +45,21 @@ class PhaseSevenReportingTest extends TestCase
 
         $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/dashboard/overview')->assertForbidden();
         $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/reports/sales/daily')->assertForbidden();
+    }
+
+    public function test_dashboard_low_stock_join_is_qualified_and_tenant_scoped(): void
+    {
+        [$tenantA, $adminA, , , , $variantA] = $this->fixture('REPORT-A', 'low-stock-a');
+        [$tenantB, $adminB, , , , $variantB] = $this->fixture('REPORT-B', 'low-stock-b');
+        $variantA->update(['reorder_level' => 15]);
+        $variantB->update(['reorder_level' => 15]);
+        $balanceA = InventoryBalance::where('tenant_id', $tenantA->id)->where('product_variant_id', $variantA->id)->firstOrFail();
+        $balanceB = InventoryBalance::where('tenant_id', $tenantB->id)->where('product_variant_id', $variantB->id)->firstOrFail();
+
+        $response = $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/dashboard/low-stock');
+
+        $response->assertOk()->assertJsonPath('data.data.0.product_variant_id', $balanceA->product_variant_id)->assertJsonMissing(['product_variant_id' => $balanceB->product_variant_id]);
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/dashboard/low-stock?store_id=00000000-0000-0000-0000-000000000000')->assertOk()->assertJsonCount(0, 'data.data');
     }
 
     public function test_low_stock_alerts_are_deduplicated_and_resolved(): void
@@ -56,6 +74,79 @@ class PhaseSevenReportingTest extends TestCase
 
         app(InventoryService::class)->mutate($location, $variant, 'opening_stock', '10', $admin, 'test', 'alert-restock', null, 'alert-restock', '5');
         $this->assertDatabaseHas('stock_alerts', ['status' => 'resolved']);
+    }
+
+    public function test_low_stock_alert_api_has_qualified_metrics_and_tenant_isolation(): void
+    {
+        [$tenantA, $adminA, , , $locationA, $variantA] = $this->fixture('REPORT-A', 'alert-api-a');
+        [$tenantB, $adminB, , , $locationB, $variantB] = $this->fixture('REPORT-B', 'alert-api-b');
+        $variantA->update(['reorder_level' => 15]);
+        $variantB->update(['reorder_level' => 15]);
+        app(InventoryService::class)->mutate($locationA, $variantA, 'adjustment_out', '-10', $adminA, 'test', 'api-alert-a', null, 'api-alert-a');
+        app(InventoryService::class)->mutate($locationB, $variantB, 'adjustment_out', '-10', $adminB, 'test', 'api-alert-b', null, 'api-alert-b');
+        app(StockAlertService::class)->evaluate($locationA, $variantA);
+        app(StockAlertService::class)->evaluate($locationB, $variantB);
+
+        $response = $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/alerts');
+        $response->assertOk()->assertJsonPath('data.data.0.variant.id', $variantA->uuid)->assertJsonMissing(['id' => $variantB->uuid]);
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/alerts/statistics')->assertOk()->assertJsonPath('data.out_of_stock_items', 1)->assertJsonPath('data.unique_variants', 1);
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/alerts?location_id='.$locationA->uuid)->assertOk()->assertJsonCount(1, 'data.data');
+        $export = $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->get('/api/v1/alerts/export')->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString('Alert type', $export->streamedContent());
+        $this->assertStringContainsString('Coffee alert-api-a', $export->streamedContent());
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/alerts?store_id=00000000-0000-0000-0000-000000000000')->assertOk()->assertJsonCount(0, 'data.data');
+    }
+
+    public function test_alert_lifecycle_is_authorized_and_audited(): void
+    {
+        [$tenant, $admin, , , $location, $variant] = $this->fixture('REPORT-A', 'alert-lifecycle');
+        $variant->update(['reorder_level' => 15]);
+        app(InventoryService::class)->mutate($location, $variant, 'adjustment_out', '-10', $admin, 'test', 'lifecycle-alert', null, 'lifecycle-alert');
+        $alert = app(StockAlertService::class)->evaluate($location, $variant);
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/alerts/'.$alert->uuid.'/acknowledge')->assertOk()->assertJsonPath('data.status', 'acknowledged');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/alerts/'.$alert->uuid.'/snooze', ['hours' => 24])->assertOk()->assertJsonPath('data.status', 'snoozed');
+        $alert->update(['status' => 'resolved', 'resolved_at' => now()]);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/alerts/'.$alert->uuid.'/reopen')->assertOk()->assertJsonPath('data.status', 'open');
+        $this->assertDatabaseHas('audit_logs', ['tenant_id' => $tenant->id, 'action' => 'inventory.stock_alert_acknowledged']);
+        $this->assertDatabaseHas('audit_logs', ['tenant_id' => $tenant->id, 'action' => 'inventory.stock_alert_snoozed']);
+        $this->assertDatabaseHas('audit_logs', ['tenant_id' => $tenant->id, 'action' => 'inventory.stock_alert_reopened']);
+    }
+
+    public function test_alert_listing_handles_open_acknowledged_snoozed_expired_and_resolved_states(): void
+    {
+        [$tenant, $admin, , , $location, $variant] = $this->fixture('REPORT-A', 'alert-states');
+        $variant->update(['reorder_level' => 15]);
+        app(InventoryService::class)->mutate($location, $variant, 'adjustment_out', '-10', $admin, 'test', 'alert-states', null, 'alert-states');
+        $alert = app(StockAlertService::class)->evaluate($location, $variant);
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts')->assertOk()->assertJsonCount(1, 'data.data');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/alerts/'.$alert->uuid.'/acknowledge')->assertOk()->assertJsonPath('data.status', 'acknowledged');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts?status=acknowledged')->assertOk()->assertJsonCount(1, 'data.data');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/alerts/'.$alert->uuid.'/snooze', ['hours' => 24])->assertOk()->assertJsonPath('data.status', 'snoozed');
+        $alert->refresh();
+        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $alert->snoozed_until);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts')->assertOk()->assertJsonCount(1, 'data.data');
+
+        $alert->update(['snoozed_until' => now()->subMinute()]);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts')->assertOk()->assertJsonCount(0, 'data.data');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts?status=snoozed')->assertOk()->assertJsonCount(1, 'data.data');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts/statistics')->assertOk()->assertJsonPath('data.snoozed_alerts', 0);
+
+        $alert->update(['status' => 'resolved', 'snoozed_until' => null, 'resolved_at' => now()]);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts?status=resolved')->assertOk()->assertJsonCount(1, 'data.data');
+    }
+
+    public function test_alert_endpoints_deny_a_different_tenant_context(): void
+    {
+        [$tenantA, $adminA] = $this->fixture('REPORT-A', 'alert-auth-a');
+        [$tenantB] = $this->fixture('REPORT-B', 'alert-auth-b');
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/alerts')->assertForbidden();
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/alerts/statistics')->assertForbidden();
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/alerts')->assertOk();
     }
 
     public function test_weighted_average_valuation_and_private_export_are_authoritative(): void

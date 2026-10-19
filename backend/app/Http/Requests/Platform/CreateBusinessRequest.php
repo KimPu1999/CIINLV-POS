@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Platform;
 
+use App\Models\Tenant;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateBusinessRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('create', Tenant::class) ?? false;
     }
 
     protected function prepareForValidation(): void
@@ -29,6 +30,7 @@ class CreateBusinessRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:1000'],
             'admin_name' => ['required', 'string', 'max:255'],
             'admin_email' => ['required', 'email:rfc', 'max:255'],
+            'country' => ['nullable', 'string', 'max:100'],
             'currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'timezone' => ['nullable', 'timezone'],
             'locale' => ['nullable', 'string', 'max:20'],

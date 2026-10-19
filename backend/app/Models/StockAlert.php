@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class StockAlert extends Model
 {
-    protected $fillable = ['tenant_id', 'inventory_location_id', 'product_variant_id', 'alert_type', 'threshold_quantity', 'available_quantity', 'status', 'first_triggered_at', 'last_triggered_at', 'acknowledged_at', 'acknowledged_by', 'resolved_at', 'metadata'];
+    protected $fillable = ['tenant_id', 'inventory_location_id', 'product_variant_id', 'alert_type', 'threshold_quantity', 'available_quantity', 'status', 'first_triggered_at', 'last_triggered_at', 'acknowledged_at', 'acknowledged_by', 'snoozed_until', 'snoozed_by', 'resolved_at', 'metadata'];
 
     protected static function booted(): void
     {
@@ -17,7 +17,7 @@ class StockAlert extends Model
 
     protected function casts(): array
     {
-        return ['threshold_quantity' => 'decimal:3', 'available_quantity' => 'decimal:3', 'first_triggered_at' => 'datetime', 'last_triggered_at' => 'datetime', 'acknowledged_at' => 'datetime', 'resolved_at' => 'datetime', 'metadata' => 'array'];
+        return ['threshold_quantity' => 'decimal:3', 'available_quantity' => 'decimal:3', 'first_triggered_at' => 'datetime', 'last_triggered_at' => 'datetime', 'acknowledged_at' => 'datetime', 'snoozed_until' => 'datetime', 'resolved_at' => 'datetime', 'metadata' => 'array'];
     }
 
     public function getRouteKeyName(): string
@@ -43,5 +43,10 @@ class StockAlert extends Model
     public function acknowledgedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'acknowledged_by');
+    }
+
+    public function snoozedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'snoozed_by');
     }
 }

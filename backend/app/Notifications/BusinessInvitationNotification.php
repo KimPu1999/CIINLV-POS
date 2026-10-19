@@ -6,6 +6,7 @@ use App\Models\BusinessInvitation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Crypt;
 
 class BusinessInvitationNotification extends Notification
 {
@@ -13,7 +14,7 @@ class BusinessInvitationNotification extends Notification
 
     public function __construct(
         private readonly BusinessInvitation $invitation,
-        private readonly string $plainToken,
+        private readonly string $encryptedToken,
     ) {}
 
     public function via(object $notifiable): array
@@ -23,13 +24,22 @@ class BusinessInvitationNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $url = rtrim((string) config('app.url'), '/').'/activate-business?email='.rawurlencode($this->invitation->email).'&token='.rawurlencode($this->plainToken);
+        $plainToken = Crypt::decryptString($this->encryptedToken);
+        $url = rtrim((string) config('app.frontend_url'), '/').'/accept-invitation/'.rawurlencode($plainToken).'?email='.rawurlencode($this->invitation->email);
 
         return (new MailMessage)
             ->subject('CIINLV POS business invitation')
-            ->greeting('You have been invited to manage a CIINLV POS business.')
-            ->line('Use the secure activation link to set your password and activate your business administrator account.')
-            ->action('Activate business account', $url)
-            ->line('This invitation expires on '.$this->invitation->expires_at->toIso8601String().'.');
+            ->view('emails.business-invitation', [
+                'businessName' => $this->invitation->tenant?->name ?? 'CIINLV POS business',
+                'recipientEmail' => $this->invitation->email,
+                'expiresAt' => $this->invitation->expires_at,
+                'activationUrl' => $url,
+            ])
+            ->text('emails.business-invitation-text', [
+                'businessName' => $this->invitation->tenant?->name ?? 'CIINLV POS business',
+                'recipientEmail' => $this->invitation->email,
+                'expiresAt' => $this->invitation->expires_at,
+                'activationUrl' => $url,
+            ]);
     }
 }

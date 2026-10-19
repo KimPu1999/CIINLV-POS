@@ -94,6 +94,29 @@ class PhaseSixPosTest extends TestCase
         $this->assertDatabaseHas('inventory_balances', ['inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 8]);
         $this->assertDatabaseCount('refunds', 1);
         $this->assertDatabaseHas('sale_items', ['uuid' => $saleItemId, 'returned_quantity' => 1]);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/dashboard/sales-summary')->assertOk()->assertJsonPath('data.net_revenue', '20.00')->assertJsonPath('data.cogs', '10.0000')->assertJsonPath('data.gross_profit', '10.0000');
+    }
+
+    public function test_returns_management_is_tenant_scoped_and_statistics_count_succeeded_refunds(): void
+    {
+        [$tenantA, $adminA, $cashierA, $storeA, $locationA, $variantA] = $this->posFixture('BUS-A', 'return-management');
+        [$tenantB, $adminB] = $this->posFixture('BUS-B', 'return-isolation');
+        $headersA = ['X-Tenant-Id' => $tenantA->uuid];
+        $register = $this->register($adminA, $storeA, $headersA);
+        $this->openShift($cashierA, $storeA, $register, $headersA);
+        $sale = $this->actingAs($cashierA, 'sanctum')->withHeaders($headersA)->withHeader('Idempotency-Key', 'sale-management-1')->postJson('/api/v1/pos/sales', ['store_id' => $storeA->uuid, 'register_id' => $register, 'items' => [['variant_id' => $variantA->uuid, 'quantity' => 1]]])->assertCreated();
+        $saleId = $sale->json('data.id');
+        $this->actingAs($cashierA, 'sanctum')->withHeaders($headersA)->withHeader('Idempotency-Key', 'payment-management-1')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'cash', 'amount' => 10])->assertCreated();
+        $this->actingAs($cashierA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk();
+        $return = $this->actingAs($cashierA, 'sanctum')->withHeaders($headersA)->withHeader('Idempotency-Key', 'return-management-1')->postJson('/api/v1/pos/sales/'.$saleId.'/returns', ['reason' => 'Management test', 'items' => [['sale_item_id' => $sale->json('data.items.0.id'), 'quantity' => 1, 'restock' => false, 'disposition' => 'damaged']]])->assertCreated();
+        $returnId = $return->json('data.id');
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/pos/returns/'.$returnId.'/approve')->assertOk();
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->withHeader('Idempotency-Key', 'refund-management-1')->postJson('/api/v1/pos/returns/'.$returnId.'/refund', ['method' => 'cash'])->assertCreated();
+
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->getJson('/api/v1/pos/returns?search='.$return->json('data.return_number'))->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.status', 'refunded');
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->getJson('/api/v1/pos/returns/statistics')->assertOk()->assertJsonPath('data.total_returns', 1)->assertJsonPath('data.pending_returns', 0)->assertJsonPath('data.completed_returns', 1)->assertJsonPath('data.actual_refunds', '10.00')->assertJsonPath('data.refunds_by_payment_method.cash', '10.00');
+        $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/pos/returns')->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/pos/returns/statistics')->assertOk()->assertJsonPath('data.total_returns', 0)->assertJsonPath('data.actual_refunds', '0.00');
     }
 
     public function test_duplicate_open_shift_is_rejected_and_reconciliation_uses_cash_tender_after_change(): void
