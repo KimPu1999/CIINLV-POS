@@ -403,6 +403,47 @@ class PhaseThreeBusinessManagementTest extends TestCase
             ->getJson('/api/v1/business/members')->assertForbidden();
     }
 
+    public function test_super_admin_business_directory_has_statistics_owner_filters_and_pagination(): void
+    {
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $tenantA = Tenant::create(['name' => 'Alpha Retail', 'slug' => 'alpha-retail', 'business_code' => 'ALPHA-001', 'email' => 'alpha@example.com', 'status' => 'active', 'subscription_status' => 'trial']);
+        $tenantB = Tenant::create(['name' => 'Beta Retail', 'slug' => 'beta-retail', 'business_code' => 'BETA-001', 'email' => 'beta@example.com', 'status' => 'suspended', 'subscription_status' => 'active']);
+        $owner = User::factory()->create(['name' => 'Alpha Owner', 'email' => 'alpha-owner@example.com', 'email_verified_at' => now()]);
+        $role = Role::create(['tenant_id' => $tenantA->id, 'name' => 'business_admin']);
+        TenantMembership::create(['tenant_id' => $tenantA->id, 'user_id' => $owner->id, 'role_id' => $role->id, 'status' => 'active', 'joined_at' => now()]);
+
+        $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/platform/businesses/statistics')
+            ->assertOk()
+            ->assertJsonPath('data.total_businesses', 2)
+            ->assertJsonPath('data.active_businesses', 1)
+            ->assertJsonPath('data.trial_businesses', 1)
+            ->assertJsonPath('data.suspended_businesses', 1);
+
+        $directory = $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/platform/businesses?search=alpha-owner&activation=verified&per_page=1');
+        $directory
+            ->assertOk()
+            ->assertJsonFragment(['business_code' => 'ALPHA-001'])
+            ->assertJsonPath('meta.total', 1);
+
+        $export = $this->actingAs($superAdmin, 'sanctum')->get('/api/v1/platform/businesses/export?search=alpha-owner');
+        $export->assertOk();
+        $this->assertStringContainsString('Alpha Retail', $export->streamedContent());
+        $this->assertStringContainsString('alpha-owner@example.com', $export->streamedContent());
+
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/platform/businesses/'.$tenantA->uuid, ['subscription_status' => 'active'])
+            ->assertOk();
+        $this->assertDatabaseHas('tenants', ['id' => $tenantA->id, 'subscription_status' => 'trial']);
+        $this->assertDatabaseHas('tenants', ['id' => $tenantB->id, 'subscription_status' => 'active']);
+    }
+
+    public function test_business_admin_cannot_access_business_directory_statistics_or_export(): void
+    {
+        [, , $businessAdmin] = $this->businessWithAdmin('BUS-DIRECTORY', 'directory-admin@example.com');
+
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/platform/businesses/statistics')->assertForbidden();
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/platform/businesses/export')->assertForbidden();
+    }
+
     private function businessWithAdmin(string $code, string $email): array
     {
         $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);

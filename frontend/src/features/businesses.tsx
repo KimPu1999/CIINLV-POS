@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, Mail, Pencil, Plus, RefreshCw, ShieldCheck, UserPlus, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Grid2X2, List, Mail, Pencil, Plus, RefreshCw, Search, ShieldCheck, UserPlus, XCircle } from 'lucide-react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge } from '../components/ui'
-import { request } from '../lib/api'
+import { EmptyState, ErrorState, LoadingState, PageHeader, StatCard, StatusBadge } from '../components/ui'
+import { api, request } from '../lib/api'
 
 type Business = {
   id: string
@@ -20,7 +20,11 @@ type Business = {
   archived_at?: string | null
   created_at?: string | null
   members_count?: number
+  active_members_count?: number
   stores_count?: number
+  owner?: { name?: string; email?: string } | null
+  owner_activation_status?: string | null
+  logo_url?: string | null
   settings?: { currency_code?: string; timezone?: string; locale?: string } | null
 }
 
@@ -60,6 +64,9 @@ type InvitationPreview = {
 
 type FieldErrors = Record<string, string>
 
+type BusinessPage = { rows: Business[]; current_page: number; last_page: number; total: number }
+type BusinessStats = { total_businesses: number; active_businesses: number; trial_businesses: number; suspended_businesses: number; pending_registrations: number; pending_owner_activations: number; expired_subscriptions: number | null; new_businesses_this_month: number; subscription_data_available: boolean; subscription_data_message: string }
+
 const emptyForm = {
   business_name: '',
   business_code: '',
@@ -75,30 +82,56 @@ const emptyForm = {
 
 export function BusinessListPage() {
   const [rows, setRows] = useState<Business[]>([])
+  const [stats, setStats] = useState<BusinessStats | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [subscription, setSubscription] = useState('')
+  const [activation, setActivation] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [sort, setSort] = useState('created_at:desc')
+  const [page, setPage] = useState(1)
+  const [lastPage, setLastPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [view, setView] = useState<'list' | 'grid'>('list')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const params = () => {
+    const [sortField, direction] = sort.split(':')
+    return { search: search || undefined, status: status || undefined, subscription: subscription || undefined, activation: activation || undefined, from: from || undefined, to: to || undefined, sort: sortField, direction, page, per_page: 25 }
+  }
   const load = () => {
     setLoading(true)
     setError('')
-    request<unknown>({ method: 'get', url: '/api/v1/platform/businesses', params: { search: search || undefined, status: status || undefined, per_page: 100 } })
-      .then((payload) => setRows(normalizeBusinesses(payload)))
+    Promise.all([
+      api.get<{ data: unknown; meta?: { current_page?: number; last_page?: number; total?: number } }>('/api/v1/platform/businesses', { params: params() }),
+      stats ? Promise.resolve(stats) : request<BusinessStats>({ method: 'get', url: '/api/v1/platform/businesses/statistics' }),
+    ])
+      .then(([response, currentStats]) => { const result = normalizeBusinessPage(response.data.data, response.data.meta); setRows(result.rows); setPage(result.current_page); setLastPage(result.last_page); setTotal(result.total); setStats(currentStats as BusinessStats) })
       .catch((err) => setError(errorMessage(err, 'Unable to load businesses.')))
       .finally(() => setLoading(false))
   }
-  useEffect(load, [search, status])
+  useEffect(load, [search, status, subscription, activation, from, to, sort, page])
+  const resetFilters = () => { setSearch(''); setStatus(''); setSubscription(''); setActivation(''); setFrom(''); setTo(''); setSort('created_at:desc'); setPage(1) }
+  const exportBusinesses = async () => {
+    try {
+      const response = await api.get('/api/v1/platform/businesses/export', { params: { ...params(), page: undefined, per_page: undefined }, responseType: 'blob' })
+      const url = URL.createObjectURL(response.data)
+      const link = document.createElement('a'); link.href = url; link.download = 'businesses.csv'; link.click(); URL.revokeObjectURL(url)
+    } catch (err) { setError(errorMessage(err, 'Unable to export businesses.')) }
+  }
 
   return <>
-    <PageHeader title="Businesses" description="Manage independent CIINLV POS business accounts." action={<Link to="/platform/businesses/new" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"><Plus size={17} />Register business</Link>} />
-    <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
-      <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name or business code" className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" />
-      <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"><option value="">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="archived">Archived</option><option value="pending">Pending</option></select>
-      <button onClick={load} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700"><RefreshCw size={16} />Refresh</button>
-    </div>
-    {error ? <ErrorState message={error} /> : loading ? <LoadingState /> : !rows.length ? <EmptyState label="No businesses match your filters." /> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-4">Business</th><th className="px-5 py-4">Code</th><th className="px-5 py-4">Contact</th><th className="px-5 py-4">Business</th><th className="px-5 py-4">Email verification</th><th className="px-5 py-4">Subscription</th><th className="px-5 py-4 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((business) => <tr key={business.id} className="hover:bg-slate-50/70"><td className="px-5 py-4"><Link to={`/platform/businesses/${business.id}`} className="font-semibold text-slate-900 hover:text-blue-700">{business.name}</Link><p className="mt-1 text-xs text-slate-400">{business.email || 'No business email'}</p></td><td className="px-5 py-4 font-mono text-xs text-slate-600">{business.business_code}</td><td className="px-5 py-4 text-slate-600">{business.phone || '—'}</td><td className="px-5 py-4"><StatusBadge status={business.status} /></td><td className="px-5 py-4"><StatusBadge status={business.email_verification_status || 'not_required'} /></td><td className="px-5 py-4"><StatusBadge status={business.subscription_status} /></td><td className="px-5 py-4 text-right"><Link to={`/platform/businesses/${business.id}`} className="text-sm font-semibold text-blue-700 hover:text-blue-900">Open</Link></td></tr>)}</tbody></table></div></div>}
+    <PageHeader title="Business management" description="Manage independent CIINLV POS business accounts, owners, branches, and lifecycle state." action={<div className="flex flex-wrap gap-2"><button onClick={() => { void exportBusinesses() }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300"><Download size={17} />Export CSV</button><Link to="/platform/businesses/new" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"><Plus size={17} />Register business</Link></div>} />
+    {stats && <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[['total_businesses', 'Total businesses', Building2, 'All tenant accounts'], ['active_businesses', 'Active businesses', CheckCircle2, 'Available to business users'], ['trial_businesses', 'Trial businesses', ShieldCheck, 'subscription_status: trial'], ['suspended_businesses', 'Suspended businesses', XCircle, 'Access restricted'], ['pending_registrations', 'Pending registrations', RefreshCw, 'Approval or activation backlog'], ['pending_owner_activations', 'Owner activation', UserPlus, 'Pending Business Admins'], ['expired_subscriptions', 'Expired subscriptions', AlertTriangle, stats.subscription_data_available ? 'Subscription records' : 'Unavailable in current schema'], ['new_businesses_this_month', 'New this month', Plus, 'Created since month start']].map(([key, label, Icon, detail]) => <StatCard key={String(key)} label={String(label)} value={stats[key as keyof BusinessStats] === null ? 'Unavailable' : Number(stats[key as keyof BusinessStats]).toLocaleString()} detail={String(detail)} icon={Icon as typeof Building2} tone="blue" />)}</div>}
+    <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_repeat(3,minmax(145px,180px))]"><label className="relative block"><Search className="absolute left-3 top-3.5 text-slate-400" size={17} /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1) }} placeholder="Search business, code, owner or email" className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" /></label><select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }} className="rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-blue-500"><option value="">All business statuses</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="archived">Archived</option><option value="pending">Pending</option></select><select value={subscription} onChange={(event) => { setSubscription(event.target.value); setPage(1) }} className="rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-blue-500"><option value="">All subscriptions</option><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="cancelled">Cancelled</option></select><select value={activation} onChange={(event) => { setActivation(event.target.value); setPage(1) }} className="rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-blue-500"><option value="">All activation states</option><option value="pending">Pending</option><option value="verified">Verified</option></select></div><div className="mt-3 flex flex-wrap items-center gap-3"><label className="text-xs font-semibold text-slate-500">Created from <input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPage(1) }} className="ml-1 rounded-lg border border-slate-200 px-2 py-2 text-xs" /></label><label className="text-xs font-semibold text-slate-500">to <input type="date" value={to} onChange={(event) => { setTo(event.target.value); setPage(1) }} className="ml-1 rounded-lg border border-slate-200 px-2 py-2 text-xs" /></label><select value={sort} onChange={(event) => { setSort(event.target.value); setPage(1) }} className="rounded-lg border border-slate-200 px-2 py-2 text-xs"><option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option><option value="name:asc">Name A–Z</option><option value="status:asc">Status</option></select><button onClick={resetFilters} className="text-sm font-semibold text-slate-500 hover:text-blue-700">Clear filters</button><button onClick={load} className="ml-auto inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:border-blue-300"><RefreshCw size={15} />Refresh</button><div className="flex rounded-lg border border-slate-200 p-1"><button aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')} className={`rounded-md p-1.5 ${view === 'list' ? 'bg-blue-50 text-blue-700' : 'text-slate-400'}`}><List size={17} /></button><button aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')} className={`rounded-md p-1.5 ${view === 'grid' ? 'bg-blue-50 text-blue-700' : 'text-slate-400'}`}><Grid2X2 size={17} /></button></div></div></div>
+    {error && <div className="mb-5"><ErrorState message={error} /></div>}
+    {loading ? <LoadingState /> : !rows.length ? <EmptyState label="No businesses match your filters." /> : view === 'grid' ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{rows.map((business) => <BusinessCard key={business.id} business={business} />)}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-4">Business</th><th className="px-5 py-4">Owner</th><th className="px-5 py-4">Status</th><th className="px-5 py-4">Subscription</th><th className="px-5 py-4">Branches</th><th className="px-5 py-4">Created</th><th className="px-5 py-4 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((business) => <tr key={business.id} className="hover:bg-slate-50/70"><td className="px-5 py-4"><Link to={`/platform/businesses/${business.id}`} className="font-semibold text-slate-900 hover:text-blue-700">{business.name}</Link><p className="mt-1 font-mono text-xs text-slate-400">{business.business_code}</p></td><td className="px-5 py-4"><p className="text-slate-700">{business.owner?.name || 'Unassigned'}</p><p className="text-xs text-slate-400">{business.owner?.email || business.email || '—'}</p><StatusBadge status={business.owner_activation_status} /></td><td className="px-5 py-4"><StatusBadge status={business.status} /></td><td className="px-5 py-4"><StatusBadge status={business.subscription_status} /></td><td className="px-5 py-4 text-slate-700">{business.stores_count ?? 0}</td><td className="px-5 py-4 text-slate-500">{business.created_at ? new Date(business.created_at).toLocaleDateString() : '—'}</td><td className="px-5 py-4 text-right"><Link to={`/platform/businesses/${business.id}`} className="font-semibold text-blue-700 hover:text-blue-900">Open</Link></td></tr>)}</tbody></table></div></div>}
+    {!loading && rows.length > 0 && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500"><span>{total.toLocaleString()} businesses · page {page} of {lastPage}</span><div className="flex gap-2"><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 font-semibold disabled:opacity-40"><ChevronLeft size={15} />Previous</button><button disabled={page >= lastPage} onClick={() => setPage((value) => value + 1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 font-semibold disabled:opacity-40">Next<ChevronRight size={15} /></button></div></div>}
   </>
 }
+
+function BusinessCard({ business }: { business: Business }) { return <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3">{business.logo_url ? <img src={business.logo_url} alt="" className="h-11 w-11 rounded-xl object-cover" /> : <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-700">{business.name.slice(0, 1).toUpperCase()}</div>}<div><Link to={`/platform/businesses/${business.id}`} className="font-bold text-slate-900 hover:text-blue-700">{business.name}</Link><p className="font-mono text-xs text-slate-400">{business.business_code}</p></div></div><StatusBadge status={business.status} /></div><dl className="mt-5 grid grid-cols-2 gap-4 text-sm"><div><dt className="text-xs text-slate-400">Owner</dt><dd className="mt-1 text-slate-700">{business.owner?.name || 'Unassigned'}</dd></div><div><dt className="text-xs text-slate-400">Branches</dt><dd className="mt-1 text-slate-700">{business.stores_count ?? 0}</dd></div><div><dt className="text-xs text-slate-400">Activation</dt><dd className="mt-1"><StatusBadge status={business.owner_activation_status} /></dd></div><div><dt className="text-xs text-slate-400">Subscription</dt><dd className="mt-1"><StatusBadge status={business.subscription_status} /></dd></div></dl><Link to={`/platform/businesses/${business.id}`} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100">Open business</Link></article> }
 
 export function BusinessRegistrationPage() {
   const navigate = useNavigate()
@@ -165,14 +198,14 @@ export function BusinessDetailsPage() {
 export function BusinessEditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', country: '', subscription_status: 'trial' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', country: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  useEffect(() => { if (!id) return; request<Business>({ method: 'get', url: `/api/v1/platform/businesses/${id}` }).then((business) => setForm({ name: business.name || '', email: business.email || '', phone: business.phone || '', address: business.address || '', country: business.country || '', subscription_status: business.subscription_status || 'trial' })).catch((err) => setError(errorMessage(err, 'Unable to load business.'))).finally(() => setLoading(false)) }, [id])
+  useEffect(() => { if (!id) return; request<Business>({ method: 'get', url: `/api/v1/platform/businesses/${id}` }).then((business) => setForm({ name: business.name || '', email: business.email || '', phone: business.phone || '', address: business.address || '', country: business.country || '' })).catch((err) => setError(errorMessage(err, 'Unable to load business.'))).finally(() => setLoading(false)) }, [id])
   const submit = async (event: React.FormEvent) => { event.preventDefault(); if (!id) return; setSaving(true); setError(''); try { await request({ method: 'patch', url: `/api/v1/platform/businesses/${id}`, data: form }); navigate(`/platform/businesses/${id}`) } catch (err) { setError(errorMessage(err, 'Unable to save business.')) } finally { setSaving(false) } }
   if (loading) return <LoadingState />
-  return <><PageHeader title="Edit business" description="Update business profile and subscription status." action={<Link to={`/platform/businesses/${id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-blue-700"><ArrowLeft size={16} />Back to details</Link>} />{error && <div className="mb-5"><ErrorState message={error} /></div>}<form onSubmit={submit} className="max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><div className="grid gap-5 sm:grid-cols-2"><Field label="Business name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} required /><Field label="Business email" type="email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} /><Field label="Phone" value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} /><Field label="Country" value={form.country} onChange={(value) => setForm({ ...form, country: value })} /><label className="text-sm font-medium text-slate-700">Subscription status<select value={form.subscription_status} onChange={(event) => setForm({ ...form, subscription_status: event.target.value })} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="cancelled">Cancelled</option></select></label><label className="block text-sm font-medium text-slate-700 sm:col-span-2">Address<textarea value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} rows={4} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" /></label></div><button disabled={saving} className="mt-7 w-full rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{saving ? 'Saving…' : 'Save changes'}</button></form></>
+  return <><PageHeader title="Edit business" description="Update business profile and contact information. Subscription changes use a separate billing workflow." action={<Link to={`/platform/businesses/${id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-blue-700"><ArrowLeft size={16} />Back to details</Link>} />{error && <div className="mb-5"><ErrorState message={error} /></div>}<form onSubmit={submit} className="max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"><div className="grid gap-5 sm:grid-cols-2"><Field label="Business name" value={form.name} onChange={(value) => setForm({ ...form, name: value })} required /><Field label="Business email" type="email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} /><Field label="Phone" value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} /><Field label="Country" value={form.country} onChange={(value) => setForm({ ...form, country: value })} /><label className="block text-sm font-medium text-slate-700 sm:col-span-2">Address<textarea value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} rows={4} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" /></label></div><button disabled={saving} className="mt-7 w-full rounded-xl bg-blue-600 px-5 py-3.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60">{saving ? 'Saving…' : 'Save changes'}</button></form></>
 }
 
 export function BusinessAdminsPage() {
@@ -247,7 +280,15 @@ function PasswordField({ label, value, visible, onChange, onToggle, error, hint 
 
 function Detail({ label, value }: { label: string; value?: string | null }) { return <div><dt className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 text-sm text-slate-800">{value || '—'}</dd></div> }
 
-function normalizeBusinesses(payload: unknown): Business[] { if (Array.isArray(payload)) return payload as Business[]; if (payload && typeof payload === 'object') { const value = payload as { data?: unknown }; return Array.isArray(value.data) ? value.data as Business[] : value.data && typeof value.data === 'object' ? [value.data as Business] : [] } return [] }
+function normalizeBusinessPage(payload: unknown, meta?: { current_page?: number; last_page?: number; total?: number }): BusinessPage {
+  if (Array.isArray(payload)) return { rows: payload as Business[], current_page: meta?.current_page || 1, last_page: meta?.last_page || 1, total: meta?.total || payload.length }
+  if (payload && typeof payload === 'object') {
+    const value = payload as { items?: unknown; data?: unknown; meta?: { current_page?: number; last_page?: number; total?: number } }
+    const rows = Array.isArray(value.items) ? value.items as Business[] : Array.isArray(value.data) ? value.data as Business[] : []
+    return { rows, current_page: value.meta?.current_page || 1, last_page: value.meta?.last_page || 1, total: value.meta?.total || rows.length }
+  }
+  return { rows: [], current_page: 1, last_page: 1, total: 0 }
+}
 function normalizeMembers(payload: unknown): Membership[] { if (Array.isArray(payload)) return payload as Membership[]; if (payload && typeof payload === 'object') { const value = payload as { data?: unknown }; return Array.isArray(value.data) ? value.data as Membership[] : [] } return [] }
 function invitationEmailValidation(email: string): FieldErrors { const errors: FieldErrors = {}; if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Enter a valid email address.'; return errors }
 function invitationValidation(email: string, password: string, confirmation: string): FieldErrors { const errors = invitationEmailValidation(email); if (password.length < 12) errors.password = 'Password must be at least 12 characters.'; else if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) errors.password = 'Use uppercase, lowercase, number, and symbol characters.'; if (confirmation !== password) errors.password_confirmation = 'Passwords do not match.'; return errors }

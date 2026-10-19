@@ -80,6 +80,8 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('platform')->middleware('platform.admin')->group(function (): void {
             Route::get('/dashboard', PlatformDashboardController::class);
 
+            Route::get('/businesses/statistics', [PlatformBusinessController::class, 'statistics']);
+            Route::get('/businesses/export', [PlatformBusinessController::class, 'export'])->middleware('throttle:exports');
             Route::get('/businesses', [PlatformBusinessController::class, 'index']);
             Route::post('/businesses', [PlatformBusinessController::class, 'store']);
             Route::get('/businesses/{business}', [PlatformBusinessController::class, 'show']);

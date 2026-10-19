@@ -34,6 +34,22 @@ class TenantResource extends JsonResource
             'archived_at' => $this->archived_at,
             'archived_by' => $this->archived_by,
             'created_at' => $this->created_at,
+            'members_count' => $this->when(isset($this->memberships_count), (int) $this->memberships_count),
+            'stores_count' => $this->when(isset($this->stores_count), (int) $this->stores_count),
+            'owner' => $this->when($this->relationLoaded('memberships'), function (): ?array {
+                $membership = $this->memberships->sortByDesc(fn ($item): int => $item->status === 'active' ? 1 : 0)->first();
+                $owner = $membership?->user;
+
+                return $owner ? ['name' => $owner->name, 'email' => $owner->email] : null;
+            }),
+            'owner_activation_status' => $this->when($this->relationLoaded('memberships'), function (): string {
+                $membership = $this->memberships->sortByDesc(fn ($item): int => $item->status === 'active' ? 1 : 0)->first();
+                $owner = $membership?->user;
+
+                return $membership?->status === 'pending'
+                    ? 'pending'
+                    : ($owner?->email_verified_at ? 'verified' : ($this->email_verification_status ?: 'unknown'));
+            }),
             'logo_url' => $this->logo_path ? route('business.settings.logo') : null,
         ];
     }
