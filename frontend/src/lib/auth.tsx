@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { currentUser, login as apiLogin, logout as apiLogout, type User } from './api'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthContextValue['status']>('loading')
   const [user, setUser] = useState<User | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const restoreStarted = useRef(false)
 
   const restore = useCallback(async () => {
     setStatus('loading')
@@ -51,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (restoreStarted.current) return
+    restoreStarted.current = true
     void restore()
   }, [restore])
 
