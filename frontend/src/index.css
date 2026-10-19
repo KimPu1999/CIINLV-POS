@@ -103,19 +103,40 @@ select.compact-field {
   padding-right: 32px;
 }
 
-.compact-field--search {
+.compact-search-shell {
+  display: flex;
   min-height: 38px;
-  padding-left: 40px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: var(--theme-surface);
+  padding: 0 8px 0 12px;
+  color: var(--theme-text);
+  box-shadow: var(--compact-field-shadow);
+  outline: none;
+  transition: box-shadow 200ms ease, background-color 200ms ease, opacity 200ms ease;
 }
 
-.compact-search-icon {
-  position: absolute;
-  top: 50%;
-  left: 12px;
-  width: 16px;
-  height: 16px;
-  transform: translateY(-50%);
-  pointer-events: none;
+.compact-search-shell:focus-within {
+  box-shadow: var(--compact-field-focus-shadow);
+}
+
+.compact-search-input {
+  min-width: 0;
+  min-height: 36px;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--theme-text);
+  font-size: 13px;
+  line-height: 1.35;
+  outline: none;
+}
+
+.compact-search-input::placeholder {
+  color: var(--theme-text-secondary);
 }
 
 .compact-field--textarea {
@@ -163,11 +184,11 @@ select.compact-field {
 }
 
 .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"][class~="bg-blue-50"] {
-  border-color: #bfd3f7;
+  border-color: #000000;
 }
 
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"][class~="bg-blue-50"] {
-  border-color: rgba(131, 168, 250, 0.5);
+  border-color: #FFFFFF;
 }
 
 [data-theme="dark"] .label-badge--success { --label-bg: rgba(16, 185, 129, 0.14); --label-border: rgba(110, 231, 183, 0.4); --label-text: #86efac; }
@@ -175,6 +196,16 @@ select.compact-field {
 [data-theme="dark"] .label-badge--danger { --label-bg: rgba(239, 68, 68, 0.14); --label-border: rgba(252, 165, 165, 0.42); --label-text: #fca5a5; }
 [data-theme="dark"] .label-badge--info { --label-bg: #263b60; --label-border: rgba(131, 168, 250, 0.5); --label-text: #b9ceff; }
 [data-theme="dark"] .label-badge--neutral { --label-bg: #22334d; --label-border: #40516a; --label-text: #c2cede; }
+
+[data-theme="dark"] .label-badge,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"] {
+  border-color: #FFFFFF;
+}
+
+.label-badge,
+.min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"] {
+  border-color: #000000;
+}
 
 /* PageToolbar owns the toolbar chrome. Remove only wrappers whose direct
    purpose is holding a toolbar; data cards, tables and forms keep their cards. */
@@ -475,6 +506,62 @@ div:has(> [data-page-toolbar="true"]) {
   background-color: var(--theme-primary-soft) !important;
 }
 
+/* Dashboard data tables only. The overflow wrapper is the shared boundary
+   used by inline tables and DataTable, so navigation and non-table content
+   remain unaffected. */
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table thead {
+  background-color: #192638 !important;
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table thead th {
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td {
+  color: #E8EEF8 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td.text-slate-400,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td.text-slate-500,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td.text-slate-600,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td .text-slate-400,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td .text-slate-500,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td .text-slate-600 {
+  color: #A8B6C9 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr[aria-selected="true"],
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr[data-selected="true"],
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr.selected {
+  background-color: #263B60 !important;
+  color: #E8EEF8 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover td,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr[aria-selected="true"] td,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr[data-selected="true"] td,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr.selected td {
+  color: #E8EEF8 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover td.text-slate-400,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover td.text-slate-500,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover td.text-slate-600,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover td .text-slate-400,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover td .text-slate-500,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover td .text-slate-600 {
+  color: #A8B6C9 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover a[class~="hover:text-blue-700"]:hover,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover a[class~="hover:text-blue-900"]:hover,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover button[class~="hover:text-blue-700"]:hover,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover button[class~="hover:text-blue-900"]:hover {
+  color: #83A8FA !important;
+}
+
 [data-theme="dark"] .compact-field,
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div input,
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div select,
@@ -496,6 +583,60 @@ div:has(> [data-page-toolbar="true"]) {
 [data-theme="dark"] .compact-field:focus-visible {
   --tw-ring-color: var(--theme-focus) !important;
   box-shadow: 0 0 0 3px var(--theme-focus) !important;
+}
+
+/* Super Admin business registration fields need a little more separation than
+   the borderless dashboard controls. Keep this scoped to the existing wizard
+   so public registration and unrelated forms are unchanged. */
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form label {
+  color: #334155 !important;
+}
+
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form select,
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form textarea {
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  background-color: #FFFFFF !important;
+  box-shadow: none !important;
+  color: #334155 !important;
+}
+
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus-visible,
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form select:focus,
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form select:focus-visible,
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form textarea:focus,
+.min-h-screen.bg-slate-50 > aside + div .platform-registration-form textarea:focus-visible {
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16) !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form label {
+  color: #E2E8F0 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form .registration-form-helper {
+  color: #A8B6C9 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form select,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form textarea {
+  border: 1px solid #52647C !important;
+  border-radius: 8px !important;
+  background-color: #152235 !important;
+  color: #E2E8F0 !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):focus-visible,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form select:focus,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form select:focus-visible,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form textarea:focus,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .platform-registration-form textarea:focus-visible {
+  border-color: #83A8FA !important;
+  box-shadow: 0 0 0 3px rgba(131, 168, 250, 0.24) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

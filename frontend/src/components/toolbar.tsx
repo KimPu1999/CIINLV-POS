@@ -72,10 +72,10 @@ export function CollapsibleSearch({ value, onChange, placeholder = 'Search', lab
   if (!open) return <SearchToggle active={active} label={label} buttonRef={triggerRef} onClick={() => { announceToolbarPanel('search', source.current); setOpen(true) }} />
 
   return <div className="ml-auto flex min-w-[220px] w-full max-w-md flex-none items-center gap-2 animate-[toolbar-search-in_180ms_ease-out]">
-    <div className="relative min-w-0 flex-1">
-      <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} aria-hidden="true" />
-      <input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={label} className="compact-field compact-field--search w-full pr-10" />
-      {active && <button type="button" onClick={clear} aria-label={`Clear ${label.toLowerCase()}`} title={`Clear ${label.toLowerCase()}`} className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><CircleX size={16} aria-hidden="true" /></button>}
+    <div className="compact-search-shell min-w-0 flex-1">
+      <Search className="shrink-0 text-slate-400" size={18} aria-hidden="true" />
+      <input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={label} className="compact-search-input" />
+      {active && <button type="button" onClick={clear} aria-label={`Clear ${label.toLowerCase()}`} title={`Clear ${label.toLowerCase()}`} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><CircleX size={16} aria-hidden="true" /></button>}
     </div>
     <IconActionButton icon={X} label={`Close ${label.toLowerCase()}`} onClick={close} />
   </div>
