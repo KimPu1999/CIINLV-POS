@@ -1,1 +1,44 @@
 * { box-sizing: border-box; }
+
+/* Shared Shell geometry: the sidebar and the content wrapper use the same
+   breakpoint-aware offset. This overrides the legacy competing lg:pl-* utility
+   classes without changing route or navigation behavior. */
+.min-h-screen.bg-slate-50 {
+  overflow-x: hidden;
+}
+
+.min-h-screen.bg-slate-50 > aside + div {
+  transition: padding-left 300ms ease-in-out;
+}
+
+.min-h-screen.bg-slate-50 > aside {
+  transition-property: transform, width;
+  transition-duration: 300ms;
+  transition-timing-function: ease-in-out;
+}
+
+@media (min-width: 1024px) {
+  .min-h-screen.bg-slate-50 > aside + div {
+    padding-left: 18rem !important;
+  }
+
+  .min-h-screen.bg-slate-50:has(> aside.lg\:w-20) > aside + div {
+    padding-left: 5rem !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .min-h-screen.bg-slate-50 > aside + div {
+    width: 100%;
+    padding-left: 0 !important;
+  }
+}
+
+@keyframes sidebar-tooltip-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sidebar-tooltip {
+  animation: sidebar-tooltip-fade-in 150ms ease-out both;
+}
