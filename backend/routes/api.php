@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\PlatformBusinessDeletionController;
 use App\Http\Controllers\Api\V1\PlatformBusinessLifecycleController;
 use App\Http\Controllers\Api\V1\PlatformBusinessInvitationController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
+use App\Http\Controllers\Api\V1\PlatformSecurityController;
 use App\Http\Controllers\Api\V1\PlatformTenantController;
 use App\Http\Controllers\Api\V1\PosCheckoutController;
 use App\Http\Controllers\Api\V1\PosPaymentController;
@@ -79,6 +80,16 @@ Route::prefix('v1')->group(function (): void {
 
         Route::prefix('platform')->middleware('platform.admin')->group(function (): void {
             Route::get('/dashboard', PlatformDashboardController::class);
+
+            Route::get('/security/overview', [PlatformSecurityController::class, 'overview']);
+            Route::get('/security/audit-logs', [PlatformSecurityController::class, 'index']);
+            Route::get('/security/audit-logs/export', [PlatformSecurityController::class, 'export'])->middleware('throttle:exports');
+            Route::get('/security/audit-logs/{auditLog}', [PlatformSecurityController::class, 'show']);
+            Route::get('/security/login-history', [PlatformSecurityController::class, 'loginHistory']);
+            Route::get('/security/role-changes', [PlatformSecurityController::class, 'roleChanges']);
+            Route::get('/security/policies', [PlatformSecurityController::class, 'policies']);
+            Route::get('/security/sessions', [PlatformSecurityController::class, 'sessions']);
+            Route::post('/security/sessions/revoke', [PlatformSecurityController::class, 'revokeSession']);
 
             Route::get('/businesses/statistics', [PlatformBusinessController::class, 'statistics']);
             Route::get('/businesses/export', [PlatformBusinessController::class, 'export'])->middleware('throttle:exports');

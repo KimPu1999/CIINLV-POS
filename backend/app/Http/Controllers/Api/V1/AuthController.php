@@ -21,15 +21,18 @@ class AuthController
         $user = User::query()->where('email', $data['email'])->first();
 
         if (! $user || ! Hash::check($data['password'], $user->password)) {
-            if ($user) {
-                $auditLogger->record('auth.login_failed', $user, metadata: ['reason' => 'invalid_credentials']);
-            }
+            $auditLogger->record('auth.login_failed', $user, metadata: [
+                'reason' => 'invalid_credentials',
+                'email_hash' => hash('sha256', $data['email']),
+                'ip_address' => $request->ip(),
+                'user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
+            ]);
 
             throw ValidationException::withMessages(['email' => ['The provided credentials are incorrect.']]);
         }
 
         if (! $user->isActive()) {
-            $auditLogger->record('auth.login_blocked', $user, metadata: ['status' => $user->status]);
+            $auditLogger->record('auth.login_blocked', $user, metadata: ['status' => $user->status, 'ip_address' => $request->ip(), 'user_agent' => mb_substr((string) $request->userAgent(), 0, 500)]);
             abort(403, 'This account is not active.');
         }
 
@@ -53,7 +56,7 @@ class AuthController
             $request->session()->regenerate();
         }
 
-        $auditLogger->record('auth.login_succeeded', $user, metadata: ['client_type' => $data['client_type']]);
+        $auditLogger->record('auth.login_succeeded', $user, metadata: ['client_type' => $data['client_type'], 'ip_address' => $request->ip(), 'user_agent' => mb_substr((string) $request->userAgent(), 0, 500)]);
 
         return response()->json($response);
     }
@@ -65,6 +68,8 @@ class AuthController
         if ($user) {
             $auditLogger->record('auth.logout', $user, metadata: [
                 'client_type' => $request->user()->currentAccessToken() ? 'mobile' : 'web',
+                'ip_address' => $request->ip(),
+                'user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
             ]);
         }
 

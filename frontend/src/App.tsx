@@ -10,6 +10,7 @@ import { PlatformBusinessRegistrationWizard as BusinessRegistrationScreen, Publi
 import { BusinessSettingsPage } from './features/business-settings'
 import { BusinessDashboardPage } from './features/business-dashboard'
 import { PlatformOverviewPage } from './features/platform-overview'
+import { AuditSecurityPage } from './features/audit-security'
 import { ProductManagementPage } from './features/products'
 import { CategoryManagementPage } from './features/categories'
 import { BarcodeSearchPage } from './features/barcode-search'
@@ -212,6 +213,7 @@ function DashboardPage({ title, endpoint, icon: Icon }: { title: string; endpoin
 function BranchListPage() { return <BranchManagementPage /> }
 
 function ResourcePage(props: { title: string; description: string; endpoint: string; columns: string[] }) {
+  if (props.title === 'Audit & security') return <AuditSecurityPage />
   if (props.endpoint === '/api/v1/products') return <ProductManagementPage />
   if (props.endpoint === '/api/v1/categories') return <CategoryManagementPage />
   if (props.endpoint === '/api/v1/suppliers') return <SupplierManagementPage />
