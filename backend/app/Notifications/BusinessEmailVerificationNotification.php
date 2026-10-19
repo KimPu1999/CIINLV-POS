@@ -18,7 +18,11 @@ class BusinessEmailVerificationNotification extends Notification
         $url = URL::temporarySignedRoute(
             'verification.verify',
             now()->addMinutes((int) config('business.email_verification_expiry_minutes', 60)),
-            ['id' => $notifiable->getKey(), 'hash' => sha1($notifiable->getEmailForVerification())],
+            [
+                'id' => $notifiable->getKey(),
+                'hash' => sha1($notifiable->getEmailForVerification()),
+                'tenant_id' => $this->tenant->getKey(),
+            ],
         );
 
         return (new MailMessage)

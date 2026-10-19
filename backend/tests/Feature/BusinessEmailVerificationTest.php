@@ -25,6 +25,7 @@ class BusinessEmailVerificationTest extends TestCase
         $this->assertDatabaseHas('tenants', ['business_code' => 'ACME_RETAIL', 'status' => 'pending']);
         $owner = User::query()->where('email', 'owner@example.test')->firstOrFail();
         $this->assertNull($owner->email_verified_at);
+        $this->assertSame(User::STATUS_INVITED, $owner->status);
         Notification::assertSentTo($owner, BusinessEmailVerificationNotification::class);
     }
 
@@ -39,8 +40,30 @@ class BusinessEmailVerificationTest extends TestCase
         $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(30), ['id' => $owner->id, 'hash' => sha1($owner->getEmailForVerification())]);
         $this->get($url)->assertRedirectContains('/email-verification/success');
         $this->assertNotNull($owner->refresh()->email_verified_at);
+        $this->assertSame(User::STATUS_ACTIVE, $owner->status);
         $this->assertDatabaseHas('tenants', ['business_code' => 'ACME_RETAIL', 'status' => 'active']);
         $this->assertDatabaseHas('tenant_memberships', ['user_id' => $owner->id, 'status' => 'active']);
+    }
+
+    public function test_verification_link_activates_only_the_signed_business_membership(): void
+    {
+        Notification::fake();
+        $this->postJson('/api/v1/auth/business-registration', [
+            'business_name' => 'First Retail', 'business_code' => 'FIRST_RETAIL', 'owner_name' => 'Owner',
+            'owner_email' => 'owner@example.test', 'password' => 'Strong-password-123', 'password_confirmation' => 'Strong-password-123',
+        ]);
+        $owner = User::query()->where('email', 'owner@example.test')->firstOrFail();
+        $first = $owner->memberships()->firstOrFail()->tenant;
+        $second = \App\Models\Tenant::create(['name' => 'Second Retail', 'slug' => 'second-retail', 'business_code' => 'SECOND_RETAIL', 'status' => 'pending']);
+        $role = \App\Models\Role::firstOrCreate(['tenant_id' => $second->id, 'name' => 'business_admin']);
+        \App\Models\TenantMembership::create(['tenant_id' => $second->id, 'user_id' => $owner->id, 'role_id' => $role->id, 'status' => 'pending']);
+        $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(30), [
+            'id' => $owner->id, 'hash' => sha1($owner->getEmailForVerification()), 'tenant_id' => $second->id,
+        ]);
+
+        $this->get($url)->assertRedirectContains('/email-verification/success');
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $second->id, 'user_id' => $owner->id, 'status' => 'active']);
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $first->id, 'user_id' => $owner->id, 'status' => 'pending']);
     }
 
     public function test_expired_link_is_rejected_without_mutating_the_owner(): void

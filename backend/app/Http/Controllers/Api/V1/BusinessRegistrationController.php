@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,11 +21,11 @@ use Illuminate\Support\Str;
 
 class BusinessRegistrationController
 {
-    public function register(RegisterBusinessRequest $request): JsonResponse
+    public function register(RegisterBusinessRequest $request, AuditLogger $auditLogger): JsonResponse
     {
         $data = $request->validated();
         try {
-            [$tenant, $owner] = DB::transaction(function () use ($data): array {
+            [$tenant, $owner] = DB::transaction(function () use ($data, $auditLogger): array {
                 $tenant = Tenant::create([
                     'name' => $data['business_name'], 'slug' => Str::slug($data['business_code']),
                     'business_code' => $data['business_code'], 'email' => $data['business_email'] ?? $data['owner_email'],
@@ -35,10 +36,16 @@ class BusinessRegistrationController
                 ]);
                 $owner = User::create([
                     'name' => $data['owner_name'], 'email' => $data['owner_email'], 'password' => Hash::make($data['password']),
-                    'status' => User::STATUS_ACTIVE,
+                    // A public registrant cannot authenticate until the signed
+                    // owner-email verification activates this account.
+                    'status' => User::STATUS_INVITED,
                 ]);
                 $role = Role::firstOrCreate(['tenant_id' => $tenant->id, 'name' => 'business_admin']);
                 TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $owner->id, 'role_id' => $role->id, 'status' => 'pending']);
+                $auditLogger->record('business.registration_submitted', tenant: $tenant, subject: $tenant, metadata: [
+                    'source' => 'public_registration',
+                    'business_code' => $tenant->business_code,
+                ]);
                 return [$tenant, $owner];
             });
         } catch (UniqueConstraintViolationException $exception) {
@@ -75,7 +82,7 @@ class BusinessRegistrationController
         return response()->json(['success' => true, 'message' => 'Registration received. Check your email to verify your address.', 'data' => ['business_name' => $tenant->name, 'email' => $owner->email, 'verification_required' => true, 'email_delivery' => $emailDelivery]], 201);
     }
 
-    public function verify(Request $request, int $id, string $hash): RedirectResponse
+    public function verify(Request $request, int $id, string $hash, AuditLogger $auditLogger): RedirectResponse
     {
         $frontend = rtrim((string) config('app.frontend_url'), '/');
         if (! URL::hasValidSignature($request)) return redirect()->to($frontend.'/email-verification/invalid?reason=expired');
@@ -83,11 +90,28 @@ class BusinessRegistrationController
         if (! $user || ! hash_equals(sha1($user->getEmailForVerification()), $hash)) return redirect()->to($frontend.'/email-verification/invalid?reason=invalid');
         if ($user->hasVerifiedEmail()) return redirect()->to($frontend.'/email-verification/success?already=1');
 
-        DB::transaction(function () use ($user): void {
-            $user->forceFill(['email_verified_at' => now()])->save();
-            $membership = $user->memberships()->where('status', 'pending')->whereHas('role', fn ($q) => $q->where('name', 'business_admin'))->with('tenant')->first();
-            if (! $membership) return;
+        $tenantId = $request->integer('tenant_id') ?: null;
+        $verifiedTenant = DB::transaction(function () use ($user, $tenantId): ?Tenant {
+            $lockedUser = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $lockedUser->forceFill([
+                'email_verified_at' => now(),
+                'status' => User::STATUS_ACTIVE,
+            ])->save();
+            $membershipQuery = $lockedUser->memberships()
+                ->where('status', 'pending')
+                ->whereHas('role', fn ($q) => $q->where('name', 'business_admin'))
+                ->with('tenant');
+            if ($tenantId) {
+                $membershipQuery->where('tenant_id', $tenantId);
+            }
+            $memberships = $membershipQuery->get();
+            // Legacy links did not contain tenant_id. Do not guess when an
+            // account has multiple pending business memberships.
+            if (! $tenantId && $memberships->count() !== 1) return null;
+            $membership = $memberships->first();
+            if (! $membership) return null;
             $tenant = $membership->tenant;
+            if (! $tenant) return null;
             $membership->forceFill(['status' => 'active', 'joined_at' => now()])->save();
             $tenant->forceFill([
                 'email_verified_at' => now(),
@@ -96,7 +120,13 @@ class BusinessRegistrationController
                 'approval_status' => config('business.require_super_admin_approval') ? 'pending' : 'approved',
                 'approved_at' => config('business.require_super_admin_approval') ? null : now(),
             ])->save();
+            return $tenant;
         });
+        if ($verifiedTenant) {
+            $auditLogger->record('business.owner_email_verified', tenant: $verifiedTenant, subject: $verifiedTenant, metadata: [
+                'source' => 'signed_email_link',
+            ]);
+        }
         return redirect()->to($frontend.'/email-verification/success');
     }
 
@@ -123,12 +153,15 @@ class BusinessRegistrationController
         return response()->json(['success' => true, 'message' => 'If the account exists, a verification email will be sent shortly.']);
     }
 
-    public function approve(Tenant $business, Request $request): JsonResponse
+    public function approve(Tenant $business, Request $request, AuditLogger $auditLogger): JsonResponse
     {
         if (! $business->email_verified_at) {
             return response()->json(['success' => false, 'message' => 'The business owner must verify the email address before approval.'], 422);
         }
         $business->forceFill(['approval_status' => 'approved', 'approved_at' => now(), 'approved_by' => $request->user()->id, 'status' => 'active'])->save();
+        $auditLogger->record('business.registration_approved', $request->user(), $business, $business, [
+            'source' => 'platform_approval',
+        ]);
         return response()->json(['success' => true, 'message' => 'Business approved.', 'data' => $business->refresh()]);
     }
 
