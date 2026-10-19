@@ -125,6 +125,57 @@ select.compact-field {
   resize: vertical;
 }
 
+/* Shared compact labels and status chips. These carry meaning through both
+   color and text, never use elevation, and remain legible in both themes. */
+.label-badge {
+  --label-bg: #f1f5f9;
+  --label-border: #e2e8f0;
+  --label-text: #475569;
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--label-border);
+  border-radius: 9999px;
+  background: var(--label-bg);
+  padding: 4px 9px;
+  color: var(--label-text);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.label-badge--success { --label-bg: #ecfdf5; --label-border: #bbf7d0; --label-text: #166534; }
+.label-badge--warning { --label-bg: #fffbeb; --label-border: #fde68a; --label-text: #92400e; }
+.label-badge--danger { --label-bg: #fef2f2; --label-border: #fecaca; --label-text: #b91c1c; }
+.label-badge--info { --label-bg: #eaf1fd; --label-border: #bfd3f7; --label-text: #315da8; }
+.label-badge--neutral { --label-bg: #f1f5f9; --label-border: #e2e8f0; --label-text: #475569; }
+
+/* Keep legacy page-local chips consistent until those views are migrated to
+   LabelBadge. Ordinary text labels are intentionally excluded. */
+.min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"] {
+  border: 1px solid var(--theme-border);
+  border-radius: 9999px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"][class~="bg-blue-50"] {
+  border-color: #bfd3f7;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"][class~="bg-blue-50"] {
+  border-color: rgba(131, 168, 250, 0.5);
+}
+
+[data-theme="dark"] .label-badge--success { --label-bg: rgba(16, 185, 129, 0.14); --label-border: rgba(110, 231, 183, 0.4); --label-text: #86efac; }
+[data-theme="dark"] .label-badge--warning { --label-bg: rgba(245, 158, 11, 0.14); --label-border: rgba(251, 191, 36, 0.42); --label-text: #fcd34d; }
+[data-theme="dark"] .label-badge--danger { --label-bg: rgba(239, 68, 68, 0.14); --label-border: rgba(252, 165, 165, 0.42); --label-text: #fca5a5; }
+[data-theme="dark"] .label-badge--info { --label-bg: #263b60; --label-border: rgba(131, 168, 250, 0.5); --label-text: #b9ceff; }
+[data-theme="dark"] .label-badge--neutral { --label-bg: #22334d; --label-border: #40516a; --label-text: #c2cede; }
+
 /* PageToolbar owns the toolbar chrome. Remove only wrappers whose direct
    purpose is holding a toolbar; data cards, tables and forms keep their cards. */
 div:has(> [data-page-toolbar="true"]) {

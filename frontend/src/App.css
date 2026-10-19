@@ -13,11 +13,22 @@
    breakpoint-aware offset. This overrides the legacy competing lg:pl-* utility
    classes without changing route or navigation behavior. */
 .min-h-screen.bg-slate-50 {
-  overflow-x: hidden;
+  /* `hidden` can create an implicit scroll container and break sticky
+     positioning in Safari and Chromium. Clip horizontal overflow without
+     changing the vertical scroll context used by the dashboard header. */
+  overflow-x: clip;
 }
 
 .min-h-screen.bg-slate-50 > aside + div {
+  position: relative;
+  min-height: 100vh;
   transition: padding-left 300ms ease-in-out;
+}
+
+.dashboard-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .min-h-screen.bg-slate-50 > aside {

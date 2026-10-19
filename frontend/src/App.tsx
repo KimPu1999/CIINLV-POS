@@ -4,7 +4,7 @@ import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, 
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
-import { DataTable, ErrorState, LoadingState, PageHeader, StatCard } from './components/ui'
+import { DataTable, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard } from './components/ui'
 import { SidebarNavItem } from './components/SidebarNavItem'
 import { ThemeProvider, useTheme } from './lib/theme'
 import './App.css'
@@ -217,7 +217,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
     </aside>
     {mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}
     <div className="min-h-screen transition-[padding]">
-      <header className="sticky top-0 z-20 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur sm:px-8">
+      <header className="dashboard-header sticky top-0 z-20 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur sm:px-8">
         <div className="flex items-center gap-3"><button className="text-slate-600 lg:hidden" onClick={() => setMobile(true)} aria-label="Open navigation"><Menu size={23} /></button><button className="hidden text-slate-400 lg:block" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}>{collapsed ? <PanelLeftOpen size={21} /> : <PanelLeftClose size={21} />}</button><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{role === 'super_admin' ? 'Platform control' : 'Business workspace'}</p><p className="font-semibold text-slate-900">{location.pathname.endsWith('/dashboard') || platformLanding ? 'Overview' : nav.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Workspace'}</p></div></div>
         <div className="flex items-center gap-2 sm:gap-3"><ThemeToggle /><TenantSwitcher user={user} onChange={selectTenant} /><div className="hidden text-right sm:block"><p className="text-sm font-semibold text-slate-800">{user.name}</p><p className="text-xs capitalize text-slate-400">{user.platform_role?.replaceAll('_', ' ') ?? 'business admin'}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{user.name.charAt(0).toUpperCase()}</div></div>
       </header>
@@ -264,7 +264,7 @@ function TenantSwitcher({ user, onChange }: { user: User; onChange: (tenantId: s
   const memberships = businessAdminMemberships(user)
   if (!memberships.length) return null
   const selected = window.localStorage.getItem('ciinlv_tenant_id') || memberships[0].business.id
-  if (memberships.length === 1) return <span className="max-w-48 truncate rounded-xl bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">{memberships[0].business.name}</span>
+  if (memberships.length === 1) return <LabelBadge tone="info" className="max-w-48 truncate">{memberships[0].business.name}</LabelBadge>
   return <label className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="hidden md:inline">Business</span><select value={selected} onChange={(event) => onChange(event.target.value)} className="max-w-40 rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">{memberships.map((membership) => <option key={membership.business.id} value={membership.business.id}>{membership.business.name}</option>)}</select></label>
 }
 

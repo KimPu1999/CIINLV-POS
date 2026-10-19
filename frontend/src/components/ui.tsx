@@ -6,6 +6,12 @@ export function PageHeader({ title, description, action }: { title: string; desc
   return <div className="mb-1 flex min-h-9 items-center justify-end"><div className="sr-only"><h1>{title}</h1>{description && <p>{description}</p>}</div>{action}</div>
 }
 
+export type LabelBadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
+
+export function LabelBadge({ children, tone = 'neutral', className = '' }: { children: ReactNode; tone?: LabelBadgeTone; className?: string }) {
+  return <span className={`label-badge label-badge--${tone} ${className}`}>{children}</span>
+}
+
 export function StatCard({ label, value, detail, icon: Icon, tone = 'blue' }: { label: string; value: string | number; detail?: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone?: 'blue' | 'emerald' | 'amber' | 'violet' }) {
   const tones = { blue: 'bg-blue-50 text-blue-600', emerald: 'bg-emerald-50 text-emerald-600', amber: 'bg-amber-50 text-amber-600', violet: 'bg-violet-50 text-violet-600' }
   return <div className="rounded-xl border border-slate-200 bg-white p-5 premium-shadow-md"><div className="flex items-start justify-between"><div><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold tracking-tight text-slate-950">{value}</p></div><div className={`rounded-xl p-3 ${tones[tone]}`}><Icon size={20} /></div></div>{detail && <p className="mt-4 text-xs text-slate-400">{detail}</p>}</div>
@@ -13,8 +19,14 @@ export function StatCard({ label, value, detail, icon: Icon, tone = 'blue' }: { 
 
 export function StatusBadge({ status }: { status?: string | null }) {
   const value = status || 'unknown'
-  const tone = ['active', 'completed', 'verified', 'paid', 'succeeded', 'ready', 'open'].includes(value) ? 'bg-emerald-50 text-emerald-700' : ['suspended', 'cancelled', 'failed', 'refunded'].includes(value) ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${tone}`}>{value.replaceAll('_', ' ')}</span>
+  const toneByStatus: Record<string, LabelBadgeTone> = {
+    active: 'success', completed: 'success', verified: 'success', paid: 'success', succeeded: 'success', ready: 'success', open: 'success', in_stock: 'success', approved: 'success', received: 'success', resolved: 'success', configured: 'success', dispatched: 'success', posted: 'success', closed: 'success',
+    pending: 'warning', submitted: 'warning', partially_received: 'warning', past_due: 'warning', processing: 'warning', acknowledged: 'warning', snoozed: 'warning', draft: 'warning', requested: 'warning', pending_approval: 'warning', in_transit: 'warning', low_stock: 'warning',
+    suspended: 'danger', cancelled: 'danger', failed: 'danger', refunded: 'danger', expired: 'danger', out_of_stock: 'danger', rejected: 'danger', voided: 'danger', deactivated: 'danger',
+    trial: 'info', invited: 'info',
+  }
+  const tone = toneByStatus[value] || 'neutral'
+  return <LabelBadge tone={tone}>{value.replaceAll('_', ' ')}</LabelBadge>
 }
 
 export function LoadingState() { return <div className="flex min-h-48 items-center justify-center rounded-xl border border-slate-200 bg-white premium-shadow-md"><LoaderCircle className="animate-spin text-blue-600" size={24} /></div> }
