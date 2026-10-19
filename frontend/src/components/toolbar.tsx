@@ -2,15 +2,17 @@ import { useEffect, useRef, useState, type ComponentType, type ReactNode, type R
 import { CircleX, Filter, MoreHorizontal, Search, X } from 'lucide-react'
 
 type ToolbarIcon = ComponentType<{ size?: number; className?: string }>
-type ToolbarPanel = 'search' | 'filter' | 'menu' | 'close'
+type ToolbarPanel = 'search' | 'filter' | 'menu' | 'close' | 'close-request'
+type ToolbarPanelDetail = { type?: ToolbarPanel; source?: symbol; anchor?: DOMRect }
 const toolbarPanelEvent = 'ciinlv-toolbar-panel-open'
+const toolbarFilterLabelEvent = 'ciinlv-toolbar-filter-label'
 
-function announceToolbarPanel(type: ToolbarPanel, source?: symbol) {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(toolbarPanelEvent, { detail: { type, source } }))
+function announceToolbarPanel(type: ToolbarPanel, source?: symbol, anchor?: DOMRect) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(toolbarPanelEvent, { detail: { type, source, anchor } }))
 }
 
 export function PageToolbar({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`flex w-full flex-wrap items-center justify-end gap-1 sm:flex-nowrap ${className}`}>{children}</div>
+  return <div data-page-toolbar="true" className={`flex w-full flex-wrap items-center justify-end gap-1 sm:flex-nowrap ${className}`}>{children}</div>
 }
 
 export function ToolbarTooltip({ label, children }: { label: string; children: ReactNode }) {
@@ -80,18 +82,42 @@ export function CollapsibleSearch({ value, onChange, placeholder = 'Search', lab
 
 export function FilterToggle({ open, activeCount = 0, onClick }: { open: boolean; activeCount?: number; onClick: () => void }) {
   const [suppressed, setSuppressed] = useState(false)
+  const [statusLabel, setStatusLabel] = useState(activeCount > 0 ? `${activeCount} active` : 'All filters')
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const visibleOpen = open && !suppressed
   useEffect(() => {
     const updateSuppression = (event: Event) => {
       const type = (event as CustomEvent<{ type?: ToolbarPanel }>).detail?.type
       if (type === 'search' || type === 'menu') setSuppressed(true)
-      if (type === 'filter' || type === 'close') setSuppressed(false)
+      if (type === 'filter') setSuppressed(false)
     }
     window.addEventListener(toolbarPanelEvent, updateSuppression)
     return () => window.removeEventListener(toolbarPanelEvent, updateSuppression)
   }, [])
-  const visibleOpen = open && !suppressed
+  useEffect(() => {
+    const closeRequested = (event: Event) => {
+      const detail = (event as CustomEvent<ToolbarPanelDetail>).detail
+      if (detail?.type === 'close-request' && visibleOpen) {
+        onClick()
+        window.setTimeout(() => triggerRef.current?.focus(), 0)
+      }
+    }
+    window.addEventListener(toolbarPanelEvent, closeRequested)
+    return () => window.removeEventListener(toolbarPanelEvent, closeRequested)
+  }, [onClick, visibleOpen])
+  useEffect(() => {
+    const updateLabel = (event: Event) => {
+      const label = (event as CustomEvent<{ label?: string }>).detail?.label
+      if (label) setStatusLabel(label)
+    }
+    window.addEventListener(toolbarFilterLabelEvent, updateLabel)
+    return () => window.removeEventListener(toolbarFilterLabelEvent, updateLabel)
+  }, [])
   const active = visibleOpen || activeCount > 0
-  return <ToolbarTooltip label="Filters"><button type="button" aria-expanded={visibleOpen} aria-label="Filters" onClick={() => { announceToolbarPanel('filter'); onClick() }} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={19} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-0.5 top-0.5 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
+  return <div className="relative inline-flex flex-col items-center">
+    <ToolbarTooltip label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'} onClick={() => { announceToolbarPanel('filter', undefined, triggerRef.current?.getBoundingClientRect()); onClick() }} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={19} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-0.5 top-0.5 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
+    <span className={`max-w-28 truncate text-[11px] font-semibold leading-4 ${activeCount > 0 ? 'text-blue-600' : 'text-slate-500'}`}>{activeCount > 0 ? statusLabel : 'All filters'}</span>
+  </div>
 }
 
 export function FilterPopover({ open, activeCount = 0, statusLabel, statusActive = false, onOpen, onClose, onClear, children }: { open: boolean; activeCount?: number; statusLabel: string; statusActive?: boolean; onOpen: () => void; onClose: () => void; onClear?: () => void; children: ReactNode }) {
@@ -140,18 +166,71 @@ export function FilterPopover({ open, activeCount = 0, statusLabel, statusActive
 
 export function FilterPanel({ open, children }: { open: boolean; children: ReactNode }) {
   const [suppressed, setSuppressed] = useState(false)
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const [viewportWidth, setViewportWidth] = useState(typeof window === 'undefined' ? 1024 : window.innerWidth)
+  const panelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const suppressWhenAnotherPanelOpens = (event: Event) => {
-      const type = (event as CustomEvent<{ type?: ToolbarPanel }>).detail?.type
+      const detail = (event as CustomEvent<ToolbarPanelDetail>).detail
+      const type = detail?.type
       if (type === 'search' || type === 'menu') setSuppressed(true)
-      if (type === 'close') setSuppressed(false)
-      if (type === 'filter') setSuppressed(false)
+      if (type === 'filter') {
+        setSuppressed(false)
+        if (detail.anchor) setAnchor(detail.anchor)
+      }
     }
     window.addEventListener(toolbarPanelEvent, suppressWhenAnotherPanelOpens)
-    return () => window.removeEventListener(toolbarPanelEvent, suppressWhenAnotherPanelOpens)
+    const updateViewport = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', updateViewport)
+    return () => {
+      window.removeEventListener(toolbarPanelEvent, suppressWhenAnotherPanelOpens)
+      window.removeEventListener('resize', updateViewport)
+    }
   }, [])
   const visible = open && !suppressed
-  return <div className={`ml-auto w-full max-w-3xl overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${visible ? 'mt-3 grid-rows-[1fr] opacity-100' : 'pointer-events-none grid-rows-[0fr] opacity-0'}`} aria-hidden={!visible}><div className="min-h-0 overflow-hidden"><div className="grid gap-3 rounded-xl bg-slate-50/70 p-3 sm:grid-cols-2 lg:grid-cols-4">{children}</div></div></div>
+  useEffect(() => {
+    if (!visible) return
+    const panel = panelRef.current
+    const publishFilterLabel = () => {
+      const labels = Array.from(panelRef.current?.querySelectorAll('select') ?? []).map((select) => select.options[select.selectedIndex]?.text).filter(Boolean)
+      const label = labels.length ? labels.join(' · ') : 'All filters'
+      window.dispatchEvent(new CustomEvent(toolbarFilterLabelEvent, { detail: { label } }))
+    }
+    const publishAndClose = () => {
+      publishFilterLabel()
+      announceToolbarPanel('close-request')
+    }
+    const publishAfterMount = window.setTimeout(publishFilterLabel, 0)
+    panel?.addEventListener('change', publishAndClose)
+    return () => {
+      window.clearTimeout(publishAfterMount)
+      panel?.removeEventListener('change', publishAndClose)
+    }
+  }, [visible, anchor])
+  useEffect(() => {
+    if (!visible) return
+    const panel = panelRef.current
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target as Node
+      const withinTrigger = anchor && event.clientX >= anchor.left && event.clientX <= anchor.right && event.clientY >= anchor.top && event.clientY <= anchor.bottom
+      if (!panel?.contains(target) && !withinTrigger) announceToolbarPanel('close-request')
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        announceToolbarPanel('close-request')
+      }
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [anchor, visible])
+  if (!visible) return null
+  const right = anchor ? Math.max(8, viewportWidth - anchor.right) : 8
+  return <div ref={panelRef} className="fixed z-50 w-[min(18rem,calc(100vw-1rem))] rounded-xl bg-white p-3 shadow-xl ring-1 ring-slate-900/5 animate-[toolbar-search-in_180ms_ease-out]" style={{ top: (anchor?.bottom ?? 0) + 8, right }} role="dialog" aria-label="Filter options"><div className="grid gap-3 sm:grid-cols-2">{children}</div></div>
 }
 
 export type ToolbarMenuItem = { label: string; icon?: ToolbarIcon; onClick: () => void; disabled?: boolean }
