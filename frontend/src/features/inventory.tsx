@@ -86,16 +86,16 @@ function StockOperation({ type, locations, variants, onClose, onDone }: { type: 
       {error && <div className="mt-4"><ErrorState message={error} /></div>}
       <div className="mt-5 space-y-4">
         <select required aria-label="Location" value={form.location_id} onChange={(event) => setForm({ ...form, location_id: event.target.value })} className="w-full rounded-xl border px-3 py-3">
-          <option value="">Select location</option>
+          <option value="">Select a location...</option>
           {locations.filter((item) => item.status === 'active').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
         <select required aria-label="Product variant" value={form.variant_id} onChange={(event) => setForm({ ...form, variant_id: event.target.value })} className="w-full rounded-xl border px-3 py-3">
-          <option value="">Select product variant</option>
+          <option value="">Select a product variant...</option>
           {variants.map((item) => <option key={item.id} value={item.id}>{item.product_name || item.name || 'Product'} · {item.sku}</option>)}
         </select>
-        <input required aria-label="Quantity" type="number" min="0.001" step="0.001" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} placeholder="Quantity" className="w-full rounded-xl border px-3 py-3" />
-        {type === 'in' && <input aria-label="Unit cost" type="number" min="0" step="0.0001" value={form.unit_cost} onChange={(event) => setForm({ ...form, unit_cost: event.target.value })} placeholder="Unit cost (optional)" className="w-full rounded-xl border px-3 py-3" />}
-        <input required aria-label="Reason" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder="Reason" className="w-full rounded-xl border px-3 py-3" />
+        <input required aria-label="Quantity" type="number" min="0.001" step="0.001" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} placeholder="Enter quantity..." className="w-full rounded-xl border px-3 py-3" />
+        {type === 'in' && <input aria-label="Unit cost" type="number" min="0" step="0.0001" value={form.unit_cost} onChange={(event) => setForm({ ...form, unit_cost: event.target.value })} placeholder="Enter unit cost (optional)..." className="w-full rounded-xl border px-3 py-3" />}
+        <input required aria-label="Reason" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder="Write movement reason..." className="w-full rounded-xl border px-3 py-3" />
       </div>
       <div className="mt-6 flex justify-end gap-3">
         <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2.5 font-semibold">Cancel</button>

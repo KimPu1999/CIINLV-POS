@@ -639,6 +639,38 @@ div:has(> [data-page-toolbar="true"]) {
   box-shadow: 0 0 0 3px rgba(131, 168, 250, 0.24) !important;
 }
 
+/* Product create/edit dialog: restore its functional field borders after the
+   borderless dashboard control treatment, without affecting other forms. */
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog select,
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea {
+  border: 1px solid #000000 !important;
+}
+
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):focus,
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):focus-visible,
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog select:focus,
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog select:focus-visible,
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea:focus,
+.min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea:focus-visible {
+  border-color: #2563EB !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog select,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea {
+  border-color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):focus,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):focus-visible,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog select:focus,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog select:focus-visible,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea:focus,
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea:focus-visible {
+  border-color: #83A8FA !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
