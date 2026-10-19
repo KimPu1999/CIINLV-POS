@@ -10,7 +10,7 @@ import { ThemeProvider, useTheme } from './lib/theme'
 import './App.css'
 
 const BusinessAdminsPage = lazy(() => import('./features/businesses').then(({ BusinessAdminsPage: Page }) => ({ default: Page })))
-const BusinessDetailsPage = lazy(() => import('./features/businesses').then(({ BusinessDetailsPage: Page }) => ({ default: Page })))
+const BusinessControlCenterPage = lazy(() => import('./features/business-control-center').then(({ BusinessControlCenterPage: Page }) => ({ default: Page })))
 const BusinessEditPage = lazy(() => import('./features/businesses').then(({ BusinessEditPage: Page }) => ({ default: Page })))
 const BusinessListPage = lazy(() => import('./features/businesses').then(({ BusinessListPage: Page }) => ({ default: Page })))
 const InvitationAcceptancePage = lazy(() => import('./features/businesses').then(({ InvitationAcceptancePage: Page }) => ({ default: Page })))
@@ -229,7 +229,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="businesses/new" element={<BusinessRegistrationScreen />} />
           <Route path="businesses/:id/edit" element={<BusinessEditPage />} />
           <Route path="businesses/:id/admins" element={<BusinessAdminsPage />} />
-          <Route path="businesses/:id" element={<BusinessDetailsPage />} />
+          <Route path="businesses/:id" element={<BusinessControlCenterPage />} />
           <Route path="audit" element={<ResourcePage title="Audit & security" description="Review platform audit records from the backend." endpoint="/api/v1/platform/businesses" columns={['name', 'status', 'created_at']} />} />
           <Route path="branches" element={<BranchListPage />} />
           <Route path="branches/:id/dashboard" element={<BranchDashboardPage />} />

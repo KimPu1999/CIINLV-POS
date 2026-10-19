@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Platform\CreateInvitedBusinessAdminRequest;
 use App\Http\Requests\Platform\UpdateBusinessAdminRequest;
-use App\Http\Resources\BusinessMembershipResource;
 use App\Http\Resources\BusinessInvitationResource;
-use App\Models\BusinessInvitation;
+use App\Http\Resources\BusinessMembershipResource;
 use App\Http\Resources\UserResource;
+use App\Models\BusinessInvitation;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -15,6 +15,7 @@ use App\Services\AuditLogger;
 use App\Services\BusinessMembershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PlatformBusinessAdminController
 {
@@ -58,6 +59,7 @@ class PlatformBusinessAdminController
             'invitation_status' => $invitation->refresh()->status(),
             'invitation' => new BusinessInvitationResource($invitation->load(['tenant', 'user'])),
         ];
+
         return response()->json([
             'success' => true,
             'message' => 'Business administrator invitation created successfully',
@@ -72,16 +74,18 @@ class PlatformBusinessAdminController
             ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))
             ->firstOrFail();
         $data = $request->validated();
-        $user->update($request->safe()->only(['name'])->toArray());
+        DB::transaction(function () use ($data, $membership, $user, $request): void {
+            $user->update($request->safe()->only(['name'])->toArray());
 
-        if (array_key_exists('status', $data)) {
-            $status = $data['status'];
-            $membership->update(['status' => $status === 'active' ? 'active' : 'revoked']);
-            $user->update(['status' => $status]);
-            if ($status !== 'active') {
-                $user->tokens()->delete();
+            if (array_key_exists('status', $data)) {
+                $status = $data['status'];
+                if ($status !== 'active') {
+                    $this->preventLastAdminRemoval($membership);
+                }
+                $membership->update(['status' => $status === 'active' ? 'active' : 'revoked']);
+                $this->reconcileUserAccess($user, $status === 'active');
             }
-        }
+        });
         $auditLogger->record('platform.business_admin_updated', $request->user(), $business, $user);
 
         return response()->json(['success' => true, 'data' => new UserResource($user->refresh())]);
@@ -93,8 +97,11 @@ class PlatformBusinessAdminController
             ->where('user_id', $user->getKey())
             ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))
             ->firstOrFail();
-        $membership->update(['status' => 'revoked']);
-        $user->tokens()->delete();
+        DB::transaction(function () use ($membership, $user): void {
+            $this->preventLastAdminRemoval($membership);
+            $membership->update(['status' => 'revoked']);
+            $this->reconcileUserAccess($user, false);
+        });
         $auditLogger->record('platform.business_admin_revoked', $request->user(), $business, $user);
 
         return response()->json(['success' => true, 'message' => 'Business administrator access revoked.']);
@@ -148,12 +155,17 @@ class PlatformBusinessAdminController
             ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))
             ->firstOrFail();
 
-        $user->update($request->validated(['name']));
-        if ($request->has('status')) {
-            $status = $request->validated('status');
-            $membership->update(['status' => $status === 'active' ? 'active' : 'revoked']);
-            $user->update(['status' => $status]);
-        }
+        DB::transaction(function () use ($request, $membership, $user): void {
+            $user->update($request->validated(['name']));
+            if ($request->has('status')) {
+                $status = $request->validated('status');
+                if ($status !== 'active') {
+                    $this->preventLastAdminRemoval($membership);
+                }
+                $membership->update(['status' => $status === 'active' ? 'active' : 'revoked']);
+                $this->reconcileUserAccess($user, $status === 'active');
+            }
+        });
         $auditLogger->record('platform.business_admin_updated', $request->user(), $tenant, $user);
 
         return response()->json(['success' => true, 'data' => new UserResource($user->refresh())]);
@@ -165,10 +177,51 @@ class PlatformBusinessAdminController
             ->where('user_id', $user->getKey())
             ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))
             ->firstOrFail();
-        $membership->update(['status' => 'revoked']);
-        $user->tokens()->delete();
+        DB::transaction(function () use ($membership, $user): void {
+            $this->preventLastAdminRemoval($membership);
+            $membership->update(['status' => 'revoked']);
+            $this->reconcileUserAccess($user, false);
+        });
         $auditLogger->record('platform.business_admin_revoked', $request->user(), $tenant, $user);
 
         return response()->json(['success' => true, 'message' => 'Business administrator access revoked.']);
+    }
+
+    private function preventLastAdminRemoval(TenantMembership $membership): void
+    {
+        if ($membership->status !== 'active') {
+            return;
+        }
+
+        $activeAdmins = TenantMembership::query()
+            ->where('tenant_id', $membership->tenant_id)
+            ->where('status', 'active')
+            ->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))
+            ->count();
+
+        abort_if($activeAdmins <= 1, 409, 'The last active Business Admin cannot be revoked. Invite or activate another administrator first.');
+    }
+
+    private function reconcileUserAccess(User $user, bool $activate): void
+    {
+        if ($user->isSuperAdmin()) {
+            return;
+        }
+
+        if ($activate) {
+            $user->forceFill(['status' => User::STATUS_ACTIVE])->save();
+
+            return;
+        }
+
+        $hasAnotherActiveMembership = $user->memberships()->where('status', 'active')->exists();
+        if ($hasAnotherActiveMembership) {
+            return;
+        }
+
+        if ($user->status === User::STATUS_ACTIVE) {
+            $user->forceFill(['status' => User::STATUS_SUSPENDED])->save();
+            $user->tokens()->delete();
+        }
     }
 }

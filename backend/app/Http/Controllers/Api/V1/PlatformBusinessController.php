@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Platform\CreateBusinessRequest;
 use App\Http\Requests\Platform\UpdateBusinessRequest;
-use App\Http\Resources\TenantResource;
 use App\Http\Resources\BusinessInvitationResource;
+use App\Http\Resources\TenantResource;
 use App\Models\Tenant;
 use App\Services\AuditLogger;
 use App\Services\BusinessProvisioningService;
@@ -111,7 +111,8 @@ class PlatformBusinessController
     public function suspend(Tenant $business, Request $request, BusinessSuspensionService $suspensionService): JsonResponse
     {
         Gate::authorize('manage', $business);
-        $business = $suspensionService->suspend($business, $request->user(), app(AuditLogger::class));
+        $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
+        $business = $suspensionService->suspend($business, $request->user(), app(AuditLogger::class), $request->string('reason')->trim()->toString() ?: 'Platform suspension');
 
         return response()->json(['success' => true, 'data' => new TenantResource($business)]);
     }

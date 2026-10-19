@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAdminController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAuditController;
 use App\Http\Controllers\Api\V1\PlatformBusinessController;
+use App\Http\Controllers\Api\V1\PlatformBusinessControlController;
 use App\Http\Controllers\Api\V1\PlatformBusinessDeletionController;
 use App\Http\Controllers\Api\V1\PlatformBusinessLifecycleController;
 use App\Http\Controllers\Api\V1\PlatformBusinessInvitationController;
@@ -96,6 +97,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/businesses', [PlatformBusinessController::class, 'index']);
             Route::post('/businesses', [PlatformBusinessController::class, 'store']);
             Route::get('/businesses/{business}', [PlatformBusinessController::class, 'show']);
+            Route::get('/businesses/{business}/control-center', [PlatformBusinessControlController::class, 'show']);
             Route::patch('/businesses/{business}', [PlatformBusinessController::class, 'update']);
             Route::post('/businesses/{business}/suspend', [PlatformBusinessController::class, 'suspend']);
             Route::post('/businesses/{business}/activate', [PlatformBusinessController::class, 'activate']);

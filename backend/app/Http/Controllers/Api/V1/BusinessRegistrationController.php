@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -46,6 +47,7 @@ class BusinessRegistrationController
                     'source' => 'public_registration',
                     'business_code' => $tenant->business_code,
                 ]);
+
                 return [$tenant, $owner];
             });
         } catch (UniqueConstraintViolationException $exception) {
@@ -53,6 +55,7 @@ class BusinessRegistrationController
                 'constraint' => $exception->getMessage(),
                 'business_code' => $data['business_code'] ?? null,
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Some registration details are already in use.',
@@ -63,6 +66,7 @@ class BusinessRegistrationController
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);
+
             return response()->json(['success' => false, 'message' => 'We could not save the registration right now. Please try again shortly.'], 500);
         }
 
@@ -85,10 +89,16 @@ class BusinessRegistrationController
     public function verify(Request $request, int $id, string $hash, AuditLogger $auditLogger): RedirectResponse
     {
         $frontend = rtrim((string) config('app.frontend_url'), '/');
-        if (! URL::hasValidSignature($request)) return redirect()->to($frontend.'/email-verification/invalid?reason=expired');
+        if (! URL::hasValidSignature($request)) {
+            return redirect()->to($frontend.'/email-verification/invalid?reason=expired');
+        }
         $user = User::query()->find($id);
-        if (! $user || ! hash_equals(sha1($user->getEmailForVerification()), $hash)) return redirect()->to($frontend.'/email-verification/invalid?reason=invalid');
-        if ($user->hasVerifiedEmail()) return redirect()->to($frontend.'/email-verification/success?already=1');
+        if (! $user || ! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+            return redirect()->to($frontend.'/email-verification/invalid?reason=invalid');
+        }
+        if ($user->hasVerifiedEmail()) {
+            return redirect()->to($frontend.'/email-verification/success?already=1');
+        }
 
         $tenantId = $request->integer('tenant_id') ?: null;
         $verifiedTenant = DB::transaction(function () use ($user, $tenantId): ?Tenant {
@@ -107,11 +117,17 @@ class BusinessRegistrationController
             $memberships = $membershipQuery->get();
             // Legacy links did not contain tenant_id. Do not guess when an
             // account has multiple pending business memberships.
-            if (! $tenantId && $memberships->count() !== 1) return null;
+            if (! $tenantId && $memberships->count() !== 1) {
+                return null;
+            }
             $membership = $memberships->first();
-            if (! $membership) return null;
+            if (! $membership) {
+                return null;
+            }
             $tenant = $membership->tenant;
-            if (! $tenant) return null;
+            if (! $tenant) {
+                return null;
+            }
             $membership->forceFill(['status' => 'active', 'joined_at' => now()])->save();
             $tenant->forceFill([
                 'email_verified_at' => now(),
@@ -120,6 +136,7 @@ class BusinessRegistrationController
                 'approval_status' => config('business.require_super_admin_approval') ? 'pending' : 'approved',
                 'approved_at' => config('business.require_super_admin_approval') ? null : now(),
             ])->save();
+
             return $tenant;
         });
         if ($verifiedTenant) {
@@ -127,13 +144,16 @@ class BusinessRegistrationController
                 'source' => 'signed_email_link',
             ]);
         }
+
         return redirect()->to($frontend.'/email-verification/success');
     }
 
     public function resend(Request $request): JsonResponse
     {
         $email = strtolower(trim((string) $request->input('email')));
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) return response()->json(['success' => true, 'message' => 'If the account exists, a verification email will be sent shortly.']);
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json(['success' => true, 'message' => 'If the account exists, a verification email will be sent shortly.']);
+        }
         $user = User::query()->where('email', $email)->first();
         if ($user && ! $user->hasVerifiedEmail()) {
             $tenant = $user->memberships()->where('status', 'pending')->with('tenant')->first()?->tenant;
@@ -150,19 +170,26 @@ class BusinessRegistrationController
                 }
             }
         }
+
         return response()->json(['success' => true, 'message' => 'If the account exists, a verification email will be sent shortly.']);
     }
 
     public function approve(Tenant $business, Request $request, AuditLogger $auditLogger): JsonResponse
     {
-        if (! $business->email_verified_at) {
-            return response()->json(['success' => false, 'message' => 'The business owner must verify the email address before approval.'], 422);
-        }
-        $business->forceFill(['approval_status' => 'approved', 'approved_at' => now(), 'approved_by' => $request->user()->id, 'status' => 'active'])->save();
-        $auditLogger->record('business.registration_approved', $request->user(), $business, $business, [
-            'source' => 'platform_approval',
-        ]);
-        return response()->json(['success' => true, 'message' => 'Business approved.', 'data' => $business->refresh()]);
+        Gate::authorize('manage', $business);
+        $approved = DB::transaction(function () use ($business, $request, $auditLogger): Tenant {
+            $locked = Tenant::query()->whereKey($business->getKey())->lockForUpdate()->firstOrFail();
+            if (! $locked->email_verified_at) {
+                abort(422, 'The business owner must verify the email address before approval.');
+            }
+            abort_if($locked->status === 'archived', 409, 'Restore the archived business before approval.');
+            $locked->forceFill(['approval_status' => 'approved', 'approved_at' => now(), 'approved_by' => $request->user()->id, 'status' => 'active'])->save();
+            $auditLogger->record('business.registration_approved', $request->user(), $locked, $locked, ['source' => 'platform_approval']);
+
+            return $locked->refresh();
+        });
+
+        return response()->json(['success' => true, 'message' => 'Business approved.', 'data' => $approved]);
     }
 
     private function uniqueConstraintErrors(UniqueConstraintViolationException $exception): array
@@ -177,6 +204,7 @@ class BusinessRegistrationController
         if (str_contains($message, 'tenants_slug')) {
             return ['business_code' => ['This business code creates a duplicate business slug. Choose another code.']];
         }
+
         return ['registration' => ['Some registration details are already in use.']];
     }
 }
