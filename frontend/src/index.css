@@ -11,6 +11,9 @@
   --theme-primary: #2563eb;
   --theme-primary-soft: #eff6ff;
   --theme-focus: rgba(37, 99, 235, 0.2);
+  --shadow-small: 0 1px 5px rgba(15, 23, 42, 0.05);
+  --shadow-medium: 0 3px 14px rgba(15, 23, 42, 0.08);
+  --shadow-large: 0 12px 30px rgba(15, 23, 42, 0.12);
   color: var(--theme-text);
   background: var(--theme-background);
   color-scheme: light;
@@ -30,6 +33,9 @@
   --theme-primary: #3b82f6;
   --theme-primary-soft: rgba(59, 130, 246, 0.18);
   --theme-focus: rgba(96, 165, 250, 0.35);
+  --shadow-small: 0 1px 5px rgba(0, 0, 0, 0.20);
+  --shadow-medium: 0 3px 14px rgba(0, 0, 0, 0.28);
+  --shadow-large: 0 12px 30px rgba(0, 0, 0, 0.38);
   color-scheme: dark;
 }
 
@@ -41,6 +47,10 @@ body { margin: 0; min-width: 320px; background: var(--theme-background); color: 
 button, a { -webkit-tap-highlight-color: transparent; }
 
 *, *::before, *::after { transition-property: background-color, border-color, color, fill, stroke, box-shadow; transition-duration: 180ms; transition-timing-function: ease; }
+
+.premium-shadow-sm { box-shadow: var(--shadow-small) !important; }
+.premium-shadow-md { box-shadow: var(--shadow-medium) !important; }
+.premium-shadow-lg { box-shadow: var(--shadow-large) !important; }
 
 @keyframes toolbar-search-in {
   from { opacity: 0; transform: translateY(-3px); }
@@ -55,8 +65,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
    these tokens in one place avoids page-specific sizing drift while leaving
    checkboxes, file inputs, scanners, and third-party controls untouched. */
 :root {
-  --compact-field-shadow: 0 2px 10px rgba(15, 23, 42, 0.07);
-  --compact-field-focus-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
+  --compact-field-shadow: var(--shadow-small);
+  --compact-field-focus-shadow: 0 0 0 3px var(--theme-focus);
 }
 
 .compact-field {
@@ -125,6 +135,25 @@ div:has(> [data-page-toolbar="true"]) {
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+}
+
+/* Dashboard cards and table shells use surface + shadow as their visual
+   boundary. Inputs, buttons, validation states, sidebar separators and tabs
+   are intentionally excluded so functional affordances remain visible. */
+.min-h-screen.bg-slate-50 > aside + div > header {
+  border-bottom: 0 !important;
+  box-shadow: var(--shadow-small);
+}
+
+.min-h-screen.bg-slate-50 > aside + div main :is(div, article, section)[class~="rounded-2xl"][class~="bg-white"][class~="border"]:not([class~="border-dashed"]):not(:has(> [data-page-toolbar="true"])),
+.min-h-screen.bg-slate-50 > aside + div main :is(div, article, section)[class~="rounded-xl"][class~="bg-white"][class~="border"]:not([class~="border-dashed"]):not(:has(> [data-page-toolbar="true"])) {
+  border: 0 !important;
+  box-shadow: var(--shadow-medium) !important;
+}
+
+.min-h-screen.bg-slate-50 > aside + div main :is(div, article, section)[class~="rounded-2xl"][class~="shadow-sm"]:not(:has(> [data-page-toolbar="true"])),
+.min-h-screen.bg-slate-50 > aside + div main :is(div, article, section)[class~="rounded-xl"][class~="shadow-sm"]:not(:has(> [data-page-toolbar="true"])) {
+  box-shadow: var(--shadow-medium) !important;
 }
 
 .compact-label {
