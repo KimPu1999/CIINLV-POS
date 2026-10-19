@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
+use App\Models\BusinessInvitation;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
@@ -43,6 +45,45 @@ class PhaseTwoSecurityTest extends TestCase
         ])->assertOk()->assertJsonPath('data.platform_role', User::PLATFORM_ROLE_SUPER_ADMIN);
 
         $this->getJson('/api/v1/platform/dashboard')->assertOk();
+    }
+
+    public function test_platform_dashboard_reports_tenant_metrics_without_mixing_merchant_billing(): void
+    {
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $active = Tenant::create([
+            'name' => 'Active Merchant', 'slug' => 'active-merchant', 'business_code' => 'ACTIVE-001',
+            'status' => 'active', 'subscription_status' => 'trial', 'approval_status' => 'approved',
+            'email_verification_status' => 'verified', 'created_at' => now()->subDays(2), 'updated_at' => now()->subDays(2),
+        ]);
+        $pending = Tenant::create([
+            'name' => 'Pending Merchant', 'slug' => 'pending-merchant', 'business_code' => 'PENDING-001',
+            'status' => 'pending', 'subscription_status' => 'trial', 'approval_status' => 'pending',
+            'email_verification_status' => 'pending_email_verification', 'created_at' => now()->subDay(), 'updated_at' => now()->subDay(),
+        ]);
+
+        $owner = User::factory()->create(['name' => 'Active Owner', 'email' => 'active-owner@example.com']);
+        $role = Role::create(['tenant_id' => $active->id, 'name' => 'business_admin']);
+        TenantMembership::create(['tenant_id' => $active->id, 'user_id' => $owner->id, 'role_id' => $role->id, 'status' => 'active', 'joined_at' => now()]);
+        BusinessInvitation::create([
+            'tenant_id' => $pending->id, 'email' => 'pending-owner@example.com', 'role' => 'business_admin',
+            'token_hash' => hash('sha256', 'pending-owner-token'), 'expires_at' => now()->addDay(),
+        ]);
+        AuditLog::create(['actor_user_id' => $superAdmin->id, 'tenant_id' => $active->id, 'action' => 'platform.business_created', 'subject_type' => Tenant::class, 'subject_id' => $active->id, 'metadata' => ['source' => 'test'], 'created_at' => now()]);
+
+        $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/platform/dashboard?days=30')
+            ->assertOk()
+            ->assertJsonPath('data.kpis.total_businesses', 2)
+            ->assertJsonPath('data.kpis.active_businesses', 1)
+            ->assertJsonPath('data.kpis.pending_owner_activations', 0)
+            ->assertJsonPath('data.pending_actions.counts.registrations', 1)
+            ->assertJsonPath('data.pending_actions.counts.owner_invitations', 1)
+            ->assertJsonPath('data.subscriptions.billing_available', false)
+            ->assertJsonPath('data.subscriptions.mrr', null)
+            ->assertJsonPath('data.subscriptions.arr', null)
+            ->assertJsonPath('data.health.checks.postgresql.status', 'ready')
+            ->assertJsonPath('data.activity.0.action', 'platform.business_created')
+            ->assertJsonFragment(['name' => 'Active Merchant'])
+            ->assertJsonFragment(['name' => 'Pending Merchant']);
     }
 
     public function test_wrong_password_is_rejected_and_login_is_rate_limited(): void

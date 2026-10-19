@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShoppingCart, Store, Truck, X } from 'lucide-react'
-import { getBackendHealth, request, type BackendHealth, type BusinessMembership, type User } from './lib/api'
+import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
 import { DataTable, ErrorState, LoadingState, PageHeader, StatCard } from './components/ui'
 import { BusinessAdminsPage, BusinessDetailsPage, BusinessEditPage, BusinessListPage, BusinessRegistrationPage as BusinessRegistrationScreen, InvitationAcceptancePage } from './features/businesses'
 import { BusinessSettingsPage } from './features/business-settings'
 import { BusinessDashboardPage } from './features/business-dashboard'
+import { PlatformOverviewPage } from './features/platform-overview'
 import { ProductManagementPage } from './features/products'
 import { CategoryManagementPage } from './features/categories'
 import { BarcodeSearchPage } from './features/barcode-search'
@@ -195,14 +196,7 @@ function TenantSelectionPage({ memberships }: { memberships: BusinessMembership[
   return <div className="mx-auto max-w-3xl"><PageHeader title="Select a business" description="This account has access to more than one active business." /><div className="grid gap-4 md:grid-cols-2">{memberships.map((membership) => <button key={membership.business.id} type="button" onClick={() => { window.localStorage.setItem('ciinlv_tenant_id', membership.business.id); window.location.reload() }} className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"><p className="font-semibold text-slate-950">{membership.business.name}</p><p className="mt-2 text-sm text-slate-500">{membership.business.business_code || 'Business account'}</p><span className="mt-4 inline-block text-sm font-semibold text-blue-700">Open dashboard →</span></button>)}</div></div>
 }
 
-function OverviewPage({ user }: { user: User }) { const platform = user.platform_role === 'super_admin'; return platform ? <><BackendStatus /><DashboardPage title="Platform overview" endpoint="/api/v1/platform/dashboard" icon={Building2} /></> : <BusinessDashboardPage /> }
-
-function BackendStatus() {
-  const [health, setHealth] = useState<BackendHealth | null>(null)
-  useEffect(() => { getBackendHealth().then(setHealth).catch(() => setHealth(null)) }, [])
-  const ready = health?.success && health.status === 'ready'
-  return <div className={`mb-6 flex items-center justify-between rounded-xl border px-4 py-3 text-sm ${ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : health ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-slate-200 bg-white text-slate-500'}`}><span className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${ready ? 'bg-emerald-500' : health ? 'bg-amber-500' : 'animate-pulse bg-slate-400'}`} />{ready ? 'Backend connected' : health ? 'Backend needs attention' : 'Checking backend connection…'}</span><span className="hidden sm:inline">Laravel API · 127.0.0.1:8000</span></div>
-}
+function OverviewPage({ user }: { user: User }) { const platform = user.platform_role === 'super_admin'; return platform ? <PlatformOverviewPage /> : <BusinessDashboardPage /> }
 
 function DashboardPage({ title, endpoint, icon: Icon }: { title: string; endpoint: string; icon: Icon }) {
   const [data, setData] = useState<Record<string, unknown> | null>(null)
