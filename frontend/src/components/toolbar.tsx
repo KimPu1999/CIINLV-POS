@@ -10,7 +10,7 @@ function announceToolbarPanel(type: ToolbarPanel, source?: symbol) {
 }
 
 export function PageToolbar({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`flex flex-wrap items-center gap-2 ${className}`}>{children}</div>
+  return <div className={`flex w-full flex-wrap items-center justify-end gap-1 sm:flex-nowrap ${className}`}>{children}</div>
 }
 
 export function ToolbarTooltip({ label, children }: { label: string; children: ReactNode }) {
@@ -23,7 +23,7 @@ export function ToolbarTooltip({ label, children }: { label: string; children: R
 }
 
 export function IconActionButton({ icon: Icon, label, onClick, active = false, disabled = false, buttonRef }: { icon: ToolbarIcon; label: string; onClick: () => void; active?: boolean; disabled?: boolean; buttonRef?: Ref<HTMLButtonElement> }) {
-  return <ToolbarTooltip label={label}><button ref={buttonRef} type="button" aria-label={label} onClick={onClick} disabled={disabled} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Icon size={19} aria-hidden="true" />{active && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-blue-300 ring-2 ring-white" aria-hidden="true" />}</button></ToolbarTooltip>
+  return <ToolbarTooltip label={label}><button ref={buttonRef} type="button" aria-label={label} onClick={onClick} disabled={disabled} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Icon size={19} aria-hidden="true" />{active && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-blue-300 ring-2 ring-white" aria-hidden="true" />}</button></ToolbarTooltip>
 }
 
 export function SearchToggle({ active = false, label = 'Search', onClick, buttonRef }: { active?: boolean; label?: string; onClick: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
@@ -68,7 +68,7 @@ export function CollapsibleSearch({ value, onChange, placeholder = 'Search', lab
 
   if (!open) return <SearchToggle active={active} label={label} buttonRef={triggerRef} onClick={() => { announceToolbarPanel('search', source.current); setOpen(true) }} />
 
-  return <div className="flex min-w-[220px] flex-1 items-center gap-2 animate-[toolbar-search-in_180ms_ease-out]">
+  return <div className="ml-auto flex min-w-[220px] w-full max-w-md flex-none items-center gap-2 animate-[toolbar-search-in_180ms_ease-out]">
     <div className="relative min-w-0 flex-1">
       <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} aria-hidden="true" />
       <input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={label} className="compact-field compact-field--search w-full pr-10" />
@@ -91,7 +91,7 @@ export function FilterToggle({ open, activeCount = 0, onClick }: { open: boolean
   }, [])
   const visibleOpen = open && !suppressed
   const active = visibleOpen || activeCount > 0
-  return <ToolbarTooltip label="Filters"><button type="button" aria-expanded={visibleOpen} aria-label="Filters" onClick={() => { announceToolbarPanel('filter'); onClick() }} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={19} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-0.5 top-0.5 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
+  return <ToolbarTooltip label="Filters"><button type="button" aria-expanded={visibleOpen} aria-label="Filters" onClick={() => { announceToolbarPanel('filter'); onClick() }} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={19} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-0.5 top-0.5 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
 }
 
 export function FilterPanel({ open, children }: { open: boolean; children: ReactNode }) {
@@ -107,7 +107,7 @@ export function FilterPanel({ open, children }: { open: boolean; children: React
     return () => window.removeEventListener(toolbarPanelEvent, suppressWhenAnotherPanelOpens)
   }, [])
   const visible = open && !suppressed
-  return <div className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${visible ? 'mt-3 grid-rows-[1fr] opacity-100' : 'pointer-events-none grid-rows-[0fr] opacity-0'}`} aria-hidden={!visible}><div className="min-h-0 overflow-hidden"><div className="grid gap-3 rounded-xl bg-slate-50/70 p-3 sm:grid-cols-2 lg:grid-cols-4">{children}</div></div></div>
+  return <div className={`ml-auto w-full max-w-3xl overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${visible ? 'mt-3 grid-rows-[1fr] opacity-100' : 'pointer-events-none grid-rows-[0fr] opacity-0'}`} aria-hidden={!visible}><div className="min-h-0 overflow-hidden"><div className="grid gap-3 rounded-xl bg-slate-50/70 p-3 sm:grid-cols-2 lg:grid-cols-4">{children}</div></div></div>
 }
 
 export type ToolbarMenuItem = { label: string; icon?: ToolbarIcon; onClick: () => void; disabled?: boolean }
@@ -150,7 +150,7 @@ export function ToolbarMenu({ items, label = 'More actions' }: { items: ToolbarM
   }, [open])
 
   return <div className="relative inline-flex">
-    <ToolbarTooltip label={label}><button ref={triggerRef} type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!open) announceToolbarPanel('menu', source.current); setOpen((value) => !value) }} className={`inline-flex h-11 w-11 items-center justify-center rounded-[10px] transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${open ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><MoreHorizontal size={19} aria-hidden="true" /></button></ToolbarTooltip>
+    <ToolbarTooltip label={label}><button ref={triggerRef} type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!open) announceToolbarPanel('menu', source.current); setOpen((value) => !value) }} className={`inline-flex h-11 w-11 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 sm:h-9 sm:w-9 ${open ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><MoreHorizontal size={19} aria-hidden="true" /></button></ToolbarTooltip>
     {open && <div ref={menuRef} role="menu" aria-label={label} className="absolute right-0 top-full z-50 mt-2 min-w-48 rounded-xl bg-white p-1.5 shadow-xl ring-1 ring-slate-900/5 animate-[toolbar-search-in_180ms_ease-out]">{items.map((item) => { const ItemIcon = item.icon; return <button key={item.label} type="button" role="menuitem" disabled={item.disabled} onClick={() => { item.onClick(); close() }} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:bg-blue-50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50">{ItemIcon && <ItemIcon size={17} aria-hidden="true" />}{item.label}</button> })}</div>}
   </div>
 }
