@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { Activity, AlertTriangle, ArrowUpRight, BarChart3, BellRing, CheckCircle2, Clock3, Database, ExternalLink, GitBranch, RefreshCw, Server, ShieldCheck, WalletCards, XCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ErrorState, EmptyState, LoadingState, PageHeader, StatCard, StatusBadge } from '../components/ui'
+import { IconActionButton, PageToolbar, ToolbarMenu } from '../components/toolbar'
 import { request } from '../lib/api'
 
 type Point = { period: string; count: number }
@@ -29,7 +30,7 @@ export function PlatformOverviewPage() {
   if (error && !data) return <><PageHeader title="Platform overview" description="Secure, platform-level signals across CIINLV POS." /><ErrorState message={error} /></>
   if (!data) return null
   return <>
-    <PageHeader title="Platform overview" description="A governed view of tenant growth, activation backlog, subscriptions, and operational health." action={<div className="flex flex-wrap gap-2"><select value={days} onChange={(event) => setDays(event.target.value)} aria-label="Growth date range" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option></select><button type="button" onClick={() => setRefresh((value) => value + 1)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300"><RefreshCw size={16} />Refresh</button></div>} />
+    <PageHeader title="Platform overview" description="A governed view of tenant growth, activation backlog, subscriptions, and operational health." action={<PageToolbar><ToolbarMenu label={`Date range: ${days} days`} items={[{ label: 'Last 7 days', onClick: () => setDays('7') }, { label: 'Last 30 days', onClick: () => setDays('30') }, { label: 'Last 90 days', onClick: () => setDays('90') }, { label: 'Last 12 months', onClick: () => setDays('365') }]} /><IconActionButton icon={RefreshCw} label="Refresh platform overview" onClick={() => setRefresh((value) => value + 1)} /></PageToolbar>} />
     {error && <div className="mb-5"><ErrorState message={error} /></div>}
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metricDefinitions.map(([key, label, Icon, detail], index) => <StatCard key={key} label={label} value={formatNumber(data.kpis[key])} detail={detail} icon={Icon} tone={(['blue', 'emerald', 'amber', 'violet'] as const)[index % 4]} />)}</div>
     <div className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_1fr]"><GrowthPanel growth={data.growth} /><SubscriptionPanel subscriptions={data.subscriptions} /></div>
