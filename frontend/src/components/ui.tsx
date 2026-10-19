@@ -12,9 +12,9 @@ export function LabelBadge({ children, tone = 'neutral', className = '' }: { chi
   return <span className={`label-badge label-badge--${tone} ${className}`}>{children}</span>
 }
 
-export function StatCard({ label, value, detail, icon: Icon, tone = 'blue' }: { label: string; value: string | number; detail?: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone?: 'blue' | 'emerald' | 'amber' | 'violet' }) {
+export function StatCard({ label, value, detail, icon: Icon, tone = 'blue', compact = false, className = '' }: { label: string; value: string | number; detail?: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone?: 'blue' | 'emerald' | 'amber' | 'violet'; compact?: boolean; className?: string }) {
   const tones = { blue: 'bg-blue-50 text-blue-600', emerald: 'bg-emerald-50 text-emerald-600', amber: 'bg-amber-50 text-amber-600', violet: 'bg-violet-50 text-violet-600' }
-  return <div className="rounded-xl border border-slate-200 bg-white p-5 premium-shadow-md"><div className="flex items-start justify-between"><div><p className="text-sm font-medium text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold tracking-tight text-slate-950">{value}</p></div><div className={`rounded-xl p-3 ${tones[tone]}`}><Icon size={20} /></div></div>{detail && <p className="mt-4 text-xs text-slate-400">{detail}</p>}</div>
+  return <div className={`rounded-xl border border-slate-200 bg-white ${compact ? 'p-3' : 'p-5'} ${compact ? 'premium-shadow-sm' : 'premium-shadow-md'} ${className}`}><div className={`flex ${compact ? 'items-center' : 'items-start'} justify-between gap-3`}><div className="min-w-0"><p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-slate-500`}>{label}</p><p className={`${compact ? 'mt-1 text-xl' : 'mt-2 text-2xl'} font-bold tracking-tight text-slate-950`}>{value}</p></div><div className={`shrink-0 rounded-xl ${compact ? 'p-2' : 'p-3'} ${tones[tone]}`}><Icon size={compact ? 18 : 20} /></div></div>{detail && <p className={`${compact ? 'mt-1 text-[11px]' : 'mt-4 text-xs'} truncate text-slate-400`}>{detail}</p>}</div>
 }
 
 export function StatusBadge({ status }: { status?: string | null }) {

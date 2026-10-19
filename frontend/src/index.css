@@ -208,6 +208,11 @@ div:has(> [data-page-toolbar="true"]) {
   box-shadow: var(--shadow-medium) !important;
 }
 
+.min-h-screen.bg-slate-50 > aside + div main .warehouse-kpi,
+.min-h-screen.bg-slate-50 > aside + div main .warehouse-card {
+  box-shadow: var(--shadow-small) !important;
+}
+
 .compact-label {
   display: block;
   color: var(--theme-text-secondary);
