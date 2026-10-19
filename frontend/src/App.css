@@ -1,5 +1,14 @@
 * { box-sizing: border-box; }
 
+:root {
+  --dashboard-sidebar-expanded-width: 220px;
+  --dashboard-sidebar-collapsed-width: 60px;
+}
+
+.dashboard-sidebar {
+  width: var(--dashboard-sidebar-expanded-width);
+}
+
 /* Shared Shell geometry: the sidebar and the content wrapper use the same
    breakpoint-aware offset. This overrides the legacy competing lg:pl-* utility
    classes without changing route or navigation behavior. */
@@ -19,11 +28,22 @@
 
 @media (min-width: 1024px) {
   .min-h-screen.bg-slate-50 > aside + div {
-    padding-left: 18rem !important;
+    padding-left: var(--dashboard-sidebar-expanded-width) !important;
   }
 
-  .min-h-screen.bg-slate-50:has(> aside.lg\:w-20) > aside + div {
-    padding-left: 5rem !important;
+  .dashboard-sidebar.sidebar-collapsed {
+    width: var(--dashboard-sidebar-collapsed-width);
+  }
+
+  .dashboard-sidebar.sidebar-collapsed nav a,
+  .dashboard-sidebar.sidebar-collapsed > div:last-child button {
+    justify-content: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .min-h-screen.bg-slate-50 > aside.sidebar-collapsed + div {
+    padding-left: var(--dashboard-sidebar-collapsed-width) !important;
   }
 }
 
