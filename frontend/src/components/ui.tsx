@@ -1,5 +1,5 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
-import { AlertCircle, Inbox, LoaderCircle } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { AlertCircle, AlertTriangle, Inbox, LoaderCircle, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { translateStatic } from '../lib/i18n'
@@ -8,8 +8,8 @@ export function PageHeader({ title, description, action }: { title: string; desc
   const { t } = useTranslation()
   const translatedTitle = translateStatic(t, title)
   const translatedDescription = description ? translateStatic(t, description) : undefined
-  if (!action) return <div className="sr-only"><h1>{translatedTitle}</h1>{translatedDescription && <p>{translatedDescription}</p>}</div>
-  return <div className="mb-1 flex min-h-9 items-center justify-end"><div className="sr-only"><h1>{translatedTitle}</h1>{translatedDescription && <p>{translatedDescription}</p>}</div>{action}</div>
+  if (!action) return <><ConfirmationLayer /><div className="sr-only"><h1>{translatedTitle}</h1>{translatedDescription && <p>{translatedDescription}</p>}</div></>
+  return <><ConfirmationLayer /><div className="mb-1 flex min-h-9 items-center justify-end"><div className="sr-only"><h1>{translatedTitle}</h1>{translatedDescription && <p>{translatedDescription}</p>}</div>{action}</div></>
 }
 
 export type LabelBadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
@@ -97,6 +97,79 @@ export function StatusBadge({ status }: { status?: string | null }) {
 export function LoadingState() { return <div className="flex min-h-48 items-center justify-center rounded-xl border border-slate-200 bg-white premium-shadow-md"><LoaderCircle className="animate-spin text-blue-600" size={24} /></div> }
 export function EmptyState({ label = 'No records found' }: { label?: string }) { const { t } = useTranslation(); return <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white text-center premium-shadow-sm"><Inbox className="mb-3 text-slate-300" size={30} /><p className="text-sm font-medium text-slate-500">{translateStatic(t, label)}</p></div> }
 export function ErrorState({ message }: { message: string }) { const { t } = useTranslation(); return <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><AlertCircle className="mt-0.5 shrink-0" size={18} /><span>{translateStatic(t, message)}</span></div> }
+
+export type ConfirmationOptions = {
+  title: string
+  description: string
+  confirmLabel: string
+  cancelLabel?: string
+  successMessage?: string
+  tone?: 'danger' | 'warning' | 'primary'
+  input?: { label: string; placeholder?: string; defaultValue?: string; required?: boolean }
+}
+
+type ConfirmationAction = (input: string) => Promise<string | void>
+
+type ActiveConfirmation = { options: ConfirmationOptions; action: ConfirmationAction; working: boolean; error: string }
+let activeConfirmation: ActiveConfirmation | null = null
+let confirmationNotice = ''
+let confirmationNoticeTimer: ReturnType<typeof setTimeout> | undefined
+const confirmationSubscribers = new Set<() => void>()
+const publishConfirmation = () => confirmationSubscribers.forEach((subscriber) => subscriber())
+
+export function useConfirmation() {
+  const requestConfirmation = useCallback((options: ConfirmationOptions, action: ConfirmationAction) => { confirmationNotice = ''; activeConfirmation = { options, action, working: false, error: '' }; publishConfirmation() }, [])
+  return { requestConfirmation, confirmation: null }
+}
+
+function ConfirmationLayer() {
+  const { t } = useTranslation()
+  const [, setVersion] = useState(0)
+  useEffect(() => { const subscriber = () => setVersion((version) => version + 1); confirmationSubscribers.add(subscriber); return () => { confirmationSubscribers.delete(subscriber) } }, [])
+  if (!activeConfirmation) return null
+  const cancel = () => { if (!activeConfirmation?.working) { activeConfirmation = null; publishConfirmation() } }
+  const execute = async (input: string) => {
+    const current = activeConfirmation
+    if (!current || current.working) return
+    activeConfirmation = { ...current, working: true, error: '' }
+    publishConfirmation()
+    try {
+      const result = await current.action(input)
+      if (result) activeConfirmation = { ...activeConfirmation!, working: false, error: result }
+      else {
+        activeConfirmation = null
+        confirmationNotice = current.options.successMessage || t('text.action_completed')
+        if (confirmationNoticeTimer) clearTimeout(confirmationNoticeTimer)
+        confirmationNoticeTimer = setTimeout(() => { confirmationNotice = ''; publishConfirmation() }, 3500)
+      }
+    } catch { activeConfirmation = { ...activeConfirmation!, working: false, error: 'Unable to complete this action. Please try again.' } }
+    publishConfirmation()
+  }
+  return <>{activeConfirmation && <ConfirmationModal options={activeConfirmation.options} error={activeConfirmation.error} working={activeConfirmation.working} onCancel={cancel} onConfirm={execute} />}{confirmationNotice && <div role="status" className="fixed bottom-5 right-5 z-[80] max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-xl dark:border-emerald-900/60 dark:bg-emerald-950/70 dark:text-emerald-100">{confirmationNotice}</div>}</>
+}
+
+function ConfirmationModal({ options, error, working, onCancel, onConfirm }: { options: ConfirmationOptions; error: string; working: boolean; onCancel: () => void; onConfirm: (input: string) => Promise<void> }) {
+  const { t } = useTranslation()
+  const [input, setInput] = useState(options.input?.defaultValue || '')
+  const confirmRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    confirmRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape' && !working) onCancel() }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown); previous?.focus() }
+  }, [onCancel, working])
+  const tone = options.tone || 'danger'
+  const confirmClass = tone === 'primary' ? 'bg-blue-600 hover:bg-blue-700 focus-visible:ring-blue-200' : tone === 'warning' ? 'bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-200' : 'bg-red-600 hover:bg-red-700 focus-visible:ring-red-200'
+  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !working) onCancel() }}>
+    <section role="alertdialog" aria-modal="true" aria-labelledby="confirmation-title" aria-describedby="confirmation-description" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+      <div className="flex items-start gap-3"><span className={`mt-0.5 rounded-xl p-2 ${tone === 'primary' ? 'bg-blue-50 text-blue-600' : tone === 'warning' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}><AlertTriangle size={19} /></span><div className="min-w-0 flex-1"><h2 id="confirmation-title" className="text-lg font-bold text-slate-950 dark:text-white">{options.title}</h2><p id="confirmation-description" className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{options.description}</p></div><button type="button" onClick={onCancel} disabled={working} aria-label={t('text.close')} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 disabled:opacity-40 dark:hover:bg-slate-800"><X size={18} /></button></div>
+      {options.input && <label className="mt-5 block text-sm font-semibold text-slate-700 dark:text-slate-200">{options.input.label}<input autoFocus={false} required={options.input.required} value={input} onChange={(event) => setInput(event.target.value)} placeholder={options.input.placeholder} disabled={working} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label>}
+      {error && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">{error}</p>}
+      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={onCancel} disabled={working} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 disabled:opacity-40 dark:border-slate-700 dark:text-slate-200">{options.cancelLabel || t('text.cancel')}</button><button ref={confirmRef} type="button" onClick={() => { if (!options.input?.required || input.trim()) void onConfirm(input) }} disabled={working || Boolean(options.input?.required && !input.trim())} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition focus-visible:outline-none focus-visible:ring-4 disabled:cursor-wait disabled:opacity-60 ${confirmClass}`}>{working && <LoaderCircle size={16} className="animate-spin" />}{working ? t('text.working') : options.confirmLabel}</button></div>
+    </section>
+  </div>
+}
 
 export function DataTable({ columns, rows, emptyLabel }: { columns: string[]; rows: Record<string, unknown>[]; emptyLabel?: string }) {
   const { t } = useTranslation()

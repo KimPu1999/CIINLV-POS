@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, Building2, CheckCircle2, Clock3, Eye, LockKeyhole, RefreshCw, ShieldCheck, Store, Trash2, Users, Warehouse, XCircle } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ErrorState, LabelBadge, LoadingState, PageHeader, StatCard, StatusBadge } from '../components/ui'
+import { ErrorState, LabelBadge, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
 import { IconActionButton, PageToolbar } from '../components/toolbar'
 import { request } from '../lib/api'
 
@@ -60,6 +60,7 @@ export function BusinessControlCenterPage() {
   const [deletionWorking, setDeletionWorking] = useState(false)
   const [error, setError] = useState('')
   const [deletionError, setDeletionError] = useState('')
+  const { requestConfirmation, confirmation } = useConfirmation()
 
   const load = () => {
     if (!id) return
@@ -73,21 +74,25 @@ export function BusinessControlCenterPage() {
 
   useEffect(load, [id])
 
-  const lifecycle = async (action: 'activate' | 'suspend' | 'archive' | 'restore') => {
+  const lifecycle = (action: 'activate' | 'suspend' | 'archive' | 'restore') => {
     if (!id || !data) return
-    if (action === 'archive' && !window.confirm(`Archive ${data.business.name}? All business data will be preserved and dashboard access will be blocked.`)) return
-    let payload: Record<string, string> | undefined
-    if (action === 'suspend') {
-      const reason = window.prompt(`Reason for suspending ${data.business.name}:`, 'Platform policy review')
-      if (!reason?.trim()) return
-      payload = { reason: reason.trim() }
-    }
-    setWorking(true)
-    setError('')
-    try {
-      await request({ method: 'post', url: `/api/v1/platform/businesses/${id}/${action}`, data: payload })
-      load()
-    } catch (err) { setError(message(err, `Unable to ${action} business.`)) } finally { setWorking(false) }
+    requestConfirmation({
+      title: `${action.charAt(0).toUpperCase()}${action.slice(1)} ${data.business.name}?`,
+      description: action === 'archive' ? 'All business data will be preserved, and dashboard access will be blocked.' : action === 'suspend' ? 'Business users will lose dashboard access until the business is reactivated.' : 'This changes the business access state for its users.',
+      confirmLabel: `${action.charAt(0).toUpperCase()}${action.slice(1)} business`,
+      tone: action === 'archive' || action === 'suspend' ? 'danger' : 'primary',
+      input: action === 'suspend' ? { label: 'Reason for suspension', placeholder: 'Platform policy review', defaultValue: 'Platform policy review', required: true } : undefined,
+    }, async (input) => {
+      const reason = input.trim()
+      if (action === 'suspend' && !reason) return 'A suspension reason is required.'
+      const payload = action === 'suspend' ? { reason } : undefined
+      setWorking(true)
+      setError('')
+      try {
+        await request({ method: 'post', url: `/api/v1/platform/businesses/${id}/${action}`, data: payload })
+        load()
+      } catch (err) { return message(err, `Unable to ${action} business.`) } finally { setWorking(false) }
+    })
   }
 
   const openDeletion = async () => {
@@ -117,7 +122,7 @@ export function BusinessControlCenterPage() {
   if (!data) return <ErrorState message="Business control data is unavailable." />
 
   const business = data.business
-  return <>
+  return <>{confirmation}
     <PageHeader title={`${business.name} control center`} description={`Secure platform controls for ${business.business_code}.`} action={<div className="flex items-center gap-1"><Link to={`/platform/businesses/${business.id}/edit`} className="hidden rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 sm:inline-flex">Edit business</Link><Link to={`/platform/businesses/${business.id}/admins`} className="hidden rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-700 sm:inline-flex">Admin invitations</Link><PageToolbar><IconActionButton icon={ArrowLeft} label="Back to businesses" onClick={() => navigate('/platform/businesses')} /><IconActionButton icon={RefreshCw} label="Refresh control center" onClick={load} /></PageToolbar></div>} />
     {error && <div className="mb-4"><ErrorState message={error} /></div>}
     <div className="rounded-xl border border-slate-200 bg-white premium-shadow-sm">
