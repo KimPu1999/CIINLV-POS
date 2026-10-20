@@ -57,13 +57,21 @@ The remaining work after the Phase 2 foundation is:
 
 ## Phase 3 — customer marketplace frontend
 
-The marketplace-frontend storefront foundation already exists and is connected to the Phase 2 read APIs. Future frontend work includes:
+### Implemented
 
-- React/TypeScript/Vite/Tailwind/React Router.
-- Typed API client with credentialed Sanctum behavior compatible with the approved customer identity model.
-- Shared CIINLV brand tokens, en/my resources, theme, accessibility, loading, empty, and error states.
-- Homepage, shop, category/store/listing detail, search/filter, login/register/profile, cart, checkout, success, history, tracking, wishlist, contact/support.
-- No mock production inventory or fake payment success.
+- Replaced the starter surface with the responsive customer storefront and reusable shell, product/store/category cards, galleries, filters, pagination, loading, empty, and error states.
+- Connected product, store, category, product detail, store detail, search, SKU search, price filters, sort, and public slug routes to Laravel APIs.
+- Connected customer registration, login, logout, protected account/profile settings, and tenant-independent customer address CRUD through the existing Sanctum session boundary and CSRF cookie.
+- Added English/Burmese UI coverage for storefront, account, cart, and checkout-foundation text, with local language/theme preference persistence.
+- Kept wishlist local-only and checkout/order/payment submission explicitly disabled because those authorized APIs do not exist yet.
+
+### Remaining Phase 3 work
+
+- Add frontend component/route test tooling (the existing marketplace package has no test runner) and run browser-level responsive/accessibility checks.
+- Implement authorized wishlist persistence when its API is approved.
+- Complete real cart, checkout, payment, order, and tracking APIs in Phase 5 before enabling order submission.
+
+The Phase 2 React/TypeScript/Vite/Tailwind/React Router architecture and typed Sanctum-compatible API boundary remain the baseline for the remaining phases. No mock production inventory or fake payment success was introduced.
 
 ### Phase 3 exit gate
 

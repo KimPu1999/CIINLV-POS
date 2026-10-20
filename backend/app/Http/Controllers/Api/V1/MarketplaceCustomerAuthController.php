@@ -43,7 +43,7 @@ class MarketplaceCustomerAuthController
         $request->session()->regenerate();
         $auditLogger->record('marketplace.customer_registered', $user, metadata: ['ip_address' => $request->ip()]);
 
-        return response()->json(['success' => true, 'data' => new CustomerResource($user->load('customerProfile'))], 201);
+        return response()->json(['success' => true, 'data' => new CustomerResource($user->load(['customerProfile.addresses']))], 201);
     }
 
     public function login(CustomerLoginRequest $request, AuditLogger $auditLogger): JsonResponse
@@ -65,7 +65,7 @@ class MarketplaceCustomerAuthController
         $request->session()->regenerate();
         $auditLogger->record('marketplace.customer_login_succeeded', $user, metadata: ['ip_address' => $request->ip()]);
 
-        return response()->json(['success' => true, 'data' => new CustomerResource($user->load('customerProfile'))]);
+        return response()->json(['success' => true, 'data' => new CustomerResource($user->load(['customerProfile.addresses']))]);
     }
 
     public function logout(Request $request, AuditLogger $auditLogger): JsonResponse
@@ -103,6 +103,6 @@ class MarketplaceCustomerAuthController
         }
         $auditLogger->record('marketplace.customer_profile_updated', $user);
 
-        return response()->json(['success' => true, 'data' => new CustomerResource($user->refresh()->load('customerProfile'))]);
+        return response()->json(['success' => true, 'data' => new CustomerResource($user->refresh()->load(['customerProfile.addresses']))]);
     }
 }

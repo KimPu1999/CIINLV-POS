@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 2 contract implemented on 2026-10-20 using the existing /api/v1 conventions. Cart, checkout, orders, payments, and fulfillment are intentionally not included yet.
+Phase 3 customer storefront integration implemented on 2026-10-20 using the existing /api/v1 conventions. Cart drafts, checkout submission, orders, payments, and fulfillment remain intentionally disabled until their real APIs are implemented.
 
 ## Existing API conventions
 
@@ -76,6 +76,8 @@ These Phase 2 paths are implemented:
     GET /api/v1/marketplace/products/{product}
     GET /api/v1/marketplace/search
 
+The customer storefront uses `lang=en|my`, `search`, `category`, `store`, `min_price`, `max_price`, `sort=newest|oldest|price-low|price-high|name`, `page`, and `per_page` on the product collection. Product and store detail routes resolve their public slugs. Public listing resources also expose `store_slug` and `category_slug` for safe storefront links.
+
 Only approved/public records should be returned. Responses must not expose tenant-private fields, internal inventory locations, verification documents, or unpublished moderation data.
 
 ### Customer account and address book
@@ -90,7 +92,7 @@ Customer auth uses the existing `web` guard and Sanctum stateful API middleware;
 
 If customers reuse the existing users/Sanctum flow, route and guard behavior must be explicitly separated from platform/business role checks. Do not silently broaden auth:sanctum access to admin endpoints.
 
-### Customer order and payment
+### Customer order and payment (future)
 
     POST /api/v1/marketplace/checkout
     GET  /api/v1/marketplace/orders

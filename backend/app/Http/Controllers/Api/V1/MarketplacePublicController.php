@@ -8,6 +8,8 @@ use App\Http\Resources\MarketplaceStoreResource;
 use App\Models\Category;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceStore;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,7 +37,7 @@ class MarketplacePublicController
     {
         $store = MarketplaceStore::query()
             ->public()
-            ->with(['tenant', 'listings' => fn (Builder $query) => $query->public()->with($this->listingRelations())])
+            ->with(['tenant', 'listings' => fn ($query) => $query->public()->with($this->listingRelations())])
             ->where('slug', $store->slug)
             ->firstOrFail();
 
@@ -50,7 +52,8 @@ class MarketplacePublicController
                 $query->where(function (Builder $search) use ($term): void {
                     $search->whereHas('product', fn (Builder $product) => $product
                         ->where('products.name', 'ilike', $term)
-                        ->orWhere('products.brand', 'ilike', $term))
+                        ->orWhere('products.brand', 'ilike', $term)
+                        ->orWhereHas('variants', fn (Builder $variant) => $variant->where('product_variants.sku', 'ilike', $term)))
                         ->orWhereHas('store', fn (Builder $store) => $store->where('marketplace_stores.name', 'ilike', $term));
                 });
             })
@@ -61,12 +64,19 @@ class MarketplacePublicController
                 ->where('marketplace_stores.slug', $request->string('store'))
                 ->orWhere('marketplace_stores.uuid', $request->string('store'))));
 
+        $query
+            ->when($request->filled('min_price'), fn (Builder $listing) => $listing->whereHas('product.variants', fn (Builder $variant) => $variant
+                ->where('product_variants.status', 'active')
+                ->where('product_variants.selling_price', '>=', (float) $request->input('min_price'))))
+            ->when($request->filled('max_price'), fn (Builder $listing) => $listing->whereHas('product.variants', fn (Builder $variant) => $variant
+                ->where('product_variants.status', 'active')
+                ->where('product_variants.selling_price', '<=', (float) $request->input('max_price'))));
+
         $sort = (string) $request->input('sort', 'newest');
-        if ($sort === 'oldest') {
-            $query->orderBy('marketplace_listings.created_at');
-        } else {
-            $query->orderByDesc('marketplace_listings.published_at');
-        }
+        $query->when($sort === 'oldest', fn (Builder $listing) => $listing->orderBy('marketplace_listings.created_at'))
+            ->when($sort === 'name', fn (Builder $listing) => $listing->orderBy(Product::query()->select('name')->whereColumn('products.id', 'marketplace_listings.product_id')->limit(1)))
+            ->when($sort === 'price-low' || $sort === 'price-high', fn (Builder $listing) => $listing->orderBy(ProductVariant::query()->select('selling_price')->whereColumn('product_variants.product_id', 'marketplace_listings.product_id')->where('product_variants.status', 'active')->orderBy('product_variants.id')->limit(1), $sort === 'price-high' ? 'desc' : 'asc'))
+            ->when(! in_array($sort, ['oldest', 'name', 'price-low', 'price-high'], true), fn (Builder $listing) => $listing->orderByDesc('marketplace_listings.published_at'));
 
         $listings = $query
             ->with($this->listingRelations())

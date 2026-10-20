@@ -41,9 +41,12 @@ class MarketplaceFoundationTest extends TestCase
             'is_default' => true,
         ])->assertCreated()->assertJsonPath('data.is_default', true);
 
+        $this->patchJson('/api/v1/marketplace/auth/me', ['phone' => '09987654321'])
+            ->assertOk()->assertJsonCount(1, 'data.addresses')->assertJsonPath('data.phone', '09987654321');
+
         $this->postJson('/api/v1/marketplace/auth/logout')->assertOk();
         $this->postJson('/api/v1/marketplace/auth/login', ['email' => 'customer@example.com', 'password' => 'CorrectPassword1!'])
-            ->assertOk()->assertJsonPath('data.email', 'customer@example.com');
+            ->assertOk()->assertJsonPath('data.email', 'customer@example.com')->assertJsonCount(1, 'data.addresses');
     }
 
     public function test_business_admin_cannot_access_platform_marketplace_approval(): void
@@ -121,6 +124,45 @@ class MarketplaceFoundationTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->getJson('/api/v1/vendor/marketplace/listings?per_page=1')
             ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('meta.per_page', 1)->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_public_catalog_supports_sku_price_filters_and_slug_detail_routes(): void
+    {
+        [$tenant] = $this->businessWithAdmin('MARKETPLACE-F', 'marketplace-f@example.com');
+        $store = MarketplaceStore::create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Marketplace F',
+            'slug' => 'marketplace-f',
+            'approval_status' => 'approved',
+            'is_active' => true,
+        ]);
+        $product = $this->publicProduct($tenant, 'Public Filter Product');
+        $product->variants()->firstOrFail()->update(['sku' => 'FILTER-SKU-001', 'selling_price' => 2400]);
+        $listing = MarketplaceListing::create([
+            'tenant_id' => $tenant->id,
+            'marketplace_store_id' => $store->id,
+            'product_id' => $product->id,
+            'slug' => 'public-filter-product',
+            'status' => 'published',
+            'published_at' => now(),
+        ]);
+
+        $this->getJson('/api/v1/marketplace/products?search=FILTER-SKU-001&min_price=2000&sort=price-high')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $listing->uuid)
+            ->assertJsonPath('data.0.store_slug', 'marketplace-f')
+            ->assertJsonPath('data.0.category_slug', 'marketplace-f-general');
+
+        $this->getJson('/api/v1/marketplace/products/public-filter-product')
+            ->assertOk()
+            ->assertJsonPath('data.slug', 'public-filter-product')
+            ->assertJsonPath('data.price', '2400.0000');
+
+        $this->getJson('/api/v1/marketplace/stores/marketplace-f')
+            ->assertOk()
+            ->assertJsonPath('data.slug', 'marketplace-f')
+            ->assertJsonPath('data.listings.0.slug', 'public-filter-product');
     }
 
     private function businessWithAdmin(string $code, string $email): array
