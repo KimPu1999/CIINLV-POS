@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
@@ -21,6 +21,7 @@ const InvitationAcceptancePage = lazy(() => import('./features/businesses').then
 const BusinessRegistrationScreen = lazy(() => import('./features/registration-wizards').then(({ PlatformBusinessRegistrationWizard: Page }) => ({ default: Page })))
 const PublicBusinessRegistrationPage = lazy(() => import('./features/registration-wizards').then(({ PublicBusinessRegistrationWizard: Page }) => ({ default: Page })))
 const BusinessSettingsPage = lazy(() => import('./features/business-settings').then(({ BusinessSettingsPage: Page }) => ({ default: Page })))
+const BusinessVerificationPage = lazy(() => import('./features/business-verification').then(({ BusinessVerificationPage: Page }) => ({ default: Page })))
 const BusinessDashboardPage = lazy(() => import('./features/business-dashboard').then(({ BusinessDashboardPage: Page }) => ({ default: Page })))
 const PlatformOverviewPage = lazy(() => import('./features/platform-overview').then(({ PlatformOverviewPage: Page }) => ({ default: Page })))
 const AuditSecurityPage = lazy(() => import('./features/audit-security').then(({ AuditSecurityPage: Page }) => ({ default: Page })))
@@ -78,6 +79,7 @@ const businessNav: NavItem[] = [
   { label: 'Returns & refunds', path: '/business/returns', icon: CircleUserRound, roles: ['business'] },
   { label: 'Reports & analytics', path: '/business/reports', icon: BarChart3, roles: ['business'] },
   { label: 'Low-stock alerts', path: '/business/alerts', icon: AlertTriangle, roles: ['business'] },
+  { label: 'Identity & verification', path: '/business/verification', icon: ShieldCheck, roles: ['business'] },
   { label: 'Settings', path: '/business/settings', icon: Settings, roles: ['business'] },
 ]
 
@@ -256,6 +258,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="alerts" element={<ResourcePage title="Low-stock alerts" description="Live inventory alerts from the backend." endpoint="/api/v1/alerts" columns={['alert_type', 'status', 'available_quantity']} />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="verification" element={<BusinessVerificationPage />} />
         </Routes></Suspense>}
       </main>
     </div>

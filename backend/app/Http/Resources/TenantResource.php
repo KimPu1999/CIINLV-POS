@@ -12,12 +12,24 @@ class TenantResource extends JsonResource
     {
         $translations = app(TranslationService::class);
         $locale = $translations->locale($request);
+        $platformViewer = $request->user()?->isSuperAdmin() ?? false;
+        $documentUrl = function (?string $path, string $document) use ($platformViewer): ?string {
+            if (! $path) return null;
+            return $platformViewer
+                ? route('platform.businesses.verification', [$this->uuid, $document])
+                : route('business.verification.document', $document);
+        };
         return [
             'id' => $this->uuid,
             'name' => $this->name,
             'display_name' => $translations->localizedValue($this->resource, 'display_name', $locale),
             'description' => $translations->localizedValue($this->resource, 'description', $locale),
             'business_type' => $translations->localizedValue($this->resource, 'business_type', $locale),
+            'id_type' => $this->id_type,
+            'id_number' => $this->id_number,
+            'company_registration_number' => $this->company_registration_number,
+            'personal_registration_number' => $this->personal_registration_number,
+            'verification_status' => $this->verification_status,
             'locale' => $locale,
             'translation_status' => $translations->translationStatus($this->resource, $locale),
             'slug' => $this->slug,
@@ -55,7 +67,13 @@ class TenantResource extends JsonResource
                     ? 'pending'
                     : ($owner?->email_verified_at ? 'verified' : ($this->email_verification_status ?: 'unknown'));
             }),
-            'logo_url' => $this->logo_path ? route('business.settings.logo') : null,
+            'logo_url' => $this->logo_path ? ($platformViewer ? route('platform.businesses.verification', [$this->uuid, 'business_logo']) : route('business.settings.logo')) : null,
+            'admin_profile_image_url' => $platformViewer ? null : ($request->user()?->profile_image_path ? route('business.verification.document', 'admin_profile_image') : null),
+            'verification_document_urls' => [
+                'id_front_image' => $documentUrl($this->id_front_image_path, 'id_front_image'),
+                'id_back_image' => $documentUrl($this->id_back_image_path, 'id_back_image'),
+                'company_certificate_image' => $documentUrl($this->company_certificate_image_path, 'company_certificate_image'),
+            ],
         ];
     }
 }

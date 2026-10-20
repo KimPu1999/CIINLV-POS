@@ -4,6 +4,7 @@ namespace App\Http\Requests\Platform;
 
 use App\Models\Tenant;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class CreateBusinessRequest extends FormRequest
 {
@@ -33,6 +34,11 @@ class CreateBusinessRequest extends FormRequest
             'country' => ['nullable', 'string', 'max:100'],
             'currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'timezone' => ['nullable', 'timezone'],
+            'business_type' => ['nullable', Rule::in(['company', 'personal'])],
+            'id_type' => ['nullable', Rule::in(['NRC', 'passport', 'company_registration', 'other'])],
+            'id_number' => ['nullable', 'string', 'max:150'],
+            'company_registration_number' => ['nullable', 'string', 'max:150', 'required_if:business_type,company'],
+            'personal_registration_number' => ['nullable', 'string', 'max:150', 'required_if:business_type,personal'],
             'locale' => ['nullable', 'string', 'max:20'],
             'tax_configuration' => ['nullable', 'array'],
             'receipt_configuration' => ['nullable', 'array'],

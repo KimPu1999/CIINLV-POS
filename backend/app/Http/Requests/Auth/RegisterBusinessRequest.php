@@ -4,6 +4,7 @@ namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\File;
 
 class RegisterBusinessRequest extends FormRequest
 {
@@ -29,6 +30,16 @@ class RegisterBusinessRequest extends FormRequest
             'country' => ['nullable', 'string', 'max:100'],
             'currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'timezone' => ['nullable', 'timezone'],
+            'business_type' => ['nullable', Rule::in(['company', 'personal'])],
+            'id_type' => ['nullable', Rule::in(['NRC', 'passport', 'company_registration', 'other'])],
+            'id_number' => ['nullable', 'string', 'max:150'],
+            'company_registration_number' => ['nullable', 'string', 'max:150', 'required_if:business_type,company'],
+            'personal_registration_number' => ['nullable', 'string', 'max:150', 'required_if:business_type,personal'],
+            'business_logo' => ['nullable', File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5120)],
+            'admin_profile_image' => ['nullable', File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5120)],
+            'id_front_image' => ['nullable', File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5120)],
+            'id_back_image' => ['nullable', File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5120)],
+            'company_certificate_image' => ['nullable', File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5120)],
             'owner_name' => ['required', 'string', 'max:255'],
             'owner_email' => ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', 'string', 'min:12'],

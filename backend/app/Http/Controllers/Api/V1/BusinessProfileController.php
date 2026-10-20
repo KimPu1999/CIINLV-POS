@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Business\UpdateBusinessProfileRequest;
+use App\Http\Requests\Business\UploadBusinessDocumentRequest;
 use App\Http\Resources\TenantResource;
 use App\Services\AuditLogger;
 use App\Services\TenantContext;
@@ -32,6 +33,45 @@ class BusinessProfileController
         $auditLogger->record('business.profile_updated', $request->user(), $tenant, $tenant);
 
         return response()->json(['success' => true, 'data' => new TenantResource($tenant->refresh())]);
+    }
+
+    public function uploadDocument(UploadBusinessDocumentRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    {
+        $tenant = $context->tenant();
+        Gate::authorize('updateProfile', $tenant);
+        $type = $request->string('document_type')->toString();
+        $file = $request->file('document');
+        $path = $file->storeAs('businesses/'.$tenant->uuid.'/verification', Str::uuid().'.'.$file->extension(), 'private');
+
+        if ($type === 'admin_profile_image') {
+            $oldPath = $request->user()->profile_image_path;
+            $request->user()->forceFill(['profile_image_path' => $path])->save();
+            $event = 'business.admin_profile_image_updated';
+        } else {
+            $column = $type.'_path';
+            $oldPath = $tenant->{$column};
+            $tenant->forceFill([$column => $path, 'verification_status' => 'pending'])->save();
+            $event = 'business.verification_document_updated';
+        }
+
+        if ($oldPath && $oldPath !== $path) Storage::disk('private')->delete($oldPath);
+        $auditLogger->record($event, $request->user(), $tenant, metadata: ['document_type' => $type]);
+
+        return response()->json(['success' => true, 'data' => new TenantResource($tenant->refresh())]);
+    }
+
+    public function document(Request $request, TenantContext $context, string $document)
+    {
+        $tenant = $context->tenant();
+        Gate::authorize('view', $tenant);
+        if ($document === 'admin_profile_image') {
+            $path = $request->user()->profile_image_path;
+        } else {
+            abort_unless(in_array($document, ['id_front_image', 'id_back_image', 'company_certificate_image'], true), 404);
+            $path = $tenant->{$document.'_path'};
+        }
+        abort_unless($path && Storage::disk('private')->exists($path), 404, 'Verification document not found.');
+        return response()->file(Storage::disk('private')->path($path));
     }
 
     public function uploadLogo(\App\Http\Requests\Business\UploadBusinessLogoRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse

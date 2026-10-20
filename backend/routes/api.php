@@ -99,6 +99,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/businesses', [PlatformBusinessController::class, 'index']);
             Route::post('/businesses', [PlatformBusinessController::class, 'store']);
             Route::get('/businesses/{business}', [PlatformBusinessController::class, 'show']);
+            Route::get('/businesses/{business}/verification/{document}', [PlatformBusinessController::class, 'verificationDocument'])->name('platform.businesses.verification');
             Route::get('/businesses/{business}/control-center', [PlatformBusinessControlController::class, 'show']);
             Route::patch('/businesses/{business}', [PlatformBusinessController::class, 'update']);
             Route::post('/businesses/{business}/suspend', [PlatformBusinessController::class, 'suspend']);
@@ -132,6 +133,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/settings/logo', [BusinessProfileController::class, 'logo'])->name('business.settings.logo');
             Route::post('/settings/logo', [BusinessProfileController::class, 'uploadLogo']);
             Route::delete('/settings/logo', [BusinessProfileController::class, 'removeLogo']);
+            Route::post('/verification/document', [BusinessProfileController::class, 'uploadDocument']);
+            Route::get('/verification/document/{document}', [BusinessProfileController::class, 'document'])->name('business.verification.document');
             Route::get('/settings', [BusinessSettingsController::class, 'show']);
             Route::patch('/settings', [BusinessSettingsController::class, 'update']);
             Route::get('/settings/receipt', [BusinessSettingsController::class, 'receipt']);

@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
@@ -31,6 +32,8 @@ class BusinessRegistrationController
                     'name' => $data['business_name'], 'slug' => Str::slug($data['business_code']),
                     'business_code' => $data['business_code'], 'email' => $data['business_email'] ?? $data['owner_email'],
                     'phone' => $data['phone'] ?? null, 'address' => $data['address'] ?? null, 'country' => $data['country'] ?? null,
+                    'business_type' => $data['business_type'] ?? null, 'id_type' => $data['id_type'] ?? null, 'id_number' => $data['id_number'] ?? null,
+                    'company_registration_number' => $data['company_registration_number'] ?? null, 'personal_registration_number' => $data['personal_registration_number'] ?? null,
                     'status' => 'pending', 'approval_status' => config('business.require_super_admin_approval') ? 'pending' : 'approved',
                     'email_verification_status' => 'pending_email_verification',
                     'subscription_status' => 'trial',
@@ -70,6 +73,8 @@ class BusinessRegistrationController
             return response()->json(['success' => false, 'message' => 'We could not save the registration right now. Please try again shortly.'], 500);
         }
 
+        $this->storeRegistrationFiles($tenant, $owner, $data);
+
         $emailDelivery = 'queued';
         try {
             SendBusinessEmailVerification::dispatch($owner->id, $tenant->id)->afterCommit();
@@ -84,6 +89,33 @@ class BusinessRegistrationController
         }
 
         return response()->json(['success' => true, 'message' => 'Registration received. Check your email to verify your address.', 'data' => ['business_name' => $tenant->name, 'email' => $owner->email, 'verification_required' => true, 'email_delivery' => $emailDelivery]], 201);
+    }
+
+    private function storeRegistrationFiles(Tenant $tenant, User $owner, array $data): void
+    {
+        $stored = [];
+        try {
+            foreach (['business_logo' => 'logo_path', 'id_front_image' => 'id_front_image_path', 'id_back_image' => 'id_back_image_path', 'company_certificate_image' => 'company_certificate_image_path'] as $input => $column) {
+                if (! isset($data[$input])) continue;
+                $file = $data[$input];
+                $path = $file->storeAs('businesses/'.$tenant->uuid.'/verification', Str::uuid().'.'.$file->extension(), 'private');
+                $stored[] = $path;
+                $tenant->{$column} = $path;
+            }
+            if (isset($data['admin_profile_image'])) {
+                $path = $data['admin_profile_image']->storeAs('businesses/'.$tenant->uuid.'/verification', Str::uuid().'.'.$data['admin_profile_image']->extension(), 'private');
+                $stored[] = $path;
+                $owner->profile_image_path = $path;
+                $owner->save();
+            }
+            if ($stored) {
+                $tenant->verification_status = 'pending';
+                $tenant->save();
+            }
+        } catch (\Throwable $exception) {
+            foreach ($stored as $path) Storage::disk('private')->delete($path);
+            throw $exception;
+        }
     }
 
     public function verify(Request $request, int $id, string $hash, AuditLogger $auditLogger): RedirectResponse
@@ -183,7 +215,7 @@ class BusinessRegistrationController
                 abort(422, 'The business owner must verify the email address before approval.');
             }
             abort_if($locked->status === 'archived', 409, 'Restore the archived business before approval.');
-            $locked->forceFill(['approval_status' => 'approved', 'approved_at' => now(), 'approved_by' => $request->user()->id, 'status' => 'active'])->save();
+            $locked->forceFill(['approval_status' => 'approved', 'verification_status' => 'approved', 'approved_at' => now(), 'approved_by' => $request->user()->id, 'status' => 'active'])->save();
             $auditLogger->record('business.registration_approved', $request->user(), $locked, $locked, ['source' => 'platform_approval']);
 
             return $locked->refresh();
