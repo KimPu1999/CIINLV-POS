@@ -37,6 +37,7 @@ class MarketplaceListingResource extends JsonResource
 
         return [
             'id' => $this->uuid,
+            'product_id' => $product?->uuid,
             'name' => $product ? $translations->localizedValue($product, 'name', $locale) : null,
             'slug' => $this->slug,
             'description' => $product ? $translations->localizedValue($product, 'description', $locale) : null,

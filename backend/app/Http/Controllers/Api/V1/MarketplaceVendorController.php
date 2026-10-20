@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Marketplace\MarketplaceListingRequest;
+use App\Http\Requests\Marketplace\UploadMarketplaceListingImagesRequest;
+use App\Http\Requests\Marketplace\UploadMarketplaceStoreMediaRequest;
 use App\Http\Requests\Marketplace\UpdateMarketplaceStoreRequest;
 use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceStoreResource;
 use App\Models\MarketplaceListing;
+use App\Models\MarketplaceListingImage;
 use App\Models\MarketplaceStore;
 use App\Models\Product;
 use App\Services\MarketplaceAuditLogger;
@@ -14,11 +17,81 @@ use App\Services\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class MarketplaceVendorController
 {
+    public function overview(Request $request, TenantContext $context): JsonResponse
+    {
+        $tenant = $context->tenant();
+        $store = $this->getOrCreateStore($context);
+        $publishedProducts = MarketplaceListing::query()
+            ->forTenant($tenant->id)
+            ->where('status', 'published')
+            ->count();
+
+        $products = Product::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', 'active')
+            ->with(['variants.balances'])
+            ->get();
+        $lowStockProducts = $products
+            ->filter(function (Product $product): bool {
+                if (! $product->track_inventory) {
+                    return false;
+                }
+
+                $variants = $product->variants->where('status', 'active');
+                if ($variants->isEmpty()) {
+                    return false;
+                }
+
+                $available = $variants->sum(fn ($variant): float => $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity));
+                $reorderLevel = $variants->max(fn ($variant): float => (float) $variant->reorder_level);
+
+                return $available <= $reorderLevel;
+            })
+            ->sortBy('name')
+            ->take(8)
+            ->map(function (Product $product): array {
+                $variants = $product->variants->where('status', 'active');
+                $available = $variants->sum(fn ($variant): float => $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity));
+
+                return [
+                    'id' => $product->uuid,
+                    'name' => $product->name,
+                    'sku' => $variants->first()?->sku,
+                    'available_stock' => $available,
+                ];
+            })
+            ->values()
+            ->all();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'store' => (new MarketplaceStoreResource($store))->resolve($request),
+                'metrics' => [
+                    'published_products' => $publishedProducts,
+                    'low_stock_products' => count($lowStockProducts),
+                    'pending_orders' => null,
+                    'completed_orders' => null,
+                    'marketplace_revenue' => null,
+                ],
+                'low_stock_products' => $lowStockProducts,
+                'recent_orders' => [],
+                'capabilities' => [
+                    'orders' => false,
+                    'shipping' => false,
+                    'reviews' => false,
+                    'earnings' => false,
+                ],
+            ],
+        ]);
+    }
+
     public function store(Request $request, TenantContext $context): JsonResponse
     {
         $store = $this->getOrCreateStore($context);
@@ -37,6 +110,32 @@ class MarketplaceVendorController
 
         $store->update($data);
         $audit->record('marketplace.store_updated', $request->user(), $context->tenant(), $store);
+
+        return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
+    }
+
+    public function uploadStoreMedia(UploadMarketplaceStoreMediaRequest $request, TenantContext $context, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $tenant = $context->tenant();
+        $store = $this->getOrCreateStore($context);
+        $type = $request->string('media_type')->toString();
+        $column = $type.'_path';
+        $file = $request->file('image');
+        $path = $file->storeAs('marketplace/stores/'.$tenant->uuid, Str::uuid().'.'.$file->extension(), 'public');
+        $oldPath = $store->{$column};
+
+        try {
+            $store->forceFill([$column => $path])->save();
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($path);
+            throw $exception;
+        }
+
+        if ($oldPath && $oldPath !== $path) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        $audit->record('marketplace.store_media_updated', $request->user(), $tenant, $store, ['media_type' => $type]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
     }
@@ -114,6 +213,27 @@ class MarketplaceVendorController
         $data['published_at'] = $status === 'published' ? ($listing->published_at ?? now()) : null;
         $listing->update($data);
         $audit->record('marketplace.listing_updated', $request->user(), $context->tenant(), $listing);
+
+        return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
+    }
+
+    public function uploadListingImages(UploadMarketplaceListingImagesRequest $request, MarketplaceListing $listing, TenantContext $context, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        abort_unless((int) $listing->tenant_id === (int) $context->tenant()->id, 404);
+        $files = $request->file('images', []);
+        $nextSortOrder = (int) $listing->images()->max('sort_order') + 1;
+
+        foreach ($files as $index => $file) {
+            $path = $file->storeAs('marketplace/stores/'.$context->tenant()->uuid.'/listings/'.$listing->uuid, Str::uuid().'.'.$file->extension(), 'public');
+            MarketplaceListingImage::create([
+                'tenant_id' => $context->tenant()->id,
+                'marketplace_listing_id' => $listing->id,
+                'image_path' => $path,
+                'sort_order' => $nextSortOrder + $index,
+            ]);
+        }
+
+        $audit->record('marketplace.listing_images_uploaded', $request->user(), $context->tenant(), $listing, ['count' => count($files)]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
     }

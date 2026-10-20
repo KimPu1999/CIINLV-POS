@@ -156,11 +156,14 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
+            Route::get('/overview', [MarketplaceVendorController::class, 'overview']);
             Route::get('/store', [MarketplaceVendorController::class, 'store']);
             Route::patch('/store', [MarketplaceVendorController::class, 'updateStore']);
+            Route::post('/store/media', [MarketplaceVendorController::class, 'uploadStoreMedia']);
             Route::get('/listings', [MarketplaceVendorController::class, 'listings']);
             Route::post('/listings', [MarketplaceVendorController::class, 'createListing']);
             Route::patch('/listings/{listing}', [MarketplaceVendorController::class, 'updateListing']);
+            Route::post('/listings/{listing}/images', [MarketplaceVendorController::class, 'uploadListingImages']);
         });
 
         Route::prefix('marketplace/auth')->middleware('customer.account')->group(function (): void {

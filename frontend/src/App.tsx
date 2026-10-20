@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Activity, AlertTriangle, BarChart3, Bell, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
@@ -44,9 +44,17 @@ const ResetPasswordPage = lazy(() => import('./features/password-recovery').then
 const EmailVerificationInvalidPage = lazy(() => import('./features/email-verification').then(({ EmailVerificationInvalidPage: Page }) => ({ default: Page })))
 const EmailVerificationPendingPage = lazy(() => import('./features/email-verification').then(({ EmailVerificationPendingPage: Page }) => ({ default: Page })))
 const EmailVerificationSuccessPage = lazy(() => import('./features/email-verification').then(({ EmailVerificationSuccessPage: Page }) => ({ default: Page })))
+const MarketplaceOverviewPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOverviewPage: Page }) => ({ default: Page })))
+const MarketplaceStorePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceStorePage: Page }) => ({ default: Page })))
+const MarketplaceProductsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceProductsPage: Page }) => ({ default: Page })))
+const MarketplaceOrdersPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrdersPage: Page }) => ({ default: Page })))
+const MarketplaceShippingPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceShippingPage: Page }) => ({ default: Page })))
+const MarketplaceReviewsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReviewsPage: Page }) => ({ default: Page })))
+const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceEarningsPage: Page }) => ({ default: Page })))
+const MarketplaceSettingsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceSettingsPage: Page }) => ({ default: Page })))
 
 type Icon = React.ComponentType<{ size?: number; className?: string }>
-type NavItem = { label: string; path: string; icon: Icon; roles?: ('super_admin' | 'business')[] }
+type NavItem = { label: string; path: string; icon: Icon; roles?: ('super_admin' | 'business')[]; section?: string }
 const BRAND_LOGO_SRC = '/ciinlv-logo.png'
 
 function BrandLogo({ showName = true, className = '', imageClassName = 'h-10 w-10', nameClassName = 'text-lg font-bold' }: { showName?: boolean; className?: string; imageClassName?: string; nameClassName?: string }) {
@@ -81,6 +89,14 @@ const businessNav: NavItem[] = [
   { label: 'Low-stock alerts', path: '/business/alerts', icon: AlertTriangle, roles: ['business'] },
   { label: 'Identity & verification', path: '/business/verification', icon: ShieldCheck, roles: ['business'] },
   { label: 'Settings', path: '/business/settings', icon: Settings, roles: ['business'] },
+  { label: 'Marketplace overview', path: '/business/marketplace/overview', icon: Store, roles: ['business'], section: 'Marketplace management' },
+  { label: 'My store', path: '/business/marketplace/store', icon: Building2, roles: ['business'] },
+  { label: 'Marketplace products', path: '/business/marketplace/products', icon: Package, roles: ['business'] },
+  { label: 'Marketplace orders', path: '/business/marketplace/orders', icon: ShoppingCart, roles: ['business'] },
+  { label: 'Shipping & fulfillment', path: '/business/marketplace/shipping', icon: Truck, roles: ['business'] },
+  { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'] },
+  { label: 'Earnings & commissions', path: '/business/marketplace/earnings', icon: BarChart3, roles: ['business'] },
+  { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
 ]
 
 function App() {
@@ -230,7 +246,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
         <BrandLogo showName={!collapsed} className="min-w-0 overflow-hidden" imageClassName="h-10 w-10" nameClassName="text-lg font-bold text-white" />
         <button className="lg:hidden" onClick={() => setMobile(false)} aria-label="Close navigation"><X size={20} /></button>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon }) => <SidebarNavItem key={`${path}-${collapsed ? 'collapsed' : 'expanded'}`} label={label} path={path} icon={Icon} collapsed={collapsed} onNavigate={() => setMobile(false)} />)}</nav>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon, section }) => <Fragment key={`${path}-${collapsed ? 'collapsed' : 'expanded'}`}>{section && !collapsed && <p className="mb-2 mt-5 px-4 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{translateStatic(t, section)}</p>}<SidebarNavItem label={label} path={path} icon={Icon} collapsed={collapsed} onNavigate={() => setMobile(false)} /></Fragment>)}</nav>
       <div className="border-t border-white/10 p-3"><button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white"><LogOut size={19} />{!collapsed && 'Sign out'}</button></div>
     </aside>
     {mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}
@@ -267,6 +283,14 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="alerts" element={<ResourcePage title="Low-stock alerts" description="Live inventory alerts from the backend." endpoint="/api/v1/alerts" columns={['alert_type', 'status', 'available_quantity']} />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="verification" element={<BusinessVerificationPage />} />
+          <Route path="marketplace/overview" element={<MarketplaceOverviewPage />} />
+          <Route path="marketplace/store" element={<MarketplaceStorePage />} />
+          <Route path="marketplace/products" element={<MarketplaceProductsPage />} />
+          <Route path="marketplace/orders" element={<MarketplaceOrdersPage />} />
+          <Route path="marketplace/shipping" element={<MarketplaceShippingPage />} />
+          <Route path="marketplace/reviews" element={<MarketplaceReviewsPage />} />
+          <Route path="marketplace/earnings" element={<MarketplaceEarningsPage />} />
+          <Route path="marketplace/settings" element={<MarketplaceSettingsPage />} />
         </Routes></Suspense>}
       </main>
     </div>

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import test from 'node:test'
+
+const [app, feature, routes, controller] = await Promise.all([
+  readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
+  readFile(new URL('../src/features/marketplace-vendor.tsx', import.meta.url), 'utf8'),
+  readFile(new URL('../../backend/routes/api.php', import.meta.url), 'utf8'),
+  readFile(new URL('../../backend/app/Http/Controllers/Api/V1/MarketplaceVendorController.php', import.meta.url), 'utf8'),
+])
+
+test('Business Admin marketplace navigation exposes all Phase 4 routes', () => {
+  for (const path of ['/business/marketplace/overview', '/business/marketplace/store', '/business/marketplace/products', '/business/marketplace/orders', '/business/marketplace/shipping', '/business/marketplace/reviews', '/business/marketplace/earnings', '/business/marketplace/settings']) {
+    assert.match(app, new RegExp(path.replaceAll('/', '\\/')))
+  }
+})
+
+test('vendor pages use real tenant-scoped APIs and no fabricated later-phase data', () => {
+  for (const endpoint of ['/api/v1/vendor/marketplace/overview', '/api/v1/vendor/marketplace/store', '/api/v1/vendor/marketplace/listings', '/api/v1/products']) {
+    assert.match(feature, new RegExp(endpoint.replaceAll('/', '\\/')))
+  }
+  assert.match(feature, /orders_not_available_yet/)
+  assert.match(feature, /revenue_not_available_yet/)
+  assert.match(feature, /FormData\(\)/)
+  assert.match(routes, /Route::get\('\/overview', \[MarketplaceVendorController::class, 'overview'\]\)/)
+  assert.match(controller, /'pending_orders' => null/)
+  assert.match(controller, /'marketplace_revenue' => null/)
+})
+
+test('vendor UI includes responsive controls, confirmation flow, and listing media upload', () => {
+  assert.match(feature, /useConfirmation\(\)/)
+  assert.match(feature, /overflow-x-auto/)
+  assert.match(feature, /sm:grid-cols-2/)
+  assert.match(feature, /accept="image\/jpeg,image\/png,image\/webp"/)
+  assert.match(feature, /marketplace\/listings/)
+})

@@ -12,7 +12,9 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MarketplaceFoundationTest extends TestCase
@@ -163,6 +165,58 @@ class MarketplaceFoundationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.slug', 'marketplace-f')
             ->assertJsonPath('data.listings.0.slug', 'public-filter-product');
+    }
+
+    public function test_vendor_overview_uses_tenant_scoped_listing_and_inventory_data_without_fabricating_orders(): void
+    {
+        [$tenant, $admin] = $this->businessWithAdmin('MARKETPLACE-G', 'marketplace-g@example.com');
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Marketplace G', 'slug' => 'marketplace-g', 'approval_status' => 'approved', 'is_active' => true]);
+        $product = $this->publicProduct($tenant, 'Business G Product');
+        MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $product->id, 'slug' => 'business-g-product', 'status' => 'published', 'published_at' => now()]);
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/overview')
+            ->assertOk()
+            ->assertJsonPath('data.metrics.published_products', 1)
+            ->assertJsonPath('data.metrics.pending_orders', null)
+            ->assertJsonPath('data.metrics.marketplace_revenue', null)
+            ->assertJsonPath('data.capabilities.orders', false);
+    }
+
+    public function test_vendor_can_update_own_store_and_upload_public_branding_media(): void
+    {
+        Storage::fake('public');
+        [$tenant, $admin] = $this->businessWithAdmin('MARKETPLACE-H', 'marketplace-h@example.com');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->patchJson('/api/v1/vendor/marketplace/store', ['name' => 'Updated Marketplace H', 'description' => 'Public store description', 'is_active' => false])
+            ->assertOk()->assertJsonPath('data.name', 'Updated Marketplace H')->assertJsonPath('data.is_active', false);
+
+        $response = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->post('/api/v1/vendor/marketplace/store/media', ['media_type' => 'logo', 'image' => UploadedFile::fake()->image('logo.png')]);
+        $path = $tenant->marketplaceStore()->firstOrFail()->logo_path;
+
+        $response->assertOk()->assertJsonPath('data.logo_url', '/storage/'.$path);
+        Storage::disk('public')->assertExists($path);
+        $this->assertDatabaseHas('marketplace_audit_logs', ['action' => 'marketplace.store_media_updated', 'tenant_id' => $tenant->id]);
+    }
+
+    public function test_vendor_listing_images_are_tenant_scoped_and_validated(): void
+    {
+        Storage::fake('public');
+        [$tenantA, $adminA] = $this->businessWithAdmin('MARKETPLACE-I', 'marketplace-i@example.com');
+        [$tenantB] = $this->businessWithAdmin('MARKETPLACE-J', 'marketplace-j@example.com');
+        $storeB = MarketplaceStore::create(['tenant_id' => $tenantB->id, 'name' => 'Marketplace J', 'slug' => 'marketplace-j', 'approval_status' => 'approved', 'is_active' => true]);
+        $productB = $this->publicProduct($tenantB, 'Business J Product');
+        $listingB = MarketplaceListing::create(['tenant_id' => $tenantB->id, 'marketplace_store_id' => $storeB->id, 'product_id' => $productB->id, 'slug' => 'business-j-product', 'status' => 'draft']);
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)
+            ->post('/api/v1/vendor/marketplace/listings/'.$listingB->uuid.'/images', ['images' => [UploadedFile::fake()->image('private.png')]])
+            ->assertNotFound();
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)
+            ->postJson('/api/v1/vendor/marketplace/listings', ['product_id' => $this->publicProduct($tenantA, 'Business I Product')->uuid, 'status' => 'draft'])
+            ->assertCreated();
     }
 
     private function businessWithAdmin(string $code, string $email): array
