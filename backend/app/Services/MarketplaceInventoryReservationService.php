@@ -6,12 +6,18 @@ use App\Models\InventoryBalance;
 use App\Models\MarketplaceInventoryReservation;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceOrderItem;
+use App\Models\MarketplaceVendorOrder;
 use App\Models\ProductVariant;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplaceInventoryReservationService
 {
+    public function __construct(private readonly InventoryService $inventory)
+    {
+    }
+
     public function reserve(MarketplaceOrder $order, MarketplaceOrderItem $item, ProductVariant $variant, string $quantity, int $ttlMinutes = 1440): void
     {
         if (! $variant->product?->track_inventory) {
@@ -86,5 +92,50 @@ class MarketplaceInventoryReservationService
         });
 
         return $released;
+    }
+
+    public function releaseForVendorOrder(MarketplaceVendorOrder $vendorOrder): int
+    {
+        $released = 0;
+        $reservations = MarketplaceInventoryReservation::query()
+            ->where('marketplace_order_id', $vendorOrder->marketplace_order_id)
+            ->whereHas('item', fn ($query) => $query->where('marketplace_vendor_order_id', $vendorOrder->id))
+            ->where('status', 'reserved')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($reservations as $reservation) {
+            $this->release($reservation);
+            $released++;
+        }
+
+        return $released;
+    }
+
+    public function dispatchForVendorOrder(MarketplaceVendorOrder $vendorOrder, User $actor): int
+    {
+        $dispatched = 0;
+        $reservations = MarketplaceInventoryReservation::query()
+            ->where('marketplace_order_id', $vendorOrder->marketplace_order_id)
+            ->whereHas('item', fn ($query) => $query->where('marketplace_vendor_order_id', $vendorOrder->id))
+            ->where('status', 'reserved')
+            ->with(['balance.location', 'variant'])
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($reservations as $reservation) {
+            $location = $reservation->balance?->location;
+            $variant = $reservation->variant;
+            if (! $location || ! $variant) {
+                throw new UnprocessableEntityHttpException('The reserved inventory location is no longer available.');
+            }
+
+            $this->inventory->dispatchReserved($location, $variant, (string) $reservation->quantity, $actor, 'marketplace_shipment', $vendorOrder->uuid, 'marketplace:dispatch:'.$reservation->uuid);
+            $reservation->update(['status' => 'confirmed']);
+            $dispatched++;
+        }
+
+        return $dispatched;
     }
 }

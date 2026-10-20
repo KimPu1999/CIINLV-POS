@@ -24,6 +24,7 @@ class MarketplaceOrderResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'payments' => MarketplacePaymentResource::collection($this->whenLoaded('payments')),
             'vendor_orders' => MarketplaceVendorOrderResource::collection($this->whenLoaded('vendorOrders')),
+            'events' => MarketplaceOrderEventResource::collection($this->whenLoaded('events')),
         ];
     }
 }

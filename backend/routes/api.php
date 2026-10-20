@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerCheckoutController;
 use App\Http\Controllers\Api\V1\MarketplacePublicController;
 use App\Http\Controllers\Api\V1\MarketplaceVendorController;
+use App\Http\Controllers\Api\V1\MarketplaceVendorFulfillmentController;
 use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAdminController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAuditController;
@@ -154,6 +155,13 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('admin/marketplace')->middleware('platform.admin')->group(function (): void {
             Route::get('/stores', [MarketplaceAdminController::class, 'stores']);
             Route::patch('/stores/{store}/approval', [MarketplaceAdminController::class, 'approval']);
+            Route::get('/orders', [MarketplaceAdminController::class, 'orders']);
+            Route::get('/shipments', [MarketplaceAdminController::class, 'shipments']);
+            Route::get('/cancellation-requests', [MarketplaceAdminController::class, 'cancellationRequests']);
+            Route::patch('/cancellation-requests/{cancellation}/decision', [MarketplaceAdminController::class, 'decideCancellation']);
+            Route::get('/return-requests', [MarketplaceAdminController::class, 'returnRequests']);
+            Route::patch('/return-requests/{return}/decision', [MarketplaceAdminController::class, 'decideReturn']);
+            Route::get('/refund-requests', [MarketplaceAdminController::class, 'refundRequests']);
             Route::post('/orders/{order}/cod/collect', [MarketplaceAdminController::class, 'collectCod']);
         });
 
@@ -161,6 +169,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/overview', [MarketplaceVendorController::class, 'overview']);
             Route::get('/orders', [MarketplaceVendorController::class, 'orders']);
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
+            Route::post('/orders/{order}/shipments', [MarketplaceVendorFulfillmentController::class, 'createShipment']);
+            Route::patch('/shipments/{shipment}/status', [MarketplaceVendorFulfillmentController::class, 'updateShipment']);
             Route::get('/store', [MarketplaceVendorController::class, 'store']);
             Route::patch('/store', [MarketplaceVendorController::class, 'updateStore']);
             Route::post('/store/media', [MarketplaceVendorController::class, 'uploadStoreMedia']);
@@ -192,6 +202,9 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/checkout/quote', [MarketplaceCustomerCheckoutController::class, 'quote'])->middleware('throttle:api');
             Route::post('/checkout', [MarketplaceCustomerCheckoutController::class, 'checkout'])->middleware('throttle:api');
             Route::get('/orders', [MarketplaceCustomerCheckoutController::class, 'orders']);
+            Route::get('/orders/{order}/tracking', [MarketplaceCustomerCheckoutController::class, 'tracking']);
+            Route::post('/orders/{order}/cancellation-requests', [MarketplaceCustomerCheckoutController::class, 'requestCancellation'])->middleware('throttle:api');
+            Route::post('/orders/{order}/return-requests', [MarketplaceCustomerCheckoutController::class, 'requestReturn'])->middleware('throttle:api');
             Route::get('/orders/{order}', [MarketplaceCustomerCheckoutController::class, 'order']);
         });
 

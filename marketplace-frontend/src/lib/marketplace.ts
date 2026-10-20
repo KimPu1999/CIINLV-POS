@@ -186,6 +186,32 @@ export interface CheckoutQuote {
   vendors: CheckoutQuoteVendor[]
 }
 
+export interface MarketplaceShipmentEvent {
+  id: number
+  status: string
+  description?: string | null
+  eventTime?: string | null
+  actorName?: string | null
+}
+
+export interface MarketplaceShipment {
+  id: string
+  vendorOrderId?: string | null
+  vendorOrderNumber?: string | null
+  storeName?: string | null
+  deliveryType: string
+  carrierName?: string | null
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+  internalTrackingId?: string | null
+  status: string
+  shippedAt?: string | null
+  deliveredAt?: string | null
+  deliveryNotes?: string | null
+  createdAt?: string | null
+  events: MarketplaceShipmentEvent[]
+}
+
 export interface MarketplaceOrder {
   id: string
   orderNumber: string
@@ -199,7 +225,8 @@ export interface MarketplaceOrder {
   grandTotal: string
   deliveryAddress: Record<string, unknown>
   createdAt?: string | null
-  vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; items: Array<{ id: string; name: string; quantity: string; unitPrice: string; lineTotal: string }> }>
+  vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; items: Array<{ id: string; name: string; quantity: string; unitPrice: string; lineTotal: string }>; shipments: MarketplaceShipment[] }>
+  events?: Array<{ id: number; event: string; fromStatus?: string | null; toStatus?: string | null; createdAt?: string | null }>
 }
 
 export const localeStorageKey = 'ciinlv_marketplace_language'
@@ -220,10 +247,12 @@ const copy = {
 
 const additionalCopy = {
   en: {
-    serverCart: 'Your cart is securely synced to your customer account.', cartSync: 'Syncing your cart…', cod: 'Cash on delivery', paymentMethod: 'Payment method', cashOnDelivery: 'Pay when your order is delivered.', onlinePaymentsUnavailable: 'Online payments are not configured yet. Cash on delivery is the only available method.', selectAddress: 'Select a delivery address', noSavedAddresses: 'Add a saved delivery address in your account before checkout.', quoteLoading: 'Rechecking price, stock, tax, and delivery…', orderPlaced: 'Your order was saved successfully.', orderPendingPayment: 'Payment is pending until authorized fulfillment staff collect the cash.', viewOrder: 'View order', vendor: 'Vendor', delivery: 'Delivery', tax: 'Tax', discount: 'Discount', orderNumber: 'Order number', orderCreated: 'Order created', unavailableAtCheckout: 'Some cart items are no longer available. Please review your cart.', reorder: 'Review cart', onlinePayment: 'Online payment', standardDelivery: 'Standard delivery', orderHistory: 'Order history', noOrdersYet: 'You have not placed a marketplace order yet.', pending: 'Pending', confirmed: 'Confirmed', reserved: 'Stock reserved', securedByServer: 'Prices and stock are verified securely by the marketplace server.',
+    noOrdersBody: 'Your marketplace orders will appear here after you complete a purchase.', trackingBody: 'Open an order from your account to view vendor shipments and verified tracking events.', orderSuccessBody: 'The order could not be loaded. Return to your order history to try again.', checkoutUnavailable: 'Online checkout is currently limited to verified cash-on-delivery orders.',
+    serverCart: 'Your cart is securely synced to your customer account.', cartSync: 'Syncing your cart…', cod: 'Cash on delivery', paymentMethod: 'Payment method', cashOnDelivery: 'Pay when your order is delivered.', onlinePaymentsUnavailable: 'Online payments are not configured yet. Cash on delivery is the only available method.', selectAddress: 'Select a delivery address', noSavedAddresses: 'Add a saved delivery address in your account before checkout.', quoteLoading: 'Rechecking price, stock, tax, and delivery…', orderPlaced: 'Your order was saved successfully.', orderPendingPayment: 'Payment is pending until authorized fulfillment staff collect the cash.', viewOrder: 'View order', vendor: 'Vendor', delivery: 'Delivery', tax: 'Tax', discount: 'Discount', orderNumber: 'Order number', orderCreated: 'Order created', unavailableAtCheckout: 'Some cart items are no longer available. Please review your cart.', reorder: 'Review cart', onlinePayment: 'Online payment', standardDelivery: 'Standard delivery', orderHistory: 'Order history', noOrdersYet: 'You have not placed a marketplace order yet.', pending: 'Pending', confirmed: 'Confirmed', ready: 'Ready for shipment', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered', reserved: 'Stock reserved', securedByServer: 'Prices and stock are verified securely by the marketplace server.', trackOrder: 'Track order', shipmentNotCreated: 'Shipment not created yet. Tracking will appear once the seller prepares your order.', shipmentTimeline: 'Shipment timeline', deliveryType: 'Delivery type', carrier: 'Carrier', trackingNumber: 'Tracking number', internalTrackingId: 'Internal tracking ID', lastUpdated: 'Last updated', selfDelivery: 'Self delivery', externalCourier: 'External courier', inTransit: 'In transit', deliveryFailed: 'Delivery failed', returned: 'Returned', cancelled: 'Cancelled', requestCancellation: 'Request cancellation', cancellationReason: 'Why do you want to cancel this order?', submitCancellation: 'Submit cancellation request', cancellationRequested: 'Your cancellation request was submitted.', requestReturn: 'Request return', returnReason: 'Why are you returning this order?', submitReturn: 'Submit return request', returnRequested: 'Your return request was submitted. Refund execution remains subject to review.', returnsOnlyAfterDelivery: 'Returns can be requested after delivery.', noRefundProvider: 'Real-money refunds are not enabled until a verified payment provider is configured.',
   },
   my: {
-    serverCart: 'သင့်ခြင်းတောင်းကို ဖောက်သည်အကောင့်နှင့် လုံခြုံစွာ ချိတ်ဆက်ထားပါသည်။', cartSync: 'ခြင်းတောင်းကို ချိတ်ဆက်နေသည်…', cod: 'အိမ်အရောက်ငွေချေ', paymentMethod: 'ငွေပေးချေမှုနည်းလမ်း', cashOnDelivery: 'အော်ဒါရောက်သောအခါ ငွေပေးချေပါ။', onlinePaymentsUnavailable: 'အွန်လိုင်းငွေပေးချေမှုကို မသတ်မှတ်ရသေးပါ။ လက်ရှိတွင် အိမ်အရောက်ငွေချေမှုသာ ရရှိပါသည်။', selectAddress: 'ပို့ဆောင်ရမည့်လိပ်စာ ရွေးရန်', noSavedAddresses: 'ငွေချေခြင်းမပြုမီ အကောင့်တွင် ပို့ဆောင်ရမည့်လိပ်စာ သိမ်းပေးပါ။', quoteLoading: 'ဈေးနှုန်း၊ လက်ကျန်၊ အခွန်နှင့် ပို့ဆောင်ခကို ပြန်လည်စစ်ဆေးနေသည်…', orderPlaced: 'သင့်အော်ဒါကို အောင်မြင်စွာ သိမ်းပြီးပါပြီ။', orderPendingPayment: 'ခွင့်ပြုထားသော ပို့ဆောင်ရေးဝန်ထမ်းက ငွေကောက်ခံသည်အထိ ငွေပေးချမှုကို စောင့်ဆိုင်းနေပါသည်။', viewOrder: 'အော်ဒါကြည့်ရန်', vendor: 'ရောင်းချသူ', delivery: 'ပို့ဆောင်မှု', tax: 'အခွန်', discount: 'လျှော့စျေး', orderNumber: 'အော်ဒါနံပါတ်', orderCreated: 'အော်ဒါဖန်တီးပြီး', unavailableAtCheckout: 'ခြင်းတောင်းရှိ ပစ္စည်းအချို့ကို မရနိုင်တော့ပါ။ ခြင်းတောင်းကို ပြန်စစ်ပါ။', reorder: 'ခြင်းတောင်းကို ပြန်စစ်ရန်', onlinePayment: 'အွန်လိုင်းငွေပေးချေမှု', standardDelivery: 'ပုံမှန်ပို့ဆောင်မှု', orderHistory: 'အော်ဒါမှတ်တမ်း', noOrdersYet: 'Marketplace အော်ဒါ မတင်ရသေးပါ။', pending: 'စောင့်ဆိုင်းနေသည်', confirmed: 'အတည်ပြုပြီး', reserved: 'လက်ကျန် သီးသန့်ထားပြီး', securedByServer: 'ဈေးနှုန်းနှင့် လက်ကျန်ကို Marketplace server က လုံခြုံစွာ စစ်ဆေးထားပါသည်။',
+    noOrdersBody: 'အော်ဒါတင်ပြီးပါက Marketplace အော်ဒါများကို ဤနေရာတွင် ပြသပါမည်။', trackingBody: 'အကောင့်မှ အော်ဒါတစ်ခုကို ရွေးပြီး ရောင်းချသူပို့ဆောင်မှုနှင့် စိစစ်ထားသော ခြေရာခံအဖြစ်အပျက်များကို ကြည့်ပါ။', orderSuccessBody: 'အော်ဒါကို ဖွင့်၍ မရပါ။ အော်ဒါမှတ်တမ်းသို့ ပြန်သွားပြီး ထပ်မံကြိုးစားပါ။', checkoutUnavailable: 'လက်ရှိတွင် အတည်ပြုထားသော အိမ်အရောက်ငွေချေ အော်ဒါများသာ ရရှိပါသည်။',
+    serverCart: 'သင့်ခြင်းတောင်းကို ဖောက်သည်အကောင့်နှင့် လုံခြုံစွာ ချိတ်ဆက်ထားပါသည်။', cartSync: 'ခြင်းတောင်းကို ချိတ်ဆက်နေသည်…', cod: 'အိမ်အရောက်ငွေချေ', paymentMethod: 'ငွေပေးချေမှုနည်းလမ်း', cashOnDelivery: 'အော်ဒါရောက်သောအခါ ငွေပေးချေပါ။', onlinePaymentsUnavailable: 'အွန်လိုင်းငွေပေးချေမှုကို မသတ်မှတ်ရသေးပါ။ လက်ရှိတွင် အိမ်အရောက်ငွေချေမှုသာ ရရှိပါသည်။', selectAddress: 'ပို့ဆောင်ရမည့်လိပ်စာ ရွေးရန်', noSavedAddresses: 'ငွေချေခြင်းမပြုမီ အကောင့်တွင် ပို့ဆောင်ရမည့်လိပ်စာ သိမ်းပေးပါ။', quoteLoading: 'ဈေးနှုန်း၊ လက်ကျန်၊ အခွန်နှင့် ပို့ဆောင်ခကို ပြန်လည်စစ်ဆေးနေသည်…', orderPlaced: 'သင့်အော်ဒါကို အောင်မြင်စွာ သိမ်းပြီးပါပြီ။', orderPendingPayment: 'ခွင့်ပြုထားသော ပို့ဆောင်ရေးဝန်ထမ်းက ငွေကောက်ခံသည်အထိ ငွေပေးချမှုကို စောင့်ဆိုင်းနေပါသည်။', viewOrder: 'အော်ဒါကြည့်ရန်', vendor: 'ရောင်းချသူ', delivery: 'ပို့ဆောင်မှု', tax: 'အခွန်', discount: 'လျှော့စျေး', orderNumber: 'အော်ဒါနံပါတ်', orderCreated: 'အော်ဒါဖန်တီးပြီး', unavailableAtCheckout: 'ခြင်းတောင်းရှိ ပစ္စည်းအချို့ကို မရနိုင်တော့ပါ။ ခြင်းတောင်းကို ပြန်စစ်ပါ။', reorder: 'ခြင်းတောင်းကို ပြန်စစ်ရန်', onlinePayment: 'အွန်လိုင်းငွေပေးချေမှု', standardDelivery: 'ပုံမှန်ပို့ဆောင်မှု', orderHistory: 'အော်ဒါမှတ်တမ်း', noOrdersYet: 'Marketplace အော်ဒါ မတင်ရသေးပါ။', pending: 'စောင့်ဆိုင်းနေသည်', confirmed: 'အတည်ပြုပြီး', ready: 'ပို့ဆောင်ရန် အသင့်', processing: 'ဆောင်ရွက်နေသည်', shipped: 'ပို့ပြီး', delivered: 'ရောက်ရှိပြီး', reserved: 'လက်ကျန် သီးသန့်ထားပြီး', securedByServer: 'ဈေးနှုန်းနှင့် လက်ကျန်ကို Marketplace server က လုံခြုံစွာ စစ်ဆေးထားပါသည်။', trackOrder: 'အော်ဒါခြေရာခံရန်', shipmentNotCreated: 'ပို့ဆောင်မှုမှတ်တမ်း မဖန်တီးရသေးပါ။ ရောင်းချသူက အော်ဒါပြင်ဆင်ပြီးနောက် ခြေရာခံအချက်အလက် ပေါ်လာပါမည်။', shipmentTimeline: 'ပို့ဆောင်မှုမှတ်တမ်း', deliveryType: 'ပို့ဆောင်မှုအမျိုးအစား', carrier: 'ပို့ဆောင်သူ', trackingNumber: 'ခြေရာခံနံပါတ်', internalTrackingId: 'အတွင်းသုံး ခြေရာခံ ID', lastUpdated: 'နောက်ဆုံးပြင်ဆင်ချိန်', selfDelivery: 'ကိုယ်တိုင်ပို့ဆောင်ခြင်း', externalCourier: 'ပြင်ပပို့ဆောင်ရေး', inTransit: 'လမ်းကြောင်းပေါ်တွင်', deliveryFailed: 'ပို့ဆောင်မှု မအောင်မြင်ပါ', returned: 'ပြန်ပို့ပြီး', cancelled: 'ပယ်ဖျက်ပြီး', requestCancellation: 'ပယ်ဖျက်ရန် တောင်းဆိုမည်', cancellationReason: 'ဤအော်ဒါကို ပယ်ဖျက်လိုသည့်အကြောင်းရင်း', submitCancellation: 'ပယ်ဖျက်ရန် တောင်းဆိုချက် ပို့မည်', cancellationRequested: 'ပယ်ဖျက်ရန် တောင်းဆိုချက် ပို့ပြီးပါပြီ။', requestReturn: 'ပြန်အပ်ရန် တောင်းဆိုမည်', returnReason: 'ဤအော်ဒါကို ပြန်အပ်လိုသည့်အကြောင်းရင်း', submitReturn: 'ပြန်အပ်ရန် တောင်းဆိုချက် ပို့မည်', returnRequested: 'ပြန်အပ်ရန် တောင်းဆိုချက် ပို့ပြီးပါပြီ။ ပြန်အမ်းငွေကို စိစစ်ပြီးမှ ဆောင်ရွက်ပါမည်။', returnsOnlyAfterDelivery: 'ပစ္စည်းရောက်ပြီးနောက် ပြန်အပ်ရန် တောင်းဆိုနိုင်ပါသည်။', noRefundProvider: 'အတည်ပြုထားသော ငွေပေးချေမှုဝန်ဆောင်မှု မသတ်မှတ်မချင်း အမှန်တကယ် ငွေပြန်အမ်းခြင်းကို မဖွင့်ထားပါ။',
   },
 } as const
 
@@ -532,9 +561,17 @@ function normalizeOrder(value: unknown): MarketplaceOrder {
   const vendors = Array.isArray(data.vendor_orders) ? data.vendor_orders.map((vendor) => {
     const item = asRecord(vendor) ?? {}
     const items = Array.isArray(item.items) ? item.items.map((line) => { const row = asRecord(line) ?? {}; return { id: String(row.id ?? ''), name: String(row.name ?? ''), quantity: String(row.quantity ?? '0'), unitPrice: String(row.unit_price ?? '0'), lineTotal: String(row.line_total ?? '0') } }) : []
-    return { id: String(item.id ?? ''), vendorOrderNumber: String(item.vendor_order_number ?? ''), storeName: typeof item.store_name === 'string' ? item.store_name : null, status: String(item.status ?? 'pending'), total: String(item.total ?? '0'), items }
+    const shipments = Array.isArray(item.shipments) ? item.shipments.map(normalizeShipment) : []
+    return { id: String(item.id ?? ''), vendorOrderNumber: String(item.vendor_order_number ?? ''), storeName: typeof item.store_name === 'string' ? item.store_name : null, status: String(item.status ?? 'pending'), total: String(item.total ?? '0'), items, shipments }
   }) : []
-  return { id: String(data.id ?? ''), orderNumber: String(data.order_number ?? ''), currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'confirmed'), paymentStatus: String(data.payment_status ?? 'pending'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), deliveryAddress: asRecord(data.delivery_address) ?? {}, createdAt: typeof data.created_at === 'string' ? data.created_at : null, vendorOrders: vendors }
+  const events = Array.isArray(data.events) ? data.events.map((event) => { const row = asRecord(event) ?? {}; return { id: Number(row.id ?? 0), event: String(row.event ?? ''), fromStatus: typeof row.from_status === 'string' ? row.from_status : null, toStatus: typeof row.to_status === 'string' ? row.to_status : null, createdAt: typeof row.created_at === 'string' ? row.created_at : null } }) : []
+  return { id: String(data.id ?? ''), orderNumber: String(data.order_number ?? ''), currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'confirmed'), paymentStatus: String(data.payment_status ?? 'pending'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), deliveryAddress: asRecord(data.delivery_address) ?? {}, createdAt: typeof data.created_at === 'string' ? data.created_at : null, vendorOrders: vendors, events }
+}
+
+function normalizeShipment(value: unknown): MarketplaceShipment {
+  const data = asRecord(value) ?? {}
+  const events = Array.isArray(data.events) ? data.events.map((event) => { const row = asRecord(event) ?? {}; return { id: Number(row.id ?? 0), status: String(row.status ?? ''), description: typeof row.description === 'string' ? row.description : null, eventTime: typeof row.event_time === 'string' ? row.event_time : null, actorName: typeof row.actor_name === 'string' ? row.actor_name : null } }) : []
+  return { id: String(data.id ?? ''), vendorOrderId: typeof data.vendor_order_id === 'string' ? data.vendor_order_id : null, vendorOrderNumber: typeof data.vendor_order_number === 'string' ? data.vendor_order_number : null, storeName: typeof data.store_name === 'string' ? data.store_name : null, deliveryType: String(data.delivery_type ?? 'self_delivery'), carrierName: typeof data.carrier_name === 'string' ? data.carrier_name : null, trackingNumber: typeof data.tracking_number === 'string' ? data.tracking_number : null, trackingUrl: typeof data.tracking_url === 'string' ? data.tracking_url : null, internalTrackingId: typeof data.internal_tracking_id === 'string' ? data.internal_tracking_id : null, status: String(data.status ?? 'ready'), shippedAt: typeof data.shipped_at === 'string' ? data.shipped_at : null, deliveredAt: typeof data.delivered_at === 'string' ? data.delivered_at : null, deliveryNotes: typeof data.delivery_notes === 'string' ? data.delivery_notes : null, createdAt: typeof data.created_at === 'string' ? data.created_at : null, events }
 }
 
 export async function fetchMarketplaceOrders(locale: Locale): Promise<MarketplaceOrder[]> {
@@ -546,6 +583,19 @@ export async function fetchMarketplaceOrders(locale: Locale): Promise<Marketplac
 export async function fetchMarketplaceOrder(id: string, locale: Locale): Promise<MarketplaceOrder> {
   const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(id)}`, {}, locale), {}, locale)
   return normalizeOrder(unwrap<unknown>(payload))
+}
+
+export async function fetchMarketplaceTracking(id: string, locale: Locale): Promise<MarketplaceOrder> {
+  const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(id)}/tracking`, {}, locale), {}, locale)
+  return normalizeOrder(unwrap<unknown>(payload))
+}
+
+export async function requestMarketplaceCancellation(id: string, reason: string, locale: Locale): Promise<void> {
+  await requestJson(withQuery(`/orders/${encodeURIComponent(id)}/cancellation-requests`, {}, locale), { method: 'POST', body: JSON.stringify({ reason }) }, locale, true)
+}
+
+export async function requestMarketplaceReturn(id: string, reason: string, items: Array<{ item_id: string; quantity: number }>, locale: Locale): Promise<void> {
+  await requestJson(withQuery(`/orders/${encodeURIComponent(id)}/return-requests`, {}, locale), { method: 'POST', body: JSON.stringify({ reason, items }) }, locale, true)
 }
 
 export function apiErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {

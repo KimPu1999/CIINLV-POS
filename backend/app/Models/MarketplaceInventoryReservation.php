@@ -34,4 +34,9 @@ class MarketplaceInventoryReservation extends Model
     {
         return $this->belongsTo(InventoryBalance::class, 'inventory_balance_id');
     }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
 }

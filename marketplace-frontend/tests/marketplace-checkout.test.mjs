@@ -20,6 +20,17 @@ test('authenticated cart mutations call marketplace APIs instead of trusting bro
   assert.match(api, /\/cart\/items/)
 })
 
+test('customer tracking and cancellation/return requests use protected server workflows', () => {
+  assert.match(app, /fetchMarketplaceTracking/)
+  assert.match(app, /requestMarketplaceCancellation/)
+  assert.match(app, /requestMarketplaceReturn/)
+  assert.match(app, /shipmentNotCreated/)
+  assert.match(app, /OrderRequestActions/)
+  assert.match(api, /\/orders\/\$\{encodeURIComponent\(id\)\}\/tracking/)
+  assert.match(api, /cancellation-requests/)
+  assert.match(api, /return-requests/)
+})
+
 test('customer order routes are protected and render verified order details', () => {
   assert.match(app, /ProtectedRoute .*OrderSuccessPage/)
   assert.match(app, /fetchMarketplaceOrder\(/)

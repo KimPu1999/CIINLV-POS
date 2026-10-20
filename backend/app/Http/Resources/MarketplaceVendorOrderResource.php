@@ -28,6 +28,7 @@ class MarketplaceVendorOrderResource extends JsonResource
             'delivery_options' => $this->delivery_options,
             'delivery_address' => $this->order?->delivery_address,
             'items' => MarketplaceOrderItemResource::collection($this->whenLoaded('items')),
+            'shipments' => MarketplaceShipmentResource::collection($this->whenLoaded('shipments')),
         ];
     }
 }

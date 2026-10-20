@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, ImagePlus, Package, RefreshCw, Save, Search, Settings2, ShoppingBag, Store, Truck, Upload, Users, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, ImagePlus, Package, RefreshCw, Save, Search, Settings2, ShoppingBag, Store, Upload, Users, X } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DataTable, EmptyState, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
 import { request } from '../lib/api'
@@ -68,6 +68,8 @@ type Overview = {
 type VendorOrder = {
   id: string
   vendor_order_number: string
+  order_number?: string | null
+  store_name?: string | null
   status: string
   payment_status?: string | null
   created_at?: string | null
@@ -76,7 +78,22 @@ type VendorOrder = {
   tax_total?: string | number | null
   total?: string | number | null
   currency_code?: string | null
-  items?: { name?: string | null; quantity?: string | number | null }[]
+  delivery_address?: Record<string, unknown> | null
+  items?: { id?: string; name?: string | null; sku?: string | null; quantity?: string | number | null; unit_price?: string | number | null; line_total?: string | number | null }[]
+  shipments?: VendorShipment[]
+}
+
+type VendorShipment = {
+  id: string
+  delivery_type: 'self_delivery' | 'external_courier'
+  carrier_name?: string | null
+  tracking_number?: string | null
+  tracking_url?: string | null
+  internal_tracking_id?: string | null
+  status: string
+  delivery_notes?: string | null
+  created_at?: string | null
+  events?: { id: number; status: string; description?: string | null; event_time?: string | null }[]
 }
 
 const marketplaceBase = '/business/marketplace'
@@ -265,7 +282,7 @@ export function MarketplaceOrdersPage() {
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {orders.map((order) => <tr key={order.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
-              <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">{order.vendor_order_number}</td>
+              <td className="px-5 py-4"><Link to={`${marketplaceBase}/orders/${order.id}`} className="font-semibold text-blue-700 hover:underline dark:text-blue-300">{order.vendor_order_number}</Link><p className="mt-1 text-xs text-slate-500">{order.order_number || '—'}</p></td>
               <td className="whitespace-nowrap px-5 py-4 text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</td>
               <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{order.items?.length ?? 0}</td>
               <td className="px-5 py-4"><StatusBadge status={order.payment_status || 'pending'} /></td>
@@ -278,7 +295,59 @@ export function MarketplaceOrdersPage() {
     </section>}
   </>
 }
-export function MarketplaceShippingPage() { return <CapabilityPage icon={Truck} title="text.shipping_fulfillment" description="text.shipping_fulfillment_description" capability="shipping" /> }
+
+export function MarketplaceOrderDetailPage() {
+  const { order: orderId } = useParams()
+  const { t } = useTranslation()
+  const [order, setOrder] = useState<VendorOrder | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [form, setForm] = useState({ delivery_type: 'self_delivery' as VendorShipment['delivery_type'], carrier_name: '', tracking_number: '', tracking_url: '', delivery_notes: '' })
+
+  const load = async () => {
+    if (!orderId) return
+    setLoading(true); setError('')
+    try { setOrder(await request<VendorOrder>({ method: 'get', url: `/api/v1/vendor/marketplace/orders/${encodeURIComponent(orderId)}` })) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_order'))) } finally { setLoading(false) }
+  }
+  useEffect(() => { void load() }, [orderId])
+
+  const createShipment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); if (!orderId) return
+    setBusy(true); setError(''); setSuccess('')
+    try { await request({ method: 'post', url: `/api/v1/vendor/marketplace/orders/${encodeURIComponent(orderId)}/shipments`, data: form }); setSuccess(t('text.shipment_created')); setForm({ delivery_type: 'self_delivery', carrier_name: '', tracking_number: '', tracking_url: '', delivery_notes: '' }); await load() } catch (err) { setError(errorMessage(err, t('text.unable_to_create_shipment'))) } finally { setBusy(false) }
+  }
+  const updateShipment = async (shipment: VendorShipment, status: string) => {
+    setBusy(true); setError(''); setSuccess('')
+    try { await request({ method: 'patch', url: `/api/v1/vendor/marketplace/shipments/${encodeURIComponent(shipment.id)}/status`, data: { status } }); setSuccess(t('text.shipment_updated')); await load() } catch (err) { setError(errorMessage(err, t('text.unable_to_update_shipment'))) } finally { setBusy(false) }
+  }
+  const nextStatuses = (status: string) => ({ ready: ['shipped', 'cancelled'], shipped: ['in_transit', 'delivery_failed'], in_transit: ['delivered', 'delivery_failed', 'returned'], delivery_failed: ['in_transit', 'returned'] }[status] || [])
+
+  if (loading) return <><PageHeader title={t('text.marketplace_order_details')} description={t('text.marketplace_orders_description')} /><LoadingState /></>
+  if (!order) return <><PageHeader title={t('text.marketplace_order_details')} description={t('text.marketplace_orders_description')} /><ErrorState message={error || t('text.unable_to_load_marketplace_order')} /></>
+  return <><PageHeader title={t('text.marketplace_order_details')} description={order.vendor_order_number} action={<Link to={`${marketplaceBase}/orders`} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:text-slate-200">{t('text.back')}</Link>} />{error && <div className="mb-5"><ErrorState message={error} /></div>}{success && <div role="status" className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">{success}</div>}<div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('text.order_number')}</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{order.vendor_order_number}</h2><p className="mt-1 text-sm text-slate-500">{order.order_number || '—'} · {order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</p></div><div className="text-right"><StatusBadge status={order.status} /><p className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{order.total ?? '—'} {order.currency_code || ''}</p></div></div><div className="mt-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"><h3 className="font-bold text-slate-900 dark:text-white">{t('text.customer_delivery_address')}</h3><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{formatVendorAddress(order.delivery_address)}</p></div><div className="mt-6 overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-3 py-3">{t('text.product')}</th><th className="px-3 py-3">{t('text.quantity')}</th><th className="px-3 py-3">{t('text.price')}</th><th className="px-3 py-3 text-right">{t('text.total')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{(order.items || []).map((item) => <tr key={item.id}><td className="px-3 py-4 font-semibold text-slate-900 dark:text-white">{item.name || '—'}<p className="mt-1 text-xs text-slate-500">{item.sku || '—'}</p></td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{item.quantity ?? '—'}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{item.unit_price ?? '—'}</td><td className="px-3 py-4 text-right font-semibold text-slate-900 dark:text-white">{item.line_total ?? '—'}</td></tr>)}</tbody></table></div></section><div className="grid gap-6"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><h2 className="text-lg font-bold text-slate-950 dark:text-white">{t('text.shipment_status')}</h2>{order.shipments?.length ? <div className="mt-5 grid gap-4">{order.shipments.map((shipment) => <div key={shipment.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-slate-900 dark:text-white">{shipment.delivery_type === 'external_courier' ? t('text.external_courier') : t('text.self_delivery')}</p><p className="mt-1 text-xs text-slate-500">{shipment.internal_tracking_id || shipment.tracking_number || t('text.shipment_not_created')}</p></div><StatusBadge status={shipment.status} /></div><div className="mt-4 grid gap-2 text-sm text-slate-600 dark:text-slate-300">{shipment.carrier_name && <p><span className="font-semibold">{t('text.carrier_name')}:</span> {shipment.carrier_name}</p>}{shipment.tracking_number && <p><span className="font-semibold">{t('text.tracking_number')}:</span> {shipment.tracking_number}</p>}{shipment.delivery_notes && <p><span className="font-semibold">{t('text.delivery_notes')}:</span> {shipment.delivery_notes}</p>}</div>{nextStatuses(shipment.status).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{nextStatuses(shipment.status).map((status) => <button key={status} type="button" disabled={busy} onClick={() => void updateShipment(shipment, status)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200">{statusLabel(status, t)}</button>)}</div>}</div>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 dark:border-slate-700">{t('text.shipment_not_created')}</p>}</section>{!order.shipments?.length && <form onSubmit={createShipment} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><h2 className="text-lg font-bold text-slate-950 dark:text-white">{t('text.create_shipment')}</h2><div className="mt-5 grid gap-4"><label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('text.delivery_type')}<select value={form.delivery_type} onChange={(event) => setForm({ ...form, delivery_type: event.target.value as VendorShipment['delivery_type'] })} className="compact-field mt-2 w-full"><option value="self_delivery">{t('text.self_delivery')}</option><option value="external_courier">{t('text.external_courier')}</option></select></label>{form.delivery_type === 'external_courier' && <><Field label={t('text.carrier_name')} value={form.carrier_name} onChange={(value) => setForm({ ...form, carrier_name: value })} /><Field label={t('text.tracking_number')} value={form.tracking_number} onChange={(value) => setForm({ ...form, tracking_number: value })} /><Field label={t('text.tracking_url')} value={form.tracking_url} onChange={(value) => setForm({ ...form, tracking_url: value })} /></>}<Field label={t('text.delivery_notes')} value={form.delivery_notes} onChange={(value) => setForm({ ...form, delivery_notes: value })} /><button type="submit" disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-60">{busy && <RefreshCw className="animate-spin" size={16} />}{t('text.save_shipment')}</button></div></form>}</div></div></>
+}
+
+export function MarketplaceShippingPage() {
+  const { t } = useTranslation()
+  const [orders, setOrders] = useState<VendorOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const load = async () => { setLoading(true); setError(''); try { const response = await request<{ data?: VendorOrder[] }>({ method: 'get', url: '/api/v1/vendor/marketplace/orders', params: { per_page: 50 } }); setOrders(Array.isArray(response) ? response : Array.isArray(response.data) ? response.data : []) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_orders'))) } finally { setLoading(false) } }
+  useEffect(() => { void load() }, [])
+  if (loading) return <><PageHeader title={t('text.shipping_fulfillment')} description={t('text.shipping_fulfillment_description')} /><LoadingState /></>
+  return <><PageHeader title={t('text.shipping_fulfillment')} description={t('text.shipping_fulfillment_description')} action={<RefreshButton onClick={load} />} />{error && <div className="mb-5"><ErrorState message={error} /></div>}{orders.length === 0 ? <EmptyState label={t('text.no_marketplace_orders_yet')} /> : <div className="grid gap-4">{orders.map((order) => <Link key={order.id} to={`${marketplaceBase}/orders/${order.id}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-bold text-slate-900 dark:text-white">{order.vendor_order_number}</p><p className="mt-1 text-sm text-slate-500">{order.items?.length ?? 0} {t('text.items')} · {order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}</p></div><div className="text-right"><StatusBadge status={order.shipments?.[0]?.status || 'ready'} /><p className="mt-2 text-xs font-semibold text-slate-500">{order.shipments?.[0]?.internal_tracking_id || t('text.shipment_not_created')}</p></div></div></Link>)}</div>}</>
+}
+
+function statusLabel(status: string, t: (key: string) => string): string {
+  const labels: Record<string, string> = { ready: t('text.ready'), shipped: t('text.shipped'), in_transit: t('text.in_transit'), delivered: t('text.delivered'), delivery_failed: t('text.delivery_failed'), returned: t('text.returned'), cancelled: t('text.cancelled'), processing: t('text.processing'), confirmed: t('text.confirmed'), pending: t('text.pending') }
+  return labels[status] || status
+}
+
+function formatVendorAddress(address?: Record<string, unknown> | null): string {
+  return [address?.recipient_name, address?.address_line_1, address?.address_line_2, address?.city, address?.region, address?.postal_code, address?.country].filter(Boolean).map(String).join(', ') || '—'
+}
 export function MarketplaceReviewsPage() { return <CapabilityPage icon={Users} title="text.customer_reviews" description="text.customer_reviews_description" capability="reviews" /> }
 export function MarketplaceEarningsPage() { return <CapabilityPage icon={BarChart3} title="text.earnings_commissions" description="text.earnings_commissions_description" capability="earnings" /> }
 

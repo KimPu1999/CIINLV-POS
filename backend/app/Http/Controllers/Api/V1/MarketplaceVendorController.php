@@ -74,7 +74,7 @@ class MarketplaceVendorController
         $pendingOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereIn('status', ['pending', 'processing'])->count();
         $completedOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereIn('status', ['delivered'])->count();
         $revenue = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereNotIn('status', ['cancelled', 'refunded'])->sum('total');
-        $recentOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->with(['store', 'order'])->latest()->limit(8)->get();
+        $recentOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->with(['store', 'order', 'shipments'])->latest()->limit(8)->get();
 
         return response()->json([
             'success' => true,
@@ -103,7 +103,7 @@ class MarketplaceVendorController
     {
         $orders = MarketplaceVendorOrder::query()
             ->where('tenant_id', $context->tenant()->id)
-            ->with(['store', 'tenant', 'items', 'order'])
+            ->with(['store', 'tenant', 'items', 'order', 'shipments.events'])
             ->latest()
             ->paginate(min(max((int) $request->input('per_page', 20), 1), 50));
 
@@ -112,7 +112,7 @@ class MarketplaceVendorController
 
     public function order(Request $request, string $order, TenantContext $context): JsonResponse
     {
-        $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items', 'order.payments'])->firstOrFail();
+        $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items', 'order.payments', 'shipments.events.actor'])->firstOrFail();
 
         return response()->json(['success' => true, 'data' => new MarketplaceVendorOrderResource($model)]);
     }

@@ -55,4 +55,19 @@ class MarketplaceOrder extends Model
     {
         return $this->hasMany(MarketplaceOrderEvent::class);
     }
+
+    public function cancellationRequests(): HasMany
+    {
+        return $this->hasMany(MarketplaceCancellationRequest::class);
+    }
+
+    public function returnRequests(): HasMany
+    {
+        return $this->hasMany(MarketplaceReturnRequest::class);
+    }
+
+    public function refundRequests(): HasMany
+    {
+        return $this->hasMany(MarketplaceRefundRequest::class);
+    }
 }

@@ -25,6 +25,7 @@ const BusinessVerificationPage = lazy(() => import('./features/business-verifica
 const BusinessDashboardPage = lazy(() => import('./features/business-dashboard').then(({ BusinessDashboardPage: Page }) => ({ default: Page })))
 const PlatformOverviewPage = lazy(() => import('./features/platform-overview').then(({ PlatformOverviewPage: Page }) => ({ default: Page })))
 const AuditSecurityPage = lazy(() => import('./features/audit-security').then(({ AuditSecurityPage: Page }) => ({ default: Page })))
+const MarketplaceAdminPage = lazy(() => import('./features/marketplace-admin').then(({ MarketplaceAdminPage: Page }) => ({ default: Page })))
 const ProductManagementPage = lazy(() => import('./features/products').then(({ ProductManagementPage: Page }) => ({ default: Page })))
 const CategoryManagementPage = lazy(() => import('./features/categories').then(({ CategoryManagementPage: Page }) => ({ default: Page })))
 const BarcodeSearchPage = lazy(() => import('./features/barcode-search').then(({ BarcodeSearchPage: Page }) => ({ default: Page })))
@@ -48,6 +49,7 @@ const MarketplaceOverviewPage = lazy(() => import('./features/marketplace-vendor
 const MarketplaceStorePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceStorePage: Page }) => ({ default: Page })))
 const MarketplaceProductsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceProductsPage: Page }) => ({ default: Page })))
 const MarketplaceOrdersPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrdersPage: Page }) => ({ default: Page })))
+const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrderDetailPage: Page }) => ({ default: Page })))
 const MarketplaceShippingPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceShippingPage: Page }) => ({ default: Page })))
 const MarketplaceReviewsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReviewsPage: Page }) => ({ default: Page })))
 const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceEarningsPage: Page }) => ({ default: Page })))
@@ -69,6 +71,7 @@ const platformNav: NavItem[] = [
   { label: 'Businesses', path: '/platform/businesses', icon: Building2, roles: ['super_admin'] },
   { label: 'Business registration', path: '/platform/businesses/new', icon: ClipboardList, roles: ['super_admin'] },
   { label: 'Audit & security', path: '/platform/audit', icon: Activity, roles: ['super_admin'] },
+  { label: 'Marketplace operations', path: '/platform/marketplace', icon: ShoppingCart, roles: ['super_admin'] },
 ]
 
 const businessNav: NavItem[] = [
@@ -265,6 +268,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="businesses/:id/admins" element={<BusinessAdminsPage />} />
           <Route path="businesses/:id" element={<BusinessControlCenterPage />} />
           <Route path="audit" element={<ResourcePage title="Audit & security" description="Review platform audit records from the backend." endpoint="/api/v1/platform/businesses" columns={['name', 'status', 'created_at']} />} />
+          <Route path="marketplace" element={<MarketplaceAdminPage />} />
           <Route path="branches" element={<BranchListPage />} />
           <Route path="branches/:id/dashboard" element={<BranchDashboardPage />} />
           <Route path="store-manager" element={<BranchDashboardPage />} />
@@ -287,6 +291,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="marketplace/store" element={<MarketplaceStorePage />} />
           <Route path="marketplace/products" element={<MarketplaceProductsPage />} />
           <Route path="marketplace/orders" element={<MarketplaceOrdersPage />} />
+          <Route path="marketplace/orders/:order" element={<MarketplaceOrderDetailPage />} />
           <Route path="marketplace/shipping" element={<MarketplaceShippingPage />} />
           <Route path="marketplace/reviews" element={<MarketplaceReviewsPage />} />
           <Route path="marketplace/earnings" element={<MarketplaceEarningsPage />} />

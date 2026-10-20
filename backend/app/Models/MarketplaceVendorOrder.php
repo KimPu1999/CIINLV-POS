@@ -45,4 +45,9 @@ class MarketplaceVendorOrder extends Model
     {
         return $this->hasMany(MarketplaceOrderItem::class);
     }
+
+    public function shipments(): HasMany
+    {
+        return $this->hasMany(MarketplaceShipment::class, 'marketplace_vendor_order_id');
+    }
 }

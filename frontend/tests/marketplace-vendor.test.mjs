@@ -29,6 +29,18 @@ test('vendor pages use real tenant-scoped APIs and no fabricated later-phase dat
   assert.match(controller, /MarketplaceVendorOrderResource::collection\(\$orders\)/)
 })
 
+test('vendor fulfillment uses tenant-scoped order details, shipment creation, and server status transitions', () => {
+  assert.match(app, /marketplace\/orders\/:order/)
+  assert.match(feature, /MarketplaceOrderDetailPage/)
+  assert.match(feature, /\/api\/v1\/vendor\/marketplace\/orders\/\$\{encodeURIComponent\(orderId\)\}\/shipments/)
+  assert.match(feature, /\/api\/v1\/vendor\/marketplace\/shipments\/\$\{encodeURIComponent\(shipment\.id\)\}\/status/)
+  assert.match(feature, /delivery_type/)
+  assert.match(feature, /external_courier/)
+  assert.match(feature, /text\.shipment_not_created/)
+  assert.match(routes, /Route::post\('\/orders\/{order}\/shipments', \[MarketplaceVendorFulfillmentController::class, 'createShipment'\]\)/)
+  assert.match(routes, /Route::patch\('\/shipments\/{shipment}\/status', \[MarketplaceVendorFulfillmentController::class, 'updateShipment'\]\)/)
+})
+
 test('vendor UI includes responsive controls, confirmation flow, and listing media upload', () => {
   assert.match(feature, /useConfirmation\(\)/)
   assert.match(feature, /overflow-x-auto/)
