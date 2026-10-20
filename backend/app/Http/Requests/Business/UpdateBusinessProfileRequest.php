@@ -14,6 +14,7 @@ class UpdateBusinessProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'source_locale' => ['sometimes', 'in:en,my'],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'display_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],

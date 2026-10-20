@@ -4,17 +4,22 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Services\TranslationService;
 
 class TenantResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $translations = app(TranslationService::class);
+        $locale = $translations->locale($request);
         return [
             'id' => $this->uuid,
             'name' => $this->name,
-            'display_name' => $this->display_name,
-            'description' => $this->description,
-            'business_type' => $this->business_type,
+            'display_name' => $translations->localizedValue($this->resource, 'display_name', $locale),
+            'description' => $translations->localizedValue($this->resource, 'description', $locale),
+            'business_type' => $translations->localizedValue($this->resource, 'business_type', $locale),
+            'locale' => $locale,
+            'translation_status' => $translations->translationStatus($this->resource, $locale),
             'slug' => $this->slug,
             'business_code' => $this->business_code,
             'email' => $this->email,

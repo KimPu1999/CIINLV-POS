@@ -8,6 +8,7 @@ use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use App\Services\AuditLogger;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -28,14 +29,18 @@ class CategoryController
         return response()->json(['success' => true, 'data' => CategoryResource::collection($categories), 'meta' => ['total' => $categories->total(), 'per_page' => $categories->perPage(), 'current_page' => $categories->currentPage(), 'last_page' => $categories->lastPage()]]);
     }
 
-    public function store(CreateCategoryRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    public function store(CreateCategoryRequest $request, TenantContext $context, AuditLogger $auditLogger, TranslationService $translations): JsonResponse
     {
         $this->requireManager($request->user(), $context->tenant()->id);
         $data = $request->validated();
+        $data['source_locale'] ??= $request->input('lang', app()->getLocale());
         $data['tenant_id'] = $context->tenant()->id;
         $data['slug'] = $this->uniqueSlug($context->tenant()->id, $data['name']);
         $data['parent_id'] = $this->parentId($data['parent_id'] ?? null, $context->tenant()->id);
+        $sourceLocale = $data['source_locale'] ?? TranslationService::DEFAULT_LOCALE;
+        unset($data['source_locale']);
         $category = Category::create($data);
+        $translations->queueForModel($category, $sourceLocale);
         $auditLogger->record('inventory.category_created', $request->user(), $context->tenant(), $category);
 
         return response()->json(['success' => true, 'data' => new CategoryResource($category->load('parent'))], 201);
@@ -48,11 +53,14 @@ class CategoryController
         return response()->json(['success' => true, 'data' => new CategoryResource($category->load('parent', 'children'))]);
     }
 
-    public function update(UpdateCategoryRequest $request, Category $category, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    public function update(UpdateCategoryRequest $request, Category $category, TenantContext $context, AuditLogger $auditLogger, TranslationService $translations): JsonResponse
     {
         $this->assertTenant($category, $context);
         $this->requireManager($request->user(), $context->tenant()->id);
         $data = $request->validated();
+        $data['source_locale'] ??= $request->input('lang', app()->getLocale());
+        $sourceLocale = $data['source_locale'] ?? TranslationService::DEFAULT_LOCALE;
+        unset($data['source_locale']);
         if (isset($data['parent_id'])) {
             $parent = $this->parentId($data['parent_id'], $category->tenant_id);
             if ($parent === $category->id || $this->containsDescendant($category, $parent)) {
@@ -63,6 +71,7 @@ class CategoryController
             $data['slug'] = $this->uniqueSlug($category->tenant_id, $data['name'], $category->id);
         }
         $category->update($data);
+        $translations->queueForModel($category->refresh(), $sourceLocale);
         $auditLogger->record('inventory.category_updated', $request->user(), $context->tenant(), $category);
 
         return response()->json(['success' => true, 'data' => new CategoryResource($category->refresh()->load('parent'))]);

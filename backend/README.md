@@ -63,6 +63,29 @@ php artisan serve
 
 The API is available at `http://127.0.0.1:8000`.
 
+## English/Myanmar localization
+
+The React app sends the selected locale as `lang=en|my` on API requests and stores the user preference both per user in local storage and in `users.locale`. Laravel validates the locale and falls back to the canonical source value when a translation is unavailable.
+
+Apply the additive migrations, then start a worker for asynchronous translation jobs:
+
+```bash
+php artisan migrate
+php artisan queue:work --tries=3 --timeout=120
+```
+
+Translation records are tenant-scoped in `translations` and use `pending`, `automatic`, `reviewed`, or `failed` states. Existing values are never replaced. To prepare existing data safely and repeatably:
+
+```bash
+php artisan translations:backfill
+php artisan translations:backfill --tenant=1 --run-now
+php artisan translations:status
+```
+
+The default `TRANSLATION_DRIVER=none` intentionally leaves alternate-language values pending. Configure a server-side translation service with `TRANSLATION_DRIVER`, `TRANSLATION_API_URL`, and `TRANSLATION_API_KEY`; the provider receives only translatable text and locale metadata. The API never sends provider credentials to the browser. Authorized business administrators and inventory managers can review translations through `GET /api/v1/translations` and `PATCH /api/v1/translations/{id}`.
+
+Localized product/category/supplier/business resources accept `?lang=my` or `?lang=en`. Stable IDs, SKUs, prices, financial values, emails, phone numbers, legal business names, and historical transaction snapshots remain unchanged.
+
 ## API smoke tests
 
 ```bash

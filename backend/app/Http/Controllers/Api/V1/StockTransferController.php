@@ -12,6 +12,7 @@ use App\Models\StoreMembership;
 use App\Services\AuditLogger;
 use App\Services\StockTransferService;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -44,8 +45,10 @@ class StockTransferController
     public function locations(TenantContext $context): JsonResponse
     {
         $ids = $this->accessibleLocationIds(request()->user(), $context->tenant()->id);
+        $translations = app(TranslationService::class);
+        $locale = $translations->locale(request());
 
-        return response()->json(['success' => true, 'data' => InventoryLocation::where('tenant_id', $context->tenant()->id)->whereIn('id', $ids)->where('status', 'active')->orderBy('name')->get()->map(fn (InventoryLocation $location): array => ['id' => $location->uuid, 'name' => $location->name, 'code' => $location->code, 'location_type' => $location->location_type])]);
+        return response()->json(['success' => true, 'data' => InventoryLocation::where('tenant_id', $context->tenant()->id)->whereIn('id', $ids)->where('status', 'active')->orderBy('name')->get()->map(fn (InventoryLocation $location): array => ['id' => $location->uuid, 'name' => $translations->localizedValue($location, 'name', $locale), 'code' => $location->code, 'location_type' => $location->location_type])]);
     }
 
     public function store(CreateStockTransferRequest $request, TenantContext $context, StockTransferService $service, AuditLogger $auditLogger): JsonResponse

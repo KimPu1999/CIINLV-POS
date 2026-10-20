@@ -12,6 +12,7 @@ use App\Models\StockTransfer;
 use App\Models\PurchaseOrder;
 use App\Services\AuditLogger;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,9 @@ class WarehouseController
         $this->assertWarehouse($warehouse, $context);
         $this->requireManager($request->user(), $context->tenant()->id);
         $balances = $warehouse->balances()->with('variant.product')->where('tenant_id', $context->tenant()->id)->paginate(min((int) $request->input('per_page', 50), 100));
-        $balances->getCollection()->transform(fn (InventoryBalance $balance): array => ['variant_id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $balance->variant->product->name, 'on_hand_quantity' => $balance->on_hand_quantity, 'reserved_quantity' => $balance->reserved_quantity, 'available_quantity' => $balance->available_quantity, 'average_cost' => $balance->average_cost]);
+        $translations = app(TranslationService::class);
+        $locale = $translations->locale($request);
+        $balances->getCollection()->transform(fn (InventoryBalance $balance): array => ['variant_id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $translations->localizedValue($balance->variant->product, 'name', $locale), 'on_hand_quantity' => $balance->on_hand_quantity, 'reserved_quantity' => $balance->reserved_quantity, 'available_quantity' => $balance->available_quantity, 'average_cost' => $balance->average_cost]);
 
         return response()->json(['success' => true, 'data' => $balances]);
     }

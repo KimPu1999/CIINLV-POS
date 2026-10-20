@@ -15,6 +15,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'platform_role' => $this->platform_role,
             'status' => $this->status,
+            'locale' => $this->locale ?: 'en',
             'email_verified_at' => $this->email_verified_at,
             'memberships' => $this->whenLoaded('memberships', fn (): array => $this->memberships
                 ->map(static fn ($membership): array => [

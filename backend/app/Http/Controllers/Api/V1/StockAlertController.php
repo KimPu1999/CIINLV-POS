@@ -9,6 +9,7 @@ use App\Models\StockAlert;
 use App\Services\ReportScopeService;
 use App\Services\StockAlertService;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -140,7 +141,9 @@ class StockAlertController
     private function alertPayload(StockAlert $alert, StockAlertService $service): array
     {
         $replenishment = $service->replenishment($alert);
-        return ['id' => $alert->uuid, 'alert_type' => $alert->alert_type, 'status' => $alert->status, 'available_quantity' => $alert->available_quantity, 'threshold_quantity' => $alert->threshold_quantity, 'incoming_quantity' => $replenishment['incoming_quantity'], 'target_quantity' => $replenishment['target_quantity'], 'recommended_quantity' => $replenishment['recommended_quantity'], 'first_triggered_at' => $alert->first_triggered_at, 'last_triggered_at' => $alert->last_triggered_at, 'snoozed_until' => $alert->snoozed_until, 'location' => ['id' => $alert->location?->uuid, 'name' => $alert->location?->name, 'code' => $alert->location?->code, 'location_type' => $alert->location?->location_type, 'store' => $alert->location?->store?->name], 'variant' => ['id' => $alert->variant?->uuid, 'sku' => $alert->variant?->sku, 'barcode' => $alert->variant?->barcode, 'product' => $alert->variant?->product?->name]];
+        $translations = app(TranslationService::class);
+        $locale = $translations->locale(request());
+        return ['id' => $alert->uuid, 'alert_type' => $alert->alert_type, 'status' => $alert->status, 'available_quantity' => $alert->available_quantity, 'threshold_quantity' => $alert->threshold_quantity, 'incoming_quantity' => $replenishment['incoming_quantity'], 'target_quantity' => $replenishment['target_quantity'], 'recommended_quantity' => $replenishment['recommended_quantity'], 'first_triggered_at' => $alert->first_triggered_at, 'last_triggered_at' => $alert->last_triggered_at, 'snoozed_until' => $alert->snoozed_until, 'location' => ['id' => $alert->location?->uuid, 'name' => $alert->location ? $translations->localizedValue($alert->location, 'name', $locale) : null, 'code' => $alert->location?->code, 'location_type' => $alert->location?->location_type, 'store' => $alert->location?->store?->name], 'variant' => ['id' => $alert->variant?->uuid, 'sku' => $alert->variant?->sku, 'barcode' => $alert->variant?->barcode, 'product' => $alert->variant?->product ? $translations->localizedValue($alert->variant->product, 'name', $locale) : null]];
     }
 
     private function locationIds(Request $request, TenantContext $context, ReportScopeService $scope): \Illuminate\Support\Collection

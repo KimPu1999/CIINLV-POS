@@ -13,6 +13,6 @@ class UpdateCategoryRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['name' => ['sometimes', 'string', 'max:150'], 'parent_id' => ['nullable', 'uuid'], 'description' => ['nullable', 'string', 'max:2000'], 'image_path' => ['nullable', 'string', 'max:500'], 'status' => ['sometimes', 'in:active,inactive,archived'], 'sort_order' => ['sometimes', 'integer', 'min:0', 'max:100000']];
+        return ['source_locale' => ['sometimes', 'in:en,my'], 'name' => ['sometimes', 'string', 'max:150'], 'parent_id' => ['nullable', 'uuid'], 'description' => ['nullable', 'string', 'max:2000'], 'image_path' => ['nullable', 'string', 'max:500'], 'status' => ['sometimes', 'in:active,inactive,archived'], 'sort_order' => ['sometimes', 'integer', 'min:0', 'max:100000']];
     }
 }

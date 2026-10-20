@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'translation' => [
+        'driver' => env('TRANSLATION_DRIVER', 'none'),
+        'endpoint' => env('TRANSLATION_API_URL'),
+        'key' => env('TRANSLATION_API_KEY'),
+        'timeout' => (int) env('TRANSLATION_API_TIMEOUT', 15),
+    ],
+
 ];

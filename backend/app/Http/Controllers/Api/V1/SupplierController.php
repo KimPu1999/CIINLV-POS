@@ -9,6 +9,7 @@ use App\Models\Supplier;
 use App\Models\PurchaseOrder;
 use App\Services\AuditLogger;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,15 +39,19 @@ class SupplierController
         return response()->json(['success' => true, 'data' => ['total_suppliers' => Supplier::where('tenant_id', $tenantId)->count(), 'active_suppliers' => Supplier::where('tenant_id', $tenantId)->where('status', 'active')->count(), 'inactive_suppliers' => Supplier::where('tenant_id', $tenantId)->whereIn('status', ['inactive', 'archived'])->count(), 'total_purchase_orders' => PurchaseOrder::where('tenant_id', $tenantId)->count(), 'open_purchase_orders' => PurchaseOrder::where('tenant_id', $tenantId)->whereIn('status', ['draft', 'submitted', 'approved', 'partially_received'])->count(), 'purchases_this_month' => number_format((float) $purchaseMonth, 2, '.', ''), 'outstanding_payables' => null, 'payables_available' => false]]);
     }
 
-    public function store(CreateSupplierRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    public function store(CreateSupplierRequest $request, TenantContext $context, AuditLogger $auditLogger, TranslationService $translations): JsonResponse
     {
         $this->requireManager($request->user(), $context->tenant()->id);
         $data = $request->validated();
+        $data['source_locale'] ??= $request->input('lang', app()->getLocale());
         $data['tenant_id'] = $context->tenant()->id;
         $data['supplier_code'] = strtoupper($data['supplier_code']);
+        $sourceLocale = $data['source_locale'] ?? TranslationService::DEFAULT_LOCALE;
+        unset($data['source_locale']);
         if (Supplier::where('tenant_id', $data['tenant_id'])->where('supplier_code', $data['supplier_code'])->exists()) {
             throw new ConflictHttpException('The supplier code is already in use.');
         } $supplier = Supplier::create($data);
+        $translations->queueForModel($supplier, $sourceLocale);
         $auditLogger->record('inventory.supplier_created', $request->user(), $context->tenant(), $supplier);
 
         return response()->json(['success' => true, 'data' => new SupplierResource($supplier)], 201);
@@ -60,17 +65,21 @@ class SupplierController
         return response()->json(['success' => true, 'data' => new SupplierResource($supplier)]);
     }
 
-    public function update(UpdateSupplierRequest $request, Supplier $supplier, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    public function update(UpdateSupplierRequest $request, Supplier $supplier, TenantContext $context, AuditLogger $auditLogger, TranslationService $translations): JsonResponse
     {
         $this->assertTenant($supplier, $context);
         $this->requireManager($request->user(), $context->tenant()->id);
         $data = $request->validated();
+        $data['source_locale'] ??= $request->input('lang', app()->getLocale());
+        $sourceLocale = $data['source_locale'] ?? TranslationService::DEFAULT_LOCALE;
+        unset($data['source_locale']);
         if (isset($data['supplier_code'])) {
             $data['supplier_code'] = strtoupper($data['supplier_code']);
             if (Supplier::where('tenant_id', $supplier->tenant_id)->where('supplier_code', $data['supplier_code'])->where('id', '!=', $supplier->id)->exists()) {
                 throw new ConflictHttpException('The supplier code is already in use.');
             }
         } $supplier->update($data);
+        $translations->queueForModel($supplier->refresh(), $sourceLocale);
         $auditLogger->record('inventory.supplier_updated', $request->user(), $context->tenant(), $supplier);
 
         return response()->json(['success' => true, 'data' => new SupplierResource($supplier->refresh())]);

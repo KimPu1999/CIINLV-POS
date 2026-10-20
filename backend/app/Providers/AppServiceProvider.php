@@ -15,6 +15,7 @@ use App\Models\StockTransfer;
 use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Tenant;
+use App\Contracts\TranslationProvider;
 use App\Policies\InventoryPolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\PosRegisterPolicy;
@@ -30,6 +31,8 @@ use App\Policies\StorePolicy;
 use App\Policies\TenantPolicy;
 use App\Services\TenantContext;
 use App\Services\TenantContextService;
+use App\Services\ConfiguredTranslationProvider;
+use App\Services\TranslationService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -45,6 +48,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenantContextService::class);
         $this->app->singleton(TenantContext::class, fn ($app) => $app->make(TenantContextService::class));
+        $this->app->singleton(TranslationProvider::class, ConfiguredTranslationProvider::class);
+        $this->app->singleton(TranslationService::class);
     }
 
     /**

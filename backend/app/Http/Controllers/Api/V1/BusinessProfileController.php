@@ -6,6 +6,7 @@ use App\Http\Requests\Business\UpdateBusinessProfileRequest;
 use App\Http\Resources\TenantResource;
 use App\Services\AuditLogger;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -19,11 +20,15 @@ class BusinessProfileController
         return response()->json(['success' => true, 'data' => new TenantResource($context->tenant())]);
     }
 
-    public function update(UpdateBusinessProfileRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    public function update(UpdateBusinessProfileRequest $request, TenantContext $context, AuditLogger $auditLogger, TranslationService $translations): JsonResponse
     {
         $tenant = $context->tenant();
         Gate::authorize('updateProfile', $tenant);
-        $tenant->update($request->validated());
+        $data = $request->validated();
+        $sourceLocale = $data['source_locale'] ?? $request->input('lang', app()->getLocale());
+        unset($data['source_locale']);
+        $tenant->update($data);
+        $translations->queueForModel($tenant->refresh(), $sourceLocale);
         $auditLogger->record('business.profile_updated', $request->user(), $tenant, $tenant);
 
         return response()->json(['success' => true, 'data' => new TenantResource($tenant->refresh())]);

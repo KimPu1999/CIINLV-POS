@@ -13,11 +13,13 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class ProductService
 {
-    public function __construct(private readonly BarcodeService $barcodeService) {}
+    public function __construct(private readonly BarcodeService $barcodeService, private readonly TranslationService $translations) {}
 
     public function create(array $data, int $tenantId, User $actor): Product
     {
-        return DB::transaction(function () use ($data, $tenantId, $actor): Product {
+        $sourceLocale = $data['source_locale'] ?? TranslationService::DEFAULT_LOCALE;
+        unset($data['source_locale']);
+        $product = DB::transaction(function () use ($data, $tenantId, $actor): Product {
             $category = $data['category_id'] ?? null;
             $categoryId = $category ? Category::where('tenant_id', $tenantId)->where('uuid', $category)->value('id') : null;
             if ($category && $categoryId === null) {
@@ -30,6 +32,9 @@ class ProductService
 
             return $product->load(['category', 'variants', 'images']);
         });
+        $this->translations->queueForModel($product, $sourceLocale);
+
+        return $product;
     }
 
     public function createVariant(Product $product, array $data): ProductVariant
@@ -50,6 +55,8 @@ class ProductService
 
     public function update(Product $product, array $data): Product
     {
+        $sourceLocale = $data['source_locale'] ?? TranslationService::DEFAULT_LOCALE;
+        unset($data['source_locale']);
         if (array_key_exists('category_id', $data)) {
             $categoryUuid = $data['category_id'];
             $data['category_id'] = $categoryUuid ? Category::where('tenant_id', $product->tenant_id)->where('uuid', $categoryUuid)->value('id') : null;
@@ -62,7 +69,10 @@ class ProductService
         }
         $product->update($data);
 
-        return $product->load(['category', 'variants', 'images']);
+        $product = $product->load(['category', 'variants', 'images']);
+        $this->translations->queueForModel($product, $sourceLocale);
+
+        return $product;
     }
 
     private function uniqueSlug(int $tenantId, string $value, ?int $ignoreId = null): string

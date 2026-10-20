@@ -9,6 +9,7 @@ use App\Services\InventoryValuationService;
 use App\Services\ReportScopeService;
 use App\Services\SalesAnalyticsService;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -42,7 +43,20 @@ class DashboardOverviewController
             ->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')
             ->select('inventory_balances.*');
 
-        return response()->json(['success' => true, 'data' => $query->paginate(50)]);
+        $rows = $query->paginate(50);
+        $translations = app(TranslationService::class);
+        $locale = $translations->locale($request);
+        $rows->getCollection()->transform(fn (InventoryBalance $balance): array => [
+            'id' => $balance->uuid,
+            'location' => $balance->location ? ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale)] : null,
+            'variant' => $balance->variant ? ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $balance->variant->product ? ['name' => $translations->localizedValue($balance->variant->product, 'name', $locale)] : null] : null,
+            'on_hand_quantity' => $balance->on_hand_quantity,
+            'reserved_quantity' => $balance->reserved_quantity,
+            'available_quantity' => $balance->available_quantity,
+            'reorder_level' => $balance->variant?->reorder_level,
+        ]);
+
+        return response()->json(['success' => true, 'data' => $rows]);
     }
 
     public function recentSales(Request $request, TenantContext $context): JsonResponse

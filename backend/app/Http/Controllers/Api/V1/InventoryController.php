@@ -13,6 +13,7 @@ use App\Models\StoreMembership;
 use App\Services\AuditLogger;
 use App\Services\InventoryService;
 use App\Services\TenantContext;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -138,7 +139,9 @@ class InventoryController
 
     private function balanceData(InventoryBalance $balance): array
     {
-        return ['location' => ['id' => $balance->location->uuid, 'name' => $balance->location->name], 'variant' => ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $balance->variant->product->name], 'on_hand_quantity' => $balance->on_hand_quantity, 'reserved_quantity' => $balance->reserved_quantity, 'available_quantity' => $balance->available_quantity, 'average_cost' => $balance->average_cost, 'version' => $balance->version];
+        $translations = app(TranslationService::class);
+        $locale = $translations->locale(request());
+        return ['location' => ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale)], 'variant' => ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $translations->localizedValue($balance->variant->product, 'name', $locale)], 'on_hand_quantity' => $balance->on_hand_quantity, 'reserved_quantity' => $balance->reserved_quantity, 'available_quantity' => $balance->available_quantity, 'average_cost' => $balance->average_cost, 'version' => $balance->version];
     }
 
     private function locationByUuid(string $uuid, TenantContext $context): InventoryLocation

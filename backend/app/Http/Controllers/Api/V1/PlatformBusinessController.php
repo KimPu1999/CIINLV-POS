@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Services\AuditLogger;
 use App\Services\BusinessProvisioningService;
 use App\Services\BusinessSuspensionService;
+use App\Services\TranslationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -73,9 +74,10 @@ class PlatformBusinessController
         }, 'businesses-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    public function store(CreateBusinessRequest $request, BusinessProvisioningService $provisioningService): JsonResponse
+    public function store(CreateBusinessRequest $request, BusinessProvisioningService $provisioningService, TranslationService $translations): JsonResponse
     {
         $result = $provisioningService->provision($request->user(), $request->validated(), $request->header('Idempotency-Key'));
+        $translations->queueForModel($result['tenant'], TranslationService::DEFAULT_LOCALE);
 
         return response()->json([
             'success' => true,
@@ -99,10 +101,14 @@ class PlatformBusinessController
         )]);
     }
 
-    public function update(UpdateBusinessRequest $request, Tenant $business, AuditLogger $auditLogger): JsonResponse
+    public function update(UpdateBusinessRequest $request, Tenant $business, AuditLogger $auditLogger, TranslationService $translations): JsonResponse
     {
         Gate::authorize('manage', $business);
-        $business->update($request->validated());
+        $data = $request->validated();
+        $sourceLocale = $data['source_locale'] ?? $request->input('lang', app()->getLocale());
+        unset($data['source_locale']);
+        $business->update($data);
+        $translations->queueForModel($business->refresh(), $sourceLocale);
         $auditLogger->record('platform.business_updated', $request->user(), subject: $business);
 
         return response()->json(['success' => true, 'data' => new TenantResource($business->refresh())]);

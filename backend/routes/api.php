@@ -48,6 +48,8 @@ use App\Http\Controllers\Api\V1\StoreDashboardLayoutController;
 use App\Http\Controllers\Api\V1\StoreMembershipController;
 use App\Http\Controllers\Api\V1\StoreSettingsController;
 use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\TranslationController;
+use App\Http\Middleware\SetApiLocale;
 use App\Http\Controllers\Api\V1\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
@@ -70,7 +72,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/auth/email/verify/{id}/{hash}', [BusinessRegistrationController::class, 'verify'])->name('verification.verify');
     Route::post('/auth/email/verification-notification', [BusinessRegistrationController::class, 'resend'])->middleware('throttle:verification-resend');
 
-    Route::middleware(['auth:sanctum', 'active.account', 'throttle:api'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'active.account', 'throttle:api', SetApiLocale::class])->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::patch('/me', [AuthController::class, 'updateProfile']);
@@ -218,6 +220,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/products/{product}/images', [ProductController::class, 'images']);
             Route::get('/suppliers/statistics', [SupplierController::class, 'statistics']);
             Route::apiResource('suppliers', SupplierController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+            Route::get('/translations', [TranslationController::class, 'index']);
+            Route::patch('/translations/{translation}', [TranslationController::class, 'update']);
             Route::get('/warehouses/statistics', [WarehouseController::class, 'statistics']);
             Route::get('/warehouses/{warehouse}/inventory', [WarehouseController::class, 'inventory']);
             Route::get('/warehouses/{warehouse}/movements', [WarehouseController::class, 'movements']);

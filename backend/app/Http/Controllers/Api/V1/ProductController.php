@@ -62,7 +62,9 @@ class ProductController
     public function store(CreateProductRequest $request, TenantContext $context, ProductService $service, AuditLogger $auditLogger): JsonResponse
     {
         $this->requireManager($request->user(), $context->tenant()->id);
-        $product = $service->create($request->validated(), $context->tenant()->id, $request->user());
+        $data = $request->validated();
+        $data['source_locale'] ??= $request->input('lang', app()->getLocale());
+        $product = $service->create($data, $context->tenant()->id, $request->user());
         $auditLogger->record('inventory.product_created', $request->user(), $context->tenant(), $product);
 
         return response()->json(['success' => true, 'data' => new ProductResource($product)], 201);
@@ -80,7 +82,9 @@ class ProductController
     {
         $this->assertTenant($product, $context);
         Gate::authorize('manage', $product);
-        $product = $service->update($product, $request->validated());
+        $data = $request->validated();
+        $data['source_locale'] ??= $request->input('lang', app()->getLocale());
+        $product = $service->update($product, $data);
         $auditLogger->record('inventory.product_updated', $request->user(), $context->tenant(), $product);
 
         return response()->json(['success' => true, 'data' => new ProductResource($product)]);

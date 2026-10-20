@@ -28,6 +28,7 @@ export interface User {
   status?: string
   memberships?: BusinessMembership[]
   email_verified_at?: string | null
+  locale?: 'en' | 'my'
 }
 
 export interface ApiResponse<T> {
@@ -49,6 +50,8 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const tenantId = window.localStorage.getItem('ciinlv_tenant_id')
   if (tenantId) config.headers.set('X-Tenant-Id', tenantId)
+  const language = window.localStorage.getItem('ciinlv_language') === 'my' ? 'my' : 'en'
+  config.params = { ...(config.params || {}), lang: config.params?.lang || language }
   return config
 })
 
