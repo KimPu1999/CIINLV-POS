@@ -1,7 +1,7 @@
 import { Check, ChevronDown, Globe2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import i18n, { type Language } from '../lib/i18n'
+import i18n, { languageStorageKey, type Language } from '../lib/i18n'
 import { api } from '../lib/api'
 
 const options: { code: Language; flag: string; labelKey: 'english' | 'myanmar' }[] = [
@@ -20,7 +20,7 @@ export function LanguageSwitcher({ userId, userLanguage }: { userId?: string | n
     if (!userId) return
     const saved = window.localStorage.getItem(`ciinlv_language_${String(userId)}`)
     if (saved === 'en' || saved === 'my') void i18n.changeLanguage(saved)
-    else if (userLanguage) void i18n.changeLanguage(userLanguage)
+    else if (!window.localStorage.getItem(languageStorageKey) && userLanguage) void i18n.changeLanguage(userLanguage)
   }, [userId, userLanguage])
 
   useEffect(() => {

@@ -17,7 +17,13 @@ export function textKey(value: string): string {
 }
 
 export function textTranslationKey(value: string): string {
+  if (/^[a-z][a-z0-9_-]*\.[a-z0-9_.-]+$/i.test(value.trim())) return value.trim()
   return `text.${textKey(value)}`
+}
+
+function fallbackText(key: string): string {
+  const value = key.replace(/^[a-z][a-z0-9_-]*\./i, '').replace(/[._-]+/g, ' ').trim()
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : key
 }
 
 export function translateStatic(t: TFunction, value: string): string {
@@ -33,11 +39,23 @@ export function applyLanguageDocument(language: Language): void {
 void i18n
   .use(initReactI18next)
   .init({
-    resources: { en, my },
+    // The JSON files contain multiple top-level groups. Register each file as
+    // the default namespace so calls such as t('text.sign_in') and
+    // t('language.english') resolve against the same resource tree.
+    resources: {
+      en: { translation: en },
+      my: { translation: my },
+    },
+    defaultNS: 'translation',
     lng: storedLanguage(),
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
     returnEmptyString: false,
+    parseMissingKeyHandler: (key, defaultValue) => typeof defaultValue === 'string' && defaultValue !== key ? defaultValue : fallbackText(key),
+    // All resources are bundled locally. Initializing synchronously prevents
+    // the first login render from exposing translation keys while i18next
+    // finishes its otherwise unnecessary async initialization.
+    initAsync: false,
   })
 
 applyLanguageDocument(i18n.language === 'my' ? 'my' : 'en')

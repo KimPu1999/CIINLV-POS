@@ -2,7 +2,7 @@
   "language": {
     "label": "Language",
     "english": "English",
-    "myanmar": "Myanmar",
+    "myanmar": "မြန်မာ",
     "switchTo": "Switch language"
   },
   "text": {
@@ -38,7 +38,7 @@
     "open_dashboard": "Open dashboard →",
     "refresh": "Refresh",
     "sign_out": "Sign out",
-    "sign_in": "Sign in",
+    "sign_in": "Sign In",
     "go_to_sign_in": "Go to sign in",
     "retry_connection": "Retry connection",
     "open_navigation": "Open navigation",
@@ -120,7 +120,7 @@
     "enter_product_name": "Enter product name",
     "add_product_action": "Add Product",
     "sign_in_to_your_workspace": "Sign in to your workspace",
-    "welcome_back": "Welcome back",
+    "welcome_back": "Welcome Back",
     "email": "Email",
     "password": "Password",
     "enter_your_email_address": "Enter your email address...",
