@@ -25,7 +25,7 @@ class ProductService
             if ($category && $categoryId === null) {
                 throw new UnprocessableEntityHttpException('The category does not belong to this business.');
             }
-            $product = Product::create(['tenant_id' => $tenantId, 'category_id' => $categoryId, 'name' => $data['name'], 'slug' => $this->uniqueSlug($tenantId, $data['slug'] ?? $data['name']), 'description' => $data['description'] ?? null, 'brand' => $data['brand'] ?? null, 'status' => 'active', 'track_inventory' => $data['track_inventory'] ?? true, 'created_by' => $actor->getKey()]);
+            $product = Product::create(['tenant_id' => $tenantId, 'category_id' => $categoryId, 'name' => $data['name'], 'slug' => $this->uniqueSlug($tenantId, $data['slug'] ?? $data['name']), 'description' => $data['description'] ?? null, 'brand' => $data['brand'] ?? null, 'status' => 'active', 'track_inventory' => $data['track_inventory'] ?? true, 'tax_exempt' => $data['tax_exempt'] ?? false, 'created_by' => $actor->getKey()]);
             foreach ($data['variants'] ?? [] as $variant) {
                 $this->createVariant($product, $variant);
             }

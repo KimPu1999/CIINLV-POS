@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class Sale extends Model
 {
-    protected $fillable = ['tenant_id', 'store_id', 'register_id', 'cashier_user_id', 'customer_id', 'sale_number', 'subtotal', 'discount_total', 'tax_total', 'grand_total', 'paid_total', 'balance_due', 'change_due', 'refunded_total', 'currency_code', 'status', 'payment_status', 'idempotency_key', 'request_hash', 'held_at', 'completed_at'];
+    protected $fillable = ['tenant_id', 'store_id', 'register_id', 'cashier_user_id', 'customer_id', 'sale_number', 'subtotal', 'discount_total', 'taxable_amount', 'tax_total', 'service_charge_total', 'fee_total', 'rounding_adjustment', 'grand_total', 'paid_total', 'balance_due', 'change_due', 'refunded_total', 'tax_breakdown', 'currency_code', 'status', 'payment_status', 'idempotency_key', 'request_hash', 'held_at', 'completed_at'];
 
     protected static function booted(): void
     {
@@ -19,7 +19,7 @@ class Sale extends Model
 
     protected function casts(): array
     {
-        return ['subtotal' => 'decimal:2', 'discount_total' => 'decimal:2', 'tax_total' => 'decimal:2', 'grand_total' => 'decimal:2', 'paid_total' => 'decimal:2', 'balance_due' => 'decimal:2', 'change_due' => 'decimal:2', 'refunded_total' => 'decimal:2', 'held_at' => 'datetime', 'completed_at' => 'datetime'];
+        return ['subtotal' => 'decimal:2', 'discount_total' => 'decimal:2', 'taxable_amount' => 'decimal:2', 'tax_total' => 'decimal:2', 'service_charge_total' => 'decimal:2', 'fee_total' => 'decimal:2', 'rounding_adjustment' => 'decimal:2', 'grand_total' => 'decimal:2', 'paid_total' => 'decimal:2', 'balance_due' => 'decimal:2', 'change_due' => 'decimal:2', 'refunded_total' => 'decimal:2', 'tax_breakdown' => 'array', 'held_at' => 'datetime', 'completed_at' => 'datetime'];
     }
 
     public function getRouteKeyName(): string

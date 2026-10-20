@@ -35,7 +35,7 @@ class ReceiptService
 
     public function data(Sale $sale): array
     {
-        $sale->loadMissing(['items.variant.product', 'payments', 'store.tenant.businessSetting', 'cashier', 'register', 'receipt']);
+        $sale->loadMissing(['items.variant.product', 'payments', 'adjustments', 'store.tenant.businessSetting', 'cashier', 'register', 'receipt']);
         $locale = $this->translations->locale(request());
         $labels = $this->labels($locale);
         $timezone = $sale->store->timezone ?: ($sale->store->tenant->businessSetting?->timezone ?: 'UTC');
@@ -57,8 +57,16 @@ class ReceiptService
             'items' => $sale->items->map(fn ($item) => ['name' => $item->variant?->product ? $this->translations->localizedValue($item->variant->product, 'name', $locale) : $item->product_name_snapshot, 'original_name' => $item->product_name_snapshot, 'sku' => $item->sku_snapshot, 'quantity' => $item->quantity, 'unit_price' => $item->unit_price, 'discount_amount' => $item->discount_amount, 'tax_amount' => $item->tax_amount, 'line_total' => $item->line_total])->values()->all(),
             'subtotal' => $sale->subtotal,
             'discount_total' => $sale->discount_total,
+            'taxable_amount' => $sale->taxable_amount,
             'tax_total' => $sale->tax_total,
+            'service_charge_total' => $sale->service_charge_total,
+            'fee_total' => $sale->fee_total,
+            'rounding_adjustment' => $sale->rounding_adjustment,
             'grand_total' => $sale->grand_total,
+            'balance_due' => $sale->balance_due,
+            'payment_status' => $sale->payment_status,
+            'tax_breakdown' => $sale->tax_breakdown,
+            'adjustments' => $sale->adjustments->map(fn ($adjustment) => ['type' => $adjustment->type, 'label' => $adjustment->label, 'amount' => $adjustment->amount, 'metadata' => $adjustment->metadata])->values()->all(),
             'payments' => $sale->payments->where('status', 'verified')->map(fn ($payment) => ['method' => $payment->method, 'amount' => $payment->amount])->values()->all(),
             'paid_total' => $sale->paid_total,
             'change_due' => $sale->change_due,
@@ -101,11 +109,12 @@ class ReceiptService
         $labels = $data['labels'];
         $items = collect($data['items'])->map(fn (array $item): string => '<tr><td>'.$escape($item['name']).'<br><small>'.$escape($item['sku']).'</small></td><td>'.$escape($item['quantity']).'</td><td>'.$escape($item['unit_price']).'</td><td>'.$escape($item['line_total']).'</td></tr>')->implode('');
         $payments = collect($data['payments'])->map(fn (array $payment): string => '<div>'.$escape($payment['method']).': '.$escape($payment['amount']).'</div>')->implode('');
+        $adjustments = collect($data['adjustments'] ?? [])->filter(fn (array $adjustment): bool => ($adjustment['type'] ?? '') === 'surcharge')->map(fn (array $adjustment): string => '<p>'.$escape($adjustment['label']).': '.$escape($adjustment['amount']).'</p>')->implode('');
 
         $logo = $data['logo_data'] ? '<img class="logo" src="'.$escape($data['logo_data']).'" alt="'.$escape($data['business']).'">' : '';
         $storeDetails = trim((string) ($data['store']['address'] ?? '').' '.(string) ($data['store']['phone'] ?? ''));
 
-        return '<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:10px;color:#111}h1{font-size:15px;text-align:center;margin:0 0 4px}.logo{display:block;max-width:35mm;max-height:18mm;margin:0 auto 4px}p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{padding:3px 1px;border-bottom:1px solid #ddd;text-align:right}th:first-child,td:first-child{text-align:left}.totals{margin-top:8px;text-align:right}.footer{text-align:center;margin-top:12px}</style></head><body>'.$logo.'<h1>'.$escape($data['system']).'</h1><p>'.$escape($data['business']).'</p><p>'.$escape($data['store']['name']).'</p>'.($storeDetails !== '' ? '<p>'.$escape($storeDetails).'</p>' : '').'<p>'.$escape($labels['receipt']).': '.$escape($data['receipt_number']).'</p><p>'.$escape($labels['date']).': '.$escape($data['date']).'</p><p>'.$escape($labels['cashier']).': '.$escape($data['cashier']).' | '.$escape($labels['register']).': '.$escape($data['register']).'</p><table><thead><tr><th>'.$escape($labels['item']).'</th><th>'.$escape($labels['quantity']).'</th><th>'.$escape($labels['price']).'</th><th>'.$escape($labels['total']).'</th></tr></thead><tbody>'.$items.'</tbody></table><div class="totals"><p>'.$escape($labels['subtotal']).': '.$escape($data['subtotal']).'</p><p>'.$escape($labels['discount']).': '.$escape($data['discount_total']).'</p><p>'.$escape($labels['tax']).': '.$escape($data['tax_total']).'</p><p><strong>'.$escape($labels['total']).': '.$escape($data['grand_total']).' '.$escape($data['currency_code']).'</strong></p><p>'.$escape($labels['paid']).': '.$escape($data['paid_total']).'</p><p>'.$escape($labels['change']).': '.$escape($data['change_due']).'</p>'.$payments.'</div><div class="footer">'.$escape($data['footer']).'</div></body></html>';
+        return '<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:10px;color:#111}h1{font-size:15px;text-align:center;margin:0 0 4px}.logo{display:block;max-width:35mm;max-height:18mm;margin:0 auto 4px}p{margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{padding:3px 1px;border-bottom:1px solid #ddd;text-align:right}th:first-child,td:first-child{text-align:left}.totals{margin-top:8px;text-align:right}.footer{text-align:center;margin-top:12px}</style></head><body>'.$logo.'<h1>'.$escape($data['system']).'</h1><p>'.$escape($data['business']).'</p><p>'.$escape($data['store']['name']).'</p>'.($storeDetails !== '' ? '<p>'.$escape($storeDetails).'</p>' : '').'<p>'.$escape($labels['receipt']).': '.$escape($data['receipt_number']).'</p><p>'.$escape($labels['date']).': '.$escape($data['date']).'</p><p>'.$escape($labels['cashier']).': '.$escape($data['cashier']).' | '.$escape($labels['register']).': '.$escape($data['register']).'</p><table><thead><tr><th>'.$escape($labels['item']).'</th><th>'.$escape($labels['quantity']).'</th><th>'.$escape($labels['price']).'</th><th>'.$escape($labels['total']).'</th></tr></thead><tbody>'.$items.'</tbody></table><div class="totals"><p>'.$escape($labels['subtotal']).': '.$escape($data['subtotal']).'</p><p>'.$escape($labels['discount']).': '.$escape($data['discount_total']).'</p><p>'.$escape($labels['taxable']).': '.$escape($data['taxable_amount']).'</p><p>'.$escape($labels['tax']).': '.$escape($data['tax_total']).'</p>'.$adjustments.'<p>'.$escape($labels['rounding']).': '.$escape($data['rounding_adjustment']).'</p><p><strong>'.$escape($labels['total']).': '.$escape($data['grand_total']).' '.$escape($data['currency_code']).'</strong></p><p>'.$escape($labels['paid']).': '.$escape($data['paid_total']).'</p><p>'.$escape($labels['balance']).': '.$escape($data['balance_due']).'</p><p>'.$escape($labels['change']).': '.$escape($data['change_due']).'</p><p>'.$escape($labels['status']).': '.$escape($data['payment_status']).'</p>'.$payments.'</div><div class="footer">'.$escape($data['footer']).'</div></body></html>';
     }
 
     private function privateImageData(?string $path): ?string
@@ -130,9 +139,9 @@ class ReceiptService
     private function labels(string $locale): array
     {
         return $locale === 'my' ? [
-            'receipt' => 'ပြေစာ', 'date' => 'ရက်စွဲ', 'cashier' => 'ငွေကိုင်', 'register' => 'ငွေစာရင်းစက်', 'item' => 'ပစ္စည်း', 'quantity' => 'အရေအတွက်', 'price' => 'စျေးနှုန်း', 'total' => 'စုစုပေါင်း', 'subtotal' => 'အကြမ်းဖျင်းစုစုပေါင်း', 'discount' => 'လျှော့စျေး', 'tax' => 'အခွန်', 'paid' => 'ပေးချေပြီး', 'change' => 'အမ်းငွေ',
+            'receipt' => 'ပြေစာ', 'date' => 'ရက်စွဲ', 'cashier' => 'ငွေကိုင်', 'register' => 'ငွေစာရင်းစက်', 'item' => 'ပစ္စည်း', 'quantity' => 'အရေအတွက်', 'price' => 'စျေးနှုန်း', 'total' => 'စုစုပေါင်း', 'subtotal' => 'အကြမ်းဖျင်းစုစုပေါင်း', 'discount' => 'လျှော့စျေး', 'taxable' => 'အခွန်တွက်ခံရမည့်ပမာဏ', 'tax' => 'အခွန်', 'service_charge' => 'ဝန်ဆောင်ခ', 'fees' => 'အခြားအခများ', 'rounding' => 'အဝိုင်းချိန်ညှိမှု', 'paid' => 'ပေးချေပြီး', 'balance' => 'ကျန်ငွေ', 'change' => 'အမ်းငွေ', 'status' => 'အခြေအနေ',
         ] : [
-            'receipt' => 'Receipt', 'date' => 'Date', 'cashier' => 'Cashier', 'register' => 'Register', 'item' => 'Item', 'quantity' => 'Qty', 'price' => 'Price', 'total' => 'Total', 'subtotal' => 'Subtotal', 'discount' => 'Discount', 'tax' => 'Tax', 'paid' => 'Paid', 'change' => 'Change',
+            'receipt' => 'Receipt', 'date' => 'Date', 'cashier' => 'Cashier', 'register' => 'Register', 'item' => 'Item', 'quantity' => 'Qty', 'price' => 'Price', 'total' => 'Total', 'subtotal' => 'Subtotal', 'discount' => 'Discount', 'taxable' => 'Taxable amount', 'tax' => 'Tax', 'service_charge' => 'Service charge', 'fees' => 'Fees', 'rounding' => 'Rounding', 'paid' => 'Paid', 'balance' => 'Balance due', 'change' => 'Change', 'status' => 'Payment status',
         ];
     }
 }

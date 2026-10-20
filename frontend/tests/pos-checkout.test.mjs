@@ -23,12 +23,13 @@ test('POS checkout includes discount, cash drawer and receipt actions', () => {
   assert.match(source, /discount_amount/)
   assert.match(source, /cash-movements/)
   assert.match(source, /\/close/)
-  assert.match(source, /receipt\/pdf\?format=80mm/)
+  assert.match(source, /receipt\/pdf\?format=\$\{format\}/)
   assert.match(source, /printReceipt/)
 })
 
-test('POS checkout does not pretend unconfigured non-cash payments completed', () => {
-  assert.match(source, /paymentMethod !== 'cash'/)
-  assert.match(source, /verified_provider_required/)
-  assert.match(source, /card_terminal_unavailable/)
+test('POS checkout does not pretend unverified split payments completed', () => {
+  assert.match(source, /payment_pending_verification/)
+  assert.match(source, /configured-terminal/)
+  assert.match(source, /configured-qr/)
+  assert.match(source, /method !== 'cash'/)
 })

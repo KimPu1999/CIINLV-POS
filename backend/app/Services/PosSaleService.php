@@ -62,12 +62,17 @@ class PosSaleService
                 'sale_number' => $this->nextNumber($store, 'SALE'),
                 'subtotal' => $calculation['subtotal'],
                 'discount_total' => $calculation['discount_total'],
+                'taxable_amount' => $calculation['taxable_amount'],
                 'tax_total' => $calculation['tax_total'],
+                'service_charge_total' => $calculation['service_charge_total'],
+                'fee_total' => $calculation['fee_total'],
+                'rounding_adjustment' => $calculation['rounding_adjustment'],
                 'grand_total' => $calculation['grand_total'],
                 'balance_due' => $calculation['grand_total'],
                 'currency_code' => $calculation['currency_code'],
                 'status' => 'draft',
                 'payment_status' => 'unpaid',
+                'tax_breakdown' => $calculation['tax_breakdown'],
                 'idempotency_key' => $idempotencyKey,
                 'request_hash' => $hash,
             ]);
@@ -75,7 +80,18 @@ class PosSaleService
                 $sale->items()->create($item);
             }
             if (bccomp($calculation['discount_total'], '0', 2) > 0) {
-                $sale->adjustments()->create(['tenant_id' => $store->tenant_id, 'type' => 'discount', 'label' => $payload['discount_label'] ?? 'Discount', 'amount' => $calculation['discount_total'], 'created_by' => $actor->id]);
+                $sale->adjustments()->create(['tenant_id' => $store->tenant_id, 'type' => 'discount', 'label' => $payload['discount_label'] ?? 'Discount', 'amount' => $calculation['discount_total'], 'metadata' => ['item_discount_total' => $calculation['item_discount_total'], 'cart_discount_total' => $calculation['cart_discount_total']], 'created_by' => $actor->id]);
+            }
+            if (bccomp($calculation['service_charge_total'], '0', 2) !== 0) {
+                $sale->adjustments()->create(['tenant_id' => $store->tenant_id, 'type' => 'surcharge', 'label' => 'Service charge', 'amount' => $calculation['service_charge_total'], 'metadata' => ['kind' => 'service_charge'], 'created_by' => $actor->id]);
+            }
+            foreach ($calculation['fees'] as $fee) {
+                if (bccomp($fee['amount'], '0', 2) !== 0) {
+                    $sale->adjustments()->create(['tenant_id' => $store->tenant_id, 'type' => 'surcharge', 'label' => $fee['label'], 'amount' => $fee['amount'], 'metadata' => ['kind' => 'configured_fee', 'code' => $fee['code'] ?? null], 'created_by' => $actor->id]);
+                }
+            }
+            if (bccomp($calculation['rounding_adjustment'], '0', 2) !== 0) {
+                $sale->adjustments()->create(['tenant_id' => $store->tenant_id, 'type' => 'surcharge', 'label' => 'Rounding adjustment', 'amount' => $calculation['rounding_adjustment'], 'metadata' => ['kind' => 'rounding'], 'created_by' => $actor->id]);
             }
             $this->audit->record('pos.sale_created', $actor, $store->tenant, $sale, ['store_id' => $store->uuid, 'sale_number' => $sale->sale_number]);
 
@@ -101,7 +117,7 @@ class PosSaleService
                 throw new ConflictHttpException('The cashier shift must be open before completing this sale.');
             }
             $verifiedPayments = Payment::where('sale_id', $sale->id)->where('status', 'verified')->lockForUpdate()->get();
-            $verified = (string) $verifiedPayments->sum('amount');
+            $verified = $verifiedPayments->reduce(fn (string $carry, Payment $payment): string => $this->add($carry, (string) $payment->amount), '0.00');
             if (bccomp($verified, (string) $sale->grand_total, 2) < 0) {
                 $sale->update(['paid_total' => $verified, 'balance_due' => $this->subtractPositive((string) $sale->grand_total, $verified), 'payment_status' => $verified === '0.00' ? 'pending' : 'partially_paid', 'status' => 'pending_payment']);
                 throw new UnprocessableEntityHttpException('The sale does not have enough verified payment to complete.');
@@ -121,7 +137,7 @@ class PosSaleService
                 $this->inventory->mutate($location, $item->variant, 'sale', '-'.$item->quantity, $actor, 'sale', $sale->uuid, null, 'sale:'.$sale->uuid.':'.$item->uuid);
             }
             $change = $this->subtractPositive($verified, (string) $sale->grand_total);
-            $cashTendered = (string) $verifiedPayments->where('method', 'cash')->sum('amount');
+            $cashTendered = $verifiedPayments->where('method', 'cash')->reduce(fn (string $carry, Payment $payment): string => $this->add($carry, (string) $payment->amount), '0.00');
             if (bccomp($cashTendered, '0.00', 2) > 0) {
                 CashMovement::firstOrCreate(['tenant_id' => $sale->tenant_id, 'idempotency_key' => 'sale:'.$sale->uuid.':cash'], ['store_id' => $sale->store_id, 'register_id' => $sale->register_id, 'cashier_shift_id' => $shift->id, 'movement_type' => 'cash_sale', 'amount' => $this->subtractPositive($cashTendered, $change), 'reference_type' => 'sale', 'reference_id' => $sale->uuid, 'created_by' => $actor->id]);
             }
@@ -180,7 +196,7 @@ class PosSaleService
 
     public function refreshPaymentTotals(Sale $sale): Sale
     {
-        $verified = (string) Payment::where('sale_id', $sale->id)->where('status', 'verified')->sum('amount');
+        $verified = Payment::where('sale_id', $sale->id)->where('status', 'verified')->pluck('amount')->reduce(fn (string $carry, mixed $amount): string => $this->add($carry, (string) $amount), '0.00');
         $pending = Payment::where('sale_id', $sale->id)->where('status', 'pending')->exists();
         $status = bccomp($verified, (string) $sale->grand_total, 2) >= 0 ? 'paid' : (bccomp($verified, '0', 2) > 0 ? 'partially_paid' : ($pending ? 'pending' : 'unpaid'));
         $sale->update(['paid_total' => $verified, 'balance_due' => $this->subtractPositive((string) $sale->grand_total, $verified), 'change_due' => $this->subtractPositive($verified, (string) $sale->grand_total), 'payment_status' => $status, 'status' => $sale->status === 'completed' ? $sale->status : ($status === 'paid' ? 'pending_payment' : $sale->status)]);
@@ -190,68 +206,101 @@ class PosSaleService
 
     private function calculate(Store $store, array $payload, User $actor): array
     {
-        $discount = $this->money((string) ($payload['discount_amount'] ?? '0'));
-        if (bccomp($discount, '0.00', 2) > 0 && ! $this->access->canManage($actor, $store)) {
-            throw new AccessDeniedHttpException('Only authorized store managers can apply sale discounts.');
-        }
-        $raw = [];
+        $store->loadMissing(['setting', 'tenant.businessSetting']);
+        $posConfiguration = (array) ($store->tenant?->businessSetting?->pos_configuration ?? []);
+        $rawQuantities = [];
         foreach ($payload['items'] as $input) {
             $key = (string) $input['variant_id'];
-            $raw[$key] = bcadd((string) ($raw[$key] ?? '0'), $this->quantity((string) $input['quantity']), 3);
+            $rawQuantities[$key] = bcadd((string) ($rawQuantities[$key] ?? '0'), $this->quantity((string) $input['quantity']), 3);
         }
-        $variants = ProductVariant::with('product')->where('tenant_id', $store->tenant_id)->whereIn('uuid', array_keys($raw))->get()->keyBy('uuid');
-        if ($variants->count() !== count($raw)) {
+
+        $variants = ProductVariant::with('product')->where('tenant_id', $store->tenant_id)->whereIn('uuid', array_keys($rawQuantities))->get()->keyBy('uuid');
+        if ($variants->count() !== count($rawQuantities)) {
             throw new UnprocessableEntityHttpException('One or more product variants are not available in this business.');
         }
         $location = InventoryLocation::where('tenant_id', $store->tenant_id)->where('store_id', $store->id)->where('location_type', 'store')->where('status', 'active')->first();
         if (! $location) {
             throw new UnprocessableEntityHttpException('This store has no active inventory location.');
         }
+
         $lines = [];
         $subtotal = '0.00';
-        foreach ($raw as $uuid => $quantity) {
-            $variant = $variants->get($uuid);
+        $itemDiscountTotal = '0.00';
+        foreach ($payload['items'] as $input) {
+            $variant = $variants->get((string) $input['variant_id']);
+            $quantity = $this->quantity((string) $input['quantity']);
             if ($variant->status !== 'active' || $variant->product->status !== 'active') {
                 throw new UnprocessableEntityHttpException('A selected product variant is inactive.');
             }
             if ($variant->product->track_inventory) {
                 $balance = InventoryBalance::where('tenant_id', $store->tenant_id)->where('inventory_location_id', $location->id)->where('product_variant_id', $variant->id)->first();
                 $available = $balance ? bcsub((string) $balance->on_hand_quantity, (string) $balance->reserved_quantity, 3) : '0.000';
-                if (bccomp($available, $quantity, 3) < 0) {
+                if (bccomp($available, $rawQuantities[(string) $input['variant_id']], 3) < 0) {
                     throw new UnprocessableEntityHttpException('Insufficient available stock for '.$variant->sku.'.');
                 }
             }
             $base = $this->money($this->multiply($quantity, (string) $variant->selling_price));
+            $itemDiscount = $this->itemDiscount($input, $base);
+            $itemDiscountTotal = $this->money($this->add($itemDiscountTotal, $itemDiscount));
             $subtotal = $this->money($this->add($subtotal, $base));
-            $lines[] = ['variant' => $variant, 'quantity' => $quantity, 'base' => $base, 'cost' => (string) ($variant->balances()->where('inventory_location_id', $location->id)->value('average_cost') ?: $variant->purchase_cost)];
+            $lines[] = ['variant' => $variant, 'quantity' => $quantity, 'base' => $base, 'item_discount' => $itemDiscount, 'discounted_base' => $this->money($this->subtract($base, $itemDiscount)), 'cost' => (string) ($variant->balances()->where('inventory_location_id', $location->id)->value('average_cost') ?: $variant->purchase_cost)];
         }
-        if (bccomp($discount, $subtotal, 2) > 0) {
-            throw new UnprocessableEntityHttpException('The sale discount cannot exceed the subtotal.');
+
+        $discountableSubtotal = array_reduce($lines, fn (string $carry, array $line): string => $this->money($this->add($carry, $line['discounted_base'])), '0.00');
+        $cartDiscount = $this->discountValue($payload['discount_type'] ?? 'fixed', (string) ($payload['discount_value'] ?? $payload['discount_amount'] ?? '0'), $discountableSubtotal);
+        $this->assertDiscountPolicy($store, $actor, $itemDiscountTotal, $cartDiscount, $subtotal, $posConfiguration);
+        if (bccomp($cartDiscount, $discountableSubtotal, 2) > 0) {
+            throw new UnprocessableEntityHttpException('The sale discount cannot exceed the subtotal after item discounts.');
         }
+
         $taxRate = $this->taxRate($store);
         $taxMode = $this->taxMode($store);
         $taxTotal = '0.00';
+        $taxableProducts = '0.00';
+        $productTotal = '0.00';
         $lineItems = [];
-        $allocated = '0.00';
+        $allocatedCartDiscount = '0.00';
         foreach ($lines as $index => $line) {
-            $lineDiscount = $index === count($lines) - 1 ? $this->money($this->subtract($discount, $allocated)) : $this->money($this->divide($this->multiply($discount, $line['base']), $subtotal ?: '1'));
-            $allocated = $this->money($this->add($allocated, $lineDiscount));
-            $taxable = $this->money($this->subtract($line['base'], $lineDiscount));
-            if ($taxMode === 'inclusive' && bccomp($taxRate, '0', 4) > 0) {
-                $net = $this->money($this->divide($this->multiply($taxable, '100'), $this->add('100', $taxRate)));
-                $tax = $this->money($this->subtract($taxable, $net));
-                $lineTotal = $this->money($taxable);
-            } else {
-                $tax = $this->money($this->divide($this->multiply($taxable, $taxRate), '100'));
-                $lineTotal = $this->money($this->add($taxable, $tax));
+            $cartLineDiscount = $index === count($lines) - 1 ? $this->money($this->subtract($cartDiscount, $allocatedCartDiscount)) : $this->money($this->divide($this->multiply($cartDiscount, $line['discounted_base']), $discountableSubtotal ?: '1'));
+            $allocatedCartDiscount = $this->money($this->add($allocatedCartDiscount, $cartLineDiscount));
+            $lineDiscount = $this->money($this->add($line['item_discount'], $cartLineDiscount));
+            $lineBaseAfterDiscount = $this->money($this->subtract($line['base'], $lineDiscount));
+            $tax = $line['variant']->product->tax_exempt ? '0.00' : $this->taxFor($lineBaseAfterDiscount, $taxRate, $taxMode);
+            $lineTotal = $taxMode === 'inclusive' ? $lineBaseAfterDiscount : $this->money($this->add($lineBaseAfterDiscount, $tax));
+            if (! $line['variant']->product->tax_exempt) {
+                $taxableProducts = $this->money($this->add($taxableProducts, $lineBaseAfterDiscount));
             }
             $taxTotal = $this->money($this->add($taxTotal, $tax));
+            $productTotal = $this->money($this->add($productTotal, $lineTotal));
             $variant = $line['variant'];
-            $lineItems[] = ['tenant_id' => $store->tenant_id, 'product_variant_id' => $variant->id, 'product_name_snapshot' => $variant->product->name, 'sku_snapshot' => $variant->sku, 'barcode_snapshot' => $variant->barcode, 'unit_snapshot' => $variant->unit, 'quantity' => $line['quantity'], 'unit_price' => $this->money((string) $variant->selling_price), 'discount_amount' => $lineDiscount, 'tax_amount' => $tax, 'line_total' => $lineTotal, 'unit_cost_at_sale' => $this->money((string) $line['cost'], 4), 'tax_snapshot' => ['rate' => $taxRate, 'mode' => $taxMode]];
+            $lineItems[] = ['tenant_id' => $store->tenant_id, 'product_variant_id' => $variant->id, 'product_name_snapshot' => $variant->product->name, 'sku_snapshot' => $variant->sku, 'barcode_snapshot' => $variant->barcode, 'unit_snapshot' => $variant->unit, 'quantity' => $line['quantity'], 'unit_price' => $this->money((string) $variant->selling_price), 'discount_amount' => $lineDiscount, 'tax_amount' => $tax, 'line_total' => $lineTotal, 'unit_cost_at_sale' => $this->money((string) $line['cost'], 4), 'tax_snapshot' => ['rate' => $taxRate, 'mode' => $taxMode, 'exempt' => (bool) $variant->product->tax_exempt]];
         }
-        $grand = $this->money($this->add($this->subtract($subtotal, $discount), $taxTotal));
 
-        return ['currency_code' => $this->currency($store), 'subtotal' => $subtotal, 'discount_total' => $discount, 'tax_total' => $taxTotal, 'grand_total' => $grand, 'items' => $lineItems];
+        $service = $this->configuredCharge($posConfiguration['service_charge'] ?? [], $discountableSubtotal);
+        $fees = [];
+        foreach ((array) ($posConfiguration['fees'] ?? []) as $configuredFee) {
+            if (! is_array($configuredFee) || ($configuredFee['enabled'] ?? true) === false) {
+                continue;
+            }
+            $fees[] = ['code' => $configuredFee['code'] ?? null, 'label' => (string) ($configuredFee['label'] ?? 'Fee'), 'amount' => $this->configuredCharge($configuredFee, $discountableSubtotal)['amount'], 'taxable' => (bool) ($configuredFee['taxable'] ?? false)];
+        }
+        $feeTotal = array_reduce($fees, fn (string $carry, array $fee): string => $this->money($this->add($carry, $fee['amount'])), '0.00');
+        $taxableCharges = ($service['taxable'] ?? false) ? $service['amount'] : '0.00';
+        foreach ($fees as $fee) {
+            if ($fee['taxable']) {
+                $taxableCharges = $this->money($this->add($taxableCharges, $fee['amount']));
+            }
+        }
+        $chargeTax = $this->taxFor($taxableCharges, $taxRate, $taxMode);
+        $taxTotal = $this->money($this->add($taxTotal, $chargeTax));
+        $taxableAmount = $this->money($this->add($taxableProducts, $taxableCharges));
+        $rawGrand = $this->money($this->add($this->add($productTotal, $service['amount']), $feeTotal));
+        if ($taxMode === 'exclusive') {
+            $rawGrand = $this->money($this->add($rawGrand, $chargeTax));
+        }
+        [$grand, $roundingAdjustment] = $this->roundTotal($rawGrand, (array) ($posConfiguration['rounding'] ?? []));
+
+        return ['currency_code' => $this->currency($store), 'subtotal' => $subtotal, 'discount_total' => $this->money($this->add($itemDiscountTotal, $cartDiscount)), 'item_discount_total' => $itemDiscountTotal, 'cart_discount_total' => $cartDiscount, 'taxable_amount' => $taxableAmount, 'tax_total' => $taxTotal, 'tax_breakdown' => [['label' => 'Products and configured charges', 'rate' => $taxRate, 'taxable_amount' => $taxableAmount, 'tax_amount' => $taxTotal]], 'service_charge_total' => $service['amount'], 'fee_total' => $feeTotal, 'fees' => $fees, 'rounding_adjustment' => $roundingAdjustment, 'grand_total' => $grand, 'items' => $lineItems];
     }
 
     private function assertStoreAccess(Store $store, User $actor): void
@@ -259,6 +308,92 @@ class PosSaleService
         if (! $this->access->canOperate($actor, $store)) {
             throw new AccessDeniedHttpException('You cannot operate POS sales in this store.');
         }
+    }
+
+    private function itemDiscount(array $input, string $base): string
+    {
+        $type = $input['discount_type'] ?? 'fixed';
+        $value = (string) ($input['discount_value'] ?? $input['discount_amount'] ?? '0');
+        $discount = $type === 'percentage' ? $this->divide($this->multiply($base, $value), '100') : $value;
+        $discount = $this->money($discount);
+        if (bccomp($discount, '0.00', 2) < 0 || bccomp($discount, $base, 2) > 0) {
+            throw new UnprocessableEntityHttpException('The item discount must be between zero and the line amount.');
+        }
+
+        return $discount;
+    }
+
+    private function discountValue(string $type, string $value, string $base): string
+    {
+        $discount = $type === 'percentage' ? $this->divide($this->multiply($base, $value), '100') : $value;
+        $discount = $this->money($discount);
+        if (bccomp($discount, '0.00', 2) < 0) {
+            throw new UnprocessableEntityHttpException('The sale discount cannot be negative.');
+        }
+
+        return $discount;
+    }
+
+    private function assertDiscountPolicy(Store $store, User $actor, string $itemDiscount, string $cartDiscount, string $subtotal, array $configuration): void
+    {
+        $totalDiscount = $this->money($this->add($itemDiscount, $cartDiscount));
+        if (bccomp($totalDiscount, '0.00', 2) <= 0) {
+            return;
+        }
+        $manager = $this->access->canManage($actor, $store);
+        if (! $manager) {
+            $message = ($configuration['discount_requires_approval'] ?? false) === true
+                ? 'Manager approval is required before applying this discount.'
+                : 'Only authorized store managers can apply sale discounts.';
+            throw new AccessDeniedHttpException($message);
+        }
+        $maxPercent = (string) ($configuration['discount_max_percent'] ?? 100);
+        $maxAmount = (string) ($configuration['discount_max_amount'] ?? '0');
+        if (bccomp($maxPercent, '0', 2) >= 0 && bccomp($this->multiply($totalDiscount, '100'), $this->multiply($subtotal, $maxPercent), 2) > 0) {
+            throw new UnprocessableEntityHttpException('The discount exceeds the configured percentage limit.');
+        }
+        if (bccomp($maxAmount, '0', 2) > 0 && bccomp($totalDiscount, $maxAmount, 2) > 0) {
+            throw new UnprocessableEntityHttpException('The discount exceeds the configured amount limit.');
+        }
+    }
+
+    private function configuredCharge(array $configuration, string $base): array
+    {
+        if (($configuration['enabled'] ?? true) === false) {
+            return ['amount' => '0.00', 'taxable' => (bool) ($configuration['taxable'] ?? false)];
+        }
+        $value = (string) ($configuration['value'] ?? $configuration['amount'] ?? '0');
+        $amount = ($configuration['type'] ?? 'fixed') === 'percentage' ? $this->divide($this->multiply($base, $value), '100') : $value;
+        if (bccomp($amount, '0', 2) < 0) {
+            throw new UnprocessableEntityHttpException('Configured fees and service charges cannot be negative.');
+        }
+
+        return ['amount' => $this->money($amount), 'taxable' => (bool) ($configuration['taxable'] ?? false)];
+    }
+
+    private function taxFor(string $amount, string $rate, string $mode): string
+    {
+        if (bccomp($amount, '0.00', 2) <= 0 || bccomp($rate, '0.0000', 4) <= 0) {
+            return '0.00';
+        }
+
+        return $this->money($mode === 'inclusive' ? $this->divide($this->multiply($amount, $rate), $this->add('100', $rate)) : $this->divide($this->multiply($amount, $rate), '100'));
+    }
+
+    private function roundTotal(string $amount, array $configuration): array
+    {
+        $increment = (string) ($configuration['increment'] ?? '0.01');
+        if (bccomp($increment, '0', 2) <= 0 || bccomp($increment, '0.01', 2) === 0) {
+            return [$this->money($amount), '0.00'];
+        }
+        $roundingMode = match ($configuration['mode'] ?? 'nearest') {
+            'up' => RoundingMode::Ceiling,
+            'down' => RoundingMode::Floor,
+            default => RoundingMode::HalfUp,
+        };
+        $rounded = BigDecimal::of($amount)->dividedBy($increment, 0, $roundingMode)->multipliedBy($increment)->toScale(2, RoundingMode::HalfUp)->__toString();
+
+        return [$rounded, $this->money($this->subtract($rounded, $amount))];
     }
 
     private function assertRegisterAccess(Store $store, PosRegister $register, User $actor): void
@@ -277,7 +412,14 @@ class PosSaleService
 
     private function hashPayload(array $payload, Store $store, PosRegister $register): string
     {
-        return hash('sha256', json_encode(['store_id' => $store->uuid, 'register_id' => $register->uuid, 'items' => $payload['items'], 'discount_amount' => $payload['discount_amount'] ?? '0', 'customer_id' => $payload['customer_id'] ?? null], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([
+            'store_id' => $store->uuid,
+            'register_id' => $register->uuid,
+            'items' => $payload['items'],
+            'discount_type' => $payload['discount_type'] ?? 'fixed',
+            'discount_value' => $payload['discount_value'] ?? $payload['discount_amount'] ?? '0',
+            'customer_id' => $payload['customer_id'] ?? null,
+        ], JSON_THROW_ON_ERROR));
     }
 
     private function nextNumber(Store $store, string $prefix): string
@@ -291,8 +433,9 @@ class PosSaleService
 
     private function taxRate(Store $store): string
     {
-        $config = $store->setting?->tax_configuration ?? [];
-        $rate = $config['rate'] ?? $config['default_rate'] ?? config('pos.default_tax_rate', '0');
+        $storeConfig = $store->setting?->tax_configuration ?? [];
+        $businessConfig = $store->tenant?->businessSetting?->tax_configuration ?? [];
+        $rate = $storeConfig['rate'] ?? $storeConfig['default_rate'] ?? $businessConfig['rate'] ?? $businessConfig['default_rate'] ?? config('pos.default_tax_rate', '0');
 
         $decimalRate = BigDecimal::of((string) $rate);
 
@@ -302,8 +445,10 @@ class PosSaleService
     private function taxMode(Store $store): string
     {
         $configuration = $store->setting?->tax_configuration ?? [];
+        $businessPayment = $store->tenant?->businessSetting?->payment_configuration ?? [];
+        $businessTax = $store->tenant?->businessSetting?->tax_configuration ?? [];
 
-        return (($configuration['mode'] ?? 'exclusive') === 'inclusive') ? 'inclusive' : 'exclusive';
+        return (($configuration['mode'] ?? $businessPayment['tax_mode'] ?? $businessTax['mode'] ?? 'exclusive') === 'inclusive') ? 'inclusive' : 'exclusive';
     }
 
     private function holdResumeEnabled(Store $store): bool

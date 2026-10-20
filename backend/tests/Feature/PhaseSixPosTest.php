@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\InventoryLocation;
+use App\Models\BusinessSetting;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\Store;
@@ -18,6 +19,36 @@ use Tests\TestCase;
 class PhaseSixPosTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_checkout_preview_applies_discounts_tax_charges_and_rounding_from_business_settings(): void
+    {
+        [$tenant, $admin, $cashier, $store, $location, $variant] = $this->posFixture('BUS-A', 'financial-breakdown');
+        BusinessSetting::where('tenant_id', $tenant->id)->update([
+            'tax_configuration' => ['rate' => '10', 'mode' => 'exclusive'],
+            'pos_configuration' => [
+                'service_charge' => ['enabled' => true, 'type' => 'percentage', 'value' => '5', 'taxable' => false],
+                'fees' => [['code' => 'bag', 'label' => 'Bag fee', 'enabled' => true, 'type' => 'fixed', 'value' => '0.15', 'taxable' => true]],
+                'rounding' => ['mode' => 'nearest', 'increment' => '0.05'],
+            ],
+        ]);
+
+        $response = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/pos/checkout/preview', [
+            'store_id' => $store->uuid,
+            'items' => [['variant_id' => $variant->uuid, 'quantity' => 2, 'discount_type' => 'percentage', 'discount_value' => '10']],
+            'discount_type' => 'fixed',
+            'discount_value' => '1.00',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.subtotal', '20.00')
+            ->assertJsonPath('data.discount_total', '3.00')
+            ->assertJsonPath('data.taxable_amount', '17.15')
+            ->assertJsonPath('data.tax_total', '1.72')
+            ->assertJsonPath('data.service_charge_total', '0.85')
+            ->assertJsonPath('data.fee_total', '0.15')
+            ->assertJsonPath('data.rounding_adjustment', '-0.02')
+            ->assertJsonPath('data.grand_total', '19.70');
+    }
 
     public function test_cash_sale_is_server_priced_idempotent_deducts_stock_and_generates_receipt_pdf(): void
     {
