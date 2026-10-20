@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { currentUser, login as apiLogin, logout as apiLogout, type User } from './api'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
@@ -23,6 +24,7 @@ function syncTenantSelection(user: User): void {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<AuthContextValue['status']>('loading')
   const [user, setUser] = useState<User | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -46,10 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Keep the route and existing auth state intact when the API is offline,
       // returns a server error, or cannot be reached during a page refresh.
-      setError('Unable to verify the session. Check the Laravel server and retry.')
+      setError(t('text.unable_to_verify_the_session_check_the_laravel_server_and_retry'))
       setStatus('loading')
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (restoreStarted.current) return
