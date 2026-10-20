@@ -35,6 +35,9 @@ class TranslateModelFields implements ShouldQueue
 
     public function handle(TranslationService $translations): void
     {
+        if (! $translations->hasStorage()) {
+            return;
+        }
         $model = $translations->resolveModel($this->modelClass, $this->modelId, $this->tenantId);
         if (! $model || ! $translations->provider()->isConfigured()) {
             return;

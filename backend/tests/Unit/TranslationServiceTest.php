@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Contracts\TranslationProvider;
 use App\Models\Category;
+use App\Models\Product;
 use App\Services\TranslationService;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -32,5 +33,12 @@ class TranslationServiceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $this->service()->validateLocale('fr');
+    }
+
+    public function test_canonical_value_is_returned_when_translation_storage_is_unavailable(): void
+    {
+        $product = new Product(['tenant_id' => 1, 'name' => 'Wireless Mouse']);
+
+        self::assertSame('Wireless Mouse', $this->service()->localizedValue($product, 'name', 'my'));
     }
 }

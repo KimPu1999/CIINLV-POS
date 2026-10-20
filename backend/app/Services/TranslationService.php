@@ -12,7 +12,9 @@ use App\Models\Tenant;
 use App\Models\Translation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class TranslationService
 {
@@ -34,6 +36,8 @@ class TranslationService
 
     /** @var array<string, array<string, array<string, mixed>>> */
     private array $statusCache = [];
+
+    private ?bool $storageAvailable = null;
 
     public function __construct(private readonly TranslationProvider $provider) {}
 
@@ -109,6 +113,9 @@ class TranslationService
         }
 
         $source = $model->getAttribute($field);
+        if (! $this->hasStorage()) {
+            return $source;
+        }
         if ($locale === self::DEFAULT_LOCALE && blank($source)) {
             return $source;
         }
@@ -133,6 +140,13 @@ class TranslationService
     public function translationStatus(Model $model, string $locale): array
     {
         $locale = $this->validateLocale($locale);
+        if (! $this->hasStorage()) {
+            return collect($this->fieldsFor($model))->mapWithKeys(fn (string $field): array => [$field => [
+                'state' => 'pending',
+                'has_value' => false,
+                'failure_reason' => null,
+            ]])->all();
+        }
         $cacheKey = $this->tenantId($model).':'.$model::class.':'.$model->getKey().':'.$locale;
         if (isset($this->statusCache[$cacheKey])) {
             return $this->statusCache[$cacheKey];
@@ -158,6 +172,9 @@ class TranslationService
 
     public function ensurePending(Model $model, string $sourceLocale = self::DEFAULT_LOCALE): void
     {
+        if (! $this->hasStorage()) {
+            return;
+        }
         $sourceLocale = $this->validateLocale($sourceLocale);
         $tenantId = $this->tenantId($model);
         foreach ($this->fieldsFor($model) as $field) {
@@ -211,6 +228,25 @@ class TranslationService
     public function provider(): TranslationProvider
     {
         return $this->provider;
+    }
+
+    /**
+     * Translation storage is additive. A deployment can therefore continue
+     * serving canonical product/category/business values while the migration
+     * is still pending, instead of turning every localized request into a
+     * 42P01 relation-not-found error.
+     */
+    public function hasStorage(): bool
+    {
+        if ($this->storageAvailable !== null) {
+            return $this->storageAvailable;
+        }
+
+        try {
+            return $this->storageAvailable = Schema::hasTable('translations');
+        } catch (Throwable) {
+            return $this->storageAvailable = false;
+        }
     }
 
     public function updateManualTranslation(Translation $translation, string $value, int $userId): Translation
