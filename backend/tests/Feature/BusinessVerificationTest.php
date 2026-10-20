@@ -50,6 +50,30 @@ class BusinessVerificationTest extends TestCase
         $this->actingAs($otherUser)->withHeader('X-Tenant-Id', $otherTenant->uuid)->get('/api/v1/business/verification/document/id_front_image')->assertNotFound();
     }
 
+    public function test_profile_and_logo_media_are_private_and_tenant_scoped(): void
+    {
+        Storage::fake('private');
+        [$user, $tenant] = $this->businessAdmin('MEDIA_A');
+        [$otherUser, $otherTenant] = $this->businessAdmin('MEDIA_B');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->actingAs($user)->withHeaders($headers)->post('/api/v1/business/verification/document', [
+            'document_type' => 'admin_profile_image', 'document' => UploadedFile::fake()->image('avatar.webp'),
+        ])->assertOk();
+        $this->actingAs($user)->get('/api/v1/me/profile-image')->assertOk();
+        $this->actingAs($otherUser)->get('/api/v1/me/profile-image')->assertNotFound();
+
+        $this->actingAs($user)->withHeaders($headers)->post('/api/v1/business/settings/logo', [
+            'logo' => UploadedFile::fake()->image('logo.png'),
+        ])->assertOk();
+        $this->actingAs($user)->get('/api/v1/me/business-logo/'.$tenant->uuid)->assertOk();
+        $this->actingAs($otherUser)->get('/api/v1/me/business-logo/'.$tenant->uuid)->assertForbidden();
+        $this->actingAs($user)->withHeaders($headers)->delete('/api/v1/business/verification/document/admin_profile_image')->assertOk();
+        $this->actingAs($user)->get('/api/v1/me/profile-image')->assertNotFound();
+
+        $this->assertNotSame($tenant->uuid, $otherTenant->uuid);
+    }
+
     private function businessAdmin(string $code): array
     {
         $user = User::factory()->create();

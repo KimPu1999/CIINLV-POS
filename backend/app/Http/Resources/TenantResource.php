@@ -67,8 +67,8 @@ class TenantResource extends JsonResource
                     ? 'pending'
                     : ($owner?->email_verified_at ? 'verified' : ($this->email_verification_status ?: 'unknown'));
             }),
-            'logo_url' => $this->logo_path ? ($platformViewer ? route('platform.businesses.verification', [$this->uuid, 'business_logo']) : route('business.settings.logo')) : null,
-            'admin_profile_image_url' => $platformViewer ? null : ($request->user()?->profile_image_path ? route('business.verification.document', 'admin_profile_image') : null),
+            'logo_url' => $this->logo_path ? ($platformViewer ? route('platform.businesses.verification', [$this->uuid, 'business_logo']) : route('me.business-logo', ['tenant' => $this->uuid], false)) : null,
+            'admin_profile_image_url' => $platformViewer ? null : ($request->user()?->profile_image_path ? route('me.profile-image', [], false) : null),
             'verification_document_urls' => [
                 'id_front_image' => $documentUrl($this->id_front_image_path, 'id_front_image'),
                 'id_back_image' => $documentUrl($this->id_back_image_path, 'id_back_image'),

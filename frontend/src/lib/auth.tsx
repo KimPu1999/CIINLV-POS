@@ -68,6 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return authenticatedUser
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    const refreshedUser = await currentUser()
+    syncTenantSelection(refreshedUser)
+    setUser(refreshedUser)
+    setStatus('authenticated')
+    return refreshedUser
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await apiLogout()
@@ -79,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ status, user, error, login, logout, retry: restore }), [status, user, error, login, logout, restore])
+  const value = useMemo(() => ({ status, user, error, login, logout, retry: restore, refreshUser }), [status, user, error, login, logout, restore, refreshUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

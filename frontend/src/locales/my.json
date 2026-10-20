@@ -247,6 +247,8 @@
     "security": "လုံခြုံရေး",
     "subscription": "စာရင်းသွင်းမှု",
     "profile": "ကိုယ်ရေးအချက်အလက်",
+    "my_profile": "ကျွန်ုပ်၏ ကိုယ်ရေးအချက်အလက်",
+    "change_password": "စကားဝှက်ပြောင်းရန်",
     "branches": "ဆိုင်ခွဲများ",
     "one_secure_workspace_for_identity_operations_staff_visibility_security_and_exports": "အထောက်အထား၊ လုပ်ငန်းဆောင်ရွက်မှု၊ ဝန်ထမ်းမြင်နိုင်မှု၊ လုံခြုံရေးနှင့် ထုတ်ယူမှုများအတွက် လုံခြုံသော လုပ်ငန်းခွင်တစ်ခု။",
     "page_of": "{{current}} / {{total}} စာမျက်နှာ",

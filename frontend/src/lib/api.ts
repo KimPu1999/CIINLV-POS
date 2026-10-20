@@ -17,6 +17,7 @@ export interface BusinessMembership {
     business_code?: string | null
     status: string
     subscription_status?: string | null
+    logo_url?: string | null
   }
 }
 
@@ -29,6 +30,8 @@ export interface User {
   memberships?: BusinessMembership[]
   email_verified_at?: string | null
   locale?: 'en' | 'my'
+  profile_image_url?: string | null
+  updated_at?: string | null
 }
 
 export interface ApiResponse<T> {

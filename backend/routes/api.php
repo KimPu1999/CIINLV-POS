@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AuthenticatedMediaController;
 use App\Http\Controllers\Api\V1\BarcodeController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessDashboardController;
@@ -75,6 +76,8 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth:sanctum', 'active.account', 'throttle:api', SetApiLocale::class])->group(function (): void {
         Route::get('/me', [AuthController::class, 'me']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::get('/me/profile-image', [AuthenticatedMediaController::class, 'profileImage'])->name('me.profile-image');
+        Route::get('/me/business-logo/{tenant:uuid}', [AuthenticatedMediaController::class, 'businessLogo'])->name('me.business-logo');
         Route::patch('/me', [AuthController::class, 'updateProfile']);
         Route::get('/me/stores', [CurrentUserStoreController::class, 'stores']);
         Route::get('/me/permissions', [CurrentUserStoreController::class, 'permissions']);
@@ -135,6 +138,7 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/settings/logo', [BusinessProfileController::class, 'removeLogo']);
             Route::post('/verification/document', [BusinessProfileController::class, 'uploadDocument']);
             Route::get('/verification/document/{document}', [BusinessProfileController::class, 'document'])->name('business.verification.document');
+            Route::delete('/verification/document/{document}', [BusinessProfileController::class, 'removeDocument']);
             Route::get('/settings', [BusinessSettingsController::class, 'show']);
             Route::patch('/settings', [BusinessSettingsController::class, 'update']);
             Route::get('/settings/receipt', [BusinessSettingsController::class, 'receipt']);

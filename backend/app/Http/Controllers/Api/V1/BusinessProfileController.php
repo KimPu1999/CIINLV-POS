@@ -74,6 +74,29 @@ class BusinessProfileController
         return response()->file(Storage::disk('private')->path($path));
     }
 
+    public function removeDocument(Request $request, TenantContext $context, AuditLogger $auditLogger, string $document): JsonResponse
+    {
+        $tenant = $context->tenant();
+        Gate::authorize('updateProfile', $tenant);
+
+        if ($document === 'admin_profile_image') {
+            $path = $request->user()->profile_image_path;
+            $request->user()->forceFill(['profile_image_path' => null])->save();
+            $event = 'business.admin_profile_image_removed';
+        } else {
+            abort_unless(in_array($document, ['id_front_image', 'id_back_image', 'company_certificate_image'], true), 404);
+            $column = $document.'_path';
+            $path = $tenant->{$column};
+            $tenant->forceFill([$column => null, 'verification_status' => 'pending'])->save();
+            $event = 'business.verification_document_removed';
+        }
+
+        if ($path) Storage::disk('private')->delete($path);
+        $auditLogger->record($event, $request->user(), $tenant, metadata: ['document_type' => $document]);
+
+        return response()->json(['success' => true, 'data' => new TenantResource($tenant->refresh())]);
+    }
+
     public function uploadLogo(\App\Http\Requests\Business\UploadBusinessLogoRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
     {
         $tenant = $context->tenant();

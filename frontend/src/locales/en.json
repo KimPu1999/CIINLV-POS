@@ -248,6 +248,8 @@
     "security": "Security",
     "subscription": "Subscription",
     "profile": "Profile",
+    "my_profile": "My profile",
+    "change_password": "Change password",
     "branches": "Branches",
     "one_secure_workspace_for_identity_operations_staff_visibility_security_and_exports": "One secure workspace for identity, operations, staff visibility, security, and exports.",
     "page_of": "Page {{current}} of {{total}}",
