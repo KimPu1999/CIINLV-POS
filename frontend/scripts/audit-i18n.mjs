@@ -27,7 +27,8 @@ function textKey(value) {
 }
 
 function looksLikeUiText(value) {
-  return /[A-Za-z]{2}/.test(value)
+  return !['CIINLV POS', 'Promise'].includes(value)
+    && /[A-Za-z]{2}/.test(value)
     && /^[A-Z][^\n]{1,100}$/.test(value)
     && !/[{}$<>]/.test(value)
     && !/^(https?:|\/|api\/|text\/|bg-|text-|border-|px-|py-|mt-|mb-|w-|h-|flex|grid|inline|rounded|shadow|hover:|focus:|sm:|md:|lg:|xl:|className|aria-|type$|button$|submit$|email$|password$|true$|false$)/i.test(value)
@@ -45,6 +46,7 @@ const missingMy = Object.keys(enFlat).filter((key) => !(key in myFlat))
 const missingUsed = new Set()
 const rawKeys = new Set()
 const hardcoded = new Map()
+const strict = process.argv.includes('--strict')
 
 for (const file of sourceFiles) {
   const source = await readFile(file, 'utf8')
@@ -84,4 +86,4 @@ if (hardcoded.size) {
   if (hardcoded.size > 80) console.warn(`- ...and ${hardcoded.size - 80} more`)
 }
 
-if (missingEn.length || missingMy.length || missingUsed.size || rawKeys.size) process.exitCode = 1
+if (missingEn.length || missingMy.length || missingUsed.size || rawKeys.size || (strict && hardcoded.size)) process.exitCode = 1
