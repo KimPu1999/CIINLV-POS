@@ -9,7 +9,7 @@ export function PageHeader({ title, description, action }: { title: string; desc
   const translatedTitle = translateStatic(t, title)
   const translatedDescription = description ? translateStatic(t, description) : undefined
   if (!action) return <><ConfirmationLayer /><div className="sr-only"><h1>{translatedTitle}</h1>{translatedDescription && <p>{translatedDescription}</p>}</div></>
-  return <><ConfirmationLayer /><div className="mb-1 flex min-h-9 items-center justify-end"><div className="sr-only"><h1>{translatedTitle}</h1>{translatedDescription && <p>{translatedDescription}</p>}</div>{action}</div></>
+  return <><ConfirmationLayer /><div className="dashboard-page-actions mb-6 flex min-h-12 items-center justify-end"><div className="sr-only"><h1>{translatedTitle}</h1>{translatedDescription && <p>{translatedDescription}</p>}</div>{action}</div></>
 }
 
 export type LabelBadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
@@ -29,7 +29,7 @@ export function StatCard({ label, value, detail, icon: Icon, tone = 'blue', comp
   const displayValue = countTarget !== null && countTarget !== undefined && Number.isFinite(countTarget)
     ? (countFormatter || ((number) => number.toLocaleString()))(animatedValue)
     : value
-  const cardClassName = `dashboard-stat-card group relative block rounded-2xl border border-slate-200 bg-white ${compact ? 'p-4' : 'p-5'} premium-shadow-md transition duration-200 ease-out hover:-translate-y-1 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:focus-visible:ring-blue-900 ${className}`
+  const cardClassName = `dashboard-stat-card group relative block rounded-2xl border border-slate-200 bg-white ${compact ? 'p-5' : 'p-6'} premium-shadow-md transition duration-200 ease-out hover:-translate-y-1 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:focus-visible:ring-blue-900 ${className}`
   const content = <><div className={`flex ${compact ? 'items-center' : 'items-start'} justify-between gap-4`}><div className="min-w-0"><p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-slate-500`}>{translatedLabel}</p><p className={`${compact ? 'mt-1 text-xl' : 'mt-2 text-2xl'} font-bold tracking-tight text-slate-950`}>{displayValue}</p></div><div className={`shrink-0 rounded-2xl ${compact ? 'p-2.5' : 'p-3'} ${tones[tone]} transition-transform duration-200 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none`}><Icon size={compact ? 20 : 22} /></div></div>{translatedDetail && <p className={`${compact ? 'mt-2 text-[11px]' : 'mt-4 text-xs'} truncate text-slate-400`}>{translatedDetail}</p>}</>
   const destination = to || destinationForStat(label)
   return destination ? <Link to={destination} aria-label={ariaLabel || `${translatedLabel}: ${displayValue}`} className={cardClassName}>{content}</Link> : <div className={cardClassName}>{content}</div>

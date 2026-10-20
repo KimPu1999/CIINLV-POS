@@ -59,7 +59,7 @@
   --theme-primary: var(--brand-primary);
   --theme-primary-soft: var(--brand-primary-light);
   --theme-focus: var(--brand-focus);
-  --shadow-small: 0 3px 10px rgba(0, 0, 0, 0.25);
+  --shadow-small: 0 4px 12px rgba(0, 0, 0, 0.22);
   --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.28);
   --shadow-large: 0 12px 30px rgba(0, 0, 0, 0.38);
   color-scheme: dark;
@@ -234,16 +234,10 @@ select.compact-field {
   border-color: #000000;
 }
 
-/* PageToolbar owns the toolbar chrome. Remove only wrappers whose direct
-   purpose is holding a toolbar; data cards, tables and forms keep their cards. */
-div:has(> [data-page-toolbar="true"]) {
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+/* Toolbar sections stay in normal document flow. Older global rules removed
+   margins from every toolbar parent, which made cards and filters touch. */
+div.mt-3:has(> [data-page-toolbar="true"]) {
+  margin-top: 24px !important;
 }
 
 /* Dashboard cards and table shells use surface + shadow as their visual
@@ -283,6 +277,19 @@ div:has(> [data-page-toolbar="true"]) {
 
 .toolbar-icon-button {
   box-shadow: var(--shadow-small);
+}
+
+.dashboard-page-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.toolbar-tooltip {
+  z-index: 2;
+}
+
+.toolbar-tooltip > [role="tooltip"] {
+  min-width: max-content;
 }
 
 [data-theme="dark"] .toolbar-icon-button {
