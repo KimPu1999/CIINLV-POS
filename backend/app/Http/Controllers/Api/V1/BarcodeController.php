@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Inventory\GenerateBarcodeRequest;
 use App\Http\Resources\ProductVariantResource;
+use App\Models\InventoryLocation;
 use App\Models\ProductVariant;
 use App\Services\AuditLogger;
+use App\Services\ReportScopeService;
 use App\Services\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
@@ -14,10 +16,16 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class BarcodeController
 {
-    public function show(string $barcode, TenantContext $context): JsonResponse
+    public function show(string $barcode, Request $request, TenantContext $context, ReportScopeService $scope): JsonResponse
     {
         $variant = ProductVariant::where('tenant_id', $context->tenant()->id)->where('barcode', $barcode)->where('status', 'active')->with('product')->first();
         abort_unless($variant, 404, 'No active product variant matches this barcode.');
+
+        if ($request->filled('branch_id')) {
+            $storeIds = $scope->storeIds($request->user(), $context->tenant(), (string) $request->input('branch_id'));
+            $locationIds = InventoryLocation::query()->where('tenant_id', $context->tenant()->id)->whereIn('store_id', $storeIds)->pluck('id');
+            $variant->load(['balances' => fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds)]);
+        }
 
         return response()->json(['success' => true, 'data' => new ProductVariantResource($variant)]);
     }

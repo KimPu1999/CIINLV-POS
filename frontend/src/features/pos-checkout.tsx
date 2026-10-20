@@ -24,15 +24,19 @@ export function POSCheckoutPage() {
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage'); const [discountValue, setDiscountValue] = useState(''); const [discountReason, setDiscountReason] = useState('')
   const [cashAmount, setCashAmount] = useState(''); const [cardAmount, setCardAmount] = useState(''); const [qrAmount, setQrAmount] = useState(''); const [cardReference, setCardReference] = useState(''); const [qrReference, setQrReference] = useState('')
   const [loading, setLoading] = useState(true); const [processing, setProcessing] = useState(false); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [cartOpen, setCartOpen] = useState(false); const [drawerOpen, setDrawerOpen] = useState(false); const [openingAmount, setOpeningAmount] = useState(''); const [movementType, setMovementType] = useState<'cash_in' | 'cash_out'>('cash_in'); const [movementAmount, setMovementAmount] = useState(''); const [movementReason, setMovementReason] = useState(''); const [closingAmount, setClosingAmount] = useState(''); const barcodeRef = useRef<HTMLInputElement>(null)
+  const initialStoreLoaded = useRef(false)
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [productResponse, storeResponse, registerResponse, shiftResponse] = await Promise.all([api.get<{ data: Product[] }>('/api/v1/products', { params: { status: 'active', per_page: 100 } }), api.get<{ data: Array<{ store: Store }> }>('/api/v1/me/stores'), api.get<{ data: Register[] }>('/api/v1/pos/registers'), api.get<{ data: Shift | null }>('/api/v1/pos/shifts/current')])
-      const nextProducts = productResponse.data.data; const availableStores = storeResponse.data.data.map((entry) => entry.store); const nextRegisters = registerResponse.data.data; const currentShift = shiftResponse.data.data
-      setProducts(nextProducts); setStores(availableStores); setRegisters(nextRegisters); setShift(currentShift)
+      const [storeResponse, registerResponse, shiftResponse] = await Promise.all([api.get<{ data: Array<{ store: Store }> }>('/api/v1/me/stores'), api.get<{ data: Register[] }>('/api/v1/pos/registers'), api.get<{ data: Shift | null }>('/api/v1/pos/shifts/current')])
+      const availableStores = storeResponse.data.data.map((entry) => entry.store); const nextRegisters = registerResponse.data.data; const currentShift = shiftResponse.data.data
       const activeRegister = nextRegisters.find((register) => register.id === currentShift?.register_id) || nextRegisters.find((register) => register.status === 'active')
-      setRegisterId(activeRegister?.id || ''); setStoreId(currentShift?.store_id || activeRegister?.store_id || availableStores[0]?.id || '')
+      const selectedStoreId = currentShift?.store_id || activeRegister?.store_id || availableStores[0]?.id || ''
+      const productResponse = await api.get<{ data: Product[] }>('/api/v1/products', { params: { status: 'active', per_page: 100, branch_id: selectedStoreId || undefined } })
+      const nextProducts = productResponse.data.data
+      setProducts(nextProducts); setStores(availableStores); setRegisters(nextRegisters); setShift(currentShift)
+      setRegisterId(activeRegister?.id || ''); setStoreId(selectedStoreId)
       try {
         const raw = window.localStorage.getItem(draftKey()); if (!raw) return
         const draft = JSON.parse(raw) as Draft; const allVariants = nextProducts.flatMap((product) => (product.variants || []).map((variant) => ({ product, variant })))
@@ -44,6 +48,14 @@ export function POSCheckoutPage() {
 
   useEffect(() => { void load() }, [load])
   useEffect(() => { if (!cardAmount) setCardAmount('0'); if (!qrAmount) setQrAmount('0') }, [cardAmount, qrAmount])
+  useEffect(() => {
+    if (!storeId || loading) return
+    if (!initialStoreLoaded.current) { initialStoreLoaded.current = true; return }
+    let active = true
+    setProducts([]); setCart([]); setQuote(null)
+    api.get<{ data: Product[] }>('/api/v1/products', { params: { status: 'active', per_page: 100, branch_id: storeId } }).then((response) => { if (active) setProducts(response.data.data) }).catch((err) => { if (active) setError(apiMessage(err, text('unable_to_load_pos_data'))) })
+    return () => { active = false }
+  }, [loading, storeId, text])
   useEffect(() => { if (shift && (shift.store_id !== storeId || shift.register_id !== registerId)) setShift(null) }, [storeId, registerId, shift])
   useEffect(() => { const active = registers.find((register) => register.store_id === storeId && register.status === 'active'); if (active && !registers.some((register) => register.id === registerId && register.store_id === storeId)) setRegisterId(active.id) }, [storeId, registerId, registers])
   useEffect(() => { if (!cart.length) { window.localStorage.removeItem(draftKey()); return } window.localStorage.setItem(draftKey(), JSON.stringify({ lines: cart.map((line) => ({ variantId: line.variant.id, quantity: line.quantity, itemDiscountType: line.itemDiscountType, itemDiscountValue: line.itemDiscountValue })), discountType, discountValue, discountReason })) }, [cart, discountReason, discountType, discountValue])
@@ -55,7 +67,7 @@ export function POSCheckoutPage() {
   const activeRegisters = registers.filter((register) => register.store_id === storeId && register.status === 'active')
 
   const add = (product: Product, variant: Variant) => { if (variant.available_stock !== undefined && variant.available_stock <= 0) { setError(text('product_out_of_stock')); return } setError(''); setMessage(''); setCart((lines) => { const existing = lines.find((line) => line.variant.id === variant.id); if (existing) return lines.map((line) => line.variant.id === variant.id ? { ...line, quantity: line.quantity + 1 } : line); return [...lines, { product, variant, quantity: 1, itemDiscountType: 'fixed', itemDiscountValue: '' }] }); setCartOpen(true) }
-  const scan = async (event: FormEvent) => { event.preventDefault(); const value = barcode.trim(); if (!value) return; try { const response = await api.get<{ data: Variant & { product?: Product } }>(`/api/v1/products/barcode/${encodeURIComponent(value)}`); const variant = response.data.data; add(variant.product || { id: '', name: variant.product_name || text('product'), variants: [variant] }, variant); setBarcode(''); barcodeRef.current?.focus() } catch (err) { setError(apiMessage(err, text('no_active_product_matches_barcode'))) } }
+  const scan = async (event: FormEvent) => { event.preventDefault(); const value = barcode.trim(); if (!value) return; try { const response = await api.get<{ data: Variant & { product?: Product } }>(`/api/v1/products/barcode/${encodeURIComponent(value)}`, { params: { branch_id: storeId || undefined } }); const variant = response.data.data; add(variant.product || { id: '', name: variant.product_name || text('product'), variants: [variant] }, variant); setBarcode(''); barcodeRef.current?.focus() } catch (err) { setError(apiMessage(err, text('no_active_product_matches_barcode'))) } }
   const updateQuantity = (id: string, delta: number) => setCart((lines) => lines.map((line) => line.variant.id === id ? { ...line, quantity: Math.max(1, line.quantity + delta) } : line))
   const updateItemDiscount = (id: string, field: 'itemDiscountType' | 'itemDiscountValue', value: string) => setCart((lines) => lines.map((line) => line.variant.id === id ? { ...line, [field]: value } : line) as CartLine[])
   const remove = (id: string) => setCart((lines) => lines.filter((line) => line.variant.id !== id))
