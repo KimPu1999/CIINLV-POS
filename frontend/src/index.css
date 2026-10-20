@@ -23,8 +23,8 @@
   --theme-primary: var(--brand-primary);
   --theme-primary-soft: var(--brand-primary-light);
   --theme-focus: var(--brand-focus);
-  --shadow-small: 0 2px 8px rgba(36, 50, 71, 0.035);
-  --shadow-medium: 0 4px 18px rgba(36, 50, 71, 0.055);
+  --shadow-small: 0 2px 8px rgba(15, 23, 42, 0.10);
+  --shadow-medium: 0 4px 18px rgba(15, 23, 42, 0.08);
   --shadow-large: 0 12px 30px rgba(36, 50, 71, 0.12);
   color: var(--theme-text);
   background: var(--theme-background);
@@ -59,8 +59,8 @@
   --theme-primary: var(--brand-primary);
   --theme-primary-soft: var(--brand-primary-light);
   --theme-focus: var(--brand-focus);
-  --shadow-small: 0 1px 5px rgba(0, 0, 0, 0.20);
-  --shadow-medium: 0 3px 14px rgba(0, 0, 0, 0.28);
+  --shadow-small: 0 3px 10px rgba(0, 0, 0, 0.25);
+  --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.28);
   --shadow-large: 0 12px 30px rgba(0, 0, 0, 0.38);
   color-scheme: dark;
 }
@@ -131,13 +131,14 @@ select.compact-field {
 
 .compact-search-shell {
   display: flex;
-  min-height: 38px;
+  min-height: 44px;
   min-width: 0;
   align-items: center;
-  gap: 8px;
-  border-radius: 8px;
+  gap: 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
   background: var(--theme-surface);
-  padding: 0 8px 0 12px;
+  padding: 0 10px 0 16px;
   color: var(--theme-text);
   box-shadow: var(--compact-field-shadow);
   outline: none;
@@ -150,7 +151,7 @@ select.compact-field {
 
 .compact-search-input {
   min-width: 0;
-  min-height: 36px;
+  min-height: 42px;
   flex: 1 1 auto;
   border: 0;
   background: transparent;
@@ -256,7 +257,7 @@ div:has(> [data-page-toolbar="true"]) {
 .min-h-screen.bg-slate-50 > aside + div main :is(div, article, section)[class~="rounded-2xl"][class~="bg-white"][class~="border"]:not([class~="border-dashed"]):not(:has(> [data-page-toolbar="true"])),
 .min-h-screen.bg-slate-50 > aside + div main :is(div, article, section)[class~="rounded-xl"][class~="bg-white"][class~="border"]:not([class~="border-dashed"]):not(:has(> [data-page-toolbar="true"])) {
   border: 1px solid var(--theme-border) !important;
-  border-radius: 12px !important;
+  border-radius: 16px !important;
   box-shadow: var(--shadow-medium) !important;
 }
 
@@ -267,7 +268,37 @@ div:has(> [data-page-toolbar="true"]) {
 
 .min-h-screen.bg-slate-50 > aside + div main .warehouse-kpi,
 .min-h-screen.bg-slate-50 > aside + div main .warehouse-card {
-  box-shadow: var(--shadow-small) !important;
+  box-shadow: var(--shadow-medium) !important;
+}
+
+/* Shared dashboard rhythm: stat-card grids keep the 8px spacing scale while
+   leaving page-specific grids and form layouts untouched. */
+.min-h-screen.bg-slate-50 > aside + div main .grid:has(> .dashboard-stat-card) {
+  gap: 20px !important;
+}
+
+.dashboard-stat-card:hover {
+  box-shadow: var(--shadow-large) !important;
+}
+
+.toolbar-icon-button {
+  box-shadow: var(--shadow-small);
+}
+
+[data-theme="dark"] .toolbar-icon-button {
+  border-color: var(--theme-border);
+}
+
+@media (max-width: 639px) {
+  [data-page-toolbar="true"] {
+    justify-content: flex-start;
+  }
+
+  [data-page-toolbar="true"] > .ml-auto {
+    margin-left: 0;
+    max-width: none;
+    order: -1;
+  }
 }
 
 .compact-label {
