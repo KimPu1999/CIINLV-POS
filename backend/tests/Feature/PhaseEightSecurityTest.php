@@ -39,7 +39,8 @@ class PhaseEightSecurityTest extends TestCase
         $this->getJson('/api/v1/health')
             ->assertHeader('X-Content-Type-Options', 'nosniff')
             ->assertHeader('X-Frame-Options', 'DENY')
-            ->assertHeader('Referrer-Policy', 'no-referrer');
+            ->assertHeader('Referrer-Policy', 'no-referrer')
+            ->assertHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
 
         $this->assertNotSame(['*'], config('cors.allowed_methods'));
         $this->assertNotSame(['*'], config('cors.allowed_headers'));

@@ -14,7 +14,10 @@ class SecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'no-referrer');
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        // Camera access is still controlled by HTTPS, browser permission, and the
+        // media-device API. Allowing this origin is required for the POS scanner;
+        // microphone and geolocation remain disabled.
+        $response->headers->set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
 
         if (config('app.force_https', false)) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

@@ -217,7 +217,6 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const { t } = useTranslation()
   const { refreshUser } = useAuth()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const selectedBusiness = memberships.find((membership) => membership.business.id === selectedTenant)?.business ?? memberships[0]?.business
 
   useEffect(() => {
     const handleProfileUpdated = () => { void refreshUser() }
