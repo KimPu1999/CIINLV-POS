@@ -139,6 +139,67 @@ export interface CustomerAddressInput {
 export type CartItem = MarketplaceListing & {
   quantity: number
   cartKey: string
+  serverItemId?: string
+}
+
+export interface MarketplaceCart {
+  id: string
+  currencyCode: string
+  status: string
+  items: CartItem[]
+}
+
+export interface CheckoutQuoteItem {
+  listingId: string
+  variantId: string
+  name: string
+  sku: string
+  quantity: string
+  unitPrice: string
+  taxAmount: string
+  lineTotal: string
+  currencyCode: string
+}
+
+export interface CheckoutQuoteVendor {
+  storeId: string
+  storeName: string
+  currencyCode: string
+  subtotal: string
+  shippingTotal: string
+  taxTotal: string
+  total: string
+  deliveryOptions: { method: string }
+  items: CheckoutQuoteItem[]
+}
+
+export interface CheckoutQuote {
+  currencyCode: string
+  subtotal: string
+  discountTotal: string
+  shippingTotal: string
+  taxTotal: string
+  grandTotal: string
+  deliveryAddress: CustomerAddress | null
+  paymentMethods: string[]
+  onlinePaymentStatus: string
+  vendors: CheckoutQuoteVendor[]
+}
+
+export interface MarketplaceOrder {
+  id: string
+  orderNumber: string
+  currencyCode: string
+  status: string
+  paymentStatus: string
+  subtotal: string
+  discountTotal: string
+  shippingTotal: string
+  taxTotal: string
+  grandTotal: string
+  deliveryAddress: Record<string, unknown>
+  createdAt?: string | null
+  vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; items: Array<{ id: string; name: string; quantity: string; unitPrice: string; lineTotal: string }> }>
 }
 
 export const localeStorageKey = 'ciinlv_marketplace_language'
@@ -157,7 +218,16 @@ const copy = {
   },
 } as const
 
-export type TranslationKey = keyof typeof copy.en
+const additionalCopy = {
+  en: {
+    serverCart: 'Your cart is securely synced to your customer account.', cartSync: 'Syncing your cart…', cod: 'Cash on delivery', paymentMethod: 'Payment method', cashOnDelivery: 'Pay when your order is delivered.', onlinePaymentsUnavailable: 'Online payments are not configured yet. Cash on delivery is the only available method.', selectAddress: 'Select a delivery address', noSavedAddresses: 'Add a saved delivery address in your account before checkout.', quoteLoading: 'Rechecking price, stock, tax, and delivery…', orderPlaced: 'Your order was saved successfully.', orderPendingPayment: 'Payment is pending until authorized fulfillment staff collect the cash.', viewOrder: 'View order', vendor: 'Vendor', delivery: 'Delivery', tax: 'Tax', discount: 'Discount', orderNumber: 'Order number', orderCreated: 'Order created', unavailableAtCheckout: 'Some cart items are no longer available. Please review your cart.', reorder: 'Review cart', onlinePayment: 'Online payment', standardDelivery: 'Standard delivery', orderHistory: 'Order history', noOrdersYet: 'You have not placed a marketplace order yet.', pending: 'Pending', confirmed: 'Confirmed', reserved: 'Stock reserved', securedByServer: 'Prices and stock are verified securely by the marketplace server.',
+  },
+  my: {
+    serverCart: 'သင့်ခြင်းတောင်းကို ဖောက်သည်အကောင့်နှင့် လုံခြုံစွာ ချိတ်ဆက်ထားပါသည်။', cartSync: 'ခြင်းတောင်းကို ချိတ်ဆက်နေသည်…', cod: 'အိမ်အရောက်ငွေချေ', paymentMethod: 'ငွေပေးချေမှုနည်းလမ်း', cashOnDelivery: 'အော်ဒါရောက်သောအခါ ငွေပေးချေပါ။', onlinePaymentsUnavailable: 'အွန်လိုင်းငွေပေးချေမှုကို မသတ်မှတ်ရသေးပါ။ လက်ရှိတွင် အိမ်အရောက်ငွေချေမှုသာ ရရှိပါသည်။', selectAddress: 'ပို့ဆောင်ရမည့်လိပ်စာ ရွေးရန်', noSavedAddresses: 'ငွေချေခြင်းမပြုမီ အကောင့်တွင် ပို့ဆောင်ရမည့်လိပ်စာ သိမ်းပေးပါ။', quoteLoading: 'ဈေးနှုန်း၊ လက်ကျန်၊ အခွန်နှင့် ပို့ဆောင်ခကို ပြန်လည်စစ်ဆေးနေသည်…', orderPlaced: 'သင့်အော်ဒါကို အောင်မြင်စွာ သိမ်းပြီးပါပြီ။', orderPendingPayment: 'ခွင့်ပြုထားသော ပို့ဆောင်ရေးဝန်ထမ်းက ငွေကောက်ခံသည်အထိ ငွေပေးချမှုကို စောင့်ဆိုင်းနေပါသည်။', viewOrder: 'အော်ဒါကြည့်ရန်', vendor: 'ရောင်းချသူ', delivery: 'ပို့ဆောင်မှု', tax: 'အခွန်', discount: 'လျှော့စျေး', orderNumber: 'အော်ဒါနံပါတ်', orderCreated: 'အော်ဒါဖန်တီးပြီး', unavailableAtCheckout: 'ခြင်းတောင်းရှိ ပစ္စည်းအချို့ကို မရနိုင်တော့ပါ။ ခြင်းတောင်းကို ပြန်စစ်ပါ။', reorder: 'ခြင်းတောင်းကို ပြန်စစ်ရန်', onlinePayment: 'အွန်လိုင်းငွေပေးချေမှု', standardDelivery: 'ပုံမှန်ပို့ဆောင်မှု', orderHistory: 'အော်ဒါမှတ်တမ်း', noOrdersYet: 'Marketplace အော်ဒါ မတင်ရသေးပါ။', pending: 'စောင့်ဆိုင်းနေသည်', confirmed: 'အတည်ပြုပြီး', reserved: 'လက်ကျန် သီးသန့်ထားပြီး', securedByServer: 'ဈေးနှုန်းနှင့် လက်ကျန်ကို Marketplace server က လုံခြုံစွာ စစ်ဆေးထားပါသည်။',
+  },
+} as const
+
+export type TranslationKey = keyof typeof copy.en | keyof typeof additionalCopy.en
 
 export function getStoredLocale(): Locale {
   return typeof window !== 'undefined' && window.localStorage.getItem(localeStorageKey) === 'my' ? 'my' : 'en'
@@ -168,7 +238,8 @@ export function getStoredTheme(): Theme {
 }
 
 export function translate(locale: Locale, key: TranslationKey): string {
-  return copy[locale][key] || copy.en[key]
+  const dictionaries: Record<Locale, Record<string, string>> = { en: { ...copy.en, ...additionalCopy.en }, my: { ...copy.my, ...additionalCopy.my } }
+  return dictionaries[locale][key] || dictionaries.en[key] || key
 }
 
 export function formatPrice(value: number, currency = 'MMK', locale: Locale = 'en'): string {
@@ -372,6 +443,109 @@ export async function updateCustomerAddress(id: number, data: CustomerAddressInp
 
 export async function deleteCustomerAddress(id: number, locale: Locale): Promise<void> {
   await requestJson(withQuery(`/me/addresses/${id}`, {}, locale), { method: 'DELETE' }, locale, true)
+}
+
+function normalizeCartItem(value: unknown): CartItem {
+  const item = asRecord(value) ?? {}
+  const variantId = typeof item.variant_id === 'string' ? item.variant_id : null
+  const price = Number(item.unit_price ?? 0)
+  const listing: MarketplaceListing = {
+    id: String(item.listing_id ?? ''),
+    name: String(item.name ?? 'Product'),
+    slug: typeof item.listing_slug === 'string' ? item.listing_slug : null,
+    description: typeof item.description === 'string' ? item.description : null,
+    brand: typeof item.brand === 'string' ? item.brand : null,
+    price,
+    currency: String(item.currency ?? 'MMK'),
+    imageUrl: typeof item.image_url === 'string' ? item.image_url : null,
+    images: [],
+    storeId: typeof item.store_id === 'string' ? item.store_id : null,
+    storeSlug: typeof item.store_slug === 'string' ? item.store_slug : null,
+    storeName: typeof item.store_name === 'string' ? item.store_name : null,
+    availableStock: item.available_stock == null ? null : Number(item.available_stock),
+    trackInventory: item.track_inventory !== false,
+    variantId,
+    variants: variantId ? [{ id: variantId, sku: typeof item.sku === 'string' ? item.sku : null, unit: null, attributes: null, sellingPrice: price, availableStock: item.available_stock == null ? null : Number(item.available_stock), status: 'active' }] : [],
+  }
+  const serverItemId = String(item.id ?? '')
+  return { ...listing, quantity: Math.max(1, Number(item.quantity ?? 1)), cartKey: serverItemId, serverItemId }
+}
+
+export async function fetchMarketplaceCart(locale: Locale): Promise<MarketplaceCart> {
+  const payload = await requestJson(withQuery('/cart', {}, locale), {}, locale)
+  const data = asRecord(unwrap<unknown>(payload)) ?? {}
+  return { id: String(data.id ?? ''), currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'active'), items: Array.isArray(data.items) ? data.items.map(normalizeCartItem).filter((item) => item.id) : [] }
+}
+
+export async function addMarketplaceCartItem(data: { listing_id: string; variant_id?: string | null; quantity: number }, locale: Locale): Promise<MarketplaceCart> {
+  const payload = await requestJson(withQuery('/cart/items', {}, locale), { method: 'POST', body: JSON.stringify(data) }, locale, true)
+  return normalizeCart(unwrap<unknown>(payload))
+}
+
+export async function updateMarketplaceCartItem(id: string, quantity: number, locale: Locale): Promise<MarketplaceCart> {
+  const payload = await requestJson(withQuery(`/cart/items/${encodeURIComponent(id)}`, {}, locale), { method: 'PATCH', body: JSON.stringify({ quantity }) }, locale, true)
+  return normalizeCart(unwrap<unknown>(payload))
+}
+
+export async function removeMarketplaceCartItem(id: string, locale: Locale): Promise<MarketplaceCart> {
+  const payload = await requestJson(withQuery(`/cart/items/${encodeURIComponent(id)}`, {}, locale), { method: 'DELETE' }, locale, true)
+  return normalizeCart(unwrap<unknown>(payload))
+}
+
+export async function clearMarketplaceCart(locale: Locale): Promise<MarketplaceCart> {
+  const payload = await requestJson(withQuery('/cart', {}, locale), { method: 'DELETE' }, locale, true)
+  return normalizeCart(unwrap<unknown>(payload))
+}
+
+function normalizeCart(value: unknown): MarketplaceCart {
+  const data = asRecord(value) ?? {}
+  return { id: String(data.id ?? ''), currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'active'), items: Array.isArray(data.items) ? data.items.map(normalizeCartItem).filter((item) => item.id) : [] }
+}
+
+function normalizeQuote(value: unknown): CheckoutQuote {
+  const data = asRecord(value) ?? {}
+  const vendors = Array.isArray(data.vendors) ? data.vendors.map((vendor) => {
+    const item = asRecord(vendor) ?? {}
+    const delivery = asRecord(item.delivery_options) ?? {}
+    const items = Array.isArray(item.items) ? item.items.map((line) => {
+      const row = asRecord(line) ?? {}
+      return { listingId: String(row.listing_id ?? ''), variantId: String(row.variant_id ?? ''), name: String(row.name ?? ''), sku: String(row.sku ?? ''), quantity: String(row.quantity ?? '0'), unitPrice: String(row.unit_price ?? '0'), taxAmount: String(row.tax_amount ?? '0'), lineTotal: String(row.line_total ?? '0'), currencyCode: String(row.currency_code ?? 'MMK') }
+    }) : []
+    return { storeId: String(item.store_id ?? ''), storeName: String(item.store_name ?? ''), currencyCode: String(item.currency_code ?? 'MMK'), subtotal: String(item.subtotal ?? '0'), shippingTotal: String(item.shipping_total ?? '0'), taxTotal: String(item.tax_total ?? '0'), total: String(item.total ?? '0'), deliveryOptions: { method: String(delivery.method ?? 'standard') }, items }
+  }) : []
+  const address = asRecord(data.delivery_address)
+  return { currencyCode: String(data.currency_code ?? 'MMK'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), deliveryAddress: address ? { id: Number(address.id ?? 0), recipientName: String(address.recipient_name ?? ''), phone: typeof address.phone === 'string' ? address.phone : null, addressLine1: String(address.address_line_1 ?? ''), addressLine2: typeof address.address_line_2 === 'string' ? address.address_line_2 : null, city: String(address.city ?? ''), region: typeof address.region === 'string' ? address.region : null, postalCode: typeof address.postal_code === 'string' ? address.postal_code : null, country: String(address.country ?? 'MM'), isDefault: false } : null, paymentMethods: Array.isArray(data.payment_methods) ? data.payment_methods.map(String) : ['cod'], onlinePaymentStatus: String(data.online_payment_status ?? 'not_configured'), vendors }
+}
+
+export async function fetchCheckoutQuote(addressId: number, locale: Locale): Promise<CheckoutQuote> {
+  const payload = await requestJson(withQuery('/checkout/quote', {}, locale), { method: 'POST', body: JSON.stringify({ address_id: addressId, payment_method: 'cod' }) }, locale, true)
+  return normalizeQuote(unwrap<unknown>(payload))
+}
+
+export async function checkoutMarketplace(addressId: number, locale: Locale, idempotencyKey: string): Promise<MarketplaceOrder> {
+  const payload = await requestJson(withQuery('/checkout', {}, locale), { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ address_id: addressId, payment_method: 'cod' }) }, locale, true)
+  return normalizeOrder(unwrap<unknown>(payload))
+}
+
+function normalizeOrder(value: unknown): MarketplaceOrder {
+  const data = asRecord(value) ?? {}
+  const vendors = Array.isArray(data.vendor_orders) ? data.vendor_orders.map((vendor) => {
+    const item = asRecord(vendor) ?? {}
+    const items = Array.isArray(item.items) ? item.items.map((line) => { const row = asRecord(line) ?? {}; return { id: String(row.id ?? ''), name: String(row.name ?? ''), quantity: String(row.quantity ?? '0'), unitPrice: String(row.unit_price ?? '0'), lineTotal: String(row.line_total ?? '0') } }) : []
+    return { id: String(item.id ?? ''), vendorOrderNumber: String(item.vendor_order_number ?? ''), storeName: typeof item.store_name === 'string' ? item.store_name : null, status: String(item.status ?? 'pending'), total: String(item.total ?? '0'), items }
+  }) : []
+  return { id: String(data.id ?? ''), orderNumber: String(data.order_number ?? ''), currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'confirmed'), paymentStatus: String(data.payment_status ?? 'pending'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), deliveryAddress: asRecord(data.delivery_address) ?? {}, createdAt: typeof data.created_at === 'string' ? data.created_at : null, vendorOrders: vendors }
+}
+
+export async function fetchMarketplaceOrders(locale: Locale): Promise<MarketplaceOrder[]> {
+  const payload = await requestJson(withQuery('/orders', { per_page: 50 }, locale), {}, locale)
+  const values = unwrap<unknown>(payload)
+  return Array.isArray(values) ? values.map(normalizeOrder) : []
+}
+
+export async function fetchMarketplaceOrder(id: string, locale: Locale): Promise<MarketplaceOrder> {
+  const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(id)}`, {}, locale), {}, locale)
+  return normalizeOrder(unwrap<unknown>(payload))
 }
 
 export function apiErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {

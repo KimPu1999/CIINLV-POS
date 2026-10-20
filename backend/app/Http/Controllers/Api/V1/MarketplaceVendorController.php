@@ -8,9 +8,11 @@ use App\Http\Requests\Marketplace\UploadMarketplaceStoreMediaRequest;
 use App\Http\Requests\Marketplace\UpdateMarketplaceStoreRequest;
 use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceStoreResource;
+use App\Http\Resources\MarketplaceVendorOrderResource;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceListingImage;
 use App\Models\MarketplaceStore;
+use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\TenantContext;
@@ -69,6 +71,11 @@ class MarketplaceVendorController
             ->values()
             ->all();
 
+        $pendingOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereIn('status', ['pending', 'processing'])->count();
+        $completedOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereIn('status', ['delivered'])->count();
+        $revenue = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereNotIn('status', ['cancelled', 'refunded'])->sum('total');
+        $recentOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->with(['store', 'order'])->latest()->limit(8)->get();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -76,20 +83,38 @@ class MarketplaceVendorController
                 'metrics' => [
                     'published_products' => $publishedProducts,
                     'low_stock_products' => count($lowStockProducts),
-                    'pending_orders' => null,
-                    'completed_orders' => null,
-                    'marketplace_revenue' => null,
+                    'pending_orders' => $pendingOrders,
+                    'completed_orders' => $completedOrders,
+                    'marketplace_revenue' => number_format((float) $revenue, 2, '.', ''),
                 ],
                 'low_stock_products' => $lowStockProducts,
-                'recent_orders' => [],
+                'recent_orders' => MarketplaceVendorOrderResource::collection($recentOrders),
                 'capabilities' => [
-                    'orders' => false,
+                    'orders' => true,
                     'shipping' => false,
                     'reviews' => false,
                     'earnings' => false,
                 ],
             ],
         ]);
+    }
+
+    public function orders(Request $request, TenantContext $context): JsonResponse
+    {
+        $orders = MarketplaceVendorOrder::query()
+            ->where('tenant_id', $context->tenant()->id)
+            ->with(['store', 'tenant', 'items', 'order'])
+            ->latest()
+            ->paginate(min(max((int) $request->input('per_page', 20), 1), 50));
+
+        return response()->json(['success' => true, 'data' => MarketplaceVendorOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);
+    }
+
+    public function order(Request $request, string $order, TenantContext $context): JsonResponse
+    {
+        $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items', 'order.payments'])->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => new MarketplaceVendorOrderResource($model)]);
     }
 
     public function store(Request $request, TenantContext $context): JsonResponse

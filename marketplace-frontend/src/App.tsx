@@ -31,11 +31,17 @@ import {
 import { MarketplaceShell, StoreMark } from './components/MarketplaceShell'
 import {
   apiErrorMessage,
+  addMarketplaceCartItem,
   cartStorageKey,
+  checkoutMarketplace,
   createCustomerAddress,
   deleteCustomerAddress,
   fetchCatalog,
+  fetchCheckoutQuote,
   fetchCustomer,
+  fetchMarketplaceCart,
+  fetchMarketplaceOrder,
+  fetchMarketplaceOrders,
   fetchProduct,
   fetchProducts,
   fetchStore,
@@ -50,8 +56,11 @@ import {
   translate,
   updateCustomer,
   updateCustomerAddress,
+  updateMarketplaceCartItem,
+  removeMarketplaceCartItem,
   wishlistStorageKey,
   type CartItem,
+  type CheckoutQuote,
   type CatalogResult,
   type Customer,
   type CustomerAddress,
@@ -61,6 +70,7 @@ import {
   type MarketplaceListing,
   type MarketplaceStore,
   type MarketplaceVariant,
+  type MarketplaceOrder,
   type PaginationMeta,
   type ProductPage,
   type Theme,
@@ -80,6 +90,7 @@ interface AppServices {
   removeFromCart: (cartKey: string) => void
   toggleWishlist: (id: string) => void
   setCustomer: (customer: Customer | null) => void
+  cartServer: boolean
 }
 
 function App() {
@@ -116,8 +127,28 @@ function App() {
   }, [locale])
 
   useEffect(() => {
-    window.localStorage.setItem(cartStorageKey, JSON.stringify(cart))
-  }, [cart])
+    if (!customer) window.localStorage.setItem(cartStorageKey, JSON.stringify(cart))
+  }, [cart, customer])
+
+  useEffect(() => {
+    if (!customer) return
+    let active = true
+    const guestCart = readStoredCart().filter((item) => !item.serverItemId)
+    void fetchMarketplaceCart(locale).then(async (serverCart) => {
+      let next = serverCart.items
+      for (const item of guestCart) {
+        try {
+          const synced = await addMarketplaceCartItem({ listing_id: item.id, variant_id: item.variantId, quantity: item.quantity }, locale)
+          next = synced.items
+        } catch { /* stale guest items are safely ignored by server validation */ }
+      }
+      if (active) {
+        setCart(next)
+        window.localStorage.removeItem(cartStorageKey)
+      }
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [customer?.id, locale])
 
   useEffect(() => {
     window.localStorage.setItem(wishlistStorageKey, JSON.stringify(wishlist))
@@ -125,6 +156,10 @@ function App() {
 
   const t = (key: TranslationKey) => translate(locale, key)
   const addToCart = (listing: MarketplaceListing, variantId?: string) => {
+    if (customer) {
+      void addMarketplaceCartItem({ listing_id: listing.id, variant_id: variantId ?? listing.variantId, quantity: 1 }, locale).then((next) => setCart(next.items)).catch(() => undefined)
+      return
+    }
     const variant = listing.variants.find((item) => item.id === variantId) ?? listing.variants[0]
     const availableStock = variant?.availableStock ?? listing.availableStock
     if (availableStock === 0) return
@@ -137,13 +172,31 @@ function App() {
       return existing ? current.map((entry) => entry.cartKey === cartKey ? { ...entry, quantity } : entry) : [...current, item]
     })
   }
-  const updateQuantity = (cartKey: string, quantity: number) => setCart((current) => current.flatMap((item) => {
+  const updateQuantity = (cartKey: string, quantity: number) => {
+    const currentItem = cart.find((item) => item.cartKey === cartKey)
+    if (customer && currentItem?.serverItemId) {
+      if (quantity <= 0) {
+        void removeMarketplaceCartItem(currentItem.serverItemId, locale).then((next) => setCart(next.items)).catch(() => undefined)
+      } else {
+        void updateMarketplaceCartItem(currentItem.serverItemId, quantity, locale).then((next) => setCart(next.items)).catch(() => undefined)
+      }
+      return
+    }
+    setCart((current) => current.flatMap((item) => {
     if (item.cartKey !== cartKey) return [item]
     if (quantity <= 0) return []
     const nextQuantity = typeof item.availableStock === 'number' ? Math.min(quantity, item.availableStock) : quantity
     return [{ ...item, quantity: nextQuantity }]
-  }))
-  const removeFromCart = (cartKey: string) => setCart((current) => current.filter((item) => item.cartKey !== cartKey))
+    }))
+  }
+  const removeFromCart = (cartKey: string) => {
+    const item = cart.find((entry) => entry.cartKey === cartKey)
+    if (customer && item?.serverItemId) {
+      void removeMarketplaceCartItem(item.serverItemId, locale).then((next) => setCart(next.items)).catch(() => undefined)
+      return
+    }
+    setCart((current) => current.filter((entry) => entry.cartKey !== cartKey))
+  }
   const toggleWishlist = (id: string) => setWishlist((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
   const changeLocale = (next: Locale) => {
     setLocaleState(next)
@@ -156,7 +209,7 @@ function App() {
       setCustomer(null)
     }
   }
-  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, removeFromCart, toggleWishlist, setCustomer }
+  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, removeFromCart, toggleWishlist, setCustomer, cartServer: Boolean(customer) }
 
   return (
     <MarketplaceShell
@@ -179,7 +232,7 @@ function App() {
         <Route path="/wishlist" element={<WishlistPage {...services} />} />
         <Route path="/cart" element={<CartPage {...services} />} />
         <Route path="/checkout" element={<CheckoutPage {...services} />} />
-        <Route path="/order-success" element={<OrderSuccessPage {...services} />} />
+        <Route path="/order-success" element={<ProtectedRoute {...services}><OrderSuccessPage {...services} /></ProtectedRoute>} />
         <Route path="/login" element={<AuthPage {...services} />} />
         <Route path="/register" element={<AuthPage {...services} mode="register" />} />
         <Route path="/account" element={<ProtectedRoute {...services}><AccountPage {...services} /></ProtectedRoute>} />
@@ -334,15 +387,46 @@ function WishlistPage({ catalog, locale, t, wishlist, toggleWishlist, addToCart 
   return <PageContainer><PageIntro eyebrow={t('wishlist')} title={t('wishlist')} body={t('discoverBody')} /><div className="mt-10">{listings.length > 0 ? <ProductGrid listings={listings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <EmptyState icon={<Heart size={28} />} title={t('wishlist')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} />}</div></PageContainer>
 }
 
-function CartPage({ cart, locale, t, updateQuantity, removeFromCart }: AppServices) {
+function CartPage({ cart, locale, t, updateQuantity, removeFromCart, cartServer }: AppServices) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  return <PageContainer><PageIntro eyebrow={t('cart')} title={t('cart')} body={t('discoverBody')} /><div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">{t('localCartNotice')}</div><div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">{cart.length > 0 ? <><div className="grid gap-3">{cart.map((item) => <div key={item.cartKey} className="flex gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><ProductThumb listing={item} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><Link to={`/product/${item.slug ?? item.id}`} className="font-black text-slate-950 hover:text-blue-600 dark:text-white">{item.name}</Link><p className="mt-1 text-xs font-semibold text-slate-400">{item.storeName || t('marketplace')}{item.variantId && item.variants.length > 1 ? ` · ${t('variant')}` : ''}</p></div><button type="button" onClick={() => removeFromCart(item.cartKey)} className="grid size-9 place-items-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-500" aria-label={t('removeItem')}><TrashIcon /></button></div><div className="mt-5 flex items-center justify-between"><span className="font-black text-blue-600">{formatPrice(item.price, item.currency, locale)}</span><div className="flex items-center gap-2 rounded-xl border border-slate-200 p-1 dark:border-slate-700"><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity - 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('decreaseQuantity')}><Minus size={14} /></button><span className="w-7 text-center text-sm font-black">{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('increaseQuantity')}><Plus size={14} /></button></div></div></div></div>)}</div><OrderSummary subtotal={subtotal} locale={locale} t={t} /></> : <div className="lg:col-span-2"><EmptyState icon={<ShoppingBag size={28} />} title={t('cartEmpty')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div>}</div></PageContainer>
+  return <PageContainer><PageIntro eyebrow={t('cart')} title={t('cart')} body={t('discoverBody')} />{<div className={'mt-8 rounded-2xl border p-4 text-sm font-semibold leading-6 ' + (cartServer ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200')}>{t(cartServer ? 'serverCart' : 'localCartNotice')}</div>}<div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">{cart.length > 0 ? <><div className="grid gap-3">{cart.map((item) => <div key={item.cartKey} className="flex gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><ProductThumb listing={item} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><Link to={`/product/${item.slug ?? item.id}`} className="font-black text-slate-950 hover:text-blue-600 dark:text-white">{item.name}</Link><p className="mt-1 text-xs font-semibold text-slate-400">{item.storeName || t('marketplace')}{item.variantId && item.variants.length > 1 ? ` · ${t('variant')}` : ''}</p></div><button type="button" onClick={() => removeFromCart(item.cartKey)} className="grid size-9 place-items-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-500" aria-label={t('removeItem')}><TrashIcon /></button></div><div className="mt-5 flex items-center justify-between"><span className="font-black text-blue-600">{formatPrice(item.price, item.currency, locale)}</span><div className="flex items-center gap-2 rounded-xl border border-slate-200 p-1 dark:border-slate-700"><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity - 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('decreaseQuantity')}><Minus size={14} /></button><span className="w-7 text-center text-sm font-black">{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('increaseQuantity')}><Plus size={14} /></button></div></div></div></div>)}</div><OrderSummary subtotal={subtotal} currency={cart[0]?.currency ?? 'MMK'} locale={locale} t={t} /></> : <div className="lg:col-span-2"><EmptyState icon={<ShoppingBag size={28} />} title={t('cartEmpty')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div>}</div></PageContainer>
 }
 
 function CheckoutPage({ cart, locale, customer, t }: AppServices) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   if (cart.length === 0) return <PageContainer><EmptyState icon={<ShoppingBag size={28} />} title={t('cartEmpty')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></PageContainer>
-  return <PageContainer><PageIntro eyebrow={t('secureCheckout')} title={t('checkout')} body={t('checkoutUnavailable')} /><div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]"><form onSubmit={(event) => event.preventDefault()} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-black">{t('customerDetails')}</h2><p className="mt-2 text-sm text-slate-500">{customer ? `${t('signedInAs')} ${customer.name}` : t('authRequired')}</p></div><MapPin className="text-blue-600" size={22} /></div><div className="mt-6 grid gap-5 sm:grid-cols-2"><Field label={t('fullName')} name="name" autoComplete="name" /><Field label={t('email')} name="email" type="email" autoComplete="email" /><Field label={t('phone')} name="phone" autoComplete="tel" /><Field label={t('address')} name="address" wide autoComplete="street-address" /></div><div className="mt-7 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"><CircleAlert size={18} className="mb-2" />{t('checkoutUnavailable')}</div><button type="submit" disabled className="mt-7 inline-flex h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white opacity-60"><ShieldCheck size={17} /> {t('placeOrder')}</button></form><OrderSummary subtotal={subtotal} locale={locale} t={t} /></div></PageContainer>
+  if (!customer) return <Navigate to="/login?next=%2Fcheckout" replace />
+  return <CheckoutForm cart={cart} locale={locale} customer={customer} subtotal={subtotal} t={t} />
+}
+
+function CheckoutForm({ cart, locale, customer, subtotal, t }: { cart: CartItem[]; locale: Locale; customer: Customer; subtotal: number; t: (key: TranslationKey) => string }) {
+  const navigate = useNavigate()
+  const [addressId, setAddressId] = useState<number | undefined>(customer.addresses.find((address) => address.isDefault)?.id ?? customer.addresses[0]?.id)
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [quoteBusy, setQuoteBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [idempotencyKey] = useState(() => `marketplace-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+
+  useEffect(() => {
+    if (!addressId) { setQuote(null); return }
+    let active = true
+    setQuoteBusy(true); setError('')
+    void fetchCheckoutQuote(addressId, locale).then((value) => { if (active) setQuote(value) }).catch((reason: unknown) => { if (active) { setQuote(null); setError(apiErrorMessage(reason, t('errorGeneric'))) } }).finally(() => { if (active) setQuoteBusy(false) })
+    return () => { active = false }
+  }, [addressId, cart.length, locale])
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!addressId) { setError(t('selectAddress')); return }
+    setBusy(true); setError('')
+    try {
+      const order = await checkoutMarketplace(addressId, locale, idempotencyKey)
+      navigate(`/order-success?order=${encodeURIComponent(order.id)}`, { replace: true })
+    } catch (reason: unknown) { setError(apiErrorMessage(reason, t('errorGeneric'))) } finally { setBusy(false) }
+  }
+
+  return <PageContainer><PageIntro eyebrow={t('secureCheckout')} title={t('checkout')} body={t('securedByServer')} /><div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]"><form onSubmit={submit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-black">{t('customerDetails')}</h2><p className="mt-2 text-sm text-slate-500">{t('signedInAs')} {customer.name}</p></div><MapPin className="text-blue-600" size={22} /></div>{error && <div role="alert" className="mt-6 flex gap-2 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200"><CircleAlert className="shrink-0" size={18} />{error}</div>}<div className="mt-7"><label className="text-sm font-black">{t('selectAddress')}</label>{customer.addresses.length ? <select value={addressId ?? ''} onChange={(event) => setAddressId(event.target.value ? Number(event.target.value) : undefined)} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('selectAddress')}</option>{customer.addresses.map((address) => <option key={address.id} value={address.id}>{address.recipientName} · {address.addressLine1}, {address.city}</option>)}</select> : <div className="mt-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noSavedAddresses')} <Link to="/account" className="text-blue-600 hover:underline">{t('account')}</Link></div>}</div><div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-center gap-2 text-sm font-black text-blue-900 dark:text-blue-100"><ShieldCheck size={18} />{t('paymentMethod')}</div><label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-slate-900"><input type="radio" checked readOnly className="mt-1 accent-blue-600" /><span><span className="block text-sm font-black">{t('cashOnDelivery')}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{t('orderPendingPayment')}</span></span></label><p className="mt-3 text-xs font-semibold leading-5 text-blue-800 dark:text-blue-200">{t('onlinePaymentsUnavailable')}</p></div><div className="mt-7 rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><h3 className="font-black">{t('orderSummary')}</h3><div className="mt-4 grid gap-3">{quote?.vendors.map((vendor) => <div key={vendor.storeId} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex justify-between gap-3 text-sm font-black"><span>{vendor.storeName}</span><span>{formatPrice(Number(vendor.total), vendor.currencyCode, locale)}</span></div><p className="mt-1 text-xs font-semibold text-slate-500">{vendor.items.length} {t('products')} · {t('standardDelivery')}</p></div>)}</div>{quoteBusy && <p className="mt-4 text-sm font-semibold text-slate-500">{t('quoteLoading')}</p>}</div><button type="submit" disabled={busy || quoteBusy || !quote || !addressId} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={18} /> : <ShieldCheck size={17} />} {t('placeOrder')}</button></form><OrderSummary subtotal={quote ? Number(quote.subtotal) : subtotal} currency={quote?.currencyCode ?? cart[0]?.currency ?? 'MMK'} quote={quote} locale={locale} t={t} /></div></PageContainer>
 }
 
 function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServices & { mode?: 'login' | 'register' }) {
@@ -409,16 +493,27 @@ function AccountPage({ customer, locale, t, setCustomer }: AppServices) {
   return <PageContainer><PageIntro eyebrow={t('account')} title={t('customerDashboard')} body={t('signInBody')} />{(notice || error) && <div role={error ? 'alert' : 'status'} className={'mt-8 rounded-2xl p-4 text-sm font-semibold ' + (error ? 'bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-200' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200')}>{error || notice}</div>}<div className="mt-10 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]"><form onSubmit={submitProfile} className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><UserRound size={22} /></span><div><h2 className="text-xl font-black">{t('profile')}</h2><p className="text-sm text-slate-500">{customer?.email}</p></div></div><div className="mt-6 grid gap-5"><Field label={t('fullName')} name="name" value={name} onChange={setName} required /><Field label={t('phoneOptional')} name="phone" type="tel" value={phone} onChange={setPhone} autoComplete="tel" /></div><button type="submit" disabled={busy} className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={17} /> : <Check size={17} />} {t('saveChanges')}</button></form><div className="grid gap-6"><section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-black">{t('addresses')}</h2><p className="mt-1 text-sm text-slate-500">{t('address')}</p></div><MapPin className="text-blue-600" size={22} /></div><div className="mt-5 grid gap-3">{customer?.addresses.length ? customer.addresses.map((item) => <div key={item.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700"><div className="flex items-start justify-between gap-4"><div><p className="font-black">{item.recipientName}</p><p className="mt-1 text-sm leading-6 text-slate-500">{item.addressLine1}{item.addressLine2 ? `, ${item.addressLine2}` : ''}, {item.city}{item.region ? `, ${item.region}` : ''}</p></div>{item.isDefault && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{t('defaultAddress')}</span>}</div><div className="mt-4 flex gap-2"><button type="button" onClick={() => { setEditing(item.id); setAddress(addressFromCustomer(item)) }} className="rounded-lg px-3 py-2 text-xs font-black text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">{t('edit')}</button><button type="button" onClick={() => void removeAddress(item.id)} disabled={busy} className="rounded-lg px-3 py-2 text-xs font-black text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">{t('delete')}</button></div></div>) : <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noOrdersBody')}</p>}</div></section><form onSubmit={submitAddress} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="text-xl font-black">{editing ? t('edit') : t('saveAddress')}</h2><div className="mt-5 grid gap-4 sm:grid-cols-2"><AddressField label={t('fullName')} value={address.recipient_name} onChange={(value) => setAddress({ ...address, recipient_name: value })} required /><AddressField label={t('phoneOptional')} value={address.phone ?? ''} onChange={(value) => setAddress({ ...address, phone: value })} /><AddressField label={t('addressLine1')} value={address.address_line_1} onChange={(value) => setAddress({ ...address, address_line_1: value })} wide required /><AddressField label={t('addressLine2')} value={address.address_line_2 ?? ''} onChange={(value) => setAddress({ ...address, address_line_2: value })} wide /><AddressField label={t('city')} value={address.city} onChange={(value) => setAddress({ ...address, city: value })} required /><AddressField label={t('region')} value={address.region ?? ''} onChange={(value) => setAddress({ ...address, region: value })} /><AddressField label={t('postalCode')} value={address.postal_code ?? ''} onChange={(value) => setAddress({ ...address, postal_code: value })} /><AddressField label={t('country')} value={address.country} onChange={(value) => setAddress({ ...address, country: value.toUpperCase() })} required /></div><label className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-500"><input type="checkbox" checked={Boolean(address.is_default)} onChange={(event) => setAddress({ ...address, is_default: event.target.checked })} className="accent-blue-600" /> {t('defaultAddress')}</label><div className="mt-5 flex flex-wrap gap-3"><button type="submit" disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white disabled:opacity-60">{busy && <LoaderCircle className="animate-spin" size={17} />} {t('saveAddress')}</button>{editing && <button type="button" onClick={() => { setEditing(null); setAddress(emptyAddress(customer!.name)) }} className="rounded-xl border border-slate-200 px-4 text-sm font-black dark:border-slate-700">{t('clear')}</button>}</div></form></div></div></PageContainer>
 }
 
-function OrdersPage({ t }: AppServices) {
-  return <PageContainer><PageIntro eyebrow={t('account')} title={t('myOrders')} body={t('noOrdersBody')} /><div className="mt-10"><EmptyState icon={<Package size={28} />} title={t('noOrders')} body={t('noOrdersBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div></PageContainer>
+function OrdersPage({ locale, t }: AppServices) {
+  const [orders, setOrders] = useState<MarketplaceOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => { let active = true; setLoading(true); void fetchMarketplaceOrders(locale).then((value) => { if (active) setOrders(value) }).catch((reason: unknown) => { if (active) setError(apiErrorMessage(reason, t('errorGeneric'))) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [locale])
+  return <PageContainer><PageIntro eyebrow={t('account')} title={t('myOrders')} body={t('orderHistory')} />{error && <div role="alert" className="mt-8 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200">{error}</div>}{loading ? <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">{t('loading')}</div> : orders.length === 0 ? <div className="mt-10"><EmptyState icon={<Package size={28} />} title={t('noOrdersYet')} body={t('noOrdersBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div> : <div className="mt-10 grid gap-4">{orders.map((order) => <Link key={order.id} to={`/order-success?order=${encodeURIComponent(order.id)}`} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('orderNumber')}</p><h2 className="mt-1 text-lg font-black">{order.orderNumber}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{order.vendorOrders.length} {t('vendor')}</p></div><div className="text-right"><p className="text-lg font-black text-blue-600">{formatPrice(Number(order.grandTotal), order.currencyCode, locale)}</p><p className="mt-1 text-xs font-black uppercase text-amber-600">{t(order.paymentStatus === 'pending' ? 'pending' : 'confirmed')}</p></div></div></Link>)}</div>}</PageContainer>
 }
 
 function TrackingPage({ t }: AppServices) {
   return <PageContainer><PageIntro eyebrow={t('account')} title={t('trackingTitle')} body={t('trackingBody')} /><div className="mt-10"><EmptyState icon={<Truck size={28} />} title={t('trackingTitle')} body={t('trackingBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div></PageContainer>
 }
 
-function OrderSuccessPage({ t }: AppServices) {
-  return <PageContainer><EmptyState icon={<Check size={28} />} title={t('orderSuccess')} body={t('orderSuccessBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('backToShop')} <ArrowRight size={16} /></Link>} /></PageContainer>
+function OrderSuccessPage({ locale, t }: AppServices) {
+  const [params] = useSearchParams()
+  const [order, setOrder] = useState<MarketplaceOrder | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => { const id = params.get('order'); if (!id) { setLoading(false); return }; let active = true; void fetchMarketplaceOrder(id, locale).then((value) => { if (active) setOrder(value) }).catch((reason: unknown) => { if (active) setError(apiErrorMessage(reason, t('errorGeneric'))) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [locale, params])
+  if (loading) return <PageContainer><LoadingState t={t} /></PageContainer>
+  if (!order || error) return <PageContainer><EmptyState icon={<CircleAlert size={28} />} title={t('errorGeneric')} body={error || t('orderSuccessBody')} action={<Link to="/orders" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('myOrders')} <ArrowRight size={16} /></Link>} /></PageContainer>
+  return <PageContainer><PageIntro eyebrow={t('orderCreated')} title={t('orderSuccess')} body={t('orderPlaced')} /><div className="mt-10 rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm dark:border-emerald-900/50 dark:bg-slate-900 sm:p-8"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('orderNumber')}</p><h2 className="mt-1 text-2xl font-black">{order.orderNumber}</h2><p className="mt-3 text-sm font-semibold text-slate-500">{t('orderPendingPayment')}</p></div><div className="text-right"><p className="text-2xl font-black text-blue-600">{formatPrice(Number(order.grandTotal), order.currencyCode, locale)}</p><p className="mt-1 text-xs font-black uppercase text-amber-600">{t('pending')}</p></div></div><div className="mt-7 grid gap-3">{order.vendorOrders.map((vendor) => <div key={vendor.id} className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"><div className="flex justify-between gap-4 text-sm font-black"><span>{vendor.storeName || t('vendor')}</span><span>{formatPrice(Number(vendor.total), order.currencyCode, locale)}</span></div><p className="mt-1 text-xs font-semibold text-slate-500">{vendor.vendorOrderNumber} · {t('reserved')}</p></div>)}</div><div className="mt-8 flex flex-wrap gap-3"><Link to="/orders" className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('myOrders')}</Link><Link to="/shop" className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-black dark:border-slate-700">{t('backToShop')}</Link></div></div></PageContainer>
 }
 
 function InfoPage({ title, t }: AppServices & { title: string }) {
@@ -466,8 +561,8 @@ function CatalogEmpty({ status, t }: { status: CatalogResult['status']; t: (key:
   return <EmptyState icon={status === 'error' ? <CircleAlert size={28} /> : <Package size={28} />} title={status === 'error' ? t('catalogUnavailable') : t('noListings')} body={status === 'error' ? t('catalogUnavailableBody') : t('noListingsBody')} />
 }
 
-function OrderSummary({ subtotal, locale, t }: { subtotal: number; locale: Locale; t: (key: TranslationKey) => string }) {
-  return <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="text-lg font-black">{t('orderSummary')}</h2><div className="mt-6 grid gap-4 text-sm"><div className="flex justify-between font-semibold text-slate-500"><span>{t('subtotal')}</span><span className="text-slate-900 dark:text-white">{formatPrice(subtotal, 'MMK', locale)}</span></div><div className="flex justify-between font-semibold text-slate-500"><span>{t('shipping')}</span><span>{subtotal > 0 ? t('shippingPending') : '—'}</span></div><div className="border-t border-slate-200 pt-4 dark:border-slate-800"><div className="flex justify-between text-base font-black"><span>{t('total')}</span><span className="text-blue-600">{formatPrice(subtotal, 'MMK', locale)}</span></div></div></div><Link to="/checkout" className={'mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-500 ' + (subtotal === 0 ? 'pointer-events-none opacity-50' : '')}>{t('proceedCheckout')} <ArrowRight size={17} /></Link></aside>
+function OrderSummary({ subtotal, currency = 'MMK', quote, locale, t }: { subtotal: number; currency?: string; quote?: CheckoutQuote | null; locale: Locale; t: (key: TranslationKey) => string }) {
+  return <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="text-lg font-black">{t('orderSummary')}</h2><div className="mt-6 grid gap-4 text-sm"><div className="flex justify-between font-semibold text-slate-500"><span>{t('subtotal')}</span><span className="text-slate-900 dark:text-white">{formatPrice(subtotal, currency, locale)}</span></div>{quote && <><div className="flex justify-between font-semibold text-slate-500"><span>{t('discount')}</span><span>{formatPrice(Number(quote.discountTotal), currency, locale)}</span></div><div className="flex justify-between font-semibold text-slate-500"><span>{t('tax')}</span><span>{formatPrice(Number(quote.taxTotal), currency, locale)}</span></div><div className="flex justify-between font-semibold text-slate-500"><span>{t('shipping')}</span><span>{formatPrice(Number(quote.shippingTotal), currency, locale)}</span></div></>} {!quote && <div className="flex justify-between font-semibold text-slate-500"><span>{t('shipping')}</span><span>{subtotal > 0 ? t('shippingPending') : '—'}</span></div>}<div className="border-t border-slate-200 pt-4 dark:border-slate-800"><div className="flex justify-between text-base font-black"><span>{t('total')}</span><span className="text-blue-600">{formatPrice(quote ? Number(quote.grandTotal) : subtotal, currency, locale)}</span></div></div></div><Link to="/checkout" className={'mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-500 ' + (subtotal === 0 ? 'pointer-events-none opacity-50' : '')}>{t('proceedCheckout')} <ArrowRight size={17} /></Link></aside>
 }
 
 function Pagination({ meta, t, onPage }: { meta: PaginationMeta; t: (key: TranslationKey) => string; onPage: (page: number) => void }) {

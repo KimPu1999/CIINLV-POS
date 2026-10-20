@@ -19,12 +19,14 @@ test('vendor pages use real tenant-scoped APIs and no fabricated later-phase dat
   for (const endpoint of ['/api/v1/vendor/marketplace/overview', '/api/v1/vendor/marketplace/store', '/api/v1/vendor/marketplace/listings', '/api/v1/products']) {
     assert.match(feature, new RegExp(endpoint.replaceAll('/', '\\/')))
   }
-  assert.match(feature, /orders_not_available_yet/)
-  assert.match(feature, /revenue_not_available_yet/)
+  assert.match(feature, /\/api\/v1\/vendor\/marketplace\/orders/)
+  assert.match(feature, /no_marketplace_orders_yet/)
+  assert.match(feature, /unable_to_load_marketplace_orders/)
   assert.match(feature, /FormData\(\)/)
   assert.match(routes, /Route::get\('\/overview', \[MarketplaceVendorController::class, 'overview'\]\)/)
-  assert.match(controller, /'pending_orders' => null/)
-  assert.match(controller, /'marketplace_revenue' => null/)
+  assert.match(routes, /Route::get\('\/orders', \[MarketplaceVendorController::class, 'orders'\]\)/)
+  assert.match(controller, /MarketplaceVendorOrder::where\('tenant_id'/)
+  assert.match(controller, /MarketplaceVendorOrderResource::collection\(\$orders\)/)
 })
 
 test('vendor UI includes responsive controls, confirmation flow, and listing media upload', () => {

@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Marketplace\MarketplaceApprovalRequest;
+use App\Http\Requests\Marketplace\CollectMarketplaceCodPaymentRequest;
+use App\Http\Resources\MarketplaceOrderResource;
 use App\Http\Resources\MarketplaceStoreResource;
+use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceStore;
 use App\Services\MarketplaceAuditLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class MarketplaceAdminController
@@ -49,5 +53,23 @@ class MarketplaceAdminController
         $audit->record('marketplace.store_approval_updated', $request->user(), $store->tenant, $store, ['approval_status' => $status]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
+    }
+
+    public function collectCod(CollectMarketplaceCodPaymentRequest $request, string $order, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $model = DB::transaction(function () use ($request, $order): MarketplaceOrder {
+            $model = MarketplaceOrder::where('uuid', $order)->lockForUpdate()->firstOrFail();
+            $payment = $model->payments()->where('method', 'cod')->lockForUpdate()->firstOrFail();
+            if ($payment->status === 'pending') {
+                $payment->update(['status' => 'paid', 'paid_at' => now(), 'metadata' => array_merge((array) $payment->metadata, ['collected_by' => $request->user()->uuid, 'verification_note' => $request->input('verification_note')])]);
+                $model->update(['payment_status' => 'paid']);
+                $model->events()->create(['actor_user_id' => $request->user()->id, 'event' => 'cod_payment_collected', 'from_status' => 'pending', 'to_status' => 'paid', 'metadata' => ['verification_note' => $request->input('verification_note')]]);
+            }
+
+            return $model;
+        });
+        $audit->record('marketplace.cod_payment_collected', $request->user(), entity: $model, metadata: ['order_number' => $model->order_number]);
+
+        return response()->json(['success' => true, 'data' => new MarketplaceOrderResource($model->load(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items']))]);
     }
 }

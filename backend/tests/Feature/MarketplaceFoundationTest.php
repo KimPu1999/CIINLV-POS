@@ -178,9 +178,9 @@ class MarketplaceFoundationTest extends TestCase
             ->getJson('/api/v1/vendor/marketplace/overview')
             ->assertOk()
             ->assertJsonPath('data.metrics.published_products', 1)
-            ->assertJsonPath('data.metrics.pending_orders', null)
-            ->assertJsonPath('data.metrics.marketplace_revenue', null)
-            ->assertJsonPath('data.capabilities.orders', false);
+            ->assertJsonPath('data.metrics.pending_orders', 0)
+            ->assertJsonPath('data.metrics.marketplace_revenue', '0.00')
+            ->assertJsonPath('data.capabilities.orders', true);
     }
 
     public function test_vendor_can_update_own_store_and_upload_public_branding_media(): void

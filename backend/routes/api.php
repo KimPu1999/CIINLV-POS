@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\InventoryReportController;
 use App\Http\Controllers\Api\V1\MarketplaceAdminController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAddressController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
+use App\Http\Controllers\Api\V1\MarketplaceCustomerCheckoutController;
 use App\Http\Controllers\Api\V1\MarketplacePublicController;
 use App\Http\Controllers\Api\V1\MarketplaceVendorController;
 use App\Http\Controllers\Api\V1\PasswordController;
@@ -153,10 +154,13 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('admin/marketplace')->middleware('platform.admin')->group(function (): void {
             Route::get('/stores', [MarketplaceAdminController::class, 'stores']);
             Route::patch('/stores/{store}/approval', [MarketplaceAdminController::class, 'approval']);
+            Route::post('/orders/{order}/cod/collect', [MarketplaceAdminController::class, 'collectCod']);
         });
 
         Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
             Route::get('/overview', [MarketplaceVendorController::class, 'overview']);
+            Route::get('/orders', [MarketplaceVendorController::class, 'orders']);
+            Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
             Route::get('/store', [MarketplaceVendorController::class, 'store']);
             Route::patch('/store', [MarketplaceVendorController::class, 'updateStore']);
             Route::post('/store/media', [MarketplaceVendorController::class, 'uploadStoreMedia']);
@@ -177,6 +181,18 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/', [MarketplaceCustomerAddressController::class, 'store']);
             Route::patch('/{address}', [MarketplaceCustomerAddressController::class, 'update']);
             Route::delete('/{address}', [MarketplaceCustomerAddressController::class, 'destroy']);
+        });
+
+        Route::prefix('marketplace')->middleware('customer.account')->group(function (): void {
+            Route::get('/cart', [MarketplaceCustomerCheckoutController::class, 'cart']);
+            Route::post('/cart/items', [MarketplaceCustomerCheckoutController::class, 'addCartItem'])->middleware('throttle:api');
+            Route::patch('/cart/items/{item}', [MarketplaceCustomerCheckoutController::class, 'updateCartItem'])->middleware('throttle:api');
+            Route::delete('/cart/items/{item}', [MarketplaceCustomerCheckoutController::class, 'removeCartItem'])->middleware('throttle:api');
+            Route::delete('/cart', [MarketplaceCustomerCheckoutController::class, 'clearCart'])->middleware('throttle:api');
+            Route::post('/checkout/quote', [MarketplaceCustomerCheckoutController::class, 'quote'])->middleware('throttle:api');
+            Route::post('/checkout', [MarketplaceCustomerCheckoutController::class, 'checkout'])->middleware('throttle:api');
+            Route::get('/orders', [MarketplaceCustomerCheckoutController::class, 'orders']);
+            Route::get('/orders/{order}', [MarketplaceCustomerCheckoutController::class, 'order']);
         });
 
         Route::prefix('business')->middleware('tenant.context')->group(function (): void {

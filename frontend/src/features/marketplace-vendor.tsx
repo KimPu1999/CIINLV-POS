@@ -65,6 +65,20 @@ type Overview = {
   capabilities: { orders: boolean; shipping: boolean; reviews: boolean; earnings: boolean }
 }
 
+type VendorOrder = {
+  id: string
+  vendor_order_number: string
+  status: string
+  payment_status?: string | null
+  created_at?: string | null
+  subtotal?: string | number | null
+  shipping_total?: string | number | null
+  tax_total?: string | number | null
+  total?: string | number | null
+  currency_code?: string | null
+  items?: { name?: string | null; quantity?: string | number | null }[]
+}
+
 const marketplaceBase = '/business/marketplace'
 
 export function MarketplaceOverviewPage() {
@@ -210,7 +224,60 @@ export function MarketplaceProductsPage() {
   </>
 }
 
-export function MarketplaceOrdersPage() { return <CapabilityPage icon={ShoppingBag} title="text.marketplace_orders" description="text.marketplace_orders_description" capability="orders" /> }
+export function MarketplaceOrdersPage() {
+  const { t } = useTranslation()
+  const [orders, setOrders] = useState<VendorOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await request<{ data?: VendorOrder[] }>({ method: 'get', url: '/api/v1/vendor/marketplace/orders', params: { per_page: 50 } })
+      setOrders(Array.isArray(response) ? response : Array.isArray(response.data) ? response.data : [])
+    } catch (err) {
+      setError(errorMessage(err, t('text.unable_to_load_marketplace_orders')))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void load() }, [])
+
+  if (loading) return <><PageHeader title={t('text.marketplace_orders')} description={t('text.marketplace_orders_description')} /><LoadingState /></>
+
+  return <>
+    <PageHeader title={t('text.marketplace_orders')} description={t('text.marketplace_orders_description')} action={<RefreshButton onClick={load} />} />
+    {error && <div className="mb-5"><ErrorState message={error} /></div>}
+    {orders.length === 0 ? <EmptyState label={t('text.no_marketplace_orders_yet')} /> : <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800/60">
+            <tr>
+              <th className="px-5 py-4">{t('text.order_number')}</th>
+              <th className="px-5 py-4">{t('text.order_date')}</th>
+              <th className="px-5 py-4">{t('text.items')}</th>
+              <th className="px-5 py-4">{t('text.payment_status')}</th>
+              <th className="px-5 py-4">{t('text.status')}</th>
+              <th className="px-5 py-4 text-right">{t('text.total')}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {orders.map((order) => <tr key={order.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
+              <td className="px-5 py-4 font-semibold text-slate-900 dark:text-white">{order.vendor_order_number}</td>
+              <td className="whitespace-nowrap px-5 py-4 text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</td>
+              <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{order.items?.length ?? 0}</td>
+              <td className="px-5 py-4"><StatusBadge status={order.payment_status || 'pending'} /></td>
+              <td className="px-5 py-4"><StatusBadge status={order.status} /></td>
+              <td className="whitespace-nowrap px-5 py-4 text-right font-semibold text-slate-900 dark:text-white">{order.total ?? '—'} {order.currency_code || ''}</td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </section>}
+  </>
+}
 export function MarketplaceShippingPage() { return <CapabilityPage icon={Truck} title="text.shipping_fulfillment" description="text.shipping_fulfillment_description" capability="shipping" /> }
 export function MarketplaceReviewsPage() { return <CapabilityPage icon={Users} title="text.customer_reviews" description="text.customer_reviews_description" capability="reviews" /> }
 export function MarketplaceEarningsPage() { return <CapabilityPage icon={BarChart3} title="text.earnings_commissions" description="text.earnings_commissions_description" capability="earnings" /> }
