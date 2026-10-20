@@ -1,32 +1,45 @@
-# React + TypeScript + Vite
+# CIINLV Marketplace
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Customer-facing storefront foundation for CIINLV-POS.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+    cd marketplace-frontend
+    npm install
+    npm run dev
 
-## React Compiler
+The Vite server is configured for http://localhost:5174.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Current backend boundary
 
-## Expanding the Oxlint configuration
+The existing Laravel backend currently exposes tenant-authenticated POS/catalog APIs, but it does not yet expose public marketplace listings, stores, categories, customer accounts, checkout, or payment routes. This frontend therefore does not fabricate product data or call private tenant APIs as if they were public.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+When the approved marketplace API is implemented, configure its public base URL without changing the UI:
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+    VITE_MARKETPLACE_API_BASE=/api/v1/marketplace
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The typed adapter in src/lib/marketplace.ts expects collection endpoints for /listings, /stores, and /categories. Until that variable is configured, the app renders an intentional “catalog not connected” state.
+
+## Included storefront routes
+
+- /
+- /shop
+- /product/:id
+- /categories
+- /stores
+- /stores/:id
+- /wishlist
+- /cart
+- /checkout
+- /login
+- /register
+- /account
+- /orders
+- /tracking
+
+Cart, wishlist, language, and theme preferences persist in local storage. Checkout and customer authentication remain clearly disabled until their Laravel APIs are approved and available.
+
+## Checks
+
+    npm run build
+    npm run lint
