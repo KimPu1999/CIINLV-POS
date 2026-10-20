@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { AlertCircle, Inbox, LoaderCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { translateStatic } from '../lib/i18n'
 
@@ -17,10 +18,67 @@ export function LabelBadge({ children, tone = 'neutral', className = '' }: { chi
   return <span className={`label-badge label-badge--${tone} ${className}`}>{children}</span>
 }
 
-export function StatCard({ label, value, detail, icon: Icon, tone = 'blue', compact = false, className = '' }: { label: string; value: string | number; detail?: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone?: 'blue' | 'emerald' | 'amber' | 'violet'; compact?: boolean; className?: string }) {
+export function StatCard({ label, value, detail, icon: Icon, tone = 'blue', compact = false, className = '', to, ariaLabel, countValue, countFormatter }: { label: string; value: string | number; detail?: string; icon: ComponentType<{ size?: number; className?: string }>; tone?: 'blue' | 'emerald' | 'amber' | 'violet'; compact?: boolean; className?: string; to?: string; ariaLabel?: string; countValue?: number | null; countFormatter?: (value: number) => string }) {
   const { t } = useTranslation()
   const tones = { blue: 'bg-blue-50 text-blue-600', emerald: 'bg-emerald-50 text-emerald-600', amber: 'bg-amber-50 text-amber-600', violet: 'bg-violet-50 text-violet-600' }
-  return <div className={`rounded-xl border border-slate-200 bg-white ${compact ? 'p-3' : 'p-5'} ${compact ? 'premium-shadow-sm' : 'premium-shadow-md'} ${className}`}><div className={`flex ${compact ? 'items-center' : 'items-start'} justify-between gap-3`}><div className="min-w-0"><p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-slate-500`}>{translateStatic(t, label)}</p><p className={`${compact ? 'mt-1 text-xl' : 'mt-2 text-2xl'} font-bold tracking-tight text-slate-950`}>{value}</p></div><div className={`shrink-0 rounded-xl ${compact ? 'p-2' : 'p-3'} ${tones[tone]}`}><Icon size={compact ? 18 : 20} /></div></div>{detail && <p className={`${compact ? 'mt-1 text-[11px]' : 'mt-4 text-xs'} truncate text-slate-400`}>{translateStatic(t, detail)}</p>}</div>
+  const inferredCount = typeof value === 'number' ? value : /^\d[\d,]*$/.test(String(value)) ? Number(String(value).replaceAll(',', '')) : undefined
+  const animatedValue = useCountUp(countValue ?? inferredCount)
+  const translatedLabel = translateStatic(t, label)
+  const translatedDetail = detail ? translateStatic(t, detail) : undefined
+  const countTarget = countValue ?? inferredCount
+  const displayValue = countTarget !== null && countTarget !== undefined && Number.isFinite(countTarget)
+    ? (countFormatter || ((number) => number.toLocaleString()))(animatedValue)
+    : value
+  const cardClassName = `group relative block rounded-xl border border-slate-200 bg-white ${compact ? 'p-3' : 'p-5'} ${compact ? 'premium-shadow-sm' : 'premium-shadow-md'} transition duration-200 ease-out hover:-translate-y-1 hover:shadow-lg motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:focus-visible:ring-blue-900 ${className}`
+  const content = <><div className={`flex ${compact ? 'items-center' : 'items-start'} justify-between gap-3`}><div className="min-w-0"><p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-slate-500`}>{translatedLabel}</p><p className={`${compact ? 'mt-1 text-xl' : 'mt-2 text-2xl'} font-bold tracking-tight text-slate-950`}>{displayValue}</p></div><div className={`shrink-0 rounded-xl ${compact ? 'p-2' : 'p-3'} ${tones[tone]} transition-transform duration-200 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none`}><Icon size={compact ? 18 : 20} /></div></div>{translatedDetail && <p className={`${compact ? 'mt-1 text-[11px]' : 'mt-4 text-xs'} truncate text-slate-400`}>{translatedDetail}</p>}</>
+  const destination = to || destinationForStat(label)
+  return destination ? <Link to={destination} aria-label={ariaLabel || `${translatedLabel}: ${displayValue}`} className={cardClassName}>{content}</Link> : <div className={cardClassName}>{content}</div>
+}
+
+function destinationForStat(label: string): string | undefined {
+  const normalized = label.toLowerCase().replace(/[’']/g, '').replace(/\s+/g, ' ').trim()
+  const routes: Record<string, string> = {
+    'todays sales': '/business/sales?status=completed',
+    'total transactions': '/business/sales',
+    products: '/business/products',
+    'low stock': '/business/inventory',
+    'gross profit': '/business/reports',
+    'net sales': '/business/reports',
+    transactions: '/business/sales',
+    'purchase orders': '/business/purchase-orders',
+    'open orders': '/business/purchase-orders',
+    suppliers: '/business/suppliers',
+    'catalog products': '/business/products',
+    'inventory valuation': '/business/inventory',
+    'total businesses': '/platform/businesses',
+    'active businesses': '/platform/businesses',
+    'trial businesses': '/platform/businesses',
+    'suspended businesses': '/platform/businesses',
+    'owner activation': '/platform/businesses',
+    'pending registrations': '/platform/businesses',
+    'new this month': '/platform/businesses',
+    'active subscriptions': '/platform/businesses',
+    'expiring subscriptions': '/platform/businesses',
+    'confirmed platform mrr': '/platform/businesses',
+    'confirmed platform arr': '/platform/businesses',
+    'platform alerts': '/platform/businesses',
+  }
+  return routes[normalized]
+}
+
+function useCountUp(target: number | null | undefined): number {
+  const [value, setValue] = useState(target ?? 0)
+  useEffect(() => {
+    if (target === null || target === undefined || !Number.isFinite(target)) return
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reducedMotion) { setValue(target); return }
+    const start = performance.now(); const initial = value; const duration = 650
+    let frame = 0
+    const animate = (now: number) => { const progress = Math.min(1, (now - start) / duration); const eased = 1 - (1 - progress) ** 3; setValue(initial + (target - initial) * eased); if (progress < 1) frame = requestAnimationFrame(animate) }
+    frame = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(frame)
+  }, [target])
+  return value
 }
 
 export function StatusBadge({ status }: { status?: string | null }) {
