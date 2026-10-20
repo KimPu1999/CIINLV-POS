@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { translateStatic } from '../lib/i18n'
 
 type SidebarIcon = React.ComponentType<{ size?: number; className?: string }>
 
@@ -12,6 +14,8 @@ type SidebarNavItemProps = {
 }
 
 export function SidebarNavItem({ label, path, icon: Icon, collapsed, onNavigate }: SidebarNavItemProps) {
+  const { t } = useTranslation()
+  const translatedLabel = translateStatic(t, label)
   const anchorRef = useRef<HTMLAnchorElement>(null)
   const timerRef = useRef<number | null>(null)
   const tooltipId = useId()
@@ -85,12 +89,12 @@ export function SidebarNavItem({ label, path, icon: Icon, collapsed, onNavigate 
         onMouseLeave={hideTooltip}
         onFocus={showTooltip}
         onBlur={hideTooltip}
-        aria-label={label}
+        aria-label={translatedLabel}
         aria-describedby={collapsed && open ? tooltipId : undefined}
         className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
       >
         <Icon size={19} className="shrink-0" aria-hidden="true" />
-        {!collapsed && <span>{label}</span>}
+        {!collapsed && <span>{translatedLabel}</span>}
       </NavLink>
 
       {collapsed && open && (
@@ -100,7 +104,7 @@ export function SidebarNavItem({ label, path, icon: Icon, collapsed, onNavigate 
           className="sidebar-tooltip pointer-events-none fixed z-[100] max-w-64 -translate-y-1/2 rounded-lg bg-[#0F172A] px-3 py-2 text-sm font-medium leading-5 text-white shadow-xl"
           style={{ top: position.top, left: position.left }}
         >
-          {label}
+          {translatedLabel}
         </div>
       )}
     </>

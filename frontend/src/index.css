@@ -35,6 +35,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-language="my"] {
+  font-family: "Noto Sans Myanmar", "Myanmar Text", Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
 :root[data-theme="dark"] {
   --brand-primary: #47bfff;
   --brand-primary-hover: #7ecffc;

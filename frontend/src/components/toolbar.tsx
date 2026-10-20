@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode, type Ref } from 'react'
 import { CircleX, Filter, MoreHorizontal, Search, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { translateStatic } from '../lib/i18n'
 import { LabelBadge } from './ui'
 
 type ToolbarIcon = ComponentType<{ size?: number; className?: string }>
@@ -17,16 +19,19 @@ export function PageToolbar({ children, className = '' }: { children: ReactNode;
 }
 
 export function ToolbarTooltip({ label, children }: { label: string; children: ReactNode }) {
+  const { t } = useTranslation()
   return <span className="group relative inline-flex">
     <span role="tooltip" className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 premium-shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-      {label}
+      {translateStatic(t, label)}
     </span>
     {children}
   </span>
 }
 
 export function IconActionButton({ icon: Icon, label, onClick, active = false, disabled = false, buttonRef }: { icon: ToolbarIcon; label: string; onClick: () => void; active?: boolean; disabled?: boolean; buttonRef?: Ref<HTMLButtonElement> }) {
-  return <ToolbarTooltip label={label}><button ref={buttonRef} type="button" aria-label={label} onClick={onClick} disabled={disabled} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Icon size={19} aria-hidden="true" />{active && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-blue-300 ring-2 ring-white" aria-hidden="true" />}</button></ToolbarTooltip>
+  const { t } = useTranslation()
+  const translatedLabel = translateStatic(t, label)
+  return <ToolbarTooltip label={label}><button ref={buttonRef} type="button" aria-label={translatedLabel} onClick={onClick} disabled={disabled} className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-transparent transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:w-9 ${active ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Icon size={19} aria-hidden="true" />{active && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-blue-300 ring-2 ring-white" aria-hidden="true" />}</button></ToolbarTooltip>
 }
 
 export function SearchToggle({ active = false, label = 'Search', onClick, buttonRef }: { active?: boolean; label?: string; onClick: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
@@ -34,6 +39,9 @@ export function SearchToggle({ active = false, label = 'Search', onClick, button
 }
 
 export function CollapsibleSearch({ value, onChange, placeholder = 'Search', label = 'Search', onClear }: { value: string; onChange: (value: string) => void; placeholder?: string; label?: string; onClear?: () => void }) {
+  const { t } = useTranslation()
+  const translatedLabel = translateStatic(t, label)
+  const translatedPlaceholder = translateStatic(t, placeholder)
   const [open, setOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -74,8 +82,8 @@ export function CollapsibleSearch({ value, onChange, placeholder = 'Search', lab
   return <div className="ml-auto flex min-w-[220px] w-full max-w-md flex-none items-center gap-2 animate-[toolbar-search-in_180ms_ease-out]">
     <div className="compact-search-shell min-w-0 flex-1">
       <Search className="shrink-0 text-slate-400" size={18} aria-hidden="true" />
-      <input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={label} className="compact-search-input" />
-      {active && <button type="button" onClick={clear} aria-label={`Clear ${label.toLowerCase()}`} title={`Clear ${label.toLowerCase()}`} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><CircleX size={16} aria-hidden="true" /></button>}
+      <input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} placeholder={translatedPlaceholder} aria-label={translatedLabel} className="compact-search-input" />
+      {active && <button type="button" onClick={clear} aria-label={t('text.clear_label', { label: translatedLabel })} title={t('text.clear_label', { label: translatedLabel })} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><CircleX size={16} aria-hidden="true" /></button>}
     </div>
     <IconActionButton icon={X} label={`Close ${label.toLowerCase()}`} onClick={close} />
   </div>

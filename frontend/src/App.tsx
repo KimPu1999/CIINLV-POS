@@ -1,12 +1,16 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
 import { DataTable, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard } from './components/ui'
 import { SidebarNavItem } from './components/SidebarNavItem'
+import { LanguageSwitcher } from './components/LanguageSwitcher'
+import { LegacyStaticTextLocalizer } from './components/LegacyStaticTextLocalizer'
 import { ThemeProvider, useTheme } from './lib/theme'
+import { translateStatic } from './lib/i18n'
 import './App.css'
 
 const BusinessAdminsPage = lazy(() => import('./features/businesses').then(({ BusinessAdminsPage: Page }) => ({ default: Page })))
@@ -78,7 +82,7 @@ const businessNav: NavItem[] = [
 ]
 
 function App() {
-  return <ThemeProvider><BrowserRouter><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter></ThemeProvider>
+  return <ThemeProvider><BrowserRouter><AuthProvider><LegacyStaticTextLocalizer /><AppRoutes /></AuthProvider></BrowserRouter></ThemeProvider>
 }
 
 function AppRoutes() {
@@ -138,7 +142,8 @@ function userHomePath(user: User | null): string {
 
 function AccessDeniedPage() {
   const { user, logout: signOut } = useAuth()
-  return <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5"><div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm"><BrandLogo className="justify-center" imageClassName="h-14 w-14" nameClassName="text-xl font-bold text-blue-700" /><h1 className="mt-4 text-3xl font-bold text-slate-950">Business access is not active</h1><p className="mt-3 text-sm leading-6 text-slate-500">{user ? 'This account has no active Business Admin membership. Ask a Super Admin to send or restore an invitation.' : 'Sign in to continue.'}</p>{user ? <button type="button" onClick={() => { void signOut() }} className="mt-7 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">Sign out</button> : <Link to="/login" className="mt-7 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">Go to sign in</Link>}</div></main>
+  const { t } = useTranslation()
+  return <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5"><div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm"><BrandLogo className="justify-center" imageClassName="h-14 w-14" nameClassName="text-xl font-bold text-blue-700" /><h1 className="mt-4 text-3xl font-bold text-slate-950">{t('text.business_access_is_not_active')}</h1><p className="mt-3 text-sm leading-6 text-slate-500">{user ? t('text.this_account_has_no_active_business_admin_membership_ask_a_super_admin_to_send_or_restore_an_invitation') : t('text.sign_in_to_continue')}</p>{user ? <button type="button" onClick={() => { void signOut() }} className="mt-7 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">{t('text.sign_out')}</button> : <Link to="/login" className="mt-7 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">{t('text.go_to_sign_in')}</Link>}</div></main>
 }
 
 function LoginPage() {
@@ -152,6 +157,7 @@ function LoginPage() {
   const [error, setError] = useState('')
   const [retryAfter, setRetryAfter] = useState(0)
   const submitting = useRef(false)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (retryAfter <= 0) return
@@ -177,7 +183,7 @@ function LoginPage() {
         setRetryAfter(seconds)
         setError(`Too many login attempts. Try again in ${formatRetryAfter(seconds)}.`)
       } else {
-        setError(axiosMessage(err, 'Unable to sign in. Check your credentials and backend connection.'))
+        setError(axiosMessage(err, t('text.unable_to_sign_in_check_your_credentials_and_backend_connection')))
       }
     } finally {
       setLoading(false)
@@ -185,7 +191,7 @@ function LoginPage() {
     }
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-slate-950 px-5 py-10"><div className="grid w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2"><div className="hidden bg-blue-600 p-12 text-white lg:block"><BrandLogo imageClassName="h-12 w-12" nameClassName="text-lg font-bold text-white" /><div className="mt-24 max-w-md"><p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-100">Operations, simplified</p><h1 className="mt-4 text-4xl font-bold leading-tight">Run every store with confidence.</h1><p className="mt-5 leading-7 text-blue-100">Secure multi-tenant sales, inventory, branch operations, and reports in one workspace.</p></div></div><div className="p-7 sm:p-12"><div className="mb-10 lg:hidden"><BrandLogo imageClassName="h-12 w-12" nameClassName="text-xl font-bold text-blue-700" /></div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">Welcome back</p><h2 className="mt-2 text-3xl font-bold tracking-tight">Sign in to your workspace</h2><p className="mt-3 text-sm text-slate-500">Use your Laravel account to continue.</p>{error && <div className="mt-6"><ErrorState message={error} /></div>}<form onSubmit={submit} className="mt-8 space-y-5"><label className="block text-sm font-medium text-slate-700">Email<input required type="email" value={email} placeholder="Enter your email address..." onChange={(e) => setEmail(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" /></label><label className="block text-sm font-medium text-slate-700">Password<div className="relative mt-2"><input id="login-password" required type={showPassword ? 'text' : 'password'} value={password} placeholder="Enter your password..." onChange={(e) => setPassword(e.target.value)} className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-slate-400 transition hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-100">{showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}</button></div></label><button disabled={loading || retryAfter > 0} className="flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{loading ? 'Signing in…' : retryAfter > 0 ? `Try again in ${formatRetryAfter(retryAfter)}` : 'Sign in'}</button></form><p className="mt-8 text-center text-xs text-slate-400">Protected by Laravel Sanctum session authentication.</p></div></div></main>
+  return <main className="flex min-h-screen items-center justify-center bg-slate-950 px-5 py-10"><div className="grid w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2"><div className="hidden bg-blue-600 p-12 text-white lg:block"><BrandLogo imageClassName="h-12 w-12" nameClassName="text-lg font-bold text-white" /><div className="mt-24 max-w-md"><p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-100">Operations, simplified</p><h1 className="mt-4 text-4xl font-bold leading-tight">Run every store with confidence.</h1><p className="mt-5 leading-7 text-blue-100">Secure multi-tenant sales, inventory, branch operations, and reports in one workspace.</p></div></div><div className="p-7 sm:p-12"><div className="mb-10 flex items-start justify-between gap-3 lg:hidden"><BrandLogo imageClassName="h-12 w-12" nameClassName="text-xl font-bold text-blue-700" /><LanguageSwitcher /></div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">{t('text.welcome_back')}</p><h2 className="mt-2 text-3xl font-bold tracking-tight">{t('text.sign_in_to_your_workspace')}</h2><p className="mt-3 text-sm text-slate-500">Use your Laravel account to continue.</p>{error && <div className="mt-6"><ErrorState message={error} /></div>}<form onSubmit={submit} className="mt-8 space-y-5"><label className="block text-sm font-medium text-slate-700">{t('text.email')}<input required type="email" value={email} placeholder={t('text.enter_your_email_address')} onChange={(e) => setEmail(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" /></label><label className="block text-sm font-medium text-slate-700">{t('text.password')}<div className="relative mt-2"><input id="login-password" required type={showPassword ? 'text' : 'password'} value={password} placeholder={t('text.enter_your_password')} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-xl border border-slate-300 px-4 py-3 pr-12 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-slate-400 transition hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-100">{showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}</button></div></label><button disabled={loading || retryAfter > 0} className="flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-3.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{loading ? 'Signing in…' : retryAfter > 0 ? `Try again in ${formatRetryAfter(retryAfter)}` : t('text.sign_in')}</button></form><p className="mt-8 text-center text-xs text-slate-400">Protected by Laravel Sanctum session authentication.</p></div></div></main>
 }
 
 function canNavigateTo(user: User, path: string): boolean {
@@ -205,6 +211,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const memberships = businessAdminMemberships(user)
   const selectTenant = (tenantId: string) => { window.localStorage.setItem('ciinlv_tenant_id', tenantId); setSelectedTenant(tenantId) }
   const needsTenantSelection = role === 'business' && memberships.length > 1 && !memberships.some((membership) => membership.business.id === selectedTenant)
+  const { t } = useTranslation()
 
   return <div className="min-h-screen bg-slate-50">
     <aside className={`fixed inset-y-0 left-0 z-40 flex dashboard-sidebar flex-col bg-slate-950 text-white transition-transform lg:translate-x-0 ${mobile ? 'translate-x-0' : '-translate-x-full'} ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -218,8 +225,8 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
     {mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}
     <div className="min-h-screen transition-[padding]">
       <header className="dashboard-header sticky top-0 z-20 flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur sm:px-8">
-        <div className="flex items-center gap-3"><button className="text-slate-600 lg:hidden" onClick={() => setMobile(true)} aria-label="Open navigation"><Menu size={23} /></button><button className="hidden text-slate-400 lg:block" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}>{collapsed ? <PanelLeftOpen size={21} /> : <PanelLeftClose size={21} />}</button><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{role === 'super_admin' ? 'Platform control' : 'Business workspace'}</p><p className="font-semibold text-slate-900">{location.pathname.endsWith('/dashboard') || platformLanding ? 'Overview' : nav.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Workspace'}</p></div></div>
-        <div className="flex items-center gap-2 sm:gap-3"><ThemeToggle /><TenantSwitcher user={user} onChange={selectTenant} /><div className="hidden text-right sm:block"><p className="text-sm font-semibold text-slate-800">{user.name}</p><p className="text-xs capitalize text-slate-400">{user.platform_role?.replaceAll('_', ' ') ?? 'business admin'}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{user.name.charAt(0).toUpperCase()}</div></div>
+        <div className="flex items-center gap-3"><button className="text-slate-600 lg:hidden" onClick={() => setMobile(true)} aria-label={t('text.open_navigation')}><Menu size={23} /></button><button className="hidden text-slate-400 lg:block" onClick={() => setCollapsed(!collapsed)} aria-label={t(collapsed ? 'text.expand_navigation' : 'text.collapse_navigation')}>{collapsed ? <PanelLeftOpen size={21} /> : <PanelLeftClose size={21} />}</button><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t(role === 'super_admin' ? 'text.platform_control' : 'text.business_workspace')}</p><p className="font-semibold text-slate-900">{location.pathname.endsWith('/dashboard') || platformLanding ? t('text.overview') : translateStatic(t, nav.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Workspace')}</p></div></div>
+        <div className="flex items-center gap-1 sm:gap-3"><LanguageSwitcher userId={user.id} /><ThemeToggle /><TenantSwitcher user={user} onChange={selectTenant} /><div className="hidden text-right sm:block"><p className="text-sm font-semibold text-slate-800">{user.name}</p><p className="text-xs capitalize text-slate-400">{user.platform_role?.replaceAll('_', ' ') ?? 'business admin'}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{user.name.charAt(0).toUpperCase()}</div></div>
       </header>
       <main className="mx-auto mt-[10px] max-w-[1600px] px-5 pb-5 pt-1 sm:px-8 sm:pb-8 sm:pt-1">
         {needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
@@ -256,20 +263,23 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
+  const { t } = useTranslation()
   const dark = theme === 'dark'
-  return <button type="button" onClick={toggleTheme} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} aria-pressed={dark} title={dark ? 'Switch to light mode' : 'Switch to dark mode'} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-colors duration-200 hover:bg-slate-100 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">{dark ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}</button>
+  return <button type="button" onClick={toggleTheme} aria-label={t(dark ? 'text.switch_to_light_mode' : 'text.switch_to_dark_mode')} aria-pressed={dark} title={t(dark ? 'text.switch_to_light_mode' : 'text.switch_to_dark_mode')} className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-colors duration-200 hover:bg-slate-100 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">{dark ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}</button>
 }
 
 function TenantSwitcher({ user, onChange }: { user: User; onChange: (tenantId: string) => void }) {
+  const { t } = useTranslation()
   const memberships = businessAdminMemberships(user)
   if (!memberships.length) return null
   const selected = window.localStorage.getItem('ciinlv_tenant_id') || memberships[0].business.id
   if (memberships.length === 1) return <LabelBadge tone="info" className="max-w-48 truncate">{memberships[0].business.name}</LabelBadge>
-  return <label className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="hidden md:inline">Business</span><select value={selected} onChange={(event) => onChange(event.target.value)} className="max-w-40 rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">{memberships.map((membership) => <option key={membership.business.id} value={membership.business.id}>{membership.business.name}</option>)}</select></label>
+  return <label className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="hidden md:inline">{t('text.business')}</span><select value={selected} onChange={(event) => onChange(event.target.value)} className="max-w-40 rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">{memberships.map((membership) => <option key={membership.business.id} value={membership.business.id}>{membership.business.name}</option>)}</select></label>
 }
 
 function TenantSelectionPage({ memberships, onSelect }: { memberships: BusinessMembership[]; onSelect: (tenantId: string) => void }) {
-  return <div className="mx-auto max-w-3xl"><PageHeader title="Select a business" description="This account has access to more than one active business." /><div className="grid gap-4 md:grid-cols-2">{memberships.map((membership) => <button key={membership.business.id} type="button" onClick={() => onSelect(membership.business.id)} className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"><p className="font-semibold text-slate-950">{membership.business.name}</p><p className="mt-2 text-sm text-slate-500">{membership.business.business_code || 'Business account'}</p><span className="mt-4 inline-block text-sm font-semibold text-blue-700">Open dashboard →</span></button>)}</div></div>
+  const { t } = useTranslation()
+  return <div className="mx-auto max-w-3xl"><PageHeader title="Select a business" description="This account has access to more than one active business." /><div className="grid gap-4 md:grid-cols-2">{memberships.map((membership) => <button key={membership.business.id} type="button" onClick={() => onSelect(membership.business.id)} className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"><p className="font-semibold text-slate-950">{membership.business.name}</p><p className="mt-2 text-sm text-slate-500">{membership.business.business_code || t('text.business_account')}</p><span className="mt-4 inline-block text-sm font-semibold text-blue-700">{t('text.open_dashboard')}</span></button>)}</div></div>
 }
 
 function OverviewPage({ user }: { user: User }) { const platform = user.platform_role === 'super_admin'; return platform ? <PlatformOverviewPage /> : <BusinessDashboardPage /> }
