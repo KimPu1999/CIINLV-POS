@@ -17,6 +17,11 @@ use App\Http\Controllers\Api\V1\DashboardOverviewController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\InventoryReportController;
+use App\Http\Controllers\Api\V1\MarketplaceAdminController;
+use App\Http\Controllers\Api\V1\MarketplaceCustomerAddressController;
+use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
+use App\Http\Controllers\Api\V1\MarketplacePublicController;
+use App\Http\Controllers\Api\V1\MarketplaceVendorController;
 use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAdminController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAuditController;
@@ -57,6 +62,20 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', HealthController::class);
     Route::get('/health/ready', [HealthController::class, 'ready']);
+
+    Route::prefix('marketplace')->middleware(['throttle:api', SetApiLocale::class])->group(function (): void {
+        Route::get('/stores', [MarketplacePublicController::class, 'stores']);
+        Route::get('/stores/{store:slug}', [MarketplacePublicController::class, 'store']);
+        Route::get('/products', [MarketplacePublicController::class, 'products']);
+        Route::get('/products/{product:slug}', [MarketplacePublicController::class, 'product']);
+        Route::get('/categories', [MarketplacePublicController::class, 'categories']);
+        Route::get('/search', [MarketplacePublicController::class, 'search']);
+    });
+
+    Route::prefix('marketplace/auth')->middleware(['web', 'throttle:auth', SetApiLocale::class])->group(function (): void {
+        Route::post('/register', [MarketplaceCustomerAuthController::class, 'register']);
+        Route::post('/login', [MarketplaceCustomerAuthController::class, 'login']);
+    });
 
     Route::middleware(['web', 'throttle:auth'])->group(function (): void {
         Route::post('/auth/login', [AuthController::class, 'login']);
@@ -128,6 +147,33 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/tenants/{tenant}/admins', [PlatformBusinessAdminController::class, 'store']);
             Route::patch('/tenants/{tenant}/admins/{user}', [PlatformBusinessAdminController::class, 'update']);
             Route::delete('/tenants/{tenant}/admins/{user}', [PlatformBusinessAdminController::class, 'destroy']);
+
+        });
+
+        Route::prefix('admin/marketplace')->middleware('platform.admin')->group(function (): void {
+            Route::get('/stores', [MarketplaceAdminController::class, 'stores']);
+            Route::patch('/stores/{store}/approval', [MarketplaceAdminController::class, 'approval']);
+        });
+
+        Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
+            Route::get('/store', [MarketplaceVendorController::class, 'store']);
+            Route::patch('/store', [MarketplaceVendorController::class, 'updateStore']);
+            Route::get('/listings', [MarketplaceVendorController::class, 'listings']);
+            Route::post('/listings', [MarketplaceVendorController::class, 'createListing']);
+            Route::patch('/listings/{listing}', [MarketplaceVendorController::class, 'updateListing']);
+        });
+
+        Route::prefix('marketplace/auth')->middleware('customer.account')->group(function (): void {
+            Route::get('/me', [MarketplaceCustomerAuthController::class, 'me']);
+            Route::patch('/me', [MarketplaceCustomerAuthController::class, 'update']);
+            Route::post('/logout', [MarketplaceCustomerAuthController::class, 'logout']);
+        });
+
+        Route::prefix('marketplace/me/addresses')->middleware('customer.account')->group(function (): void {
+            Route::get('/', [MarketplaceCustomerAddressController::class, 'index']);
+            Route::post('/', [MarketplaceCustomerAddressController::class, 'store']);
+            Route::patch('/{address}', [MarketplaceCustomerAddressController::class, 'update']);
+            Route::delete('/{address}', [MarketplaceCustomerAddressController::class, 'destroy']);
         });
 
         Route::prefix('business')->middleware('tenant.context')->group(function (): void {

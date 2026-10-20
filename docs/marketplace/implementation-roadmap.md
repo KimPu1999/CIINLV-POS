@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 1 is complete. Only audit documentation was added. Phase 2 must wait for design approval and the decision gates in requirements.md.
+Phase 1 is complete. Phase 2 foundation is implemented but its migration is intentionally waiting for a live PostgreSQL review/approval before execution.
 
 ## Phase 1 — audit and architecture
 
@@ -11,31 +11,41 @@ Phase 1 is complete. Only audit documentation was added. Phase 2 must wait for d
 - Inspected repository layout and confirmed separate backend/ and frontend/ applications.
 - Inspected Laravel version/dependencies, API routes, middleware, authentication, policies, services, models, resources, migrations, storage, configuration, and tests.
 - Inspected React routing, auth context, API client, i18n, dashboards, and package scripts.
-- Confirmed there is no marketplace-frontend/ directory or marketplace implementation.
+- Confirmed and retained the separate marketplace-frontend/ storefront application.
 - Confirmed existing products/variants/inventory/POS are tenant-scoped sources of truth.
 - Confirmed no online payment provider SDK or verified marketplace webhook integration is present.
 - Documented existing PostgreSQL RLS gap instead of claiming RLS protection.
 - Added the Phase 1 design documents in docs/marketplace/.
 
-### Not run
+### Not run during Phase 1
 
 - No database connection, query, migration, schema mutation, seed, or reset was run.
-- No application routes, controllers, migrations, models, APIs, or frontend components were changed.
+- Phase 1 itself made no application changes; Phase 2 changes are listed below.
 - Backend tests were not executed against the unavailable local PostgreSQL service. The project has previously reported connection refusal on 127.0.0.1:5432; live schema verification must happen after PostgreSQL is available.
 - No browser or end-to-end marketplace verification is possible because the marketplace does not yet exist.
 
 ## Phase 2 — database and marketplace foundation
 
-Implement only after approval of the unresolved decisions:
+### Implemented
 
-1. Record the approved customer identity, public store, listing granularity, tax/shipping, provider, order-state, commission, payout, media, and translation policies.
-2. Review php artisan migrate:status against the target PostgreSQL database without changing it.
-3. Add additive, reversible marketplace migrations with tenant composite ownership constraints, indexes, status checks, public UUIDs, and fixed-precision numeric columns.
-4. Add Eloquent models, relationships, casts, policies, request validation, resources, services, audit events, and feature flags.
-5. Add explicit vendor/store approval and listing publication workflows.
-6. Add read-only public listing endpoints, then vendor/platform management endpoints.
-7. Add cross-tenant authorization tests, status-transition tests, schema constraint tests, and non-destructive migration tests.
-8. Do not auto-publish or auto-translate existing products. Create marketplace records only through explicit opt-in or an approved idempotent backfill.
+- Added the reversible marketplace foundation migration and Eloquent models/relations.
+- Added public marketplace catalog/store/category/search APIs with approved, active, published, available filtering.
+- Added customer session registration/login/logout/profile/address APIs.
+- Added vendor store/listing APIs with tenant context and cross-business ownership checks.
+- Added Super Admin store approval/listing APIs and dedicated marketplace audit records.
+- Connected marketplace-frontend catalog requests to `/api/v1/marketplace/products`, `/stores`, and `/categories`; locale changes refetch catalog data with `lang=en|my`.
+- Added backend feature coverage in `tests/Feature/MarketplaceFoundationTest.php`.
+
+### Migration gate
+
+The migration has not been executed. The configured PostgreSQL server at `127.0.0.1:5432` currently refuses connections. After PostgreSQL is running and a backup/approval is available, review with `php artisan migrate:status`, then apply only the additive migration with `php artisan migrate --path=database/migrations/2026_10_20_180000_create_marketplace_foundation_tables.php`.
+
+The remaining work after the Phase 2 foundation is:
+
+1. Review `php artisan migrate:status` against the target PostgreSQL database without changing it.
+2. Apply the additive migration only after PostgreSQL is running and backup/approval is confirmed.
+3. Add any reviewed product/listing image upload flow without reusing private verification media.
+4. Do not auto-publish or auto-translate existing products. Create marketplace records only through explicit vendor opt-in.
 
 ### Phase 2 exit gate
 
@@ -47,7 +57,7 @@ Implement only after approval of the unresolved decisions:
 
 ## Phase 3 — customer marketplace frontend
 
-Create marketplace-frontend/ only after the API foundation is stable:
+The marketplace-frontend storefront foundation already exists and is connected to the Phase 2 read APIs. Future frontend work includes:
 
 - React/TypeScript/Vite/Tailwind/React Router.
 - Typed API client with credentialed Sanctum behavior compatible with the approved customer identity model.
@@ -131,11 +141,11 @@ In another terminal:
 
 For a real database-backed test run, start the locally configured PostgreSQL service first, verify the database and test database exist, then run only the approved additive migrations and tests. Do not run migrate:fresh, migrate:refresh, db:wipe, destructive seeders, or production migration commands without explicit approval.
 
-When marketplace-frontend/ is implemented, its own install/dev/build commands will be documented in that directory and must use the approved API base URL and authentication configuration.
+The marketplace-frontend install/dev/build commands are documented in that directory and use the approved API base URL and locale query contract.
 
-## Approval requested
+## Review gate
 
-Phase 1 deliverables are ready for review:
+Phase 2 code is ready for PostgreSQL migration review:
 
 - docs/marketplace/architecture.md
 - docs/marketplace/requirements.md
@@ -143,4 +153,4 @@ Phase 1 deliverables are ready for review:
 - docs/marketplace/api-contract.md
 - docs/marketplace/implementation-roadmap.md
 
-Please approve the documented decisions and Phase 2 scope before any marketplace migrations or application code are added.
+Please confirm PostgreSQL availability, backup state, and migration approval before applying the additive migration. No production migration was run by this implementation.

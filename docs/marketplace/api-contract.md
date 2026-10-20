@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 1 contract proposal based on the existing /api/v1 conventions. No marketplace route or controller has been added.
+Phase 2 contract implemented on 2026-10-20 using the existing /api/v1 conventions. Cart, checkout, orders, payments, and fulfillment are intentionally not included yet.
 
 ## Existing API conventions
 
@@ -64,7 +64,7 @@ The precise POS route tail should be taken from backend/routes/api.php during im
 
 ## Proposed marketplace namespaces
 
-These are design-level paths and are not implemented.
+These Phase 2 paths are implemented:
 
 ### Public/customer read API
 
@@ -72,22 +72,21 @@ These are design-level paths and are not implemented.
     GET /api/v1/marketplace/stores
     GET /api/v1/marketplace/stores/{store}
     GET /api/v1/marketplace/categories
-    GET /api/v1/marketplace/listings
-    GET /api/v1/marketplace/listings/{listing}
+    GET /api/v1/marketplace/products
+    GET /api/v1/marketplace/products/{product}
     GET /api/v1/marketplace/search
 
 Only approved/public records should be returned. Responses must not expose tenant-private fields, internal inventory locations, verification documents, or unpublished moderation data.
 
-### Customer account and cart
-
-The exact authentication prefix depends on the approved customer identity model. Candidate endpoints:
+### Customer account and address book
 
     POST /api/v1/marketplace/auth/register
     POST /api/v1/marketplace/auth/login
     POST /api/v1/marketplace/auth/logout
-    GET  /api/v1/marketplace/me
+    GET/PATCH /api/v1/marketplace/auth/me
     GET/POST/PATCH/DELETE /api/v1/marketplace/me/addresses...
-    GET/POST/PATCH /api/v1/marketplace/cart...
+
+Customer auth uses the existing `web` guard and Sanctum stateful API middleware; the `customer.account` middleware rejects platform/admin accounts from customer-only endpoints.
 
 If customers reuse the existing users/Sanctum flow, route and guard behavior must be explicitly separated from platform/business role checks. Do not silently broaden auth:sanctum access to admin endpoints.
 
@@ -105,27 +104,17 @@ Checkout must require an Idempotency-Key. The server returns a master order plus
 
 ### Business Admin marketplace
 
-    GET/PATCH /api/v1/business/marketplace/store
-    POST       /api/v1/business/marketplace/store/submit
-    GET/POST/PATCH /api/v1/business/marketplace/listings...
-    POST       /api/v1/business/marketplace/listings/{listing}/publish
-    POST       /api/v1/business/marketplace/listings/{listing}/unpublish
-    GET        /api/v1/business/marketplace/orders
-    GET        /api/v1/business/marketplace/orders/{order}
-    POST       /api/v1/business/marketplace/orders/{order}/fulfill
-    POST       /api/v1/business/marketplace/orders/{order}/shipment
-    GET        /api/v1/business/marketplace/reports...
+    GET/PATCH /api/v1/vendor/marketplace/store
+    GET/POST/PATCH /api/v1/vendor/marketplace/listings...
 
 Every route must resolve the existing tenant context and apply explicit tenant ownership checks. A business admin must not receive a resource merely because an attacker guessed its UUID.
 
 ### Super Admin marketplace
 
-    GET/POST/PATCH /api/v1/platform/marketplace/vendors...
-    GET/POST/PATCH /api/v1/platform/marketplace/listings...
-    GET             /api/v1/platform/marketplace/orders...
-    GET/PATCH       /api/v1/platform/marketplace/commissions...
-    GET/PATCH       /api/v1/platform/marketplace/payouts...
-    GET             /api/v1/platform/marketplace/audit-logs...
+    GET             /api/v1/admin/marketplace/stores
+    PATCH           /api/v1/admin/marketplace/stores/{store}/approval
+
+These routes are protected by `platform.admin`. Approval changes are recorded in `marketplace_audit_logs`.
 
 Platform endpoints should preserve audit logging and should not grant vendor users access through shared resource controllers.
 

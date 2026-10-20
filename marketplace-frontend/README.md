@@ -10,15 +10,15 @@ Customer-facing storefront foundation for CIINLV-POS.
 
 The Vite server is configured for http://localhost:5174.
 
-## Current backend boundary
+## Backend boundary
 
-The existing Laravel backend currently exposes tenant-authenticated POS/catalog APIs, but it does not yet expose public marketplace listings, stores, categories, customer accounts, checkout, or payment routes. This frontend therefore does not fabricate product data or call private tenant APIs as if they were public.
+Phase 2 exposes public marketplace stores, products, categories, search, customer session auth, customer profiles/addresses, vendor store/listing management, and Super Admin store approval. The storefront reads only approved, active, published, in-stock records from the public API and never fabricates production products.
 
-When the approved marketplace API is implemented, configure its public base URL without changing the UI:
+Configure the public base URL when the frontend is served from a separate origin:
 
     VITE_MARKETPLACE_API_BASE=/api/v1/marketplace
 
-The typed adapter in src/lib/marketplace.ts expects collection endpoints for /listings, /stores, and /categories. Until that variable is configured, the app renders an intentional “catalog not connected” state.
+The typed adapter in src/lib/marketplace.ts uses /products, /stores, and /categories, appending `lang=en|my` and sending credentialed requests for the existing Sanctum-compatible session boundary.
 
 ## Included storefront routes
 
@@ -37,7 +37,7 @@ The typed adapter in src/lib/marketplace.ts expects collection endpoints for /li
 - /orders
 - /tracking
 
-Cart, wishlist, language, and theme preferences persist in local storage. Checkout and customer authentication remain clearly disabled until their Laravel APIs are approved and available.
+Cart, wishlist, language, and theme preferences persist in local storage. Cart/checkout/order/payment APIs remain intentionally out of scope for Phase 2 and are not presented as functional production flows.
 
 ## Checks
 

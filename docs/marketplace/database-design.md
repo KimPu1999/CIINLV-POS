@@ -2,7 +2,7 @@
 
 ## Status
 
-Phase 1 schema audit and logical proposal only. No marketplace migration, table, column, index, foreign key, model, or data transformation has been created.
+Phase 2 additive foundation implemented on 2026-10-20. The migration has not been executed against the local PostgreSQL database because the configured server at 127.0.0.1:5432 is unavailable.
 
 ## Existing schema sources of truth
 
@@ -28,23 +28,24 @@ Relevant canonical relationships:
 
 The products, product_variants, and inventory_balances tables must remain the canonical catalog and inventory sources for both POS and marketplace. A marketplace must not copy or independently decrement stock.
 
-## Proposed additive entities
+## Implemented additive entities
 
-The following are logical candidates, not approved migration names. Exact columns and relationships must be finalized after the unresolved decisions in requirements.md are answered.
+Migration: `backend/database/migrations/2026_10_20_180000_create_marketplace_foundation_tables.php`.
+
+Implemented tables are `marketplace_stores`, `marketplace_listings`, `marketplace_listing_images`, `customer_profiles`, `customer_addresses`, and `marketplace_audit_logs`. All tenant-owned marketplace rows carry `tenant_id`; listings use composite tenant/store and tenant/product foreign keys; public store/listing state is protected by PostgreSQL check constraints and indexes. A tenant has one marketplace store, and no existing POS record is backfilled or copied.
+
+The remaining sections document future logical candidates. The Phase 2 tables above are the approved implementation for the current scope; cart/order/payment/fulfillment tables remain unimplemented.
 
 ### Public store and listings
 
 #### marketplace_stores
 
-Candidate purpose: an approved public storefront owned by a tenant or explicitly mapped to an existing operational store.
+Implemented purpose: an approved public storefront owned by one tenant. It is intentionally separate from existing operational `stores` so a branch is not made public automatically.
 
-Candidate fields:
+Implemented fields:
 
-- id, uuid, tenant_id, optional store_id.
-- public slug/name/description/banner/logo references.
-- participation status, approval status, publication timestamps.
-- public contact/shipping configuration only where approved.
-- timestamps and audit actor references where required.
+- id, uuid, tenant_id, name, slug, description, public logo/banner references.
+- `approval_status` (`pending`, `approved`, `rejected`), `is_active`, approval actor/timestamp, timestamps.
 
 Required invariants:
 
@@ -54,16 +55,13 @@ Required invariants:
 
 #### marketplace_listings
 
-Candidate purpose: publish an existing product/variant to a public store without duplicating product or inventory data.
+Implemented purpose: publish an existing tenant product (including its active variants) to a public store without duplicating product or inventory data.
 
-Candidate fields:
+Implemented fields:
 
-- id, uuid, tenant_id, marketplace_store_id.
-- product_id, and a defined product-level or variant-level listing model.
-- publication/moderation/availability status.
-- optional marketplace price only if business rules permit; otherwise resolve from existing variant pricing.
-- public SEO/display fields only where approved.
-- timestamps and publication/moderation actors.
+- id, uuid, tenant_id, marketplace_store_id, product_id, unique slug.
+- `status` (`draft`, `published`, `archived`) and `published_at`.
+- prices and availability are resolved from existing active product variants and inventory balances.
 
 Required invariants:
 
@@ -78,6 +76,8 @@ Candidate purpose: public listing media with explicit ownership and ordering.
 Images must use validated MIME types, safe generated names, size limits, tenant ownership, and a deliberate public/signed delivery policy. Private verification and identity documents must never be reused as listing images.
 
 ### Customer data
+
+`customer_profiles` is a one-to-one extension of the existing `users` table. Customer users have no tenant membership and no platform role; the `customer.account` middleware requires the profile and active customer status. This keeps admin/business access semantics unchanged while retaining the existing Sanctum web guard.
 
 #### customer_profiles
 

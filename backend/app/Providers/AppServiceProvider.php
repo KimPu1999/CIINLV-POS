@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\InventoryLocation;
+use App\Models\MarketplaceListing;
+use App\Models\MarketplaceStore;
 use App\Models\Payment;
 use App\Models\PosRegister;
 use App\Models\Product;
@@ -18,6 +20,8 @@ use App\Models\Tenant;
 use App\Contracts\TranslationProvider;
 use App\Policies\InventoryPolicy;
 use App\Policies\PaymentPolicy;
+use App\Policies\MarketplaceListingPolicy;
+use App\Policies\MarketplaceStorePolicy;
 use App\Policies\PosRegisterPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\PurchaseOrderPolicy;
@@ -58,6 +62,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Tenant::class, TenantPolicy::class);
+        Gate::policy(MarketplaceStore::class, MarketplaceStorePolicy::class);
+        Gate::policy(MarketplaceListing::class, MarketplaceListingPolicy::class);
         Gate::policy(Store::class, StorePolicy::class);
         Gate::policy(StoreMembership::class, StoreMembershipPolicy::class);
         Gate::policy(InventoryLocation::class, InventoryPolicy::class);

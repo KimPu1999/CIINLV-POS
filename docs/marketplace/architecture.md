@@ -1,6 +1,6 @@
 # CIINLV-POS Marketplace Architecture Audit
 
-Phase 1 read-only audit completed on 2026-10-20.
+Phase 1 audit completed and Phase 2 foundation implemented on 2026-10-20.
 
 This document describes the current repository and a proposed marketplace boundary. No Laravel application logic, routes, migrations, models, database records, authentication configuration, or frontend behavior was changed during Phase 1.
 
@@ -15,7 +15,7 @@ CIINLV-POS is currently a multi-tenant Laravel POS and inventory application wit
 - A versioned /api/v1 JSON API.
 - A React/Vite/Tailwind frontend with Super Admin, Business Admin, authentication, POS, inventory, reporting, settings, and security screens.
 
-There is no marketplace implementation in the current repository. The requested marketplace must therefore be an additive subsystem that reuses the existing tenant/product/variant/inventory sources of truth and keeps POS routes and contracts unchanged.
+The Phase 2 marketplace foundation is an additive subsystem that reuses the existing tenant/product/variant/inventory sources of truth and keeps POS routes and contracts unchanged. Cart, checkout, payments, orders, fulfillment, commissions, and payouts remain future phases.
 
 ## Current system boundary
 
@@ -37,7 +37,7 @@ There is no marketplace implementation in the current repository. The requested 
       ├── inventory and POS transaction services
       └── PostgreSQL persistence
 
-The future marketplace should be a separate marketplace-frontend React application consuming a dedicated /api/v1/marketplace/* namespace. It may reuse visual tokens and typed API conventions, but it must not introduce a second source of truth for products, stock, prices, payments, or tenant ownership.
+The marketplace is a separate marketplace-frontend React application consuming a dedicated /api/v1/marketplace/* namespace. It reuses visual tokens and typed API conventions, but does not introduce a second source of truth for products, stock, prices, payments, or tenant ownership.
 
 ## Existing backend architecture
 
@@ -58,7 +58,7 @@ tenant.context requires the resolved membership role to be business_admin. tenan
 
 The web frontend first requests /sanctum/csrf-cookie, then uses the Laravel web session with credentialed Axios requests. users.platform_role=super_admin identifies platform administrators. Business access is based on active tenant_memberships and role records, not on a client-provided tenant ID.
 
-The current React AuthProvider restores the authenticated user from /api/v1/auth/me, persists only the selected tenant ID and locale in local storage, and exposes refreshUser() for profile refreshes. A customer marketplace identity flow does not currently exist and is an architectural decision for Phase 2.
+The current React AuthProvider remains unchanged for administrator sessions. Marketplace customer sessions use a separate customer profile marker on the existing users table and the same web/Sanctum guard, with `customer.account` preventing access to tenant/platform routes.
 
 ### Tenant and business ownership
 
@@ -111,21 +111,24 @@ The administrator frontend bundles English/Myanmar JSON resources with i18next, 
 - Additive migration history with PostgreSQL-oriented constraints and indexes.
 - Frontend build, lint, tests, and i18n audit scripts.
 
-### Absent
+### Phase 2 added
 
-- marketplace-frontend/.
-- Customer registration, customer login, customer profile, address book, or customer role/guard.
-- Marketplace store/public storefront records.
-- Listing publication or moderation workflow.
-- Marketplace cart, wishlist, order, vendor-order, checkout, shipment, reservation, review, commission, payout, or marketplace audit entities.
-- Marketplace API routes/controllers/resources/policies.
+- Additive marketplace store, listing, listing image, customer profile, customer address, and marketplace audit tables.
+- Public approved-store/product/category/search resources with locale-aware product/category display and stock visibility checks.
+- Customer registration, login, logout, profile, and address APIs using the existing web/Sanctum session boundary.
+- Vendor-owned store/listing APIs protected by `tenant.context` and business-admin membership.
+- Super Admin store approval APIs protected by `platform.admin` with marketplace audit records.
+
+### Still absent by design
+
+- Marketplace cart, wishlist persistence API, order, vendor-order, checkout, shipment, reservation, review, commission, and payout entities.
 - Customer notification or marketplace order tracking workflow.
 - Provider-specific online payment integration or webhook verification.
 - Marketplace search/indexing strategy.
 
 ### Existing dependencies that need explicit treatment
 
-- POS sales.customer_id is an existing nullable integer reference without a marketplace customer model or foreign-key relationship. Phase 2 must decide whether customer identities are added compatibly or whether marketplace orders use a separate customer profile reference.
+- POS sales.customer_id remains unchanged. Marketplace customer profiles are separate and no marketplace orders are created in Phase 2.
 - Existing stores represent operational business branches. They should not automatically be treated as public marketplace storefronts without an approval/publication boundary.
 - Tenant and product localization is currently translation-record based. User-created product names and business names must not be silently overwritten by generated Burmese text.
 - Product media is public while verification media is private. Marketplace media must not accidentally expose private business documents.
@@ -155,15 +158,12 @@ Existing Super Admin routes will gain marketplace oversight for vendor approval,
 
 A customer checkout creates one master marketplace order plus vendor sub-orders. Prices, discounts, taxes, shipping, and stock are calculated server-side. Inventory is reserved under row-level locking and is committed/released according to a server-enforced order/payment state machine. POS and marketplace must share the same variant balances and mutation service.
 
-## Phase 1 decision gates
+## Phase 2 decisions recorded
 
-Before Phase 2 implementation, approve:
+The Phase 2 foundation records these decisions:
 
-1. Customer identity model: extend users with a customer role, add a separate customer auth/profile model, or support both.
-2. Whether an existing operational store can opt into a public marketplace store, or whether a new marketplace store is always required.
-3. Marketplace currency, tax, shipping, cancellation, refund, and order-state policies.
-4. One supported online payment provider and its webhook/signature requirements.
-5. Product listing granularity: product-level listing with variant snapshots versus one listing per sellable variant.
-6. Public media delivery strategy.
-7. Commission and payout accounting rules.
-8. Search strategy and acceptable scale for the first release.
+1. Customers use a one-to-one `customer_profiles` extension with no tenant membership or platform role.
+2. Marketplace stores are explicit tenant-owned records and are not automatically mapped from operational branches.
+3. Listings are product-level and resolve active variant prices/stock from canonical POS tables.
+4. Public catalog media uses public-disk URLs; verification/profile media remains on the existing private/authenticated delivery path.
+5. Tax, shipping, payments, commissions, payouts, and order-state policy remain Phase 3+ decisions.

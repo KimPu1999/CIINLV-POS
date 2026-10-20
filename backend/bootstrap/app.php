@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ActiveAccount;
+use App\Http\Middleware\CustomerAccount;
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\PlatformAdmin;
 use App\Http\Middleware\ResolveTenant;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'active.account' => ActiveAccount::class,
+            'customer.account' => CustomerAccount::class,
             'platform.admin' => PlatformAdmin::class,
             'tenant.context' => ResolveTenant::class,
             'tenant.context.any' => ResolveTenantAnyRole::class,

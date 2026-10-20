@@ -76,9 +76,9 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetchCatalog(controller.signal).then(setCatalog).catch(() => undefined)
+    void fetchCatalog(locale, controller.signal).then(setCatalog).catch(() => undefined)
     return () => controller.abort()
-  }, [])
+  }, [locale])
 
   useEffect(() => {
     window.localStorage.setItem(cartStorageKey, JSON.stringify(cart))

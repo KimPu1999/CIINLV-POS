@@ -124,4 +124,19 @@ class Tenant extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    public function marketplaceStore(): HasOne
+    {
+        return $this->hasOne(MarketplaceStore::class);
+    }
+
+    public function marketplaceListings(): HasMany
+    {
+        return $this->hasMany(MarketplaceListing::class);
+    }
+
+    public function marketplaceAuditLogs(): HasMany
+    {
+        return $this->hasMany(MarketplaceAuditLog::class);
+    }
 }

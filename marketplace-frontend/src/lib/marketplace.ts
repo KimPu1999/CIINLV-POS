@@ -279,9 +279,11 @@ function normalizeListing(value: Record<string, unknown>): MarketplaceListing {
   }
 }
 
-async function getCollection(baseUrl: string, path: string, signal?: AbortSignal): Promise<unknown[]> {
-  const response = await fetch(baseUrl + path, {
+async function getCollection(baseUrl: string, path: string, locale: Locale, signal?: AbortSignal): Promise<unknown[]> {
+  const query = path.includes('?') ? '&' : '?'
+  const response = await fetch(baseUrl + path + query + 'lang=' + locale, {
     headers: { Accept: 'application/json' },
+    credentials: 'include',
     signal,
   })
   if (!response.ok) throw new Error('Marketplace API returned ' + response.status + '.')
@@ -293,17 +295,14 @@ async function getCollection(baseUrl: string, path: string, signal?: AbortSignal
   return []
 }
 
-export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogResult> {
-  const configuredEndpoint = (import.meta.env.VITE_MARKETPLACE_API_BASE as string | undefined)?.trim().replace(/\/$/, '')
-  if (!configuredEndpoint) {
-    return { status: 'not-configured', data: emptyCatalog() }
-  }
+export async function fetchCatalog(locale: Locale, signal?: AbortSignal): Promise<CatalogResult> {
+  const configuredEndpoint = ((import.meta.env.VITE_MARKETPLACE_API_BASE as string | undefined)?.trim() || '/api/v1/marketplace').replace(/\/$/, '')
 
   try {
     const [listingValues, storeValues, categoryValues] = await Promise.all([
-      getCollection(configuredEndpoint, '/listings', signal),
-      getCollection(configuredEndpoint, '/stores', signal),
-      getCollection(configuredEndpoint, '/categories', signal),
+      getCollection(configuredEndpoint, '/products', locale, signal),
+      getCollection(configuredEndpoint, '/stores', locale, signal),
+      getCollection(configuredEndpoint, '/categories', locale, signal),
     ])
     return {
       status: 'ready',
