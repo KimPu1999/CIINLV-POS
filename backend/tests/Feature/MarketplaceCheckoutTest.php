@@ -43,6 +43,17 @@ class MarketplaceCheckoutTest extends TestCase
         $this->assertDatabaseHas('marketplace_cart_items', ['tenant_id' => $tenant->id, 'product_variant_id' => $variant->id, 'quantity' => 2]);
     }
 
+    public function test_customer_cart_creation_is_reused_for_repeated_requests(): void
+    {
+        $customer = $this->customer('buyer-cart-reuse@example.com');
+
+        $this->actingAs($customer, 'sanctum')->getJson('/api/v1/marketplace/cart')->assertOk();
+        $this->actingAs($customer, 'sanctum')->getJson('/api/v1/marketplace/cart')->assertOk();
+
+        $this->assertDatabaseCount('marketplace_carts', 1);
+        $this->assertDatabaseHas('marketplace_carts', ['customer_user_id' => $customer->id, 'status' => 'active']);
+    }
+
     public function test_mixed_vendor_checkout_splits_orders_reserves_stock_and_is_idempotent(): void
     {
         [, , $listingA, $variantA] = $this->vendor('CHECKOUT-B', 1000, 5);

@@ -14,9 +14,9 @@ class MarketplaceCartService
 {
     public function get(User $customer): MarketplaceCart
     {
-        $cart = $this->activeCart($customer);
-
-        return $this->load($cart);
+        return DB::transaction(function () use ($customer): MarketplaceCart {
+            return $this->load($this->activeCart($customer, true));
+        });
     }
 
     public function add(User $customer, array $data): MarketplaceCart
@@ -72,22 +72,30 @@ class MarketplaceCartService
 
     public function remove(User $customer, string $itemUuid): MarketplaceCart
     {
-        $cart = $this->activeCart($customer, true);
-        MarketplaceCartItem::where('uuid', $itemUuid)->where('marketplace_cart_id', $cart->id)->firstOrFail()->delete();
+        return DB::transaction(function () use ($customer, $itemUuid): MarketplaceCart {
+            $cart = $this->activeCart($customer, true);
+            MarketplaceCartItem::where('uuid', $itemUuid)->where('marketplace_cart_id', $cart->id)->firstOrFail()->delete();
 
-        return $this->load($cart->refresh());
+            return $this->load($cart->refresh());
+        });
     }
 
     public function clear(User $customer): MarketplaceCart
     {
-        $cart = $this->activeCart($customer, true);
-        $cart->items()->delete();
+        return DB::transaction(function () use ($customer): MarketplaceCart {
+            $cart = $this->activeCart($customer, true);
+            $cart->items()->delete();
 
-        return $this->load($cart->refresh());
+            return $this->load($cart->refresh());
+        });
     }
 
     public function activeCart(User $customer, bool $lock = false): MarketplaceCart
     {
+        if ($lock) {
+            User::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+        }
+
         $query = MarketplaceCart::where('customer_user_id', $customer->id)->where('status', 'active');
         if ($lock) {
             $query->lockForUpdate();
