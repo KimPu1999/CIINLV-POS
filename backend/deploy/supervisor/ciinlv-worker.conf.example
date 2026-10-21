@@ -1,0 +1,14 @@
+[program:ciinlv-worker]
+directory=/var/www/ciinlv-pos/backend
+command=/usr/bin/php artisan queue:work redis --sleep=3 --tries=3 --timeout=90 --max-time=3600
+process_name=%(program_name)s_%(process_num)02d
+numprocs=2
+autostart=true
+autorestart=true
+stopwaitsecs=3600
+redirect_stderr=true
+stdout_logfile=/var/log/ciinlv/worker.log
+stopasgroup=true
+killasgroup=true
+
+; Use a secret-managed environment file and least-privilege filesystem user.

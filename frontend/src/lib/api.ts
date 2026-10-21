@@ -40,8 +40,10 @@ export interface ApiResponse<T> {
   message?: string
 }
 
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+
 export const api = axios.create({
-  baseURL: '/',
+  baseURL: configuredApiBaseUrl ? configuredApiBaseUrl.replace(/\/$/, '') : '/',
   timeout: 10000,
   withCredentials: true,
   withXSRFToken: true,
