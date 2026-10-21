@@ -309,44 +309,90 @@ function App() {
   )
 }
 
-function HomePage({ catalog, t, addToCart, wishlist, toggleWishlist }: AppServices) {
+function HomePage({ locale, catalog, t, addToCart, wishlist, toggleWishlist }: AppServices) {
+  const navigate = useNavigate()
+  const [search, setSearch] = useState('')
+  const listings = catalog.data.listings
+  const featured = listings.slice(0, 4)
+  const newArrivals = listings.slice(4, 8)
+  const heroListing = featured[0]
+
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const query = search.trim()
+    navigate(query ? `/shop?search=${encodeURIComponent(query)}` : '/shop')
+  }
+
   return (
-    <>
-      <section className="relative isolate overflow-hidden bg-slate-950">
-        <div className="absolute -left-32 top-0 -z-10 size-[30rem] rounded-full bg-blue-600/30 blur-3xl" />
-        <div className="absolute -right-32 bottom-0 -z-10 size-[30rem] rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:py-28">
+    <main className="bg-[#F8FAFC] dark:bg-slate-950">
+      <section className="relative isolate overflow-hidden bg-[#0F172A]">
+        <div className="absolute -left-40 top-0 -z-10 size-[34rem] rounded-full bg-[#1D4ED8]/35 blur-3xl" />
+        <div className="absolute -right-40 bottom-0 -z-10 size-[30rem] rounded-full bg-[#F59E0B]/15 blur-3xl" />
+        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.04fr_0.96fr] lg:items-center lg:px-8 lg:py-24">
           <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-200"><SparkleIcon /> {t('curatedForYou')}</div>
-            <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">{t('discoverTitle')}</h1>
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-300/25 bg-blue-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-100"><SparkleIcon /> {t('curatedForYou')}</div>
+            <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl">{t('discoverTitle')}</h1>
             <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">{t('discoverBody')}</p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link to="/shop" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-500 px-5 text-sm font-black text-white shadow-xl shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-400/30">{t('exploreShop')} <ArrowRight size={17} /></Link>
+            <form onSubmit={submitSearch} role="search" className="mt-8 flex max-w-2xl flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur sm:flex-row">
+              <label className="flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-white px-3 text-slate-500">
+                <Search size={19} className="shrink-0 text-[#1D4ED8]" />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400" />
+              </label>
+              <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#F59E0B] px-5 text-sm font-black text-[#0F172A] transition hover:bg-amber-300 focus:outline-none focus:ring-4 focus:ring-amber-300/30">{t('exploreShop')} <ArrowRight size={17} /></button>
+            </form>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link to="/shop" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#1D4ED8] px-5 text-sm font-black text-white shadow-xl shadow-blue-950/30 transition hover:-translate-y-0.5 hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-400/30">{t('exploreShop')} <ArrowRight size={17} /></Link>
               <Link to="/stores" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-blue-400/30">{t('exploreStores')} <Store size={17} /></Link>
-            </div>
-            <div className="mt-10 flex flex-wrap gap-6 text-sm text-slate-300">
-              <Benefit icon={<ShieldCheck size={18} />} label={t('verifiedBusinesses')} />
-              <Benefit icon={<Truck size={18} />} label={t('thoughtfulDelivery')} />
-              <Benefit icon={<UserRound size={18} />} label={t('builtForCommunity')} />
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-lg">
-            <div className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-tr from-blue-500/30 to-cyan-300/20 blur-2xl" />
+            <div className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-tr from-blue-500/30 to-amber-300/15 blur-2xl" />
             <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/10 p-3 shadow-2xl backdrop-blur">
-              <div className="rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-blue-500 via-blue-600 to-slate-950 p-6">
-                <div className="flex items-center justify-between text-white"><span className="text-sm font-bold text-blue-100">{t('featuredProducts')}</span><ShoppingBag size={20} /></div>
-                <div className="mt-16 grid grid-cols-2 gap-3"><VisualTile title={t('newFinds')} tint="from-cyan-300/70 to-blue-500" /><VisualTile title={t('localMakers')} tint="from-indigo-300/70 to-blue-800" /><VisualTile title={t('dailyEssentials')} tint="from-sky-200/70 to-cyan-700" /><VisualTile title={t('giftsMore')} tint="from-blue-200/70 to-indigo-700" /></div>
-                <div className="mt-6 flex items-center justify-between rounded-2xl border border-white/10 bg-white/10 p-4 text-white"><span className="text-sm font-semibold">{t('curatedForYou')}</span><ChevronRight size={18} /></div>
-              </div>
+              {heroListing ? <div className="relative overflow-hidden rounded-[1.5rem] bg-slate-900">
+                <ProductVisual listing={heroListing} />
+                <div className="absolute inset-x-4 bottom-4 rounded-2xl border border-white/15 bg-[#0F172A]/85 p-4 text-white backdrop-blur">
+                  <p className="truncate text-xs font-bold uppercase tracking-[0.18em] text-blue-200">{heroListing.storeName || t('marketplace')}</p>
+                  <h2 className="mt-2 truncate text-lg font-black">{heroListing.name}</h2>
+                  <div className="mt-3 flex items-center justify-between gap-3"><span className="text-lg font-black text-amber-300">{formatPrice(heroListing.variants[0]?.sellingPrice ?? heroListing.price, heroListing.currency, locale)}</span><Link to={`/product/${heroListing.slug ?? heroListing.id}`} className="inline-flex items-center gap-1 text-sm font-black text-white hover:text-amber-300">{t('productDetails')} <ChevronRight size={15} /></Link></div>
+                </div>
+              </div> : <div className="grid min-h-[390px] place-items-center rounded-[1.5rem] bg-gradient-to-br from-[#1D4ED8] to-[#0F172A] p-8 text-center text-white">
+                {catalog.status === 'loading' ? <LoaderCircle className="animate-spin text-blue-200" size={46} /> : <><Package className="text-blue-200" size={56} strokeWidth={1.2} /><p className="mt-5 max-w-xs text-sm font-semibold text-blue-100">{catalog.status === 'error' ? t('catalogUnavailable') : t('noListings')}</p></>}
+              </div>}
             </div>
           </div>
         </div>
       </section>
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('popularCategories')} title={t('browseCategories')} link="/categories" linkLabel={t('viewAll')} /><CategoryGrid categories={catalog.data.categories.slice(0, 6)} t={t} /></section>
-      <section className="bg-white py-16 dark:bg-slate-900/40"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('featuredProducts')} title={t('browseCollection')} link="/shop" linkLabel={t('viewAll')} />{catalog.data.listings.length > 0 ? <ProductGrid listings={catalog.data.listings.slice(0, 4)} wishlist={wishlist} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <CatalogEmpty status={catalog.status} t={t} />}</div></section>
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('stores')} title={t('shopByStore')} link="/stores" linkLabel={t('viewAll')} /><StoreGrid stores={catalog.data.stores.slice(0, 4)} t={t} /></section>
-    </>
+
+      <section className="relative z-10 -mt-7 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-7xl gap-px overflow-hidden rounded-3xl border border-slate-200 bg-slate-200 shadow-xl shadow-slate-300/30 dark:border-slate-800 dark:bg-slate-800 dark:shadow-black/20 sm:grid-cols-3">
+          <TrustItem icon={<ShieldCheck size={21} />} label={t('verifiedBusinesses')} />
+          <TrustItem icon={<Truck size={21} />} label={t('thoughtfulDelivery')} />
+          <TrustItem icon={<UserRound size={21} />} label={t('builtForCommunity')} />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"><SectionHeading eyebrow={t('popularCategories')} title={t('browseCategories')} link="/categories" linkLabel={t('viewAll')} /><HomepageCategoryGrid categories={catalog.data.categories.slice(0, 6)} t={t} /></section>
+
+      <section className="border-y border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900/40 lg:py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('featuredProducts')} title={t('browseCollection')} link="/shop" linkLabel={t('viewAll')} />{catalog.status === 'loading' ? <ProductSkeletonGrid /> : featured.length > 0 ? <ProductGrid listings={featured} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <CatalogEmpty status={catalog.status} t={t} />}</div></section>
+
+      {newArrivals.length > 0 && <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"><SectionHeading eyebrow={t('newFinds')} title={t('newFinds')} link="/shop?sort=newest" linkLabel={t('viewAll')} /><ProductGrid listings={newArrivals} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}
+
+      {catalog.data.stores.length > 0 && <section className="border-t border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900/40 lg:py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('verifiedBusinesses')} title={t('shopByStore')} link="/stores" linkLabel={t('viewAll')} /><SellerSpotlight store={catalog.data.stores[0]} t={t} /><div className="mt-8"><StoreGrid stores={catalog.data.stores.slice(1, 5)} t={t} /></div></div></section>}
+    </main>
   )
+}
+
+function TrustItem({ icon, label }: { icon: ReactNode; label: string }) {
+  return <div className="flex items-center gap-3 bg-white px-5 py-5 dark:bg-slate-900"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#1D4ED8] dark:bg-blue-950/40 dark:text-blue-300">{icon}</span><span className="text-sm font-black text-slate-800 dark:text-slate-100">{label}</span></div>
+}
+
+function HomepageCategoryGrid({ categories, t }: { categories: MarketplaceCategory[]; t: (key: TranslationKey) => string }) {
+  if (categories.length === 0) return <CategoryGrid categories={categories} t={t} />
+  return <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">{categories.map((category, index) => <Link key={category.id} to={`/shop?category=${encodeURIComponent(category.slug ?? category.id)}`} className="group rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-950/5 dark:border-slate-800 dark:bg-slate-900 sm:p-5"><div className={'relative grid size-16 place-items-center overflow-hidden rounded-2xl text-[#1D4ED8] dark:text-blue-300 ' + ['bg-blue-50 dark:bg-blue-950/40', 'bg-cyan-50 dark:bg-cyan-950/40', 'bg-amber-50 dark:bg-amber-950/30'][index % 3]}><Package size={25} strokeWidth={1.6} />{category.imageUrl && <img src={category.imageUrl} alt="" className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-105" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} />}</div><h3 className="mt-5 truncate font-black text-slate-950 dark:text-white">{category.name}</h3><p className="mt-1 text-xs font-semibold text-slate-400">{category.productCount ?? 0} {t('products')}</p></Link>)}</div>
+}
+
+function SellerSpotlight({ store, t }: { store: MarketplaceStore; t: (key: TranslationKey) => string }) {
+  return <Link to={`/stores/${store.slug ?? store.id}`} className="group grid overflow-hidden rounded-[2rem] border border-slate-200 bg-[#0F172A] shadow-xl shadow-slate-300/20 transition hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800 dark:shadow-black/20 md:grid-cols-[1.1fr_0.9fr]"><div className="relative min-h-64 overflow-hidden bg-gradient-to-br from-[#1D4ED8] to-[#0F172A] p-8 sm:p-10">{store.bannerUrl && <img src={store.bannerUrl} alt="" className="absolute inset-0 size-full object-cover opacity-35 transition duration-500 group-hover:scale-105" />}{store.logoUrl && <img src={store.logoUrl} alt="" className="relative size-16 rounded-2xl border border-white/20 object-cover shadow-lg" />}{!store.logoUrl && <span className="relative inline-grid size-16 place-items-center rounded-2xl border border-white/20 bg-white/10 text-white"><Store size={30} /></span>}<p className="relative mt-8 text-xs font-black uppercase tracking-[0.2em] text-blue-200">{t('verifiedBusinesses')}</p><h2 className="relative mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">{store.name}</h2></div><div className="flex flex-col justify-center bg-white p-8 dark:bg-slate-900 sm:p-10"><p className="line-clamp-3 text-base leading-8 text-slate-500 dark:text-slate-400">{store.description || t('discoverBody')}</p><div className="mt-7 flex flex-wrap items-center justify-between gap-4"><span className="text-sm font-black text-slate-700 dark:text-slate-200">{store.productCount ?? 0} {t('products')}</span><span className="inline-flex items-center gap-1 text-sm font-black text-[#1D4ED8]">{t('viewStore')} <ArrowRight size={16} /></span></div></div></Link>
 }
 
 function ShopPage({ locale, catalog, t, wishlist, addToCart, toggleWishlist }: AppServices) {
@@ -688,7 +734,7 @@ function ProductCard({ listing, saved, locale, t, addToCart, toggleWishlist }: {
   const variant = listing.variants.find((item) => item.availableStock !== 0) ?? listing.variants[0]
   const available = listing.trackInventory ? variant?.availableStock ?? listing.availableStock : null
   const unavailable = listing.trackInventory && (available === 0 || !variant)
-  return <article className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-black/20"><div className="relative"><Link to={`/product/${listing.slug ?? listing.id}`} aria-label={listing.name}><ProductVisual listing={listing} compact /></Link><button type="button" onClick={() => toggleWishlist(listing.id)} className={'absolute right-3 top-3 grid size-10 place-items-center rounded-xl border backdrop-blur transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (saved ? 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'border-white/80 bg-white/80 text-slate-500 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900/80')} aria-label={saved ? t('saved') : t('save')}><Heart size={18} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="p-5"><p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-slate-400">{listing.storeName || t('marketplace')}</p><Link to={`/product/${listing.slug ?? listing.id}`} className="mt-2 block truncate text-base font-black text-slate-950 transition hover:text-blue-600 dark:text-white">{listing.name}</Link><div className="mt-4 flex items-center justify-between gap-3"><span className="text-lg font-black text-blue-600">{formatPrice(variant?.sellingPrice ?? listing.price, listing.currency, locale)}</span><button type="button" onClick={() => addToCart(listing, variant?.id)} disabled={unavailable} className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300" aria-label={unavailable ? t('soldOut') : t('addToCart')}><Plus size={19} /></button></div></div></article>
+  return <article className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-black/20"><div className="relative"><Link to={`/product/${listing.slug ?? listing.id}`} aria-label={listing.name}><ProductVisual listing={listing} compact /></Link><button type="button" onClick={() => toggleWishlist(listing.id)} className={'absolute right-3 top-3 grid size-10 place-items-center rounded-xl border backdrop-blur transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (saved ? 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'border-white/80 bg-white/80 text-slate-500 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900/80')} aria-label={saved ? t('saved') : t('save')}><Heart size={18} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="p-5"><div className="flex items-center justify-between gap-2"><p className="truncate text-[11px] font-black uppercase tracking-[0.16em] text-[#1D4ED8]">{listing.categoryName || t('marketplace')}</p>{listing.storeName && <p className="truncate text-[11px] font-semibold text-slate-400">{listing.storeName}</p>}</div><Link to={`/product/${listing.slug ?? listing.id}`} className="mt-2 block truncate text-base font-black text-slate-950 transition hover:text-blue-600 dark:text-white">{listing.name}</Link><p className={'mt-3 text-xs font-bold ' + (unavailable ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400')}>{unavailable ? t('soldOut') : t('available')}</p><div className="mt-4 flex items-center justify-between gap-3"><span className="text-lg font-black text-[#1D4ED8]">{formatPrice(variant?.sellingPrice ?? listing.price, listing.currency, locale)}</span><button type="button" onClick={() => addToCart(listing, variant?.id)} disabled={unavailable} className="grid size-10 place-items-center rounded-xl bg-[#1D4ED8] text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300" aria-label={unavailable ? t('soldOut') : t('addToCart')}><Plus size={19} /></button></div><Link to={`/product/${listing.slug ?? listing.id}`} className="mt-4 inline-flex items-center gap-1 text-sm font-black text-slate-600 transition hover:gap-2 hover:text-[#1D4ED8] dark:text-slate-300 dark:hover:text-blue-300">{t('productDetails')} <ChevronRight size={15} /></Link></div></article>
 }
 
 function ProductVisual({ listing, compact = false }: { listing: MarketplaceListing; compact?: boolean }) {
@@ -759,14 +805,6 @@ function SectionHeading({ eyebrow, title, link, linkLabel }: { eyebrow: string; 
 
 function EmptyState({ icon, title, body, action }: { icon: ReactNode; title: string; body: string; action?: ReactNode }) {
   return <div className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900"><span className="grid size-16 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">{icon}</span><h2 className="mt-5 text-xl font-black text-slate-950 dark:text-white">{title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-slate-500 dark:text-slate-400">{body}</p>{action && <div className="mt-6">{action}</div>}</div>
-}
-
-function Benefit({ icon, label }: { icon: ReactNode; label: string }) {
-  return <span className="inline-flex items-center gap-2"><span className="text-blue-300">{icon}</span>{label}</span>
-}
-
-function VisualTile({ title, tint }: { title: string; tint: string }) {
-  return <div className={'flex min-h-32 items-end rounded-2xl bg-gradient-to-br p-4 text-sm font-black text-white shadow-lg ' + tint}>{title}</div>
 }
 
 function Field({ label, name, type = 'text', value, onChange, wide = false, required = false, placeholder, autoComplete }: { label: string; name: string; type?: string; value?: string; onChange?: (value: string) => void; wide?: boolean; required?: boolean; placeholder?: string; autoComplete?: string }) {
