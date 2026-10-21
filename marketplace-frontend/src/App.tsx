@@ -28,6 +28,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router-dom'
+import { BrandLogo } from './components/BrandLogo'
 import { MarketplaceShell, StoreMark } from './components/MarketplaceShell'
 import {
   apiErrorMessage,
@@ -531,7 +532,7 @@ function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServi
   const fieldError = (field: string) => fieldErrors[field]?.[0] ? <p className="-mt-3 text-xs font-semibold text-red-600">{fieldErrors[field][0]}</p> : null
   return <PageContainer>
     <div className="mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[0.9fr_1.1fr]">
-      <div className="bg-gradient-to-br from-blue-700 to-slate-950 p-8 text-white sm:p-12"><span className="grid size-12 place-items-center rounded-2xl bg-white/10"><ShoppingBag size={23} /></span><h1 className="mt-14 text-4xl font-black tracking-tight">{isRegister ? t('createAccount') : t('signInTitle')}</h1><p className="mt-5 leading-8 text-blue-100">{isRegister ? t('discoverBody') : t('signInBody')}</p></div>
+      <div className="bg-gradient-to-br from-blue-700 to-slate-950 p-8 text-white sm:p-12"><BrandLogo label={t('marketplace')} imageClassName="h-10 w-10 sm:h-12 sm:w-12" nameClassName="text-white" /><h1 className="mt-14 text-4xl font-black tracking-tight">{isRegister ? t('createAccount') : t('signInTitle')}</h1><p className="mt-5 leading-8 text-blue-100">{isRegister ? t('discoverBody') : t('signInBody')}</p></div>
       <form onSubmit={submit} className="p-8 sm:p-12">
         <h2 className="text-2xl font-black">{isRegister ? t('register') : t('signIn')}</h2>
         {error && <div role="alert" className="mt-5 flex gap-2 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200"><CircleAlert className="shrink-0" size={18} />{error}</div>}
@@ -733,7 +734,7 @@ function Pagination({ meta, t, onPage }: { meta: PaginationMeta; t: (key: Transl
 }
 
 function LoadingState({ t }: { t: (key: TranslationKey) => string }) {
-  return <div role="status" className="flex min-h-64 items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-sm font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900"><LoaderCircle className="mr-3 animate-spin text-blue-600" size={20} /> {t('loading')}</div>
+  return <div role="status" className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-3xl border border-slate-200 bg-white p-8 text-sm font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-900"><BrandLogo showName={false} imageClassName="h-10 w-10" /><div className="flex items-center"><LoaderCircle className="mr-3 animate-spin text-blue-600" size={20} /> {t('loading')}</div></div>
 }
 
 function ProductSkeletonGrid() {
@@ -741,7 +742,7 @@ function ProductSkeletonGrid() {
 }
 
 function ErrorState({ message, t }: { message: string; t: (key: TranslationKey) => string }) {
-  return <div role="alert" className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900/50 dark:bg-red-950/20"><CircleAlert className="text-red-500" size={28} /><h2 className="mt-4 text-lg font-black">{t('apiUnavailable')}</h2><p className="mt-2 max-w-md text-sm leading-6 text-red-800 dark:text-red-200">{message}</p></div>
+  return <div role="alert" className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900/50 dark:bg-red-950/20"><BrandLogo showName={false} imageClassName="h-10 w-10" /><CircleAlert className="mt-4 text-red-500" size={28} /><h2 className="mt-4 text-lg font-black">{t('apiUnavailable')}</h2><p className="mt-2 max-w-md text-sm leading-6 text-red-800 dark:text-red-200">{message}</p></div>
 }
 
 function PageContainer({ children }: { children: ReactNode }) {
