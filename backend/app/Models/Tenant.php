@@ -139,4 +139,9 @@ class Tenant extends Model
     {
         return $this->hasMany(MarketplaceAuditLog::class);
     }
+
+    public function marketplaceCommissionRules(): HasMany
+    {
+        return $this->hasMany(MarketplaceCommissionRule::class);
+    }
 }

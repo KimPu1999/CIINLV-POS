@@ -173,16 +173,25 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
             Route::get('/settings', [MarketplaceAdminController::class, 'settings']);
             Route::patch('/settings', [MarketplaceAdminController::class, 'updateSettings']);
+            Route::get('/commission-businesses', [MarketplaceAdminController::class, 'commissionBusinesses']);
+            Route::get('/commission-categories', [MarketplaceAdminController::class, 'commissionCategories']);
             Route::get('/commission-rules', [MarketplaceAdminController::class, 'commissionRules']);
             Route::post('/commission-rules', [MarketplaceAdminController::class, 'storeCommissionRule']);
             Route::patch('/commission-rules/{rule}', [MarketplaceAdminController::class, 'updateCommissionRule']);
+            Route::delete('/commission-rules/{rule}', [MarketplaceAdminController::class, 'removeCommissionRule']);
             Route::get('/commission-preview', [MarketplaceAdminController::class, 'commissionPreview']);
             Route::get('/commission-reports', [MarketplaceAdminController::class, 'commissionReports']);
+            Route::get('/commission-reports/export', [MarketplaceAdminController::class, 'exportCommissionReport']);
             Route::get('/payout-summaries', [MarketplaceAdminController::class, 'payoutSummaries']);
+            Route::get('/payouts', [MarketplaceAdminController::class, 'payouts']);
+            Route::post('/payouts', [MarketplaceAdminController::class, 'requestPayout']);
+            Route::patch('/payouts/{payout}/approve', [MarketplaceAdminController::class, 'approvePayout']);
+            Route::patch('/payouts/{payout}/reject', [MarketplaceAdminController::class, 'rejectPayout']);
         });
 
         Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
             Route::get('/overview', [MarketplaceVendorController::class, 'overview']);
+            Route::get('/earnings', [MarketplaceVendorController::class, 'earnings']);
             Route::get('/orders', [MarketplaceVendorController::class, 'orders']);
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
             Route::post('/orders/{order}/shipments', [MarketplaceVendorFulfillmentController::class, 'createShipment']);

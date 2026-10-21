@@ -12,6 +12,7 @@ class MarketplaceOrderResource extends JsonResource
         return [
             'id' => $this->uuid,
             'order_number' => $this->order_number,
+            'promotion_code' => $this->promotion_code,
             'currency_code' => $this->currency_code,
             'status' => $this->status,
             'payment_status' => $this->payment_status,

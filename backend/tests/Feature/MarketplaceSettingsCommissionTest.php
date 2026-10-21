@@ -62,6 +62,66 @@ class MarketplaceSettingsCommissionTest extends TestCase
         $this->assertDatabaseCount('marketplace_commission_rules', 2);
     }
 
+    public function test_platform_admin_can_search_businesses_and_apply_different_rates_with_global_fallback(): void
+    {
+        [$businessA] = $this->businessWithAdmin('COMMISSION-A', 'commission-a@example.com');
+        [$businessB] = $this->businessWithAdmin('COMMISSION-B', 'commission-b@example.com');
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', ['default_commission_rate' => '10.0000', 'revision' => 1])->assertOk();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['tenant_id' => $businessA->id, 'rate' => '5.0000'])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['tenant_id' => $businessB->id, 'rate' => '15.0000'])->assertCreated();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-businesses?search=COMMISSION-A')
+            ->assertOk()
+            ->assertJsonPath('data.0.business_id', 'COMMISSION-A')
+            ->assertJsonPath('data.0.effective_commission', '5.0000')
+            ->assertJsonPath('data.0.rule_type', 'business_override');
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-preview?tenant_id='.$businessB->id.'&base_amount=1000.00')
+            ->assertOk()->assertJsonPath('data.rate', '15.0000');
+
+        $ruleId = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-rules?tenant_id='.$businessA->id)
+            ->assertOk()->json('data.0.id');
+        $this->actingAs($admin, 'sanctum')->deleteJson('/api/v1/admin/marketplace/commission-rules/'.$ruleId)
+            ->assertOk()->assertJsonPath('message', 'Business override removed. The global default now applies.');
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-preview?tenant_id='.$businessA->id.'&base_amount=1000.00')
+            ->assertOk()->assertJsonPath('data.rate', '10.0000');
+        $this->assertDatabaseHas('marketplace_audit_logs', ['action' => 'marketplace.commission_rule_removed', 'actor_user_id' => $admin->id]);
+    }
+
+    public function test_promotional_rule_has_priority_then_category_rule_after_expiration(): void
+    {
+        [$tenant] = $this->businessWithAdmin('COMMISSION-PRIORITY', 'commission-priority@example.com');
+        $category = Category::create(['tenant_id' => $tenant->id, 'name' => 'Priority', 'slug' => 'commission-priority-category', 'status' => 'active']);
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', ['default_commission_rate' => '10.0000', 'revision' => 1])->assertOk();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', [
+            'rule_type' => 'category',
+            'category_id' => $category->id,
+            'rate' => '20.0000',
+        ])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', [
+            'rule_type' => 'promotional',
+            'tenant_id' => $tenant->id,
+            'category_id' => $category->id,
+            'rate' => '5.0000',
+            'effective_until' => now()->addDay()->toIso8601String(),
+        ])->assertCreated();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-preview?tenant_id='.$tenant->id.'&category_id='.$category->id.'&base_amount=1000.00')
+            ->assertOk()->assertJsonPath('data.rate', '5.0000');
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-preview?tenant_id='.$tenant->id.'&category_id='.$category->id.'&base_amount=1000.00&at='.urlencode(now()->addDays(2)->toIso8601String()))
+            ->assertOk()->assertJsonPath('data.rate', '20.0000');
+    }
+
+    public function test_business_admin_cannot_read_or_change_platform_commission_rules(): void
+    {
+        [$tenant, $businessAdmin] = $this->businessWithAdmin('COMMISSION-C', 'commission-c@example.com');
+
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-businesses')->assertForbidden();
+        $this->actingAs($businessAdmin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['tenant_id' => $tenant->id, 'rate' => '25.0000'])->assertForbidden();
+    }
+
     public function test_listing_submitted_as_published_stays_draft_when_listing_approval_is_required(): void
     {
         [$tenant, $seller] = $this->businessWithAdmin('SETTINGS-C', 'settings-c@example.com');
@@ -81,18 +141,32 @@ class MarketplaceSettingsCommissionTest extends TestCase
         $customer = User::factory()->create();
         $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
         $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', ['default_commission_rate' => '10.0000', 'revision' => 1])->assertOk();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['tenant_id' => $tenant->id, 'rate' => '5.0000'])->assertCreated();
 
-        $order = MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'MKT-SETTINGS-D', 'currency_code' => 'MMK', 'status' => 'confirmed', 'payment_status' => 'pending', 'subtotal' => '1000.00', 'discount_total' => '0.00', 'shipping_total' => '0.00', 'tax_total' => '0.00', 'grand_total' => '1000.00', 'delivery_address' => ['city' => 'Yangon'], 'idempotency_key' => 'settings-d-order', 'request_hash' => hash('sha256', 'settings-d')]);
-        $vendorOrder = MarketplaceVendorOrder::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'vendor_order_number' => 'VND-SETTINGS-D', 'status' => 'pending', 'subtotal' => '1000.00', 'discount_total' => '0.00', 'shipping_total' => '0.00', 'tax_total' => '0.00', 'total' => '1000.00', 'currency_code' => 'MMK']);
+        $order = MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'MKT-SETTINGS-D', 'currency_code' => 'MMK', 'status' => 'confirmed', 'payment_status' => 'pending', 'subtotal' => '1000.00', 'discount_total' => '100.00', 'shipping_total' => '0.00', 'tax_total' => '0.00', 'grand_total' => '900.00', 'delivery_address' => ['city' => 'Yangon'], 'idempotency_key' => 'settings-d-order', 'request_hash' => hash('sha256', 'settings-d')]);
+        $vendorOrder = MarketplaceVendorOrder::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'vendor_order_number' => 'VND-SETTINGS-D', 'status' => 'pending', 'subtotal' => '1000.00', 'discount_total' => '100.00', 'shipping_total' => '0.00', 'tax_total' => '0.00', 'total' => '900.00', 'currency_code' => 'MMK']);
 
         $service = app(MarketplaceCommissionService::class);
         $first = $service->snapshotForVendorOrder($order, $vendorOrder);
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['tenant_id' => $tenant->id, 'rate' => '15.0000'])->assertCreated();
         $second = $service->snapshotForVendorOrder($order, $vendorOrder);
 
         $this->assertSame($first?->id, $second?->id);
         $this->assertDatabaseCount('marketplace_order_commissions', 1);
         $this->assertDatabaseCount('marketplace_settlement_entries', 2);
-        $this->assertDatabaseHas('marketplace_order_commissions', ['commission_amount' => '100.00', 'seller_net_amount' => '900.00', 'status' => 'pending']);
+        $this->assertDatabaseHas('marketplace_order_commissions', ['commission_base_amount' => '900.00', 'commission_amount' => '45.00', 'commission_rate' => '5.0000', 'seller_net_amount' => '855.00', 'status' => 'pending']);
+
+        $service->markOrderPayable($order);
+        $payout = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/payouts', [
+            'tenant_id' => $tenant->id,
+            'currency_code' => 'MMK',
+            'amount' => '855.00',
+            'idempotency_key' => 'settings-d-payout',
+            'reason' => 'Test payout approval',
+        ])->assertCreated()->json('data.uuid');
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/payouts/'.$payout.'/approve')
+            ->assertOk()->assertJsonPath('data.status', 'approved');
+        $this->assertDatabaseHas('marketplace_payouts', ['uuid' => $payout, 'status' => 'approved', 'amount' => '855.00']);
     }
 
     private function businessWithAdmin(string $code, string $email): array

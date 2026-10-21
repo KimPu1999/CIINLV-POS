@@ -15,6 +15,7 @@ use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Services\MarketplaceAuditLogger;
+use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceSettingsService;
 use App\Services\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 
 class MarketplaceVendorController
 {
-    public function overview(Request $request, TenantContext $context): JsonResponse
+    public function overview(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
     {
         $tenant = $context->tenant();
         $store = $this->getOrCreateStore($context);
@@ -76,6 +77,8 @@ class MarketplaceVendorController
         $completedOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereIn('status', ['delivered'])->count();
         $revenue = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereNotIn('status', ['cancelled', 'refunded'])->sum('total');
         $recentOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->with(['store', 'order', 'shipments'])->latest()->limit(8)->get();
+        $earnings = $commissions->tenantEarnings($tenant->id);
+        $commissionRule = $commissions->effectiveRule($tenant->id);
 
         return response()->json([
             'success' => true,
@@ -94,10 +97,35 @@ class MarketplaceVendorController
                     'orders' => true,
                     'shipping' => false,
                     'reviews' => false,
-                    'earnings' => false,
+                    'earnings' => $earnings['configured'],
+                ],
+                'earnings' => collect($earnings)->except('transactions')->all(),
+                'commission' => [
+                    'rate' => $commissionRule['rate'],
+                    'source' => $commissionRule['source'],
+                    'rule_type' => $commissionRule['rule_type'],
+                    'base' => $commissionRule['base'],
                 ],
             ],
         ]);
+    }
+
+    public function earnings(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        $data = $request->validate(['currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/']]);
+        $tenantId = $context->tenant()->id;
+        $earnings = $commissions->tenantEarnings($tenantId, $data['currency_code'] ?? null);
+        $commissionRule = $commissions->effectiveRule($tenantId);
+
+        return response()->json(['success' => true, 'data' => [
+            ...$earnings,
+            'commission' => [
+                'rate' => $commissionRule['rate'],
+                'source' => $commissionRule['source'],
+                'rule_type' => $commissionRule['rule_type'],
+                'base' => $commissionRule['base'],
+            ],
+        ]]);
     }
 
     public function orders(Request $request, TenantContext $context): JsonResponse

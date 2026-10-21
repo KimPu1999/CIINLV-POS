@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class MarketplaceCommissionRule extends Model
 {
-    protected $fillable = ['tenant_id', 'rate', 'commission_base', 'status', 'effective_from', 'effective_until', 'created_by', 'updated_by'];
+    protected $fillable = ['tenant_id', 'category_id', 'rate', 'commission_base', 'rule_type', 'promotion_code', 'reason', 'priority', 'status', 'effective_from', 'effective_until', 'created_by', 'updated_by'];
 
     protected static function booted(): void
     {
@@ -17,12 +17,17 @@ class MarketplaceCommissionRule extends Model
 
     protected function casts(): array
     {
-        return ['rate' => 'decimal:4', 'effective_from' => 'datetime', 'effective_until' => 'datetime'];
+        return ['rate' => 'decimal:4', 'priority' => 'integer', 'effective_from' => 'datetime', 'effective_until' => 'datetime'];
     }
 
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function creator(): BelongsTo

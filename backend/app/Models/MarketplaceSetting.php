@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MarketplaceSetting extends Model
 {
-    protected $fillable = ['enabled', 'seller_registration_enabled', 'seller_approval_required', 'listing_approval_required', 'maintenance_mode', 'currency_code', 'default_commission_rate', 'commission_base', 'policies', 'revision', 'updated_by'];
+    protected $fillable = ['enabled', 'seller_registration_enabled', 'seller_approval_required', 'listing_approval_required', 'maintenance_mode', 'currency_code', 'default_commission_rate', 'commission_base', 'payout_schedule', 'payout_minimum', 'policies', 'revision', 'updated_by'];
 
     protected function casts(): array
     {
-        return ['enabled' => 'boolean', 'seller_registration_enabled' => 'boolean', 'seller_approval_required' => 'boolean', 'listing_approval_required' => 'boolean', 'maintenance_mode' => 'boolean', 'default_commission_rate' => 'decimal:4', 'policies' => 'array', 'revision' => 'integer'];
+        return ['enabled' => 'boolean', 'seller_registration_enabled' => 'boolean', 'seller_approval_required' => 'boolean', 'listing_approval_required' => 'boolean', 'maintenance_mode' => 'boolean', 'default_commission_rate' => 'decimal:4', 'payout_minimum' => 'decimal:2', 'policies' => 'array', 'revision' => 'integer'];
     }
 
     public function updatedBy(): BelongsTo

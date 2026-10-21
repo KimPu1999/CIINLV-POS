@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class MarketplaceOrder extends Model
 {
-    protected $fillable = ['customer_user_id', 'order_number', 'currency_code', 'status', 'payment_status', 'subtotal', 'discount_total', 'shipping_total', 'tax_total', 'grand_total', 'delivery_address', 'idempotency_key', 'request_hash'];
+    protected $fillable = ['customer_user_id', 'order_number', 'promotion_code', 'currency_code', 'status', 'payment_status', 'subtotal', 'discount_total', 'shipping_total', 'tax_total', 'grand_total', 'delivery_address', 'idempotency_key', 'request_hash'];
 
     protected static function booted(): void
     {

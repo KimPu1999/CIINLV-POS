@@ -23,6 +23,9 @@ class MarketplaceSettingsUpdateRequest extends FormRequest
             'currency_code' => ['sometimes', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'default_commission_rate' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'commission_base' => ['sometimes', Rule::in(['item_subtotal'])],
+            'payout_schedule' => ['sometimes', Rule::in(['manual', 'weekly', 'biweekly', 'monthly'])],
+            'payout_minimum' => ['sometimes', 'numeric', 'min:0'],
+            'reason' => ['nullable', 'string', 'max:255'],
             'policies' => ['sometimes', 'array'],
             'revision' => ['sometimes', 'integer', 'min:1'],
         ];

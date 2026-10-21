@@ -71,6 +71,7 @@ class MarketplaceCheckoutService
             $order = MarketplaceOrder::create([
                 'customer_user_id' => $customer->id,
                 'order_number' => $this->orderNumber(),
+                'promotion_code' => $data['promotion_code'] ?? null,
                 'currency_code' => $calculation['currency_code'],
                 'status' => 'confirmed',
                 'payment_status' => 'pending',
@@ -121,7 +122,7 @@ class MarketplaceCheckoutService
                     ]);
                     $this->reservations->reserve($order, $orderItem, $line['variant'], $line['quantity']);
                 }
-                $this->commissions->snapshotForVendorOrder($order, $vendorOrder);
+                $this->commissions->snapshotForVendorOrder($order, $vendorOrder, $data['promotion_code'] ?? null);
             }
 
             MarketplacePayment::create([

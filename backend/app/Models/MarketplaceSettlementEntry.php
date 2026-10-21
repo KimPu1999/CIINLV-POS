@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class MarketplaceSettlementEntry extends Model
@@ -28,5 +29,10 @@ class MarketplaceSettlementEntry extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(MarketplaceOrder::class, 'marketplace_order_id');
+    }
+
+    public function payoutItem(): HasOne
+    {
+        return $this->hasOne(MarketplacePayoutItem::class, 'marketplace_settlement_entry_id');
     }
 }

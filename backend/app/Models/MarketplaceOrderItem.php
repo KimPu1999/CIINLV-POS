@@ -31,6 +31,11 @@ class MarketplaceOrderItem extends Model
         return $this->belongsTo(MarketplaceVendorOrder::class, 'marketplace_vendor_order_id');
     }
 
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
     public function reservations(): HasMany
     {
         return $this->hasMany(MarketplaceInventoryReservation::class);

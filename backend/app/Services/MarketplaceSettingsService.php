@@ -25,6 +25,8 @@ class MarketplaceSettingsService
             'currency_code' => strtoupper((string) config('pos.default_currency', 'MMK')),
             'default_commission_rate' => '0.0000',
             'commission_base' => self::COMMISSION_BASE_ITEM_SUBTOTAL,
+            'payout_schedule' => 'manual',
+            'payout_minimum' => '0.00',
             'policies' => [],
             'revision' => 1,
             'updated_at' => null,
@@ -59,6 +61,8 @@ class MarketplaceSettingsService
                 'currency_code' => $setting->currency_code,
                 'default_commission_rate' => (string) $setting->default_commission_rate,
                 'commission_base' => $setting->commission_base,
+                'payout_schedule' => $setting->payout_schedule ?: $defaults['payout_schedule'],
+                'payout_minimum' => (string) ($setting->payout_minimum ?? $defaults['payout_minimum']),
                 'policies' => $setting->policies ?: [],
                 'revision' => (int) $setting->revision,
                 'updated_at' => $setting->updated_at?->toIso8601String(),
@@ -75,7 +79,12 @@ class MarketplaceSettingsService
         return DB::transaction(function () use ($data, $actor, $audit): MarketplaceSetting {
             $setting = MarketplaceSetting::query()->lockForUpdate()->first();
             $oldRate = $setting?->default_commission_rate;
+            $reason = $data['reason'] ?? null;
+            unset($data['reason']);
             $attributes = array_merge($this->defaults(), $data, ['updated_by' => $actor->id]);
+            if (! Schema::hasColumn('marketplace_settings', 'payout_schedule')) {
+                unset($attributes['payout_schedule'], $attributes['payout_minimum']);
+            }
             if ($setting) {
                 $attributes['revision'] = (int) $setting->revision + 1;
                 $setting->forceFill($attributes)->save();
@@ -90,6 +99,10 @@ class MarketplaceSettingsService
             $audit->record('marketplace.settings_updated', $actor, entity: $setting, metadata: [
                 'revision' => $setting->revision,
                 'changed_fields' => array_keys($data),
+                'old_commission_rate' => $oldRate === null ? null : (string) $oldRate,
+                'new_commission_rate' => (string) $setting->default_commission_rate,
+                'commission_rule_type' => 'global_default',
+                'reason' => $reason,
             ]);
 
             return $setting->refresh();
@@ -132,7 +145,7 @@ class MarketplaceSettingsService
             ->whereNull('effective_until')
             ->update(['status' => 'inactive', 'effective_until' => $now, 'updated_by' => $actor->id]);
 
-        MarketplaceCommissionRule::create([
+        $attributes = [
             'tenant_id' => null,
             'rate' => $rate,
             'commission_base' => $base,
@@ -140,6 +153,11 @@ class MarketplaceSettingsService
             'effective_from' => $now,
             'created_by' => $actor->id,
             'updated_by' => $actor->id,
-        ]);
+        ];
+        if (Schema::hasColumn('marketplace_commission_rules', 'rule_type')) {
+            $attributes['rule_type'] = 'global';
+            $attributes['category_id'] = null;
+        }
+        MarketplaceCommissionRule::create($attributes);
     }
 }

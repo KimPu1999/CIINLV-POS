@@ -20,19 +20,25 @@ use App\Models\MarketplaceAuditLog;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceCommissionRule;
 use App\Models\MarketplaceOrder;
+use App\Models\MarketplaceOrderCommission;
+use App\Models\MarketplacePayout;
 use App\Models\MarketplacePayment;
 use App\Models\MarketplaceRefundRequest;
 use App\Models\MarketplaceReturnRequest;
 use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
+use App\Models\Category;
+use App\Models\Tenant;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceOrderRequestService;
+use App\Services\MarketplacePayoutService;
 use App\Services\MarketplaceSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Carbon\CarbonImmutable;
 
@@ -334,9 +340,83 @@ class MarketplaceAdminController
         if (! $settings->storageAvailable()) {
             throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
         }
-        $rules = MarketplaceCommissionRule::query()->with('tenant:id,name')->when($request->filled('tenant_id'), fn (Builder $query) => $query->where('tenant_id', $request->integer('tenant_id')))->orderByDesc('effective_from')->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+        $ruleRelations = ['tenant:id,name,business_code'];
+        if (Schema::hasColumn('marketplace_commission_rules', 'category_id')) {
+            $ruleRelations[] = 'category:id,name,tenant_id';
+        }
+        $rules = MarketplaceCommissionRule::query()
+            ->with($ruleRelations)
+            ->when($request->filled('tenant_id'), fn (Builder $query) => $query->where('tenant_id', $request->integer('tenant_id')))
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')))
+            ->when(Schema::hasColumn('marketplace_commission_rules', 'rule_type') && $request->filled('rule_type'), fn (Builder $query) => $query->where('rule_type', $request->string('rule_type')))
+            ->orderByDesc('effective_from')
+            ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
 
-        return response()->json(['success' => true, 'data' => $rules->getCollection()->map(fn (MarketplaceCommissionRule $rule): array => ['id' => $rule->uuid, 'tenant_id' => $rule->tenant_id, 'business_name' => $rule->tenant?->name, 'rate' => (string) $rule->rate, 'commission_base' => $rule->commission_base, 'status' => $rule->status, 'effective_from' => $rule->effective_from?->toIso8601String(), 'effective_until' => $rule->effective_until?->toIso8601String()])->values(), 'meta' => ['total' => $rules->total(), 'per_page' => $rules->perPage(), 'current_page' => $rules->currentPage(), 'last_page' => $rules->lastPage()]]);
+        return response()->json(['success' => true, 'data' => $rules->getCollection()->map(fn (MarketplaceCommissionRule $rule): array => $this->commissionRuleData($rule))->values(), 'meta' => ['total' => $rules->total(), 'per_page' => $rules->perPage(), 'current_page' => $rules->currentPage(), 'last_page' => $rules->lastPage()]]);
+    }
+
+    public function commissionBusinesses(Request $request, MarketplaceSettingsService $settings, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        if (! $settings->storageAvailable()) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+        }
+
+        $sort = in_array($request->input('sort'), ['name', 'business_code', 'status', 'created_at'], true) ? $request->input('sort') : 'name';
+        $direction = $request->input('direction') === 'desc' ? 'desc' : 'asc';
+        $businesses = Tenant::query()
+            ->select(['id', 'business_code', 'name', 'slug', 'status'])
+            ->with(['memberships' => fn ($query) => $query->where('status', 'active')->with(['user:id,name,email', 'role:id,name'])->orderBy('id')])
+            ->when($request->filled('search'), function (Builder $query) use ($request): void {
+                $term = '%'.$request->string('search').'%';
+                $query->where(function (Builder $search) use ($term): void {
+                    $search->where('name', 'ilike', $term)
+                        ->orWhere('business_code', 'ilike', $term)
+                        ->orWhere('slug', 'ilike', $term);
+                });
+            })
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')))
+            ->when(Schema::hasColumn('marketplace_commission_rules', 'rule_type') && $request->input('rule_type') === 'business_override', fn (Builder $query) => $query->whereHas('marketplaceCommissionRules', fn (Builder $rule) => $rule->where('rule_type', 'business')->where('status', 'active')->where('effective_from', '<=', now())->where(fn (Builder $active) => $active->whereNull('effective_until')->orWhere('effective_until', '>', now()))))
+            ->when(Schema::hasColumn('marketplace_commission_rules', 'rule_type') && $request->input('rule_type') === 'global_default', fn (Builder $query) => $query->whereDoesntHave('marketplaceCommissionRules', fn (Builder $rule) => $rule->where('rule_type', 'business')->where('status', 'active')->where('effective_from', '<=', now())->where(fn (Builder $active) => $active->whereNull('effective_until')->orWhere('effective_until', '>', now()))))
+            ->orderBy($sort, $direction)
+            ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+
+        $settingsUpdatedAt = $settings->current()['settings']['updated_at'];
+        $financial = $commissions->businessSummaries($businesses->getCollection()->pluck('id')->all());
+        $payouts = Schema::hasTable('marketplace_payouts')
+            ? MarketplacePayout::query()->whereIn('tenant_id', $businesses->getCollection()->pluck('id'))->whereIn('status', ['requested', 'approved', 'processing'])->latest()->get()->keyBy('tenant_id')
+            : collect();
+        $data = $businesses->getCollection()->map(function (Tenant $tenant) use ($commissions, $settingsUpdatedAt, $financial, $payouts): array {
+            $effective = $commissions->effectiveRule($tenant->id);
+            $effectiveRule = $effective['rule_id']
+                ? MarketplaceCommissionRule::query()->find($effective['rule_id'])
+                : null;
+            $hasOverride = $effective['source'] === 'business';
+            $owner = $tenant->memberships->first(fn ($membership) => in_array($membership->role?->name, ['business_admin', 'owner'], true))?->user
+                ?? $tenant->memberships->first()?->user;
+            $totals = $financial[$tenant->id] ?? ['eligible_sales_total' => '0.00', 'platform_commission_total' => '0.00', 'seller_earnings_total' => '0.00'];
+
+            return [
+                'tenant_id' => $tenant->id,
+                'business_id' => $tenant->business_code ?: (string) $tenant->id,
+                'name' => $tenant->name,
+                'owner' => $owner ? ['name' => $owner->name, 'email' => $owner->email] : null,
+                'status' => $tenant->status,
+                'effective_commission' => (string) $effective['rate'],
+                'rule_type' => $hasOverride ? 'business_override' : match ($effective['source']) {
+                    'promotional' => 'promotional',
+                    'category' => 'category_rule',
+                    default => 'global_default',
+                },
+                'override_rule_id' => $hasOverride ? $effectiveRule?->uuid : null,
+                'last_updated' => $effectiveRule?->updated_at?->toIso8601String() ?? $settingsUpdatedAt,
+                'eligible_sales_total' => $totals['eligible_sales_total'],
+                'platform_commission_total' => $totals['platform_commission_total'],
+                'seller_earnings_total' => $totals['seller_earnings_total'],
+                'payout_status' => $payouts->get($tenant->id)?->status ?? 'not_requested',
+            ];
+        })->values();
+
+        return response()->json(['success' => true, 'data' => $data, 'meta' => ['total' => $businesses->total(), 'per_page' => $businesses->perPage(), 'current_page' => $businesses->currentPage(), 'last_page' => $businesses->lastPage()]]);
     }
 
     public function storeCommissionRule(MarketplaceCommissionRuleRequest $request, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
@@ -345,23 +425,48 @@ class MarketplaceAdminController
             throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
         }
         $data = $request->validated();
+        $advanced = Schema::hasColumn('marketplace_commission_rules', 'rule_type');
+        $data['rule_type'] = $data['rule_type'] ?? (! empty($data['tenant_id']) ? 'business' : 'global');
+        if (! $advanced && ! in_array($data['rule_type'], ['global', 'business'], true)) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Advanced commission rules are not available until the reviewed additive migration is applied.');
+        }
+        $this->validateCommissionRuleScope($data);
         $effectiveFrom = isset($data['effective_from']) ? CarbonImmutable::parse($data['effective_from']) : CarbonImmutable::now();
-        $rule = DB::transaction(function () use ($data, $effectiveFrom, $request, $audit): MarketplaceCommissionRule {
+        $rule = DB::transaction(function () use ($data, $effectiveFrom, $request, $audit, $advanced): MarketplaceCommissionRule {
             $scope = MarketplaceCommissionRule::query()->where('status', 'active')->where('effective_from', '<=', $effectiveFrom)->whereNull('effective_until');
             $data['tenant_id'] = $data['tenant_id'] ?? null;
             $data['commission_base'] = $data['commission_base'] ?? 'item_subtotal';
             $data['status'] = $data['status'] ?? 'active';
             $data['effective_from'] = $effectiveFrom;
+            if (! $advanced) {
+                unset($data['rule_type'], $data['category_id'], $data['promotion_code'], $data['reason'], $data['priority']);
+            } else {
+                $scope->where('rule_type', $data['rule_type'])
+                    ->when($data['category_id'] ?? null, fn (Builder $query, $categoryId) => $query->where('category_id', $categoryId), fn (Builder $query) => $query->whereNull('category_id'))
+                    ->when($data['promotion_code'] ?? null, fn (Builder $query, $code) => $query->where('promotion_code', $code), fn (Builder $query) => $query->whereNull('promotion_code'));
+            }
+            $scope->when($data['tenant_id'] === null, fn (Builder $query) => $query->whereNull('tenant_id'), fn (Builder $query) => $query->where('tenant_id', $data['tenant_id']));
+            $previous = (clone $scope)->orderByDesc('effective_from')->lockForUpdate()->first();
             if ($data['status'] === 'active') {
-                $scope->when($data['tenant_id'] === null, fn (Builder $query) => $query->whereNull('tenant_id'), fn (Builder $query) => $query->where('tenant_id', $data['tenant_id']))->lockForUpdate()->update(['status' => 'inactive', 'effective_until' => $effectiveFrom, 'updated_by' => $request->user()->id]);
+                $scope->when($data['tenant_id'] === null, fn (Builder $query) => $query->whereNull('tenant_id'), fn (Builder $query) => $query->where('tenant_id', $data['tenant_id']))->update(['status' => 'inactive', 'effective_until' => $effectiveFrom, 'updated_by' => $request->user()->id]);
             }
             $rule = MarketplaceCommissionRule::create($data + ['created_by' => $request->user()->id, 'updated_by' => $request->user()->id]);
-            $audit->record('marketplace.commission_rule_created', $request->user(), metadata: ['rule_id' => $rule->uuid, 'tenant_id' => $rule->tenant_id, 'rate' => (string) $rule->rate, 'effective_from' => $rule->effective_from?->toIso8601String()]);
+            $audit->record('marketplace.commission_rule_created', $request->user(), $rule->tenant, $rule, [
+                'rule_id' => $rule->uuid,
+                'tenant_id' => $rule->tenant_id,
+                'business_id' => $rule->tenant?->business_code,
+                'old_rate' => $previous?->rate === null ? null : (string) $previous->rate,
+                'new_rate' => (string) $rule->rate,
+                'old_rule_type' => $previous ? $this->commissionRuleType($previous) : null,
+                'new_rule_type' => $this->commissionRuleType($rule),
+                'effective_from' => $rule->effective_from?->toIso8601String(),
+                'reason' => $rule->reason,
+            ]);
 
             return $rule;
         });
 
-        return response()->json(['success' => true, 'data' => ['id' => $rule->uuid, 'tenant_id' => $rule->tenant_id, 'rate' => (string) $rule->rate, 'commission_base' => $rule->commission_base, 'status' => $rule->status, 'effective_from' => $rule->effective_from?->toIso8601String()]], 201);
+        return response()->json(['success' => true, 'data' => $this->commissionRuleData($rule)], 201);
     }
 
     public function updateCommissionRule(MarketplaceCommissionRuleRequest $request, string $rule, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
@@ -371,14 +476,19 @@ class MarketplaceAdminController
         }
         $existing = MarketplaceCommissionRule::query()->where('uuid', $rule)->firstOrFail();
         $data = $request->validated();
+        $advanced = Schema::hasColumn('marketplace_commission_rules', 'rule_type');
+        $data['tenant_id'] = array_key_exists('tenant_id', $data) ? $data['tenant_id'] : $existing->tenant_id;
+        $data['rule_type'] = $data['rule_type'] ?? ($advanced ? ($existing->rule_type ?: ($data['tenant_id'] ? 'business' : 'global')) : ($data['tenant_id'] ? 'business' : 'global'));
+        $data['category_id'] = array_key_exists('category_id', $data) ? $data['category_id'] : $existing->category_id;
+        $this->validateCommissionRuleScope($data);
         $effectiveFrom = isset($data['effective_from']) ? CarbonImmutable::parse($data['effective_from']) : CarbonImmutable::now();
-        $replacement = DB::transaction(function () use ($existing, $data, $effectiveFrom, $request, $audit): MarketplaceCommissionRule {
+        $replacement = DB::transaction(function () use ($existing, $data, $effectiveFrom, $request, $audit, $advanced): MarketplaceCommissionRule {
             $locked = MarketplaceCommissionRule::query()->whereKey($existing->id)->lockForUpdate()->firstOrFail();
             if ($locked->status === 'active' && $locked->effective_until === null) {
                 $locked->update(['status' => 'inactive', 'effective_until' => $effectiveFrom, 'updated_by' => $request->user()->id]);
             }
             $attributes = [
-                'tenant_id' => array_key_exists('tenant_id', $data) ? $data['tenant_id'] : $locked->tenant_id,
+                'tenant_id' => $data['tenant_id'],
                 'rate' => $data['rate'],
                 'commission_base' => $data['commission_base'] ?? $locked->commission_base,
                 'status' => $data['status'] ?? 'active',
@@ -387,20 +497,79 @@ class MarketplaceAdminController
                 'created_by' => $request->user()->id,
                 'updated_by' => $request->user()->id,
             ];
+            if ($advanced) {
+                $attributes += [
+                    'rule_type' => $data['rule_type'],
+                    'category_id' => $data['category_id'] ?? null,
+                    'promotion_code' => $data['promotion_code'] ?? $locked->promotion_code,
+                    'reason' => $data['reason'] ?? $locked->reason,
+                    'priority' => $data['priority'] ?? $locked->priority ?? 0,
+                ];
+            }
             $replacement = MarketplaceCommissionRule::create($attributes);
-            $audit->record('marketplace.commission_rule_replaced', $request->user(), metadata: ['replaced_rule_id' => $locked->uuid, 'replacement_rule_id' => $replacement->uuid, 'rate' => (string) $replacement->rate]);
+            $audit->record('marketplace.commission_rule_replaced', $request->user(), $replacement->tenant, $replacement, [
+                'replaced_rule_id' => $locked->uuid,
+                'replacement_rule_id' => $replacement->uuid,
+                'tenant_id' => $replacement->tenant_id,
+                'old_rate' => (string) $locked->rate,
+                'new_rate' => (string) $replacement->rate,
+                'old_rule_type' => $this->commissionRuleType($locked),
+                'new_rule_type' => $this->commissionRuleType($replacement),
+                'effective_from' => $replacement->effective_from?->toIso8601String(),
+                'reason' => $replacement->reason,
+            ]);
 
             return $replacement;
         });
 
-        return response()->json(['success' => true, 'data' => ['id' => $replacement->uuid, 'tenant_id' => $replacement->tenant_id, 'rate' => (string) $replacement->rate, 'commission_base' => $replacement->commission_base, 'status' => $replacement->status, 'effective_from' => $replacement->effective_from?->toIso8601String()]]);
+        return response()->json(['success' => true, 'data' => $this->commissionRuleData($replacement)]);
+    }
+
+    public function removeCommissionRule(Request $request, string $rule, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
+    {
+        if (! $settings->storageAvailable()) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+        }
+
+        $removed = DB::transaction(function () use ($request, $rule, $audit): MarketplaceCommissionRule {
+            $existing = MarketplaceCommissionRule::query()->where('uuid', $rule)->lockForUpdate()->firstOrFail();
+            if ($existing->tenant_id === null) {
+                throw ValidationException::withMessages(['rule' => ['The global default cannot be removed. Update the global setting instead.']]);
+            }
+
+            $wasActive = $existing->status === 'active' && $existing->effective_until === null;
+            $hasCommittedOrders = Schema::hasTable('marketplace_order_commissions')
+                && MarketplaceOrderCommission::query()->where('marketplace_commission_rule_id', $existing->id)->exists();
+            if ($wasActive) {
+                $existing->forceFill(['status' => 'inactive', 'effective_until' => now(), 'updated_by' => $request->user()->id])->save();
+            }
+
+            $audit->record('marketplace.commission_rule_removed', $request->user(), $existing->tenant, $existing, [
+                'rule_id' => $existing->uuid,
+                'tenant_id' => $existing->tenant_id,
+                'business_id' => $existing->tenant?->business_code,
+                'old_rate' => (string) $existing->rate,
+                'new_rate' => null,
+                'old_rule_type' => $this->commissionRuleType($existing),
+                'new_rule_type' => 'global_default',
+                'was_active' => $wasActive,
+                'has_committed_orders' => $hasCommittedOrders,
+            ]);
+
+            return $existing->refresh();
+        });
+
+        return response()->json(['success' => true, 'data' => $this->commissionRuleData($removed), 'message' => 'Business override removed. The global default now applies.']);
     }
 
     public function commissionPreview(Request $request, MarketplaceCommissionService $commissions): JsonResponse
     {
-        $data = $request->validate(['tenant_id' => ['required', 'integer', 'exists:tenants,id'], 'base_amount' => ['required', 'numeric', 'min:0'], 'currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'], 'at' => ['nullable', 'date']]);
+        $data = $request->validate(['tenant_id' => ['required', 'integer', 'exists:tenants,id'], 'category_id' => ['nullable', 'integer', 'exists:categories,id'], 'promotion_code' => ['nullable', 'string', 'max:100'], 'base_amount' => ['required', 'numeric', 'min:0'], 'currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'], 'at' => ['nullable', 'date']]);
+        if (! empty($data['category_id']) && (int) Category::query()->findOrFail($data['category_id'])->tenant_id !== (int) $data['tenant_id']) {
+            throw ValidationException::withMessages(['category_id' => ['The category does not belong to the selected business.']]);
+        }
 
-        return response()->json(['success' => true, 'data' => $commissions->preview((int) $data['tenant_id'], (string) $data['base_amount'], $data['currency_code'] ?? null, isset($data['at']) ? CarbonImmutable::parse($data['at']) : null)]);
+        return response()->json(['success' => true, 'data' => $commissions->preview((int) $data['tenant_id'], (string) $data['base_amount'], $data['currency_code'] ?? null, isset($data['at']) ? CarbonImmutable::parse($data['at']) : null, $data['category_id'] ?? null, $data['promotion_code'] ?? null)]);
     }
 
     public function commissionReports(Request $request, MarketplaceCommissionService $commissions): JsonResponse
@@ -410,11 +579,171 @@ class MarketplaceAdminController
         return response()->json(['success' => true, 'data' => $commissions->report($data)]);
     }
 
+    public function exportCommissionReport(Request $request)
+    {
+        $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'status' => ['nullable', 'in:pending,payable,reversed'], 'from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
+        $query = MarketplaceOrderCommission::query()
+            ->when($data['tenant_id'] ?? null, fn (Builder $builder, $tenantId) => $builder->where('tenant_id', $tenantId))
+            ->when($data['status'] ?? null, fn (Builder $builder, $status) => $builder->where('status', $status))
+            ->when($data['from'] ?? null, fn (Builder $builder, $from) => $builder->whereDate('created_at', '>=', $from))
+            ->when($data['to'] ?? null, fn (Builder $builder, $to) => $builder->whereDate('created_at', '<=', $to))
+            ->orderBy('id');
+
+        return response()->streamDownload(function () use ($query): void {
+            $output = fopen('php://output', 'wb');
+            fputcsv($output, ['commission_id', 'order_id', 'vendor_order_id', 'tenant_id', 'currency_code', 'eligible_sales', 'commission_rate', 'commission_amount', 'seller_net_amount', 'status', 'calculated_at']);
+            foreach ($query->cursor() as $commission) {
+                fputcsv($output, [$commission->uuid, $commission->marketplace_order_id, $commission->marketplace_vendor_order_id, $commission->tenant_id, $commission->currency_code, $commission->commission_base_amount, $commission->commission_rate, $commission->commission_amount, $commission->seller_net_amount, $commission->status, $commission->calculated_at?->toIso8601String()]);
+            }
+            fclose($output);
+        }, 'marketplace-commission-report.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
     public function payoutSummaries(Request $request, MarketplaceCommissionService $commissions): JsonResponse
     {
         $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
 
         return response()->json(['success' => true, 'data' => $commissions->payoutSummaries($data)]);
+    }
+
+    public function commissionCategories(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'tenant_id' => ['nullable', 'integer', 'exists:tenants,id'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+        $categories = Category::query()
+            ->with('tenant:id,name,business_code')
+            ->when($data['tenant_id'] ?? null, fn (Builder $query, $tenantId) => $query->where('tenant_id', $tenantId))
+            ->when($data['search'] ?? null, fn (Builder $query, $search) => $query->where(function (Builder $where) use ($search): void {
+                $term = '%'.$search.'%';
+                $where->where('name', 'ilike', $term)->orWhere('slug', 'ilike', $term);
+            }))
+            ->orderBy('name')
+            ->paginate($data['per_page'] ?? 25);
+
+        return response()->json(['success' => true, 'data' => $categories->getCollection()->map(fn (Category $category): array => [
+            'id' => $category->id,
+            'name' => $category->name,
+            'business_id' => $category->tenant?->business_code ?: (string) $category->tenant_id,
+            'business_name' => $category->tenant?->name,
+        ])->values(), 'meta' => ['total' => $categories->total(), 'per_page' => $categories->perPage(), 'current_page' => $categories->currentPage(), 'last_page' => $categories->lastPage()]]);
+    }
+
+    public function payouts(Request $request): JsonResponse
+    {
+        $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'status' => ['nullable', 'in:requested,approved,processing,paid,rejected,failed,cancelled'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        if (! Schema::hasTable('marketplace_payouts')) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Payout storage is not available. Apply the reviewed additive payout migration first.');
+        }
+        $payouts = MarketplacePayout::query()->with(['tenant:id,name,business_code', 'requester:id,name,email', 'approver:id,name,email'])->when($data['tenant_id'] ?? null, fn (Builder $query, $tenantId) => $query->where('tenant_id', $tenantId))->when($data['status'] ?? null, fn (Builder $query, $status) => $query->where('status', $status))->latest()->paginate($data['per_page'] ?? 25);
+
+        return response()->json(['success' => true, 'data' => $payouts]);
+    }
+
+    public function requestPayout(Request $request, MarketplacePayoutService $payouts, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $data = $request->validate([
+            'tenant_id' => ['required', 'integer', 'exists:tenants,id'],
+            'currency_code' => ['required', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'idempotency_key' => ['required', 'string', 'max:180'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+        if (! Schema::hasTable('marketplace_payouts')) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Payout storage is not available. Apply the reviewed additive payout migration first.');
+        }
+        $payout = $payouts->request($data, $request->user());
+        $audit->record('marketplace.payout_requested', $request->user(), $payout->tenant, $payout, ['amount' => (string) $payout->amount, 'currency_code' => $payout->currency_code, 'reason' => $payout->reason]);
+
+        return response()->json(['success' => true, 'data' => $payout], 201);
+    }
+
+    public function approvePayout(Request $request, string $payout, MarketplacePayoutService $payouts, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $model = MarketplacePayout::query()->where('uuid', $payout)->firstOrFail();
+        $approved = $payouts->approve($model, $request->user());
+        $audit->record('marketplace.payout_approved', $request->user(), $approved->tenant, $approved, ['amount' => (string) $approved->amount, 'currency_code' => $approved->currency_code]);
+
+        return response()->json(['success' => true, 'data' => $approved]);
+    }
+
+    public function rejectPayout(Request $request, string $payout, MarketplacePayoutService $payouts, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:1000']]);
+        $model = MarketplacePayout::query()->where('uuid', $payout)->firstOrFail();
+        $rejected = $payouts->reject($model, $request->user(), $data['reason'] ?? null);
+        $audit->record('marketplace.payout_rejected', $request->user(), $rejected->tenant, $rejected, ['reason' => $rejected->reason]);
+
+        return response()->json(['success' => true, 'data' => $rejected]);
+    }
+
+    private function validateCommissionRuleScope(array $data): void
+    {
+        $type = $data['rule_type'];
+        if ($type === 'global' && (($data['tenant_id'] ?? null) !== null || ($data['category_id'] ?? null) !== null)) {
+            throw ValidationException::withMessages(['rule_type' => ['Global rules cannot be scoped to a business or category.']]);
+        }
+        if ($type === 'business' && empty($data['tenant_id'])) {
+            throw ValidationException::withMessages(['tenant_id' => ['A business is required for a business-specific rule.']]);
+        }
+        if ($type === 'business' && ! empty($data['category_id'])) {
+            throw ValidationException::withMessages(['category_id' => ['Business rules apply to all categories; use a category rule for category-specific pricing.']]);
+        }
+        if ($type === 'category' && empty($data['category_id'])) {
+            throw ValidationException::withMessages(['category_id' => ['A category is required for a category rule.']]);
+        }
+        if (isset($data['category_id'])) {
+            $category = Category::query()->findOrFail($data['category_id']);
+            if (! empty($data['tenant_id']) && (int) $category->tenant_id !== (int) $data['tenant_id']) {
+                throw ValidationException::withMessages(['category_id' => ['The category does not belong to the selected business.']]);
+            }
+        }
+    }
+
+    private function commissionRuleType(MarketplaceCommissionRule $rule): string
+    {
+        $type = Schema::hasColumn('marketplace_commission_rules', 'rule_type')
+            ? ($rule->rule_type ?: ($rule->tenant_id === null ? 'global' : 'business'))
+            : ($rule->tenant_id === null ? 'global' : 'business');
+
+        return match ($type) {
+            'business' => 'business_override',
+            'category' => 'category_rule',
+            'promotional' => 'promotional',
+            default => 'global_default',
+        };
+    }
+
+    private function commissionRuleData(MarketplaceCommissionRule $rule): array
+    {
+        $relations = ['tenant:id,name,business_code'];
+        if (Schema::hasColumn('marketplace_commission_rules', 'category_id')) {
+            $relations[] = 'category:id,name,tenant_id';
+        }
+        $rule->loadMissing($relations);
+        $hasAdvancedColumns = Schema::hasColumn('marketplace_commission_rules', 'category_id');
+
+        return [
+            'id' => $rule->uuid,
+            'tenant_id' => $rule->tenant_id,
+            'business_id' => $rule->tenant?->business_code,
+            'business_name' => $rule->tenant?->name,
+            'category_id' => $hasAdvancedColumns ? $rule->category_id : null,
+            'category_name' => $hasAdvancedColumns ? $rule->category?->name : null,
+            'effective_commission' => (string) $rule->rate,
+            'rate' => (string) $rule->rate,
+            'commission_base' => $rule->commission_base,
+            'rule_type' => $this->commissionRuleType($rule),
+            'promotion_code' => $hasAdvancedColumns ? $rule->promotion_code : null,
+            'reason' => $hasAdvancedColumns ? $rule->reason : null,
+            'priority' => $hasAdvancedColumns ? (int) $rule->priority : 0,
+            'status' => $rule->status,
+            'effective_from' => $rule->effective_from?->toIso8601String(),
+            'effective_until' => $rule->effective_until?->toIso8601String(),
+            'last_updated' => $rule->updated_at?->toIso8601String(),
+        ];
     }
 
     private function dateRange(Request $request): array
@@ -444,7 +773,7 @@ class MarketplaceAdminController
         return [
             'commission_rules' => ['available' => $settingsAvailable, 'reason' => $settingsAvailable ? 'Commission rates and seller overrides are persisted with effective dates.' : 'The reviewed commission migration is pending.'],
             'settlement_ledger' => ['available' => $ledgerAvailable, 'reason' => $ledgerAvailable ? 'Order-level commission snapshots and seller earnings are persisted.' : 'The reviewed settlement migration is pending.'],
-            'payouts' => ['available' => false, 'reason' => 'No payout provider or payout records exist yet.'],
+            'payouts' => ['available' => Schema::hasTable('marketplace_payouts'), 'reason' => Schema::hasTable('marketplace_payouts') ? 'Payout requests and approvals are persisted, but no money is transferred without a verified provider.' : 'No payout provider or payout records exist yet; the reviewed additive payout migration is pending.'],
             'real_money_refunds' => ['available' => false, 'reason' => 'No verified refund provider is configured.'],
             'disputes' => ['available' => false, 'reason' => 'No dispute workflow or evidence schema exists yet.'],
         ];
