@@ -23,7 +23,7 @@ class PhaseSixPosTest extends TestCase
     public function test_checkout_preview_applies_discounts_tax_charges_and_rounding_from_business_settings(): void
     {
         [$tenant, $admin, $cashier, $store, $location, $variant] = $this->posFixture('BUS-A', 'financial-breakdown');
-        BusinessSetting::where('tenant_id', $tenant->id)->update([
+        BusinessSetting::firstOrCreate(['tenant_id' => $tenant->id])->update([
             'tax_configuration' => ['rate' => '10', 'mode' => 'exclusive'],
             'pos_configuration' => [
                 'service_charge' => ['enabled' => true, 'type' => 'percentage', 'value' => '5', 'taxable' => false],

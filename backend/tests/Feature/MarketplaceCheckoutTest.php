@@ -54,6 +54,33 @@ class MarketplaceCheckoutTest extends TestCase
         $this->assertDatabaseHas('marketplace_carts', ['customer_user_id' => $customer->id, 'status' => 'active']);
     }
 
+    public function test_customer_can_start_a_new_cart_after_checkout_without_duplicate_cart_error(): void
+    {
+        [, , $listing, $variant] = $this->vendor('CHECKOUT-REUSE', 1000, 4);
+        $customer = $this->customer('buyer-cart-reopen@example.com');
+        $address = $this->address($customer);
+
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', [
+            'listing_id' => $listing->uuid,
+            'variant_id' => $variant->uuid,
+            'quantity' => 1,
+        ])->assertCreated();
+        $this->actingAs($customer, 'sanctum')->withHeader('Idempotency-Key', 'checkout-reopen-1')->postJson('/api/v1/marketplace/checkout', [
+            'address_id' => $address->id,
+            'payment_method' => 'cod',
+        ])->assertCreated();
+
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', [
+            'listing_id' => $listing->uuid,
+            'variant_id' => $variant->uuid,
+            'quantity' => 1,
+        ])->assertCreated()->assertJsonPath('data.items.0.quantity', '1.000');
+
+        $this->assertDatabaseCount('marketplace_carts', 1);
+        $this->assertDatabaseHas('marketplace_carts', ['customer_user_id' => $customer->id, 'status' => 'active']);
+        $this->assertDatabaseCount('marketplace_cart_items', 1);
+    }
+
     public function test_mixed_vendor_checkout_splits_orders_reserves_stock_and_is_idempotent(): void
     {
         [, , $listingA, $variantA] = $this->vendor('CHECKOUT-B', 1000, 5);

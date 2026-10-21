@@ -279,13 +279,17 @@ class PosSaleService
             $lineItems[] = ['tenant_id' => $store->tenant_id, 'product_variant_id' => $variant->id, 'product_name_snapshot' => $variant->product->name, 'sku_snapshot' => $variant->sku, 'barcode_snapshot' => $variant->barcode, 'unit_snapshot' => $variant->unit, 'quantity' => $line['quantity'], 'unit_price' => $this->money((string) $variant->selling_price), 'discount_amount' => $lineDiscount, 'tax_amount' => $tax, 'line_total' => $lineTotal, 'unit_cost_at_sale' => $this->money((string) $line['cost'], 4), 'tax_snapshot' => ['rate' => $taxRate, 'mode' => $taxMode, 'exempt' => (bool) $variant->product->tax_exempt]];
         }
 
-        $service = $this->configuredCharge($posConfiguration['service_charge'] ?? [], $discountableSubtotal);
+        // Apply configured service charges and fees after both item-level and
+        // cart-level discounts. This keeps the server quote aligned with the
+        // amount the customer is actually paying.
+        $chargeBase = $this->money($this->subtract($discountableSubtotal, $cartDiscount));
+        $service = $this->configuredCharge($posConfiguration['service_charge'] ?? [], $chargeBase);
         $fees = [];
         foreach ((array) ($posConfiguration['fees'] ?? []) as $configuredFee) {
             if (! is_array($configuredFee) || ($configuredFee['enabled'] ?? true) === false) {
                 continue;
             }
-            $fees[] = ['code' => $configuredFee['code'] ?? null, 'label' => (string) ($configuredFee['label'] ?? 'Fee'), 'amount' => $this->configuredCharge($configuredFee, $discountableSubtotal)['amount'], 'taxable' => (bool) ($configuredFee['taxable'] ?? false)];
+            $fees[] = ['code' => $configuredFee['code'] ?? null, 'label' => (string) ($configuredFee['label'] ?? 'Fee'), 'amount' => $this->configuredCharge($configuredFee, $chargeBase)['amount'], 'taxable' => (bool) ($configuredFee['taxable'] ?? false)];
         }
         $feeTotal = array_reduce($fees, fn (string $carry, array $fee): string => $this->money($this->add($carry, $fee['amount'])), '0.00');
         $taxableCharges = ($service['taxable'] ?? false) ? $service['amount'] : '0.00';

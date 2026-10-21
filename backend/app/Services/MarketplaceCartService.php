@@ -96,13 +96,21 @@ class MarketplaceCartService
             User::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
         }
 
-        $query = MarketplaceCart::where('customer_user_id', $customer->id)->where('status', 'active');
+        // The schema intentionally keeps one cart row per customer, including
+        // converted and abandoned carts. Reuse that row instead of attempting
+        // an insert that would violate marketplace_carts_customer_user_id_unique.
+        $query = MarketplaceCart::where('customer_user_id', $customer->id);
         if ($lock) {
             $query->lockForUpdate();
         }
 
         $cart = $query->first();
         if ($cart) {
+            if ($cart->status !== 'active') {
+                $cart->items()->delete();
+                $cart->update(['status' => 'active', 'currency_code' => null]);
+            }
+
             return $cart;
         }
 

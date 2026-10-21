@@ -30,7 +30,13 @@ class ProductController
         if ($request->filled('branch_id')) {
             $storeIds = $scope->storeIds($request->user(), $tenant, (string) $request->input('branch_id'));
             $locations = InventoryLocation::query()->where('inventory_locations.tenant_id', $tenant->id)->whereIn('inventory_locations.store_id', $storeIds)->pluck('id');
-            $query->whereHas('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations));
+            // Non-inventory products do not need an inventory balance row. For
+            // tracked products, keep the existing store-location boundary so
+            // POS never presents stock belonging to another store or tenant.
+            $query->where(function ($product) use ($locations): void {
+                $product->where('products.track_inventory', false)
+                    ->orWhereHas('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations));
+            });
         }
 
         $query->with([

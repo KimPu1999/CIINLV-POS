@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -95,6 +95,9 @@ interface AppServices {
   toggleWishlist: (id: string) => void
   setCustomer: (customer: Customer | null) => void
   cartServer: boolean
+  cartBusy: boolean
+  cartError: string
+  cartMessage: string
 }
 
 function App() {
@@ -105,6 +108,11 @@ function App() {
   const [wishlist, setWishlist] = useState<string[]>(readStoredWishlist)
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [authLoadedLocale, setAuthLoadedLocale] = useState<Locale | null>(null)
+  const [cartBusy, setCartBusy] = useState(false)
+  const [cartError, setCartError] = useState('')
+  const [cartMessage, setCartMessage] = useState('')
+  const cartMutationQueue = useRef<Promise<void>>(Promise.resolve())
+  const cartMutationCount = useRef(0)
   const authLoading = authLoadedLocale !== locale
 
   useEffect(() => {
@@ -137,6 +145,8 @@ function App() {
   useEffect(() => {
     if (!customer) return
     let active = true
+    setCartBusy(true)
+    setCartError('')
     const guestCart = readStoredCart().filter((item) => !item.serverItemId)
     void fetchMarketplaceCart(locale).then(async (serverCart) => {
       let next = serverCart.items
@@ -150,7 +160,7 @@ function App() {
         setCart(next)
         window.localStorage.removeItem(cartStorageKey)
       }
-    }).catch(() => undefined)
+    }).catch((reason: unknown) => { if (active) setCartError(apiErrorMessage(reason, translate(locale, 'errorGeneric'))) }).finally(() => { if (active) setCartBusy(false) })
     return () => { active = false }
   }, [customer?.id, locale])
 
@@ -159,14 +169,40 @@ function App() {
   }, [wishlist])
 
   const t = (key: TranslationKey) => translate(locale, key)
+  const enqueueCartMutation = (mutation: () => Promise<void>) => {
+    cartMutationCount.current += 1
+    setCartBusy(true)
+    setCartError('')
+    setCartMessage('')
+    const operation = cartMutationQueue.current.then(mutation, mutation)
+    cartMutationQueue.current = operation.catch(() => undefined)
+    void operation.then(
+      () => {
+        cartMutationCount.current -= 1
+        if (cartMutationCount.current === 0) setCartBusy(false)
+      },
+      (reason: unknown) => {
+        setCartError(apiErrorMessage(reason, t('errorGeneric')))
+        cartMutationCount.current -= 1
+        if (cartMutationCount.current === 0) setCartBusy(false)
+      },
+    )
+  }
   const addToCart = (listing: MarketplaceListing, variantId?: string) => {
     if (customer) {
-      void addMarketplaceCartItem({ listing_id: listing.id, variant_id: variantId ?? listing.variantId, quantity: 1 }, locale).then((next) => setCart(next.items)).catch(() => undefined)
+      enqueueCartMutation(async () => {
+        const next = await addMarketplaceCartItem({ listing_id: listing.id, variant_id: variantId ?? listing.variantId, quantity: 1 }, locale)
+        setCart(next.items)
+        setCartMessage(t('serverCart'))
+      })
       return
     }
     const variant = listing.variants.find((item) => item.id === variantId) ?? listing.variants[0]
     const availableStock = variant?.availableStock ?? listing.availableStock
-    if (availableStock === 0) return
+    if (listing.trackInventory && availableStock === 0) {
+      setCartError(t('errorGeneric'))
+      return
+    }
     const cartKey = `${listing.id}:${variant?.id ?? 'default'}`
     setCart((current) => {
       const existing = current.find((item) => item.cartKey === cartKey)
@@ -175,15 +211,22 @@ function App() {
       const item: CartItem = { ...listing, price: variant?.sellingPrice ?? listing.price, variantId: variant?.id ?? listing.variantId, availableStock, cartKey, quantity }
       return existing ? current.map((entry) => entry.cartKey === cartKey ? { ...entry, quantity } : entry) : [...current, item]
     })
+    setCartError('')
+    setCartMessage(locale === 'my' ? 'ခြင်းတောင်းထဲ ထည့်ပြီးပါပြီ။' : 'Added to cart.')
   }
   const updateQuantity = (cartKey: string, quantity: number) => {
     const currentItem = cart.find((item) => item.cartKey === cartKey)
-    if (customer && currentItem?.serverItemId) {
-      if (quantity <= 0) {
-        void removeMarketplaceCartItem(currentItem.serverItemId, locale).then((next) => setCart(next.items)).catch(() => undefined)
-      } else {
-        void updateMarketplaceCartItem(currentItem.serverItemId, quantity, locale).then((next) => setCart(next.items)).catch(() => undefined)
+    if (customer) {
+      if (!currentItem?.serverItemId) {
+        setCartError(t('cartSync'))
+        return
       }
+      enqueueCartMutation(async () => {
+        const next = quantity <= 0
+          ? await removeMarketplaceCartItem(currentItem.serverItemId!, locale)
+          : await updateMarketplaceCartItem(currentItem.serverItemId!, quantity, locale)
+        setCart(next.items)
+      })
       return
     }
     setCart((current) => current.flatMap((item) => {
@@ -195,11 +238,20 @@ function App() {
   }
   const removeFromCart = (cartKey: string) => {
     const item = cart.find((entry) => entry.cartKey === cartKey)
-    if (customer && item?.serverItemId) {
-      void removeMarketplaceCartItem(item.serverItemId, locale).then((next) => setCart(next.items)).catch(() => undefined)
+    if (customer) {
+      if (!item?.serverItemId) {
+        setCartError(t('cartSync'))
+        return
+      }
+      enqueueCartMutation(async () => {
+        const next = await removeMarketplaceCartItem(item.serverItemId!, locale)
+        setCart(next.items)
+      })
       return
     }
     setCart((current) => current.filter((entry) => entry.cartKey !== cartKey))
+    setCartError('')
+    setCartMessage(t('cartSync'))
   }
   const toggleWishlist = (id: string) => setWishlist((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
   const changeLocale = (next: Locale) => {
@@ -213,7 +265,7 @@ function App() {
       setCustomer(null)
     }
   }
-  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, removeFromCart, toggleWishlist, setCustomer, cartServer: Boolean(customer) }
+  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, removeFromCart, toggleWishlist, setCustomer, cartServer: Boolean(customer), cartBusy, cartError, cartMessage }
 
   return (
     <MarketplaceShell
@@ -226,6 +278,11 @@ function App() {
       setTheme={setThemeState}
       onLogout={() => void signOut()}
     >
+      {(cartBusy || cartError || cartMessage) && <div className="mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+        {cartBusy && <div role="status" className="flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-800"><LoaderCircle className="animate-spin" size={17} />{t('cartSync')}</div>}
+        {!cartBusy && cartError && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">{cartError}</div>}
+        {!cartBusy && !cartError && cartMessage && <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{cartMessage}</div>}
+      </div>}
       <Routes>
         <Route path="/" element={<HomePage {...services} />} />
         <Route path="/shop" element={<ShopPage {...services} />} />
@@ -341,18 +398,18 @@ function ProductPage({ catalog, locale, t, addToCart, wishlist, toggleWishlist }
   const [listing, setListing] = useState<MarketplaceListing | null>(fallback ?? null)
   const [loading, setLoading] = useState(!fallback)
   const [error, setError] = useState('')
-  const [variantId, setVariantId] = useState(fallback?.variantId ?? '')
+  const [variantId, setVariantId] = useState(fallback ? preferredVariantId(fallback) : '')
   useEffect(() => {
     const controller = new AbortController()
-    void fetchProduct(slug, locale, controller.signal).then((value) => { setListing(value); setVariantId(value.variantId ?? '') }).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(apiErrorMessage(reason)) }).finally(() => setLoading(false))
+    void fetchProduct(slug, locale, controller.signal).then((value) => { setListing(value); setVariantId(preferredVariantId(value)) }).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(apiErrorMessage(reason)) }).finally(() => setLoading(false))
     return () => controller.abort()
   }, [locale, slug])
   if (loading && !listing) return <PageContainer><LoadingState t={t} /></PageContainer>
   if (!listing || error) return <PageContainer>{error ? <ErrorState message={error} t={t} /> : <CatalogEmpty status="ready" t={t} />}</PageContainer>
   const selected = listing.variants.find((item) => item.id === variantId) ?? listing.variants[0]
-  const available = selected?.availableStock ?? listing.availableStock
+  const available = listing.trackInventory ? selected?.availableStock ?? listing.availableStock : null
   const related = catalog.data.listings.filter((item) => item.id !== listing.id && item.categoryId === listing.categoryId).slice(0, 4)
-  return <PageContainer><Link to="/shop" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-blue-600"><ArrowLeft size={16} /> {t('backToShop')}</Link><div className="mt-8 grid gap-10 lg:grid-cols-2"><ProductGallery listing={listing} t={t} /><div className="self-center"><p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">{listing.storeSlug ? <Link to={`/stores/${listing.storeSlug}`} className="hover:underline">{listing.storeName || t('marketplace')}</Link> : listing.storeName || t('marketplace')}</p><h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">{listing.name}</h1><p className="mt-5 text-3xl font-black text-blue-600">{formatPrice(selected?.sellingPrice ?? listing.price, listing.currency, locale)}</p><p className="mt-6 max-w-xl text-base leading-8 text-slate-500 dark:text-slate-400">{listing.description || t('discoverBody')}</p>{listing.variants.length > 1 && <div className="mt-7"><p className="text-sm font-black">{t('selectVariant')}</p><div className="mt-3 flex flex-wrap gap-2">{listing.variants.map((item) => <button key={item.id} type="button" onClick={() => setVariantId(item.id)} disabled={item.availableStock === 0} className={'rounded-xl border px-3 py-2 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (item.id === selected?.id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300') + (item.availableStock === 0 ? ' cursor-not-allowed opacity-40' : '')}>{variantLabel(item, t)}{item.availableStock === 0 && ` · ${t('soldOut')}`}</button>)}</div></div>}<div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => addToCart(listing, selected?.id)} disabled={available === 0} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300"><ShoppingBag size={18} /> {t('addToCart')}</button><button type="button" onClick={() => toggleWishlist(listing.id)} className={'inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-sm font-black transition ' + (wishlist.includes(listing.id) ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-700 hover:border-blue-300 dark:border-slate-800 dark:text-slate-200')}><Heart size={18} fill={wishlist.includes(listing.id) ? 'currentColor' : 'none'} /> {wishlist.includes(listing.id) ? t('saved') : t('save')}</button></div><div className="mt-8 grid gap-3 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400"><span className="flex items-center gap-2"><ShieldCheck size={17} className="text-emerald-500" /> {available === 0 ? t('soldOut') : t('available')}</span><span className="flex items-center gap-2"><Truck size={17} className="text-blue-500" /> {t('thoughtfulDelivery')}</span></div></div></div>{related.length > 0 && <section className="mt-20"><SectionHeading eyebrow={t('productDetails')} title={t('browseCollection')} /><ProductGrid listings={related} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}</PageContainer>
+  return <PageContainer><Link to="/shop" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-blue-600"><ArrowLeft size={16} /> {t('backToShop')}</Link><div className="mt-8 grid gap-10 lg:grid-cols-2"><ProductGallery listing={listing} t={t} /><div className="self-center"><p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">{listing.storeSlug ? <Link to={`/stores/${listing.storeSlug}`} className="hover:underline">{listing.storeName || t('marketplace')}</Link> : listing.storeName || t('marketplace')}</p><h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">{listing.name}</h1><p className="mt-5 text-3xl font-black text-blue-600">{formatPrice(selected?.sellingPrice ?? listing.price, listing.currency, locale)}</p><p className="mt-6 max-w-xl text-base leading-8 text-slate-500 dark:text-slate-400">{listing.description || t('discoverBody')}</p>{listing.variants.length > 1 && <div className="mt-7"><p className="text-sm font-black">{t('selectVariant')}</p><div className="mt-3 flex flex-wrap gap-2">{listing.variants.map((item) => <button key={item.id} type="button" onClick={() => setVariantId(item.id)} disabled={listing.trackInventory && item.availableStock === 0} className={'rounded-xl border px-3 py-2 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (item.id === selected?.id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300') + (listing.trackInventory && item.availableStock === 0 ? ' cursor-not-allowed opacity-40' : '')}>{variantLabel(item, t)}{listing.trackInventory && item.availableStock === 0 && ` · ${t('soldOut')}`}</button>)}</div></div>}<div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => addToCart(listing, selected?.id)} disabled={available === 0} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300"><ShoppingBag size={18} /> {t('addToCart')}</button><button type="button" onClick={() => toggleWishlist(listing.id)} className={'inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-sm font-black transition ' + (wishlist.includes(listing.id) ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-700 hover:border-blue-300 dark:border-slate-800 dark:text-slate-200')}><Heart size={18} fill={wishlist.includes(listing.id) ? 'currentColor' : 'none'} /> {wishlist.includes(listing.id) ? t('saved') : t('save')}</button></div><div className="mt-8 grid gap-3 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 dark:text-slate-400"><span className="flex items-center gap-2"><ShieldCheck size={17} className="text-emerald-500" /> {available === 0 ? t('soldOut') : t('available')}</span><span className="flex items-center gap-2"><Truck size={17} className="text-blue-500" /> {t('thoughtfulDelivery')}</span></div></div></div>{related.length > 0 && <section className="mt-20"><SectionHeading eyebrow={t('productDetails')} title={t('browseCollection')} /><ProductGrid listings={related} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}</PageContainer>
 }
 
 function CategoriesPage({ catalog, t }: AppServices) {
@@ -627,7 +684,10 @@ function ProductGrid({ listings, wishlist, locale = 'en', t, addToCart, toggleWi
 }
 
 function ProductCard({ listing, saved, locale, t, addToCart, toggleWishlist }: { listing: MarketplaceListing; saved: boolean; locale: Locale; t: (key: TranslationKey) => string; addToCart: (listing: MarketplaceListing, variantId?: string) => void; toggleWishlist: (id: string) => void }) {
-  return <article className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-black/20"><div className="relative"><Link to={`/product/${listing.slug ?? listing.id}`} aria-label={listing.name}><ProductVisual listing={listing} compact /></Link><button type="button" onClick={() => toggleWishlist(listing.id)} className={'absolute right-3 top-3 grid size-10 place-items-center rounded-xl border backdrop-blur transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (saved ? 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'border-white/80 bg-white/80 text-slate-500 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900/80')} aria-label={saved ? t('saved') : t('save')}><Heart size={18} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="p-5"><p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-slate-400">{listing.storeName || t('marketplace')}</p><Link to={`/product/${listing.slug ?? listing.id}`} className="mt-2 block truncate text-base font-black text-slate-950 transition hover:text-blue-600 dark:text-white">{listing.name}</Link><div className="mt-4 flex items-center justify-between gap-3"><span className="text-lg font-black text-blue-600">{formatPrice(listing.price, listing.currency, locale)}</span><button type="button" onClick={() => addToCart(listing)} disabled={listing.availableStock === 0} className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300" aria-label={listing.availableStock === 0 ? t('soldOut') : t('addToCart')}><Plus size={19} /></button></div></div></article>
+  const variant = listing.variants.find((item) => item.availableStock !== 0) ?? listing.variants[0]
+  const available = listing.trackInventory ? variant?.availableStock ?? listing.availableStock : null
+  const unavailable = listing.trackInventory && (available === 0 || !variant)
+  return <article className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-black/20"><div className="relative"><Link to={`/product/${listing.slug ?? listing.id}`} aria-label={listing.name}><ProductVisual listing={listing} compact /></Link><button type="button" onClick={() => toggleWishlist(listing.id)} className={'absolute right-3 top-3 grid size-10 place-items-center rounded-xl border backdrop-blur transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (saved ? 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'border-white/80 bg-white/80 text-slate-500 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-900/80')} aria-label={saved ? t('saved') : t('save')}><Heart size={18} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="p-5"><p className="truncate text-xs font-bold uppercase tracking-[0.16em] text-slate-400">{listing.storeName || t('marketplace')}</p><Link to={`/product/${listing.slug ?? listing.id}`} className="mt-2 block truncate text-base font-black text-slate-950 transition hover:text-blue-600 dark:text-white">{listing.name}</Link><div className="mt-4 flex items-center justify-between gap-3"><span className="text-lg font-black text-blue-600">{formatPrice(variant?.sellingPrice ?? listing.price, listing.currency, locale)}</span><button type="button" onClick={() => addToCart(listing, variant?.id)} disabled={unavailable} className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300" aria-label={unavailable ? t('soldOut') : t('addToCart')}><Plus size={19} /></button></div></div></article>
 }
 
 function ProductVisual({ listing, compact = false }: { listing: MarketplaceListing; compact?: boolean }) {
@@ -715,6 +775,10 @@ function AddressField({ label, value, onChange, wide = false, required = false }
 function variantLabel(variant: MarketplaceVariant, t: (key: TranslationKey) => string): string {
   const attributes = variant.attributes ? Object.values(variant.attributes).join(' / ') : ''
   return attributes || variant.unit || variant.sku || `${t('variant')} ${variant.id.slice(0, 6)}`
+}
+
+function preferredVariantId(listing: MarketplaceListing): string {
+  return listing.variants.find((variant) => variant.availableStock !== 0)?.id ?? listing.variantId ?? listing.variants[0]?.id ?? ''
 }
 
 function emptyAddress(name: string): CustomerAddressInput {
