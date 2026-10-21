@@ -14,10 +14,12 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   ShoppingBag,
   Store,
   Truck,
   UserRound,
+  X,
 } from 'lucide-react'
 import {
   Link,
@@ -401,33 +403,48 @@ function ShopPage({ locale, catalog, t, wishlist, addToCart, toggleWishlist }: A
   const category = params.get('category') ?? ''
   const store = params.get('store') ?? ''
   const sort = (params.get('sort') as 'newest' | 'oldest' | 'price-low' | 'price-high' | 'name' | null) ?? 'newest'
-  const [minPrice, setMinPrice] = useState(params.get('min_price') ?? '')
-  const [maxPrice, setMaxPrice] = useState(params.get('max_price') ?? '')
+  const minPrice = params.get('min_price') ?? ''
+  const maxPrice = params.get('max_price') ?? ''
+  const page = Number(params.get('page') ?? 1)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [result, setResult] = useState<ProductPage>({ status: 'loading', listings: [], meta: emptyMeta() })
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetchProducts(locale, { search, category, store, minPrice: params.get('min_price') ?? '', maxPrice: params.get('max_price') ?? '', sort, page: Number(params.get('page') ?? 1), perPage: 24 }, controller.signal).then(setResult)
+    setResult((current) => ({ ...current, status: 'loading' }))
+    void fetchProducts(locale, { search, category, store, minPrice, maxPrice, sort, page, perPage: 24 }, controller.signal).then(setResult)
     return () => controller.abort()
-  }, [category, locale, params, search, sort, store])
+  }, [category, locale, maxPrice, minPrice, page, search, sort, store])
 
   const applyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const formData = new FormData(event.currentTarget)
     const next = new URLSearchParams(params)
-    if (minPrice) next.set('min_price', minPrice)
+    const nextMinPrice = String(formData.get('min_price') ?? '').trim()
+    const nextMaxPrice = String(formData.get('max_price') ?? '').trim()
+    if (nextMinPrice) next.set('min_price', nextMinPrice)
     else next.delete('min_price')
-    if (maxPrice) next.set('max_price', maxPrice)
+    if (nextMaxPrice) next.set('max_price', nextMaxPrice)
     else next.delete('max_price')
     next.delete('page')
     setParams(next)
+    setMobileFiltersOpen(false)
   }
-  const clearFilters = () => { setMinPrice(''); setMaxPrice(''); setParams(search ? { search } : {}) }
-  const setSort = (value: string) => {
+  const clearFilters = () => { setParams({}) }
+  const updateParam = (key: string, value: string) => {
     const next = new URLSearchParams(params)
-    if (value === 'newest') next.delete('sort')
-    else next.set('sort', value)
+    if (value) next.set(key, value)
+    else next.delete(key)
     next.delete('page')
     setParams(next)
+  }
+  const applySearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const value = String(new FormData(event.currentTarget).get('search') ?? '').trim()
+    updateParam('search', value)
+  }
+  const setSort = (value: string) => {
+    updateParam('sort', value === 'newest' ? '' : value)
   }
   const setPage = (page: number) => {
     const next = new URLSearchParams(params)
@@ -436,7 +453,31 @@ function ShopPage({ locale, catalog, t, wishlist, addToCart, toggleWishlist }: A
     setParams(next)
   }
   const status = result.status === 'loading' && result.listings.length === 0 ? 'loading' : result.status
-  return <PageContainer><PageIntro eyebrow={t('shop')} title={t('allProducts')} body={t('discoverBody')} /><div className="mt-10 grid gap-8 lg:grid-cols-[260px_1fr]"><aside className="h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><h2 className="text-sm font-black">{t('filters')}</h2><button type="button" onClick={clearFilters} className="text-xs font-bold text-blue-600">{t('clear')}</button></div><form onSubmit={applyFilters} className="mt-5 grid gap-5"><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('categoryFilter')}</span><select value={category} onChange={(event) => setParams(event.target.value ? { search, category: event.target.value } : { search })} className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('allProducts')}</option>{catalog.data.categories.map((item) => <option key={item.id} value={item.slug ?? item.id}>{item.name}</option>)}</select></label><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('storeFilter')}</span><select value={store} onChange={(event) => setParams(event.target.value ? { search, store: event.target.value } : { search })} className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('stores')}</option>{catalog.data.stores.map((item) => <option key={item.id} value={item.slug ?? item.id}>{item.name}</option>)}</select></label><div className="grid grid-cols-2 gap-2"><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('minPrice')}</span><input inputMode="numeric" value={minPrice} onChange={(event) => setMinPrice(event.target.value)} className="h-10 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('maxPrice')}</span><input inputMode="numeric" value={maxPrice} onChange={(event) => setMaxPrice(event.target.value)} className="h-10 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label></div><label className="flex items-center gap-2 text-xs font-bold text-slate-500"><input type="checkbox" checked readOnly className="accent-blue-600" /> {t('availableOnly')}</label><button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 text-xs font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <Search size={15} /></button></form></aside><div><div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{result.meta.total} {t('products')}</p><label className="flex items-center gap-2 text-sm font-semibold text-slate-500"><span>{t('sortBy')}</span><select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-blue-500 dark:border-slate-800 dark:bg-slate-900 dark:text-white"><option value="newest">{t('newest')}</option><option value="oldest">{t('oldest')}</option><option value="price-low">{t('priceLow')}</option><option value="price-high">{t('priceHigh')}</option><option value="name">{t('nameAZ')}</option></select></label></div>{status === 'loading' ? <ProductSkeletonGrid /> : result.status === 'error' ? <ErrorState message={result.message ?? t('apiUnavailable')} t={t} /> : result.listings.length > 0 ? <><ProductGrid listings={result.listings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /><Pagination meta={result.meta} t={t} onPage={setPage} /></> : <CatalogEmpty status="ready" t={t} />}</div></div></PageContainer>
+  const categoryName = catalog.data.categories.find((item) => (item.slug ?? item.id) === category)?.name ?? category
+  const storeName = catalog.data.stores.find((item) => (item.slug ?? item.id) === store)?.name ?? store
+  const activeFilters = [
+    search ? { key: 'search', label: t('searchPlaceholder'), value: search } : null,
+    category ? { key: 'category', label: t('categoryFilter'), value: categoryName } : null,
+    store ? { key: 'store', label: t('storeFilter'), value: storeName } : null,
+    minPrice ? { key: 'min_price', label: t('minPrice'), value: minPrice } : null,
+    maxPrice ? { key: 'max_price', label: t('maxPrice'), value: maxPrice } : null,
+  ].filter((item): item is { key: string; label: string; value: string } => Boolean(item))
+
+  return <PageContainer>
+    <nav aria-label={t('primaryNavigation')} className="mb-7 flex items-center gap-2 text-sm font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{t('home')}</Link><ChevronRight size={15} /><span className="text-slate-700 dark:text-slate-200">{t('shop')}</span></nav>
+    <div className="flex flex-col gap-6 border-b border-slate-200 pb-8 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between"><div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">{t('shop')}</p><h1 className="mt-3 text-4xl font-black tracking-tight text-[#0F172A] dark:text-white sm:text-5xl">{t('allProducts')}</h1><p className="mt-4 leading-7 text-slate-500 dark:text-slate-400">{t('discoverBody')}</p></div><div className="shrink-0 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-right dark:border-blue-900/50 dark:bg-blue-950/30"><p className="text-2xl font-black text-[#1D4ED8]">{result.status === 'ready' ? result.meta.total : '—'}</p><p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">{t('products')}</p></div></div>
+    <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-col gap-3 lg:flex-row"><form key={search} onSubmit={applySearch} role="search" className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl bg-[#F8FAFC] px-4 dark:bg-slate-950"><Search size={19} className="shrink-0 text-[#1D4ED8]" /><input name="search" defaultValue={search} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-12 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" /><button type="submit" className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#1D4ED8] px-4 text-xs font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <ArrowRight size={15} /></button></form><div className="flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => setMobileFiltersOpen(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:text-slate-200 lg:hidden"><SlidersHorizontal size={17} /> {t('filters')}</button><label className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900"><span>{t('sortBy')}</span><select value={sort} onChange={(event) => setSort(event.target.value)} className="bg-transparent font-black text-slate-800 outline-none dark:text-white"><option value="newest">{t('newest')}</option><option value="oldest">{t('oldest')}</option><option value="price-low">{t('priceLow')}</option><option value="price-high">{t('priceHigh')}</option><option value="name">{t('nameAZ')}</option></select></label></div></div></div>
+    {activeFilters.length > 0 && <div className="mt-5 flex flex-wrap items-center gap-2"><span className="mr-1 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('filters')}</span>{activeFilters.map((filter) => <button type="button" key={filter.key} onClick={() => updateParam(filter.key, '')} className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:border-blue-300 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200"><span>{filter.label}: {filter.value}</span><X size={13} /></button>)}<button type="button" onClick={clearFilters} className="ml-1 text-xs font-black text-slate-500 underline-offset-4 hover:text-blue-600 hover:underline">{t('clear')}</button></div>}
+    <div className="mt-8 grid gap-8 lg:grid-cols-[270px_minmax(0,1fr)]">
+      <aside className="hidden h-fit lg:sticky lg:top-28 lg:block lg:self-start"><div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><ShopFilterPanel key={`${category}-${store}-${minPrice}-${maxPrice}`} categories={catalog.data.categories} stores={catalog.data.stores} category={category} store={store} minPrice={minPrice} maxPrice={maxPrice} t={t} onCategoryChange={(value) => updateParam('category', value)} onStoreChange={(value) => updateParam('store', value)} onApply={applyFilters} onClear={clearFilters} /></div></aside>
+      <div className="min-w-0">{status === 'loading' ? <ProductSkeletonGrid /> : result.status === 'error' ? <ErrorState message={result.message ?? t('apiUnavailable')} t={t} /> : result.listings.length > 0 ? <><ProductGrid listings={result.listings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /><Pagination meta={result.meta} t={t} onPage={setPage} /></> : <CatalogEmpty status="ready" t={t} />}</div>
+    </div>
+    {mobileFiltersOpen && <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t('filters')}><button type="button" onClick={() => setMobileFiltersOpen(false)} className="absolute inset-0 size-full bg-slate-950/50" aria-label={t('close')} /><aside className="absolute right-0 top-0 h-full w-[min(90vw,380px)] overflow-y-auto bg-white p-5 shadow-2xl dark:bg-slate-900"><div className="mb-6 flex items-center justify-between"><h2 className="text-lg font-black">{t('filters')}</h2><button type="button" onClick={() => setMobileFiltersOpen(false)} className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-500 dark:border-slate-700" aria-label={t('close')}><X size={18} /></button></div><ShopFilterPanel key={`${category}-${store}-${minPrice}-${maxPrice}-mobile`} categories={catalog.data.categories} stores={catalog.data.stores} category={category} store={store} minPrice={minPrice} maxPrice={maxPrice} t={t} onCategoryChange={(value) => updateParam('category', value)} onStoreChange={(value) => updateParam('store', value)} onApply={applyFilters} onClear={clearFilters} /></aside></div>}
+  </PageContainer>
+}
+
+function ShopFilterPanel({ categories, stores, category, store, minPrice, maxPrice, t, onCategoryChange, onStoreChange, onApply, onClear }: { categories: MarketplaceCategory[]; stores: MarketplaceStore[]; category: string; store: string; minPrice: string; maxPrice: string; t: (key: TranslationKey) => string; onCategoryChange: (value: string) => void; onStoreChange: (value: string) => void; onApply: (event: FormEvent<HTMLFormElement>) => void; onClear: () => void }) {
+  return <><div className="flex items-center justify-between"><div><h2 className="text-sm font-black">{t('filters')}</h2><p className="mt-1 text-xs font-semibold text-slate-400">{t('securedByServer')}</p></div><button type="button" onClick={onClear} className="text-xs font-black text-blue-600">{t('clear')}</button></div><form onSubmit={onApply} className="mt-6 grid gap-5"><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('categoryFilter')}</span><select value={category} onChange={(event) => onCategoryChange(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('allProducts')}</option>{categories.map((item) => <option key={item.id} value={item.slug ?? item.id}>{item.name}</option>)}</select></label><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('storeFilter')}</span><select value={store} onChange={(event) => onStoreChange(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('stores')}</option>{stores.map((item) => <option key={item.id} value={item.slug ?? item.id}>{item.name}</option>)}</select></label><div className="grid grid-cols-2 gap-2"><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('minPrice')}</span><input name="min_price" type="number" min="0" inputMode="decimal" defaultValue={minPrice} className="h-11 min-w-0 rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('maxPrice')}</span><input name="max_price" type="number" min="0" inputMode="decimal" defaultValue={maxPrice} className="h-11 min-w-0 rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label></div><div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20"><div className="flex items-center gap-2 text-xs font-black text-emerald-700 dark:text-emerald-300"><ShieldCheck size={16} /> {t('availability')}</div><p className="mt-2 text-xs font-semibold leading-5 text-emerald-800/80 dark:text-emerald-200/80">{t('securedByServer')}</p></div><button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] text-sm font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <Search size={16} /></button></form></>
 }
 
 function ProductPage({ catalog, locale, t, addToCart, wishlist, toggleWishlist }: AppServices) {
