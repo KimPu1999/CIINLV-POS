@@ -35,6 +35,54 @@ class MarketplaceAdminControlCenterTest extends TestCase
             ->assertJsonPath('data.financial_capabilities.payouts.available', false);
     }
 
+    public function test_web_super_admin_session_can_access_marketplace_control_center(): void
+    {
+        $superAdmin = User::factory()->create([
+            'email' => 'marketplace-platform-admin@example.com',
+            'password' => Hash::make('CorrectPassword1!'),
+            'platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $superAdmin->email,
+            'password' => 'CorrectPassword1!',
+            'client_type' => 'web',
+        ])->assertOk()->assertJsonPath('data.platform_role', User::PLATFORM_ROLE_SUPER_ADMIN);
+
+        $this->getJson('/api/v1/admin/marketplace/dashboard')->assertOk();
+    }
+
+    public function test_super_admin_personal_access_token_can_access_marketplace_control_center(): void
+    {
+        $superAdmin = User::factory()->create([
+            'platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        $token = $superAdmin->createToken('authorization-test', ['auth:mobile'])->plainTextToken;
+
+        $this->withToken($token)
+            ->getJson('/api/v1/admin/marketplace/dashboard')
+            ->assertOk();
+    }
+
+    public function test_only_platform_super_admins_can_access_marketplace_control_center(): void
+    {
+        [$tenant, $businessAdmin] = $this->businessWithAdmin('CONTROL-ROLES', 'roles-business@example.com');
+        $seller = User::factory()->create(['email' => 'roles-seller@example.com', 'status' => User::STATUS_ACTIVE]);
+        $sellerRole = Role::create(['tenant_id' => $tenant->id, 'name' => 'seller']);
+        TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $seller->id, 'role_id' => $sellerRole->id, 'status' => 'active', 'joined_at' => now()]);
+        $customer = User::factory()->create(['email' => 'roles-customer@example.com', 'status' => User::STATUS_ACTIVE]);
+
+        $this->getJson('/api/v1/admin/marketplace/dashboard')->assertUnauthorized();
+
+        foreach ([$businessAdmin, $seller, $customer] as $user) {
+            $this->actingAs($user, 'sanctum')
+                ->getJson('/api/v1/admin/marketplace/dashboard')
+                ->assertForbidden();
+        }
+    }
+
     public function test_super_admin_can_moderate_store_and_listing_with_audit_records(): void
     {
         [$tenant] = $this->businessWithAdmin('CONTROL-B', 'control-b@example.com');
