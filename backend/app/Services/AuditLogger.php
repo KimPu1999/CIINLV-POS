@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\App;
 
 class AuditLogger
 {
@@ -16,6 +17,12 @@ class AuditLogger
         array $metadata = [],
     ): void {
         $tenant ??= $subject instanceof Tenant ? $subject : null;
+        if (App::bound('request')) {
+            $correlationId = request()->attributes->get('correlation_id');
+            if (is_string($correlationId) && $correlationId !== '') {
+                $metadata['correlation_id'] ??= $correlationId;
+            }
+        }
 
         AuditLog::create([
             'actor_user_id' => $actor?->getKey(),

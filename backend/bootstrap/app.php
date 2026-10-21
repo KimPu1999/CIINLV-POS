@@ -4,6 +4,7 @@ use App\Http\Middleware\ActiveAccount;
 use App\Http\Middleware\CustomerAccount;
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\PlatformAdmin;
+use App\Http\Middleware\RequestCorrelationId;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\ResolveTenantAnyRole;
 use App\Http\Middleware\SecurityHeaders;
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
 
         $middleware->api(append: [
+            RequestCorrelationId::class,
             HandleCors::class,
             SecurityHeaders::class,
         ]);

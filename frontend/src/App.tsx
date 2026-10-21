@@ -24,6 +24,7 @@ const BusinessSettingsPage = lazy(() => import('./features/business-settings').t
 const BusinessVerificationPage = lazy(() => import('./features/business-verification').then(({ BusinessVerificationPage: Page }) => ({ default: Page })))
 const BusinessDashboardPage = lazy(() => import('./features/business-dashboard').then(({ BusinessDashboardPage: Page }) => ({ default: Page })))
 const PlatformOverviewPage = lazy(() => import('./features/platform-overview').then(({ PlatformOverviewPage: Page }) => ({ default: Page })))
+const PlatformMonitoringPage = lazy(() => import('./features/platform-monitoring').then(({ PlatformMonitoringPage: Page }) => ({ default: Page })))
 const AuditSecurityPage = lazy(() => import('./features/audit-security').then(({ AuditSecurityPage: Page }) => ({ default: Page })))
 const MarketplaceAdminPage = lazy(() => import('./features/marketplace-admin').then(({ MarketplaceAdminPage: Page }) => ({ default: Page })))
 const ProductManagementPage = lazy(() => import('./features/products').then(({ ProductManagementPage: Page }) => ({ default: Page })))
@@ -68,6 +69,7 @@ function BrandLogo({ showName = true, className = '', imageClassName = 'h-10 w-1
 
 const platformNav: NavItem[] = [
   { label: 'Platform overview', path: '/platform/dashboard', icon: LayoutDashboard, roles: ['super_admin'] },
+  { label: 'Platform monitoring', path: '/platform/monitoring', icon: Activity, roles: ['super_admin'] },
   { label: 'Businesses', path: '/platform/businesses', icon: Building2, roles: ['super_admin'] },
   { label: 'Business registration', path: '/platform/businesses/new', icon: ClipboardList, roles: ['super_admin'] },
   { label: 'Audit & security', path: '/platform/audit', icon: Activity, roles: ['super_admin'] },
@@ -272,6 +274,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
         {needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
           <Route index element={<OverviewPage user={user} />} />
           <Route path="dashboard" element={<OverviewPage user={user} />} />
+          <Route path="monitoring" element={<PlatformMonitoringPage />} />
           <Route path="businesses" element={<BusinessListPage />} />
           <Route path="businesses/new" element={<BusinessRegistrationScreen />} />
           <Route path="businesses/:id/edit" element={<BusinessEditPage />} />
