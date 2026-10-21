@@ -63,7 +63,23 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
         {mobileOpen && <div className="border-t border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950 lg:hidden"><nav className="grid gap-1" aria-label={t('mobileNavigation')}><MobileNavItem to="/" label={t('home')} onClick={closeMobile} /><MobileNavItem to="/shop" label={t('shop')} onClick={closeMobile} /><MobileNavItem to="/categories" label={t('categories')} onClick={closeMobile} /><MobileNavItem to="/stores" label={t('stores')} onClick={closeMobile} /><MobileNavItem to={customer ? '/account' : '/login'} label={customer ? t('account') : t('signIn')} onClick={closeMobile} /></nav><div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800"><span className="text-sm font-semibold text-slate-500">{t('language')}</span><button type="button" onClick={switchLocale} className="rounded-xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{locale === 'en' ? t('burmese') : t('english')}</button></div></div>}
       </header>
       <main>{children}</main>
-      <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"><div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.4fr_1fr_1fr] lg:px-8"><div><BrandLogo label={t('marketplace')} imageClassName="h-10 w-10" nameClassName="text-slate-950 dark:text-white" /><p className="mt-4 max-w-sm text-sm leading-7 text-slate-500 dark:text-slate-400">{t('footerBody')}</p><div className="mt-5 flex items-center gap-2 text-xs font-semibold text-slate-400"><Sparkles size={14} className="text-blue-500" /> {t('builtForCommunity')}</div></div><FooterColumn title={t('shop')} links={[[t('shop'), '/shop'], [t('categories'), '/categories'], [t('stores'), '/stores']]} /><FooterColumn title={t('account')} links={[[t('account'), '/account'], [t('myOrders'), '/orders'], [t('orderTracking'), '/tracking']]} /></div><div className="border-t border-slate-100 dark:border-slate-800"><div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 text-xs font-medium text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8"><span>© 2026 {t('marketplace')}</span><div className="flex gap-5"><Link to="/privacy" className="transition hover:text-blue-600">{t('privacy')}</Link><Link to="/terms" className="transition hover:text-blue-600">{t('terms')}</Link></div></div></div></footer>
+      <footer className="marketplace-footer border-t">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
+          <div>
+            <BrandLogo label={t('marketplace')} imageClassName="h-10 w-10" nameClassName="text-white" labelClassName="marketplace-footer-logo-label" />
+            <p className="marketplace-footer-copy mt-4 max-w-sm text-sm leading-7">{t('footerBody')}</p>
+            <div className="marketplace-footer-muted mt-5 flex items-center gap-2 text-xs font-semibold"><Sparkles size={14} className="marketplace-footer-accent" /> {t('builtForCommunity')}</div>
+          </div>
+          <FooterColumn title={t('shop')} links={[[t('shop'), '/shop'], [t('categories'), '/categories'], [t('stores'), '/stores']]} />
+          <FooterColumn title={t('account')} links={[[t('account'), '/account'], [t('myOrders'), '/orders'], [t('orderTracking'), '/tracking']]} />
+        </div>
+        <div className="marketplace-footer-divider border-t">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 text-xs font-medium sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <span className="marketplace-footer-muted">© 2026 {t('marketplace')}</span>
+            <div className="flex gap-5"><Link to="/privacy" className="marketplace-footer-link transition">{t('privacy')}</Link><Link to="/terms" className="marketplace-footer-link transition">{t('terms')}</Link></div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
@@ -85,7 +101,7 @@ function MenuLink({ to, label, onClick }: { to: string; label: string; onClick: 
 }
 
 function FooterColumn({ title, links }: { title: string; links: Array<[string, string]> }) {
-  return <div><h2 className="text-sm font-black text-slate-950 dark:text-white">{title}</h2><div className="mt-4 grid gap-3">{links.map(([label, to]) => <Link key={to} to={to} className="w-fit text-sm font-medium text-slate-500 transition hover:text-blue-600 dark:text-slate-400">{label}</Link>)}</div></div>
+  return <div><h2 className="marketplace-footer-heading text-sm font-black">{title}</h2><div className="mt-4 grid gap-3">{links.map(([label, to]) => <Link key={to} to={to} className="marketplace-footer-link w-fit text-sm font-medium transition">{label}</Link>)}</div></div>
 }
 
 export function StoreMark({ name }: { name: string }) {

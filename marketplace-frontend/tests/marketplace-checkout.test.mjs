@@ -4,6 +4,9 @@ import test from 'node:test'
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
 const compactSummaryCard = await readFile(new URL('../src/components/CompactSummaryCard.tsx', import.meta.url), 'utf8')
+const brandLogo = await readFile(new URL('../src/components/BrandLogo.tsx', import.meta.url), 'utf8')
+const marketplaceShell = await readFile(new URL('../src/components/MarketplaceShell.tsx', import.meta.url), 'utf8')
+const marketplaceCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = await readFile(new URL('../src/lib/marketplace.ts', import.meta.url), 'utf8')
 
 test('checkout page uses server quote and idempotent COD checkout', () => {
@@ -54,4 +57,19 @@ test('customer account summary cards use the compact responsive layout', () => {
   assert.match(compactSummaryCard, /min-h-\[112px\].*rounded-\[12px\].*p-4/)
   assert.match(compactSummaryCard, /size-9 shrink-0/)
   assert.match(compactSummaryCard, /text-\[22px\].*overflow-wrap:anywhere/)
+})
+
+test('shared marketplace footer uses the official logo palette and keeps customer links', () => {
+  assert.match(brandLogo, /labelClassName\?: string/)
+  assert.match(brandLogo, /object-contain/)
+  assert.match(marketplaceShell, /marketplace-footer/)
+  assert.match(marketplaceShell, /marketplace-footer-logo-label/)
+  assert.match(marketplaceShell, /to="\/privacy"/)
+  assert.match(marketplaceShell, /to="\/terms"/)
+  assert.match(marketplaceShell, /FooterColumn title=\{t\('shop'\)\}/)
+  assert.match(marketplaceShell, /FooterColumn title=\{t\('account'\)\}/)
+  assert.match(marketplaceCss, /--brand-primary: #003868/)
+  assert.match(marketplaceCss, /--brand-primary-deep: #002850/)
+  assert.match(marketplaceCss, /--brand-secondary: #f86820/)
+  assert.match(marketplaceCss, /--brand-footer-bg: var\(--brand-primary-deep\)/)
 })
