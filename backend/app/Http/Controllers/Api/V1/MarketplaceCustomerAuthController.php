@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class MarketplaceCustomerAuthController
@@ -36,7 +37,21 @@ class MarketplaceCustomerAuthController
                 return $user;
             });
         } catch (UniqueConstraintViolationException) {
-            throw ValidationException::withMessages(['email' => ['This email address is already registered.']]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An account with this email address already exists.',
+                'errors' => ['email' => ['This email address is already registered.']],
+            ], 409);
+        } catch (\Throwable $exception) {
+            Log::error('Marketplace customer registration transaction failed.', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'We could not create your customer account right now. Please try again shortly.',
+            ], 500);
         }
 
         Auth::guard('web')->login($user);

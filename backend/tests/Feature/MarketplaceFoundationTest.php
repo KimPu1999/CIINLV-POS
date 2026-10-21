@@ -51,6 +51,41 @@ class MarketplaceFoundationTest extends TestCase
             ->assertOk()->assertJsonPath('data.email', 'customer@example.com')->assertJsonCount(1, 'data.addresses');
     }
 
+    public function test_customer_registration_rejects_duplicate_email_without_creating_an_extra_profile(): void
+    {
+        $payload = [
+            'name' => 'Marketplace Customer',
+            'email' => 'duplicate@example.com',
+            'password' => 'CorrectPassword1!',
+            'password_confirmation' => 'CorrectPassword1!',
+            'phone' => '0912345678',
+        ];
+
+        $this->postJson('/api/v1/marketplace/auth/register', $payload)->assertCreated();
+        $this->postJson('/api/v1/marketplace/auth/register', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->assertDatabaseCount('customer_profiles', 1);
+        $this->assertDatabaseCount('users', 1);
+    }
+
+    public function test_customer_registration_does_not_create_business_membership_or_platform_role(): void
+    {
+        $this->postJson('/api/v1/marketplace/auth/register', [
+            'name' => 'Marketplace Customer',
+            'email' => 'permissions@example.com',
+            'password' => 'CorrectPassword1!',
+            'password_confirmation' => 'CorrectPassword1!',
+        ])->assertCreated();
+
+        $user = User::query()->where('email', 'permissions@example.com')->firstOrFail();
+
+        $this->assertNull($user->platform_role);
+        $this->assertDatabaseMissing('tenant_memberships', ['user_id' => $user->id]);
+        $this->assertDatabaseHas('customer_profiles', ['user_id' => $user->id, 'status' => 'active']);
+    }
+
     public function test_business_admin_cannot_access_platform_marketplace_approval(): void
     {
         [, $businessAdmin] = $this->businessWithAdmin('MARKETPLACE-A', 'marketplace-a@example.com');

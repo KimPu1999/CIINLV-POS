@@ -50,6 +50,7 @@ import {
   getStoredLocale,
   getStoredTheme,
   loginCustomer,
+  MarketplaceApiError,
   logoutCustomer,
   readStoredCart,
   readStoredWishlist,
@@ -440,11 +441,16 @@ function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServi
   const [form, setForm] = useState({ name: '', email: '', password: '', password_confirmation: '', phone: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
   if (customer) return <Navigate to="/account" replace />
-  const update = (field: keyof typeof form, value: string) => setForm((current) => ({ ...current, [field]: value }))
+  const update = (field: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }))
+    setFieldErrors((current) => ({ ...current, [field]: [] }))
+  }
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
+    setFieldErrors({})
     if (isRegister && form.password !== form.password_confirmation) {
       setError(t('formError'))
       return
@@ -455,12 +461,40 @@ function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServi
       setCustomer(next)
       navigate(params.get('next') || '/account', { replace: true })
     } catch (reason: unknown) {
-      setError(apiErrorMessage(reason, t('invalidCredentials')))
+      if (reason instanceof MarketplaceApiError) {
+        setFieldErrors(reason.errors)
+        setError(reason.status === 422 || reason.status === 409 ? t('formError') : apiErrorMessage(reason, t('errorGeneric')))
+      } else {
+        setError(apiErrorMessage(reason, t('invalidCredentials')))
+      }
     } finally {
       setBusy(false)
     }
   }
-  return <PageContainer><div className="mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[0.9fr_1.1fr]"><div className="bg-gradient-to-br from-blue-700 to-slate-950 p-8 text-white sm:p-12"><span className="grid size-12 place-items-center rounded-2xl bg-white/10"><ShoppingBag size={23} /></span><h1 className="mt-14 text-4xl font-black tracking-tight">{isRegister ? t('createAccount') : t('signInTitle')}</h1><p className="mt-5 leading-8 text-blue-100">{isRegister ? t('discoverBody') : t('signInBody')}</p></div><form onSubmit={submit} className="p-8 sm:p-12"><h2 className="text-2xl font-black">{isRegister ? t('register') : t('signIn')}</h2>{error && <div role="alert" className="mt-5 flex gap-2 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200"><CircleAlert className="shrink-0" size={18} />{error}</div>}<div className="mt-7 grid gap-5">{isRegister && <Field label={t('registrationName')} name="name" value={form.name} onChange={(value) => update('name', value)} autoComplete="name" required />}<Field label={t('email')} name="email" type="email" value={form.email} onChange={(value) => update('email', value)} placeholder={t('emailPlaceholder')} autoComplete="email" required />{isRegister && <Field label={t('phoneOptional')} name="phone" type="tel" value={form.phone} onChange={(value) => update('phone', value)} autoComplete="tel" />}<Field label={t('password')} name="password" type="password" value={form.password} onChange={(value) => update('password', value)} placeholder={t('passwordPlaceholder')} autoComplete={isRegister ? 'new-password' : 'current-password'} required /><p className="-mt-2 text-xs font-semibold text-slate-400">{t('passwordRequirements')}</p>{isRegister && <Field label={t('confirmPassword')} name="password_confirmation" type="password" value={form.password_confirmation} onChange={(value) => update('password_confirmation', value)} autoComplete="new-password" required />}</div><button type="submit" disabled={busy} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={18} /> : <LogIn size={18} />} {isRegister ? t('createAccount') : t('continue')}</button><p className="mt-6 text-center text-sm font-semibold text-slate-500">{isRegister ? t('alreadyHaveAccount') + ' ' : t('noAccount') + ' '}<Link to={isRegister ? '/login' : '/register'} className="text-blue-600 hover:underline">{isRegister ? t('signIn') : t('createAccount')}</Link></p></form></div></PageContainer>
+  const fieldError = (field: string) => fieldErrors[field]?.[0] ? <p className="-mt-3 text-xs font-semibold text-red-600">{fieldErrors[field][0]}</p> : null
+  return <PageContainer>
+    <div className="mx-auto grid max-w-5xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="bg-gradient-to-br from-blue-700 to-slate-950 p-8 text-white sm:p-12"><span className="grid size-12 place-items-center rounded-2xl bg-white/10"><ShoppingBag size={23} /></span><h1 className="mt-14 text-4xl font-black tracking-tight">{isRegister ? t('createAccount') : t('signInTitle')}</h1><p className="mt-5 leading-8 text-blue-100">{isRegister ? t('discoverBody') : t('signInBody')}</p></div>
+      <form onSubmit={submit} className="p-8 sm:p-12">
+        <h2 className="text-2xl font-black">{isRegister ? t('register') : t('signIn')}</h2>
+        {error && <div role="alert" className="mt-5 flex gap-2 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200"><CircleAlert className="shrink-0" size={18} />{error}</div>}
+        <div className="mt-7 grid gap-5">
+          {isRegister && <><Field label={t('registrationName')} name="name" value={form.name} onChange={(value) => update('name', value)} autoComplete="name" required />{fieldError('name')}</>}
+          <Field label={t('email')} name="email" type="email" value={form.email} onChange={(value) => update('email', value)} placeholder={t('emailPlaceholder')} autoComplete="email" required />
+          {isRegister && fieldError('email')}
+          {isRegister && <Field label={t('phoneOptional')} name="phone" type="tel" value={form.phone} onChange={(value) => update('phone', value)} autoComplete="tel" />}
+          {isRegister && fieldError('phone')}
+          <Field label={t('password')} name="password" type="password" value={form.password} onChange={(value) => update('password', value)} placeholder={t('passwordPlaceholder')} autoComplete={isRegister ? 'new-password' : 'current-password'} required />
+          {isRegister && fieldError('password')}
+          <p className="-mt-2 text-xs font-semibold text-slate-400">{t('passwordRequirements')}</p>
+          {isRegister && <Field label={t('confirmPassword')} name="password_confirmation" type="password" value={form.password_confirmation} onChange={(value) => update('password_confirmation', value)} autoComplete="new-password" required />}
+          {isRegister && fieldError('password_confirmation')}
+        </div>
+        <button type="submit" disabled={busy} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={18} /> : <LogIn size={18} />} {isRegister ? t('createAccount') : t('continue')}</button>
+        <p className="mt-6 text-center text-sm font-semibold text-slate-500">{isRegister ? t('alreadyHaveAccount') + ' ' : t('noAccount') + ' '}<Link to={isRegister ? '/login' : '/register'} className="text-blue-600 hover:underline">{isRegister ? t('signIn') : t('createAccount')}</Link></p>
+      </form>
+    </div>
+  </PageContainer>
 }
 
 function ProtectedRoute({ customer, authLoading, t, children }: AppServices & { children: ReactNode }) {
