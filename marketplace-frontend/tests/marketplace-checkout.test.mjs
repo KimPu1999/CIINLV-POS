@@ -62,6 +62,10 @@ test('customer account summary cards use the compact responsive layout', () => {
 test('shared marketplace footer uses the official logo palette and keeps customer links', () => {
   assert.match(brandLogo, /labelClassName\?: string/)
   assert.match(brandLogo, /object-contain/)
+  assert.match(marketplaceShell, /marketplace-header sticky/)
+  assert.match(marketplaceShell, /marketplace-header-search/)
+  assert.match(marketplaceShell, /marketplace-header-nav-active/)
+  assert.match(marketplaceShell, /marketplace-header-mobile/)
   assert.match(marketplaceShell, /marketplace-footer/)
   assert.match(marketplaceShell, /marketplace-footer-logo-label/)
   assert.match(marketplaceShell, /to="\/privacy"/)
@@ -71,5 +75,7 @@ test('shared marketplace footer uses the official logo palette and keeps custome
   assert.match(marketplaceCss, /--brand-primary: #003868/)
   assert.match(marketplaceCss, /--brand-primary-deep: #002850/)
   assert.match(marketplaceCss, /--brand-secondary: #f86820/)
+  assert.match(marketplaceCss, /--brand-accent: #47bfff/)
+  assert.match(marketplaceCss, /--brand-header-bg: var\(--brand-primary\)/)
   assert.match(marketplaceCss, /--brand-footer-bg: var\(--brand-primary-deep\)/)
 })

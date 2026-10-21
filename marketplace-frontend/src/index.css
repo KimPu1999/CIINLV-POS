@@ -8,6 +8,15 @@
   --brand-primary: #003868;
   --brand-primary-deep: #002850;
   --brand-secondary: #f86820;
+  --brand-accent: #47bfff;
+  --brand-header-bg: var(--brand-primary);
+  --brand-header-surface: color-mix(in srgb, var(--brand-primary-deep) 68%, var(--brand-primary));
+  --brand-header-text: #ffffff;
+  --brand-header-muted: color-mix(in srgb, var(--brand-header-text) 78%, var(--brand-primary));
+  --brand-header-border: color-mix(in srgb, var(--brand-accent) 38%, transparent);
+  --brand-header-hover: color-mix(in srgb, var(--brand-accent) 18%, transparent);
+  --brand-header-active: color-mix(in srgb, var(--brand-accent) 28%, transparent);
+  --brand-header-focus: color-mix(in srgb, var(--brand-accent) 42%, transparent);
   --brand-footer-bg: var(--brand-primary-deep);
   --brand-footer-text: #ffffff;
   --brand-footer-muted: color-mix(in srgb, var(--brand-footer-text) 74%, var(--brand-footer-bg));
@@ -85,6 +94,86 @@ select:focus-visible {
 
 .marketplace-footer-divider {
   border-color: var(--brand-footer-border);
+}
+
+.marketplace-announcement {
+  background-color: var(--brand-primary-deep);
+  color: var(--brand-header-muted);
+}
+
+.marketplace-announcement-accent,
+.marketplace-header-logo-label {
+  color: var(--brand-secondary);
+}
+
+.marketplace-header {
+  background-color: var(--brand-header-bg);
+  border-color: var(--brand-header-border);
+  box-shadow: 0 10px 28px rgb(0 40 80 / 0.18);
+  color: var(--brand-header-text);
+}
+
+.marketplace-header-search {
+  background-color: var(--brand-header-surface);
+  border-color: var(--brand-header-border);
+  color: var(--brand-header-text);
+}
+
+.marketplace-header-search::placeholder {
+  color: var(--brand-header-muted);
+}
+
+.marketplace-header-search:focus {
+  background-color: var(--brand-primary-deep);
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 4px var(--brand-header-focus);
+}
+
+.marketplace-header-control,
+.marketplace-header-nav,
+.marketplace-header-mobile-link {
+  color: var(--brand-header-muted);
+}
+
+.marketplace-header-muted {
+  color: var(--brand-header-muted);
+}
+
+.marketplace-header-control:hover,
+.marketplace-header-nav:hover,
+.marketplace-header-mobile-link:hover {
+  background-color: var(--brand-header-hover);
+  color: var(--brand-header-text);
+}
+
+.marketplace-header-control:focus-visible,
+.marketplace-header-nav:focus-visible,
+.marketplace-header-mobile-link:focus-visible {
+  outline-color: var(--brand-accent);
+}
+
+.marketplace-header-nav-active,
+.marketplace-header-mobile-link-active {
+  background-color: var(--brand-header-active);
+  color: var(--brand-header-text);
+}
+
+.marketplace-header-nav-active {
+  box-shadow: inset 0 -2px 0 var(--brand-secondary);
+}
+
+.marketplace-header-mobile {
+  background-color: var(--brand-primary-deep);
+  border-color: var(--brand-header-border);
+}
+
+.marketplace-header-mobile-divider {
+  border-color: var(--brand-header-border);
+}
+
+.marketplace-header-badge {
+  background-color: var(--brand-secondary);
+  color: #ffffff;
 }
 
 @media (prefers-reduced-motion: reduce) {
