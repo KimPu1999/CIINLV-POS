@@ -712,6 +712,7 @@
     ,"queue_failures_detail": "လွန်ခဲ့သော ၂၄ နာရီအတွင်း မှတ်တမ်းတင်ထားသော မအောင်မြင်သည့်အလုပ်များ။"
     ,"inventory_anomalies_detail": "အစီရင်ခံစာအတွက်သာ လက်ကျန်ကိုက်ညီမှု စစ်ဆေးချက်များ။"
     ,"queue_monitoring": "Queue စောင့်ကြည့်မှု"
+    ,"scheduler_monitoring": "Scheduler စောင့်ကြည့်မှု"
     ,"reference": "ရည်ညွှန်းချက်"
     ,"queue": "Queue"
     ,"failed_at": "မအောင်မြင်သည့်အချိန်"
@@ -742,6 +743,7 @@
     ,"security_posture_read_only": "ဤညွှန်ပြချက်များသည် ဖတ်ရှုရန်သာဖြစ်ပြီး လုံခြုံရေးဆက်တင်များကို မပြောင်းလဲပါ။"
     ,"storage_status": "သိုလှောင်မှု အခြေအနေ"
     ,"private_storage": "သီးသန့် သိုလှောင်မှု"
+    ,"storage_probe_status": "သိုလှောင်မှု စစ်ဆေးမှုအခြေအနေ"
     ,"last_checked_at": "နောက်ဆုံး စစ်ဆေးချိန်"
     ,"unavailable": "မရရှိနိုင်ပါ"
   }

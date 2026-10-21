@@ -713,6 +713,7 @@
     ,"queue_failures_detail": "Failed jobs recorded in the last 24 hours."
     ,"inventory_anomalies_detail": "Report-only reconciliation findings."
     ,"queue_monitoring": "Queue monitoring"
+    ,"scheduler_monitoring": "Scheduler monitoring"
     ,"reference": "Reference"
     ,"queue": "Queue"
     ,"failed_at": "Failed at"
@@ -743,6 +744,7 @@
     ,"security_posture_read_only": "These indicators are read-only and do not change application security settings."
     ,"storage_status": "Storage status"
     ,"private_storage": "Private storage"
+    ,"storage_probe_status": "Storage probe status"
     ,"last_checked_at": "Last checked at"
     ,"unavailable": "Unavailable"
   }

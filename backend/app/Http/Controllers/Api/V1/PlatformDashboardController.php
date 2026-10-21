@@ -5,16 +5,14 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\AuditLog;
 use App\Models\BusinessInvitation;
 use App\Models\Tenant;
-use App\Services\DatabaseHealthCheck;
+use App\Services\PlatformMonitoringService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class PlatformDashboardController
 {
-    public function __invoke(Request $request, DatabaseHealthCheck $databaseHealth): JsonResponse
+    public function __invoke(Request $request, PlatformMonitoringService $monitoring): JsonResponse
     {
         $days = in_array((int) $request->input('days', 30), [7, 30, 90, 365], true) ? (int) $request->input('days', 30) : 30;
         $from = CarbonImmutable::now()->subDays($days - 1)->startOfDay();
@@ -24,7 +22,7 @@ class PlatformDashboardController
         $pendingOwnerActivation = Tenant::whereHas('memberships', fn ($query) => $query->where('status', 'pending')->whereHas('role', fn ($role) => $role->where('name', 'business_admin')))->count();
         $pendingInvitations = BusinessInvitation::whereNull('accepted_at')->whereNull('revoked_at')->where('expires_at', '>', $now)->where('role', 'business_admin')->count();
         $expiredInvitations = BusinessInvitation::whereNull('accepted_at')->whereNull('revoked_at')->where('expires_at', '<=', $now)->where('role', 'business_admin')->count();
-        $health = $this->health($databaseHealth);
+        $health = $monitoring->systemHealth();
         $alerts = $this->alerts($pendingOwnerActivation, $expiredInvitations, $health);
 
         return response()->json(['success' => true, 'data' => [
@@ -85,13 +83,6 @@ class PlatformDashboardController
     private function activity(): array
     {
         return AuditLog::with(['actor:id,name', 'tenant:id,name,business_code'])->where('action', 'like', 'platform.%')->latest('created_at')->limit(12)->get()->map(fn (AuditLog $log): array => ['id' => $log->id, 'action' => $log->action, 'actor' => $log->actor?->name, 'business' => $log->tenant ? ['name' => $log->tenant->name, 'business_code' => $log->tenant->business_code] : null, 'created_at' => $log->created_at?->toIso8601String()])->values()->all();
-    }
-
-    private function health(DatabaseHealthCheck $databaseHealth): array
-    {
-        $database = $databaseHealth->run();
-        $failedJobs = Schema::hasTable('failed_jobs') ? DB::table('failed_jobs')->where('failed_at', '>=', now()->subDay())->count() : null;
-        return ['last_checked_at' => now()->toIso8601String(), 'checks' => ['api' => ['status' => 'authenticated'], 'postgresql' => ['status' => $database['healthy'] ? 'ready' : 'failed'], 'queue_worker' => ['status' => 'unknown', 'failed_jobs_last_24h' => $failedJobs], 'scheduler' => ['status' => 'unknown'], 'storage' => ['status' => 'unknown']], 'recent_failed_jobs' => $failedJobs, 'monitoring_note' => 'Queue, scheduler, and storage heartbeat monitoring are not persisted by the current application schema.'];
     }
 
     private function alerts(int $pendingOwnerActivation, int $expiredInvitations, array $health): array

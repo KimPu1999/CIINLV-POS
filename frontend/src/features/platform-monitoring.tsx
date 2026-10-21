@@ -5,12 +5,12 @@ import { ErrorState, LoadingState, PageHeader, StatCard, StatusBadge } from '../
 import { IconActionButton, PageToolbar } from '../components/toolbar'
 import { request } from '../lib/api'
 
-type Check = { status: string; reason?: string; checks?: Record<string, { status: string }>; failed_jobs_last_24h?: number; provider_configured?: boolean }
+type Check = { status: string; reason?: string; last_success_at?: string | null; last_failure_at?: string | null; last_error?: string | null; stale_after_seconds?: number; checks?: Record<string, { status: string }>; failed_jobs_last_24h?: number | null; failed_jobs_reason?: string; provider_configured?: boolean; probe_status?: string; disks?: Record<string, { configured: boolean; status: string; error?: string | null }>; private_storage_configured?: boolean }
 type Monitoring = {
   checked_at: string
-  health: { api: Check; database: Check }
+  health: { api: Check; database: Check; queue_worker?: Check; scheduler?: Check; storage?: Check }
   queue: Check & { recent_failures?: Array<{ reference: string; queue: string; failed_at: string }> }
-  storage: Check & { private_storage_configured?: boolean }
+  storage: Check
   backups: Check & { file_count?: number; latest_at?: string | null }
   inventory: Check & { checked?: number; discrepancy_count?: number | null; report_only?: boolean; sample?: Array<Record<string, string | number>> }
   payments: Check & { by_status?: Array<{ status: string; count: number }>; reason?: string }
@@ -52,8 +52,15 @@ export function PlatformMonitoringPage() {
 
     <div className="mt-6 grid gap-6 xl:grid-cols-2">
       <MonitoringPanel title={t('text.queue_monitoring')} icon={Activity} status={data.queue.status}>
-        <p className="text-sm text-slate-600 dark:text-slate-300">{data.queue.reason}</p>
+        <HeartbeatSummary check={data.queue} />
+        <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{data.queue.reason}</p>
+        {data.queue.failed_jobs_reason && <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{data.queue.failed_jobs_reason}</p>}
         {data.queue.recent_failures?.length ? <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="border-b border-slate-100 text-xs uppercase tracking-wider text-slate-400"><tr><th className="py-3 pr-4">{t('text.reference')}</th><th className="py-3 pr-4">{t('text.queue')}</th><th className="py-3">{t('text.failed_at')}</th></tr></thead><tbody className="divide-y divide-slate-100">{data.queue.recent_failures.map((failure) => <tr key={failure.reference}><td className="py-3 pr-4 font-mono text-xs text-slate-600">{failure.reference}</td><td className="py-3 pr-4 text-slate-700">{failure.queue}</td><td className="py-3 text-slate-500">{new Date(failure.failed_at).toLocaleString()}</td></tr>)}</tbody></table></div> : <p className="mt-5 text-sm text-slate-500">{t('text.no_failed_jobs_in_period')}</p>}
+      </MonitoringPanel>
+
+      <MonitoringPanel title={t('text.scheduler_monitoring')} icon={RefreshCw} status={data.health.scheduler?.status || 'unknown'}>
+        <HeartbeatSummary check={data.health.scheduler} />
+        <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{data.health.scheduler?.reason || t('text.unknown')}</p>
       </MonitoringPanel>
 
       <MonitoringPanel title={t('text.inventory_consistency')} icon={ShieldCheck} status={data.inventory.status}>
@@ -79,8 +86,10 @@ export function PlatformMonitoringPage() {
       </MonitoringPanel>
 
       <MonitoringPanel title={t('text.storage_status')} icon={HardDrive} status={data.storage.status}>
-        <Info label={t('text.private_storage')} value={data.storage.private_storage_configured ? t('text.configured') : t('text.unavailable')} />
+        <HeartbeatSummary check={data.storage} />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">{Object.entries(data.storage.disks || {}).map(([disk, item]) => <Info key={disk} label={disk} value={statusLabel(t, item.status)} />)}</div>
         <p className="mt-5 text-sm text-slate-500">{data.storage.reason}</p>
+        {data.storage.probe_status && data.storage.probe_status !== data.storage.status && <p className="mt-2 text-xs text-slate-400">{t('text.storage_probe_status')}: {statusLabel(t, data.storage.probe_status)}</p>}
       </MonitoringPanel>
     </div>
     <p className="mt-6 text-xs text-slate-400">{t('text.last_checked_at')}: {new Date(data.checked_at).toLocaleString()}</p>
@@ -92,6 +101,11 @@ function MonitoringPanel({ title, icon: Icon, status, children }: { title: strin
 }
 
 function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/70"><p className="text-xs text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 truncate text-lg font-semibold text-slate-950 dark:text-white">{value}</p></div> }
+
+function HeartbeatSummary({ check }: { check?: Check }) {
+  if (!check) return null
+  return <div className="grid gap-3 sm:grid-cols-2"><Info label="Last successful heartbeat" value={check.last_success_at ? new Date(check.last_success_at).toLocaleString() : 'Not recorded'} /><Info label="Last failure" value={check.last_failure_at ? new Date(check.last_failure_at).toLocaleString() : 'None recorded'} />{check.last_error && <p className="sm:col-span-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">{check.last_error}</p>}</div>
+}
 
 function statusLabel(t: (key: string, options?: Record<string, unknown>) => string, status: string): string { return t(`text.${status}`, { defaultValue: status.replaceAll('_', ' ') }) }
 function errorMessage(error: unknown, fallback: string): string { const value = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }; return value?.response?.data?.message || Object.values(value?.response?.data?.errors || {})[0]?.[0] || fallback }

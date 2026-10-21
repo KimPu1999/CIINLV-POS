@@ -16,6 +16,10 @@ Schedule::command('ciinlv:backup-health')
     ->hourly()
     ->withoutOverlapping(10);
 
+Schedule::command('ciinlv:scheduler-heartbeat')
+    ->everyMinute()
+    ->withoutOverlapping(2);
+
 Schedule::command('marketplace:release-expired-reservations')
     ->everyMinute()
     ->withoutOverlapping(5);

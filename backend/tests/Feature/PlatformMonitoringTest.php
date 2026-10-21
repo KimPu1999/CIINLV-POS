@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\PlatformHealthHeartbeat;
 use App\Models\User;
+use App\Services\PlatformHealthHeartbeatService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -43,6 +45,29 @@ class PlatformMonitoringTest extends TestCase
         $this->actingAs($user, 'sanctum')
             ->getJson('/api/v1/platform/monitoring')
             ->assertForbidden();
+    }
+
+    public function test_monitoring_api_exposes_persisted_healthy_and_stale_states(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        PlatformHealthHeartbeat::create([
+            'key' => PlatformHealthHeartbeatService::QUEUE_WORKER,
+            'status' => 'healthy',
+            'last_success_at' => now()->subSeconds(10),
+        ]);
+        PlatformHealthHeartbeat::create([
+            'key' => PlatformHealthHeartbeatService::SCHEDULER,
+            'status' => 'healthy',
+            'last_success_at' => now()->subSeconds((int) config('health.heartbeat_stale_seconds', 300) + 1),
+        ]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring')
+            ->assertOk()
+            ->assertJsonPath('data.queue.status', 'healthy')
+            ->assertJsonPath('data.health.scheduler.status', 'stale');
+
+        $this->assertIsString($response->json('data.health.scheduler.last_success_at'));
     }
 
     public function test_public_health_endpoint_does_not_expose_diagnostics(): void

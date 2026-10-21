@@ -85,9 +85,9 @@ export function StatusBadge({ status }: { status?: string | null }) {
   const { t } = useTranslation()
   const value = status || 'unknown'
   const toneByStatus: Record<string, LabelBadgeTone> = {
-    active: 'success', completed: 'success', verified: 'success', paid: 'success', succeeded: 'success', ready: 'success', open: 'success', in_stock: 'success', approved: 'success', received: 'success', resolved: 'success', configured: 'success', dispatched: 'success', posted: 'success', closed: 'success',
-    pending: 'warning', submitted: 'warning', partially_received: 'warning', past_due: 'warning', processing: 'warning', acknowledged: 'warning', snoozed: 'warning', draft: 'warning', requested: 'warning', pending_approval: 'warning', in_transit: 'warning', low_stock: 'warning',
-    suspended: 'danger', cancelled: 'danger', failed: 'danger', refunded: 'danger', expired: 'danger', out_of_stock: 'danger', rejected: 'danger', voided: 'danger', deactivated: 'danger',
+    active: 'success', completed: 'success', verified: 'success', paid: 'success', succeeded: 'success', ready: 'success', healthy: 'success', ok: 'success', authenticated: 'success', open: 'success', in_stock: 'success', approved: 'success', received: 'success', resolved: 'success', configured: 'success', dispatched: 'success', posted: 'success', closed: 'success',
+    pending: 'warning', submitted: 'warning', partially_received: 'warning', past_due: 'warning', processing: 'warning', acknowledged: 'warning', snoozed: 'warning', draft: 'warning', requested: 'warning', pending_approval: 'warning', in_transit: 'warning', low_stock: 'warning', stale: 'warning',
+    suspended: 'danger', cancelled: 'danger', failed: 'danger', unhealthy: 'danger', refunded: 'danger', expired: 'danger', out_of_stock: 'danger', rejected: 'danger', voided: 'danger', deactivated: 'danger',
     trial: 'info', invited: 'info',
   }
   const tone = toneByStatus[value] || 'neutral'

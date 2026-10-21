@@ -40,6 +40,7 @@ use App\Services\TranslationService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -61,6 +62,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Queue::looping is emitted by an actual queue worker, including while
+        // it is polling an idle queue. It is therefore stronger evidence than
+        // a failed_jobs row, which only proves that a job failed in the past.
+        Queue::looping(function (): void {
+            app(\App\Services\PlatformHealthHeartbeatService::class)->recordSuccess(
+                \App\Services\PlatformHealthHeartbeatService::QUEUE_WORKER,
+                [
+                    'source' => 'queue_worker_loop',
+                    'connection' => (string) config('queue.default'),
+                    'process_id' => getmypid(),
+                ],
+            );
+        });
+
         Gate::policy(Tenant::class, TenantPolicy::class);
         Gate::policy(MarketplaceStore::class, MarketplaceStorePolicy::class);
         Gate::policy(MarketplaceListing::class, MarketplaceListingPolicy::class);
