@@ -36,3 +36,13 @@ test('customer order routes are protected and render verified order details', ()
   assert.match(app, /fetchMarketplaceOrder\(/)
   assert.match(app, /fetchMarketplaceOrders\(/)
 })
+
+test('customer account dashboard uses authenticated profile, address, order and logout workflows', () => {
+  assert.match(app, /ProtectedRoute .*AccountPage/)
+  assert.match(app, /fetchMarketplaceOrdersPage\(/)
+  assert.match(app, /updateCustomer\(/)
+  assert.match(app, /createCustomerAddress\(/)
+  assert.match(app, /deleteCustomerAddress\(/)
+  assert.match(app, /signOut/)
+  assert.match(app, /accountSecurity/)
+})

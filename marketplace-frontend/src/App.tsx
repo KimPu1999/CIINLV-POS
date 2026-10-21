@@ -47,6 +47,7 @@ import {
   fetchMarketplaceCart,
   fetchMarketplaceOrder,
   fetchMarketplaceOrders,
+  fetchMarketplaceOrdersPage,
   fetchMarketplaceTracking,
   fetchProduct,
   fetchProducts,
@@ -101,6 +102,7 @@ interface AppServices {
   removeFromCart: (cartKey: string) => void
   toggleWishlist: (id: string) => void
   setCustomer: (customer: Customer | null) => void
+  signOut: () => Promise<void>
   cartServer: boolean
   cartBusy: boolean
   cartError: string
@@ -272,7 +274,7 @@ function App() {
       setCustomer(null)
     }
   }
-  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, removeFromCart, toggleWishlist, setCustomer, cartServer: Boolean(customer), cartBusy, cartError, cartMessage }
+  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, removeFromCart, toggleWishlist, setCustomer, signOut, cartServer: Boolean(customer), cartBusy, cartError, cartMessage }
 
   return (
     <MarketplaceShell
@@ -836,14 +838,37 @@ function ProtectedRoute({ customer, authLoading, t, children }: AppServices & { 
   return <>{children}</>
 }
 
-function AccountPage({ customer, locale, t, setCustomer }: AppServices) {
+function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: AppServices) {
   const [name, setName] = useState(customer?.name ?? '')
   const [phone, setPhone] = useState(customer?.phone ?? '')
   const [address, setAddress] = useState<CustomerAddressInput>(emptyAddress(customer?.name ?? ''))
   const [editing, setEditing] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [orders, setOrders] = useState<MarketplaceOrder[]>([])
+  const [ordersMeta, setOrdersMeta] = useState<PaginationMeta | null>(null)
+  const [ordersLoading, setOrdersLoading] = useState(true)
+  const [ordersError, setOrdersError] = useState('')
+  const genericError = t('errorGeneric')
+
+  useEffect(() => {
+    let active = true
+    setOrdersLoading(true)
+    setOrdersError('')
+    void fetchMarketplaceOrdersPage(locale, { perPage: 3 }).then((result) => {
+      if (!active) return
+      setOrders(result.orders)
+      setOrdersMeta(result.meta)
+    }).catch((reason: unknown) => {
+      if (active) setOrdersError(apiErrorMessage(reason, genericError))
+    }).finally(() => {
+      if (active) setOrdersLoading(false)
+    })
+    return () => { active = false }
+  }, [genericError, locale])
+
   const submitProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setBusy(true); setNotice(''); setError('')
     try { setCustomer(await updateCustomer({ name, phone }, locale)); setNotice(t('profileUpdated')) } catch (reason: unknown) { setError(apiErrorMessage(reason, t('errorGeneric'))) } finally { setBusy(false) }
@@ -861,7 +886,113 @@ function AccountPage({ customer, locale, t, setCustomer }: AppServices) {
     setBusy(true); setNotice(''); setError('')
     try { await deleteCustomerAddress(id, locale); setCustomer({ ...customer!, addresses: customer!.addresses.filter((item) => item.id !== id) }); setNotice(t('addressRemoved')) } catch (reason: unknown) { setError(apiErrorMessage(reason, t('errorGeneric'))) } finally { setBusy(false) }
   }
-  return <PageContainer><PageIntro eyebrow={t('account')} title={t('customerDashboard')} body={t('signInBody')} />{(notice || error) && <div role={error ? 'alert' : 'status'} className={'mt-8 rounded-2xl p-4 text-sm font-semibold ' + (error ? 'bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-200' : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200')}>{error || notice}</div>}<div className="mt-10 grid gap-8 lg:grid-cols-[0.8fr_1.2fr]"><form onSubmit={submitProfile} className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><UserRound size={22} /></span><div><h2 className="text-xl font-black">{t('profile')}</h2><p className="text-sm text-slate-500">{customer?.email}</p></div></div><div className="mt-6 grid gap-5"><Field label={t('fullName')} name="name" value={name} onChange={setName} required /><Field label={t('phoneOptional')} name="phone" type="tel" value={phone} onChange={setPhone} autoComplete="tel" /></div><button type="submit" disabled={busy} className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={17} /> : <Check size={17} />} {t('saveChanges')}</button></form><div className="grid gap-6"><section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-black">{t('addresses')}</h2><p className="mt-1 text-sm text-slate-500">{t('address')}</p></div><MapPin className="text-blue-600" size={22} /></div><div className="mt-5 grid gap-3">{customer?.addresses.length ? customer.addresses.map((item) => <div key={item.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700"><div className="flex items-start justify-between gap-4"><div><p className="font-black">{item.recipientName}</p><p className="mt-1 text-sm leading-6 text-slate-500">{item.addressLine1}{item.addressLine2 ? `, ${item.addressLine2}` : ''}, {item.city}{item.region ? `, ${item.region}` : ''}</p></div>{item.isDefault && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{t('defaultAddress')}</span>}</div><div className="mt-4 flex gap-2"><button type="button" onClick={() => { setEditing(item.id); setAddress(addressFromCustomer(item)) }} className="rounded-lg px-3 py-2 text-xs font-black text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">{t('edit')}</button><button type="button" onClick={() => void removeAddress(item.id)} disabled={busy} className="rounded-lg px-3 py-2 text-xs font-black text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">{t('delete')}</button></div></div>) : <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noOrdersBody')}</p>}</div></section><form onSubmit={submitAddress} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="text-xl font-black">{editing ? t('edit') : t('saveAddress')}</h2><div className="mt-5 grid gap-4 sm:grid-cols-2"><AddressField label={t('fullName')} value={address.recipient_name} onChange={(value) => setAddress({ ...address, recipient_name: value })} required /><AddressField label={t('phoneOptional')} value={address.phone ?? ''} onChange={(value) => setAddress({ ...address, phone: value })} /><AddressField label={t('addressLine1')} value={address.address_line_1} onChange={(value) => setAddress({ ...address, address_line_1: value })} wide required /><AddressField label={t('addressLine2')} value={address.address_line_2 ?? ''} onChange={(value) => setAddress({ ...address, address_line_2: value })} wide /><AddressField label={t('city')} value={address.city} onChange={(value) => setAddress({ ...address, city: value })} required /><AddressField label={t('region')} value={address.region ?? ''} onChange={(value) => setAddress({ ...address, region: value })} /><AddressField label={t('postalCode')} value={address.postal_code ?? ''} onChange={(value) => setAddress({ ...address, postal_code: value })} /><AddressField label={t('country')} value={address.country} onChange={(value) => setAddress({ ...address, country: value.toUpperCase() })} required /></div><label className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-500"><input type="checkbox" checked={Boolean(address.is_default)} onChange={(event) => setAddress({ ...address, is_default: event.target.checked })} className="accent-blue-600" /> {t('defaultAddress')}</label><div className="mt-5 flex flex-wrap gap-3"><button type="submit" disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white disabled:opacity-60">{busy && <LoaderCircle className="animate-spin" size={17} />} {t('saveAddress')}</button>{editing && <button type="button" onClick={() => { setEditing(null); setAddress(emptyAddress(customer!.name)) }} className="rounded-xl border border-slate-200 px-4 text-sm font-black dark:border-slate-700">{t('clear')}</button>}</div></form></div></div></PageContainer>
+  const handleSignOut = async () => {
+    setLoggingOut(true)
+    try { await signOut() } finally { setLoggingOut(false) }
+  }
+
+  if (!customer) return null
+  const initials = customer.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'C'
+  const count = (value: number | null) => value == null ? '—' : value.toLocaleString(locale === 'my' ? 'my-MM' : 'en-US')
+  const accountLinks = [
+    { href: '#overview', label: t('accountOverview'), icon: <UserRound size={17} /> },
+    { href: '/orders', label: t('myOrders'), icon: <Package size={17} /> },
+    { href: '/wishlist', label: t('wishlist'), icon: <Heart size={17} /> },
+    { href: '#addresses', label: t('addresses'), icon: <MapPin size={17} /> },
+    { href: '#security', label: t('accountSecurity'), icon: <ShieldCheck size={17} /> },
+  ]
+
+  return <PageContainer>
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#2563EB] via-[#1D4ED8] to-[#0F172A] p-6 text-white shadow-xl shadow-blue-950/10 sm:p-8 lg:p-10">
+        <div className="absolute -right-20 -top-24 size-72 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-28 left-1/3 size-72 rounded-full bg-cyan-300/10 blur-3xl" />
+        <div className="relative flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-5">
+            <div className="grid size-16 shrink-0 place-items-center rounded-[1.35rem] border border-white/25 bg-white/15 text-xl font-black shadow-inner sm:size-20 sm:text-2xl" aria-hidden="true">{initials}</div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">{t('account')}</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{customer.name}</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">{t('accountWelcome')}</p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm sm:min-w-64">
+            <p className="text-xs font-black uppercase tracking-widest text-blue-100">{t('signedInAs')}</p>
+            <p className="mt-2 truncate text-sm font-bold">{customer.email}</p>
+            <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-200"><ShieldCheck size={14} /> {t('sessionProtected')}</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:hidden">
+        <nav className="flex min-w-max gap-1" aria-label={t('account')}>
+          {accountLinks.map((item) => item.href.startsWith('/') ? <Link key={item.href} to={item.href} className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-200">{item.icon}{item.label}</Link> : <a key={item.href} href={item.href} className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-200">{item.icon}{item.label}</a>)}
+        </nav>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start">
+        <aside className="sticky top-24 hidden rounded-3xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:block">
+          <div className="border-b border-slate-100 px-3 pb-4 dark:border-slate-800"><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('account')}</p><p className="mt-2 truncate text-sm font-black text-slate-950 dark:text-white">{customer.name}</p></div>
+          <nav className="mt-3 grid gap-1" aria-label={t('account')}>
+            {accountLinks.map((item, index) => item.href.startsWith('/') ? <Link key={item.href} to={item.href} className={'inline-flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-black transition ' + (index === 0 ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200' : 'text-slate-600 hover:bg-slate-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-800')}>{item.icon}{item.label}</Link> : <a key={item.href} href={item.href} className={'inline-flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-black transition ' + (index === 0 ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200' : 'text-slate-600 hover:bg-slate-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-800')}>{item.icon}{item.label}</a>)}
+          </nav>
+          <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800"><button type="button" onClick={() => void handleSignOut()} disabled={loggingOut} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60 dark:hover:bg-red-950/20">{loggingOut && <LoaderCircle className="animate-spin" size={16} />}{t('signOut')}</button></div>
+        </aside>
+
+        <main className="min-w-0 space-y-8">
+          {(notice || error) && <div role={error ? 'alert' : 'status'} className={'rounded-2xl border p-4 text-sm font-semibold ' + (error ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200')}>{error || notice}</div>}
+
+          <section id="overview" className="scroll-mt-28">
+            <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">{t('account')}</p><h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">{t('accountOverview')}</h2></div><Link to="/shop" className="hidden items-center gap-1 text-sm font-black text-blue-600 hover:gap-2 sm:inline-flex">{t('startShopping')} <ArrowRight size={16} /></Link></div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <AccountStatCard icon={<Package size={20} />} label={t('ordersCount')} value={count(ordersMeta?.total ?? null)} tone="blue" />
+              <AccountStatCard icon={<Heart size={20} />} label={t('savedItems')} value={count(wishlist.length)} tone="rose" />
+              <AccountStatCard icon={<MapPin size={20} />} label={t('savedAddresses')} value={count(customer.addresses.length)} tone="amber" />
+            </div>
+          </section>
+
+          <section>
+            <SectionHeading eyebrow={t('account')} title={t('quickActions')} />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Link to="/orders" className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><span className="grid size-11 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><Package size={20} /></span><h3 className="mt-4 font-black text-slate-950 dark:text-white">{t('viewOrders')}</h3><p className="mt-1 text-sm font-semibold text-slate-500">{t('orderHistory')}</p></Link>
+              <Link to="/wishlist" className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><span className="grid size-11 place-items-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300"><Heart size={20} /></span><h3 className="mt-4 font-black text-slate-950 dark:text-white">{t('viewWishlist')}</h3><p className="mt-1 text-sm font-semibold text-slate-500">{count(wishlist.length)} {t('savedItems')}</p></Link>
+              <a href="#profile" className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><span className="grid size-11 place-items-center rounded-2xl bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300"><UserRound size={20} /></span><h3 className="mt-4 font-black text-slate-950 dark:text-white">{t('manageProfile')}</h3><p className="mt-1 text-sm font-semibold text-slate-500">{t('profile')}</p></a>
+              <a href="#addresses" className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><span className="grid size-11 place-items-center rounded-2xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><MapPin size={20} /></span><h3 className="mt-4 font-black text-slate-950 dark:text-white">{t('manageAddresses')}</h3><p className="mt-1 text-sm font-semibold text-slate-500">{count(customer.addresses.length)} {t('savedAddresses')}</p></a>
+            </div>
+          </section>
+
+          <section className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900" aria-labelledby="recent-orders-title">
+            <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('orderHistory')}</p><h2 id="recent-orders-title" className="mt-2 text-2xl font-black text-slate-950 dark:text-white">{t('recentOrders')}</h2></div><Link to="/orders" className="inline-flex items-center gap-1 text-sm font-black text-blue-600 hover:gap-2">{t('viewAll')} <ArrowRight size={16} /></Link></div>
+            {ordersLoading ? <div role="status" className="mt-5 rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('loading')}</div> : ordersError ? <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200"><span>{ordersError}</span><Link to="/orders" className="font-black text-red-700 underline dark:text-red-200">{t('retry')}</Link></div> : orders.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-slate-300 p-6 dark:border-slate-700"><p className="font-black text-slate-950 dark:text-white">{t('noOrdersYet')}</p><p className="mt-1 text-sm leading-6 text-slate-500">{t('noOrdersBody')}</p><Link to="/shop" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={15} /></Link></div> : <div className="mt-5 grid gap-3">{orders.map((order) => <Link key={order.id} to={`/tracking/${encodeURIComponent(order.id)}`} className="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50/40 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:hover:bg-blue-950/20"><div className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><ShoppingBag size={18} /></span><div className="min-w-0"><p className="truncate font-black text-slate-950 dark:text-white">{order.orderNumber}</p><p className="mt-1 text-xs font-semibold text-slate-500">{order.createdAt ? formatAccountDate(order.createdAt, locale) : t('lastUpdated')} · {order.vendorOrders.length} {t('vendor')}</p></div></div><div className="flex items-center justify-between gap-4 sm:justify-end"><div className="text-left sm:text-right"><p className="font-black text-slate-950 dark:text-white">{formatPrice(Number(order.grandTotal), order.currencyCode, locale)}</p><p className="mt-1 text-xs font-black uppercase text-blue-600">{trackingStatusLabel(order.status, t)}</p></div><ArrowRight className="text-blue-600" size={17} /></div></Link>)}</div>}
+          </section>
+
+          <form id="profile" onSubmit={submitProfile} className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><UserRound size={22} /></span><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('profile')}</h2></div></div><p className="text-xs font-semibold text-slate-400">{t('profileImageUnavailable')}</p></div>
+            <div className="mt-7 grid gap-5 md:grid-cols-2"><Field label={t('fullName')} name="name" value={name} onChange={setName} autoComplete="name" required /><Field label={t('email')} name="email" value={customer.email} autoComplete="email" readOnly /><Field label={t('phoneOptional')} name="phone" type="tel" value={phone} onChange={setPhone} autoComplete="tel" /></div>
+            <button type="submit" disabled={busy} className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={17} /> : <Check size={17} />} {t('saveChanges')}</button>
+          </form>
+
+          <section id="addresses" className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('addresses')}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{t('address')}</p></div><MapPin className="text-blue-600" size={22} /></div>
+            <div className="mt-6 grid gap-3">{customer.addresses.length ? customer.addresses.map((item) => <div key={item.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700"><div className="flex items-start justify-between gap-4"><div><p className="font-black text-slate-950 dark:text-white">{item.recipientName}</p><p className="mt-1 text-sm leading-6 text-slate-500">{item.addressLine1}{item.addressLine2 ? `, ${item.addressLine2}` : ''}, {item.city}{item.region ? `, ${item.region}` : ''}</p>{item.phone && <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-slate-400"><Phone size={13} /> {item.phone}</p>}</div>{item.isDefault && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{t('defaultAddress')}</span>}</div><div className="mt-4 flex gap-2"><button type="button" onClick={() => { setEditing(item.id); setAddress(addressFromCustomer(item)) }} className="rounded-lg px-3 py-2 text-xs font-black text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">{t('edit')}</button><button type="button" onClick={() => void removeAddress(item.id)} disabled={busy} className="rounded-lg px-3 py-2 text-xs font-black text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">{t('delete')}</button></div></div>) : <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noSavedAddresses')}</p>}</div>
+            <form onSubmit={submitAddress} className="mt-6 border-t border-slate-100 pt-6 dark:border-slate-800"><h3 className="text-lg font-black text-slate-950 dark:text-white">{editing ? t('edit') : t('saveAddress')}</h3><div className="mt-5 grid gap-4 sm:grid-cols-2"><AddressField label={t('fullName')} value={address.recipient_name} onChange={(value) => setAddress({ ...address, recipient_name: value })} required /><AddressField label={t('phoneOptional')} value={address.phone ?? ''} onChange={(value) => setAddress({ ...address, phone: value })} /><AddressField label={t('addressLine1')} value={address.address_line_1} onChange={(value) => setAddress({ ...address, address_line_1: value })} wide required /><AddressField label={t('addressLine2')} value={address.address_line_2 ?? ''} onChange={(value) => setAddress({ ...address, address_line_2: value })} wide /><AddressField label={t('city')} value={address.city} onChange={(value) => setAddress({ ...address, city: value })} required /><AddressField label={t('region')} value={address.region ?? ''} onChange={(value) => setAddress({ ...address, region: value })} /><AddressField label={t('postalCode')} value={address.postal_code ?? ''} onChange={(value) => setAddress({ ...address, postal_code: value })} /><AddressField label={t('country')} value={address.country} onChange={(value) => setAddress({ ...address, country: value.toUpperCase() })} required /></div><label className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-500"><input type="checkbox" checked={Boolean(address.is_default)} onChange={(event) => setAddress({ ...address, is_default: event.target.checked })} className="accent-blue-600" /> {t('defaultAddress')}</label><div className="mt-5 flex flex-wrap gap-3"><button type="submit" disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white disabled:opacity-60">{busy && <LoaderCircle className="animate-spin" size={17} />} {t('saveAddress')}</button>{editing && <button type="button" onClick={() => { setEditing(null); setAddress(emptyAddress(customer.name)) }} className="rounded-xl border border-slate-200 px-4 text-sm font-black dark:border-slate-700">{t('clear')}</button>}</div></form>
+          </section>
+
+          <section id="security" className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('accountSecurity')}</h2></div><ShieldCheck className="text-emerald-600" size={24} /></div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2"><div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20"><div className="flex items-center gap-2 text-sm font-black text-emerald-800 dark:text-emerald-200"><ShieldCheck size={18} /> {t('sessionProtected')}</div><p className="mt-2 text-sm leading-6 text-emerald-900/70 dark:text-emerald-100/70">{t('securedByServer')}</p></div><div className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-slate-950 dark:text-white">{t('emailStatus')}</p><span className={'rounded-full px-2.5 py-1 text-xs font-black ' + (customer.emailVerifiedAt ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300')}>{customer.emailVerifiedAt ? t('verified') : t('notVerified')}</span></div><p className="mt-2 truncate text-sm font-semibold text-slate-500">{customer.email}</p></div></div>
+            <div className="mt-4 rounded-2xl border border-slate-200 p-5 dark:border-slate-700"><p className="font-black text-slate-950 dark:text-white">{t('password')}</p><p className="mt-2 text-sm leading-6 text-slate-500">{t('passwordChangeUnavailable')}</p></div>
+            <button type="button" onClick={() => void handleSignOut()} disabled={loggingOut} className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 px-5 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60 dark:border-red-900/50 dark:hover:bg-red-950/20">{loggingOut && <LoaderCircle className="animate-spin" size={17} />}{t('signOut')}</button>
+          </section>
+        </main>
+      </div>
+    </div>
+  </PageContainer>
+}
+
+function AccountStatCard({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone: 'blue' | 'rose' | 'amber' }) {
+  const styles = { blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300', rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-300', amber: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' }
+  return <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><span className={'grid size-11 place-items-center rounded-2xl ' + styles[tone]}>{icon}</span><p className="mt-5 text-3xl font-black tracking-tight text-slate-950 dark:text-white">{value}</p><p className="mt-1 text-sm font-bold text-slate-500">{label}</p></div>
 }
 
 function OrdersPage({ locale, t }: AppServices) {
@@ -1049,8 +1180,8 @@ function EmptyState({ icon, title, body, action }: { icon: ReactNode; title: str
   return <div className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900"><span className="grid size-16 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">{icon}</span><h2 className="mt-5 text-xl font-black text-slate-950 dark:text-white">{title}</h2><p className="mt-2 max-w-md text-sm leading-7 text-slate-500 dark:text-slate-400">{body}</p>{action && <div className="mt-6">{action}</div>}</div>
 }
 
-function Field({ label, name, type = 'text', value, onChange, wide = false, required = false, placeholder, autoComplete }: { label: string; name: string; type?: string; value?: string; onChange?: (value: string) => void; wide?: boolean; required?: boolean; placeholder?: string; autoComplete?: string }) {
-  return <label className={'grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 ' + (wide ? 'sm:col-span-2' : '')}><span>{label}</span><input name={name} type={type} value={value} onChange={(event) => onChange?.(event.target.value)} placeholder={placeholder} autoComplete={autoComplete} required={required} className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 font-medium outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900" /></label>
+function Field({ label, name, type = 'text', value, onChange, wide = false, required = false, placeholder, autoComplete, readOnly = false }: { label: string; name: string; type?: string; value?: string; onChange?: (value: string) => void; wide?: boolean; required?: boolean; placeholder?: string; autoComplete?: string; readOnly?: boolean }) {
+  return <label className={'grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 ' + (wide ? 'sm:col-span-2' : '')}><span>{label}</span><input name={name} type={type} value={value} onChange={(event) => onChange?.(event.target.value)} placeholder={placeholder} autoComplete={autoComplete} required={required} readOnly={readOnly} className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 font-medium outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 read-only:cursor-not-allowed read-only:bg-slate-100 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900 dark:read-only:bg-slate-950/70" /></label>
 }
 
 function AddressField({ label, value, onChange, wide = false, required = false }: { label: string; value: string; onChange: (value: string) => void; wide?: boolean; required?: boolean }) {
@@ -1068,6 +1199,12 @@ function preferredVariantId(listing: MarketplaceListing): string {
 
 function emptyAddress(name: string): CustomerAddressInput {
   return { recipient_name: name, phone: '', address_line_1: '', address_line_2: '', city: '', region: '', postal_code: '', country: 'MM', is_default: false }
+}
+
+function formatAccountDate(value: string, locale: Locale): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(locale === 'my' ? 'my-MM' : 'en-US', { dateStyle: 'medium' }).format(date)
 }
 
 function addressFromCustomer(address: CustomerAddress): CustomerAddressInput {
