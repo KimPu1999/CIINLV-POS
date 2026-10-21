@@ -96,7 +96,9 @@ class BusinessRegistrationController
         $stored = [];
         try {
             foreach (['business_logo' => 'logo_path', 'id_front_image' => 'id_front_image_path', 'id_back_image' => 'id_back_image_path', 'company_certificate_image' => 'company_certificate_image_path'] as $input => $column) {
-                if (! isset($data[$input])) continue;
+                if (! isset($data[$input])) {
+                    continue;
+                }
                 $file = $data[$input];
                 $path = $file->storeAs('businesses/'.$tenant->uuid.'/verification', Str::uuid().'.'.$file->extension(), 'private');
                 $stored[] = $path;
@@ -113,7 +115,9 @@ class BusinessRegistrationController
                 $tenant->save();
             }
         } catch (\Throwable $exception) {
-            foreach ($stored as $path) Storage::disk('private')->delete($path);
+            foreach ($stored as $path) {
+                Storage::disk('private')->delete($path);
+            }
             throw $exception;
         }
     }

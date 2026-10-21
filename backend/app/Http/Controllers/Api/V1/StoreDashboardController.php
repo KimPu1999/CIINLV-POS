@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Models\Store;
 use App\Services\StoreContextService;
-use App\Services\StoreDashboardService;
 use App\Services\StoreDashboardMetricsService;
+use App\Services\StoreDashboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;

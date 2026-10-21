@@ -5,9 +5,9 @@ namespace App\Services;
 use App\Jobs\CleanupDeletedBusinessFiles;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Cache;
 use Symfony\Component\Process\Process;
 
 class BusinessDeletionService
@@ -36,21 +36,38 @@ class BusinessDeletionService
     {
         $counts = [];
         foreach (self::COUNT_TABLES as $table) {
-            if (! DB::getSchemaBuilder()->hasTable($table)) { $counts[$table] = 0; continue; }
+            if (! DB::getSchemaBuilder()->hasTable($table)) {
+                $counts[$table] = 0;
+
+                continue;
+            }
             $query = DB::table($table);
-            if ($table === 'tenants') $query->where('id', $tenant->getKey());
-            elseif (in_array($table, ['roles'], true)) $query->where('tenant_id', $tenant->getKey());
-            elseif (in_array($table, ['store_memberships', 'pos_register_memberships'], true)) $query->where('tenant_id', $tenant->getKey());
-            elseif (SchemaTenantTables::hasTenantColumn($table)) $query->where('tenant_id', $tenant->getKey());
-            elseif ($table === 'store_settings') $query->where('tenant_id', $tenant->getKey());
-            else { $counts[$table] = 0; continue; }
+            if ($table === 'tenants') {
+                $query->where('id', $tenant->getKey());
+            } elseif (in_array($table, ['roles'], true)) {
+                $query->where('tenant_id', $tenant->getKey());
+            } elseif (in_array($table, ['store_memberships', 'pos_register_memberships'], true)) {
+                $query->where('tenant_id', $tenant->getKey());
+            } elseif (SchemaTenantTables::hasTenantColumn($table)) {
+                $query->where('tenant_id', $tenant->getKey());
+            } elseif ($table === 'store_settings') {
+                $query->where('tenant_id', $tenant->getKey());
+            } else {
+                $counts[$table] = 0;
+
+                continue;
+            }
             $counts[$table] = $query->count();
         }
         $blockers = [];
         foreach (self::BLOCKING_TABLES as $table) {
-            if (! DB::getSchemaBuilder()->hasTable($table) || ! SchemaTenantTables::hasTenantColumn($table)) continue;
+            if (! DB::getSchemaBuilder()->hasTable($table) || ! SchemaTenantTables::hasTenantColumn($table)) {
+                continue;
+            }
             $count = DB::table($table)->where('tenant_id', $tenant->getKey())->count();
-            if ($count > 0) $blockers[$table] = $count;
+            if ($count > 0) {
+                $blockers[$table] = $count;
+            }
         }
         $userIds = DB::table('tenant_memberships')->where('tenant_id', $tenant->getKey())->pluck('user_id');
         $deletableUsers = User::query()->whereIn('id', $userIds)->whereNull('platform_role')
@@ -97,21 +114,27 @@ class BusinessDeletionService
                 DB::table('report_exports')->where('tenant_id', $tenantId)->pluck('file_path')->filter()->all(),
             );
             $userIds = DB::table('tenant_memberships')->where('tenant_id', $tenantId)->pluck('user_id');
-            foreach (['product_images','inventory_balances','stock_alerts','alert_preferences','dashboard_widgets','dashboard_layouts','report_exports','pos_register_memberships','cash_movements','cashier_shifts','pos_registers','store_memberships','store_settings','inventory_locations','product_variants','products','categories','suppliers','business_settings','business_invitations','business_idempotency_keys','roles','tenant_memberships','stores'] as $table) {
-                if (DB::getSchemaBuilder()->hasTable($table) && SchemaTenantTables::hasTenantColumn($table)) DB::table($table)->where('tenant_id', $tenantId)->delete();
+            foreach (['product_images', 'inventory_balances', 'stock_alerts', 'alert_preferences', 'dashboard_widgets', 'dashboard_layouts', 'report_exports', 'pos_register_memberships', 'cash_movements', 'cashier_shifts', 'pos_registers', 'store_memberships', 'store_settings', 'inventory_locations', 'product_variants', 'products', 'categories', 'suppliers', 'business_settings', 'business_invitations', 'business_idempotency_keys', 'roles', 'tenant_memberships', 'stores'] as $table) {
+                if (DB::getSchemaBuilder()->hasTable($table) && SchemaTenantTables::hasTenantColumn($table)) {
+                    DB::table($table)->where('tenant_id', $tenantId)->delete();
+                }
             }
             DB::table('audit_logs')->where('tenant_id', $tenantId)->delete();
             foreach ($userIds as $userId) {
                 $user = User::query()->find($userId);
-                if ($user && $user->platform_role === null && ! $user->memberships()->exists()) $user->delete();
+                if ($user && $user->platform_role === null && ! $user->memberships()->exists()) {
+                    $user->delete();
+                }
             }
             DB::table('audit_logs')->insert(['actor_user_id' => $actor->getKey(), 'tenant_id' => null, 'action' => 'platform.business_permanently_deleted', 'subject_type' => Tenant::class, 'subject_id' => (string) $tenantId, 'metadata' => json_encode(['record_counts' => $preview['counts'], 'deletable_user_count' => $preview['deletable_user_count']]), 'created_at' => now()]);
             $locked->delete();
+
             return ['deleted_counts' => $preview['counts'], 'deleted_user_count' => $preview['deletable_user_count']];
         });
         CleanupDeletedBusinessFiles::dispatch($files);
         request()->session()->forget('platform_deletion_reauthenticated_at');
         Cache::forget('business-deletion-preview:'.$previewToken);
+
         return $deleted + ['backup' => $backup];
     }
 
@@ -119,6 +142,7 @@ class BusinessDeletionService
     {
         $token = bin2hex(random_bytes(32));
         Cache::put('business-deletion-preview:'.$token, $tenant->getKey(), now()->addMinutes(10));
+
         return $token;
     }
 
@@ -135,6 +159,7 @@ class BusinessDeletionService
         $verify = new Process(['bash', base_path('scripts/verify-postgres-backup.sh'), $path], base_path(), null, null, 180);
         $verify->run();
         abort_unless($verify->isSuccessful(), 503, 'Database backup verification failed; deletion was not started.');
+
         return $path;
     }
 }

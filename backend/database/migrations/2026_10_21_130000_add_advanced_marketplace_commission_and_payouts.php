@@ -31,7 +31,7 @@ return new class extends Migration
 
         DB::statement("UPDATE marketplace_commission_rules SET rule_type = 'global' WHERE tenant_id IS NULL AND category_id IS NULL AND rule_type = 'business'");
         DB::statement("ALTER TABLE marketplace_commission_rules ADD CONSTRAINT marketplace_commission_rules_type_check CHECK (rule_type IN ('global', 'business', 'category', 'promotional'))");
-        DB::statement("ALTER TABLE marketplace_settings ADD CONSTRAINT marketplace_settings_payout_minimum_check CHECK (payout_minimum >= 0)");
+        DB::statement('ALTER TABLE marketplace_settings ADD CONSTRAINT marketplace_settings_payout_minimum_check CHECK (payout_minimum >= 0)');
         DB::statement("ALTER TABLE marketplace_settings ADD CONSTRAINT marketplace_settings_payout_schedule_check CHECK (payout_schedule IN ('manual', 'weekly', 'biweekly', 'monthly'))");
 
         Schema::create('marketplace_payouts', function (Blueprint $table): void {
@@ -66,10 +66,10 @@ return new class extends Migration
             $table->index(['marketplace_payout_id', 'created_at']);
         });
 
-        DB::statement("ALTER TABLE marketplace_payouts ADD CONSTRAINT marketplace_payouts_amount_check CHECK (amount > 0)");
+        DB::statement('ALTER TABLE marketplace_payouts ADD CONSTRAINT marketplace_payouts_amount_check CHECK (amount > 0)');
         DB::statement("ALTER TABLE marketplace_payouts ADD CONSTRAINT marketplace_payouts_status_check CHECK (status IN ('requested', 'approved', 'processing', 'paid', 'rejected', 'failed', 'cancelled'))");
         DB::statement("ALTER TABLE marketplace_payouts ADD CONSTRAINT marketplace_payouts_currency_check CHECK (currency_code ~ '^[A-Z]{3}$')");
-        DB::statement("ALTER TABLE marketplace_payout_items ADD CONSTRAINT marketplace_payout_items_amount_check CHECK (amount > 0)");
+        DB::statement('ALTER TABLE marketplace_payout_items ADD CONSTRAINT marketplace_payout_items_amount_check CHECK (amount > 0)');
     }
 
     public function down(): void

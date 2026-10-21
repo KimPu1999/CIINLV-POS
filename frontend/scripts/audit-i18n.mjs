@@ -47,6 +47,7 @@ const missingUsed = new Set()
 const rawKeys = new Set()
 const hardcoded = new Map()
 const strict = process.argv.includes('--strict')
+const legacyBaseline = new Set(JSON.parse(await readFile(new URL('./i18n-legacy-baseline.json', import.meta.url), 'utf8')))
 
 for (const file of sourceFiles) {
   const source = await readFile(file, 'utf8')
@@ -75,6 +76,8 @@ for (const file of sourceFiles) {
   }
 }
 
+const newHardcoded = new Map([...hardcoded].filter(([, { value }]) => !legacyBaseline.has(value)))
+
 console.log(`Locale keys: en=${Object.keys(enFlat).length}, my=${Object.keys(myFlat).length}`)
 if (missingEn.length) console.error(`Missing English keys:\n- ${missingEn.join('\n- ')}`)
 if (missingMy.length) console.error(`Missing Burmese keys:\n- ${missingMy.join('\n- ')}`)
@@ -82,8 +85,11 @@ if (missingUsed.size) console.error(`Used translation keys missing from a locale
 if (rawKeys.size) console.error(`Possible raw translation keys in source:\n- ${[...rawKeys].join('\n- ')}`)
 if (hardcoded.size) {
   console.warn(`Legacy UI strings requiring catalog review: ${hardcoded.size}`)
-  for (const { value, files } of [...hardcoded.values()].slice(0, 80)) console.warn(`- ${value} (${[...files].join(', ')})`)
-  if (hardcoded.size > 80) console.warn(`- ...and ${hardcoded.size - 80} more`)
+}
+if (newHardcoded.size) {
+  console.error(`New hardcoded UI strings not in the approved legacy baseline: ${newHardcoded.size}`)
+  for (const { value, files } of [...newHardcoded.values()].slice(0, 80)) console.error(`- ${value} (${[...files].join(', ')})`)
+  if (newHardcoded.size > 80) console.error(`- ...and ${newHardcoded.size - 80} more`)
 }
 
-if (missingEn.length || missingMy.length || missingUsed.size || rawKeys.size || (strict && hardcoded.size)) process.exitCode = 1
+if (missingEn.length || missingMy.length || missingUsed.size || rawKeys.size || (strict && newHardcoded.size)) process.exitCode = 1

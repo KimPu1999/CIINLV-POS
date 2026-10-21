@@ -9,9 +9,9 @@ use App\Models\ProductVariant;
 use App\Services\AuditLogger;
 use App\Services\ReportScopeService;
 use App\Services\TenantContext;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class BarcodeController

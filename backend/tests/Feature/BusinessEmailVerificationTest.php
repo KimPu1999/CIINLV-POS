@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendBusinessEmailVerification;
+use App\Models\Role;
+use App\Models\Tenant;
+use App\Models\TenantMembership;
 use App\Models\User;
 use App\Notifications\BusinessEmailVerificationNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,9 +58,9 @@ class BusinessEmailVerificationTest extends TestCase
         ]);
         $owner = User::query()->where('email', 'owner@example.test')->firstOrFail();
         $first = $owner->memberships()->firstOrFail()->tenant;
-        $second = \App\Models\Tenant::create(['name' => 'Second Retail', 'slug' => 'second-retail', 'business_code' => 'SECOND_RETAIL', 'status' => 'pending']);
-        $role = \App\Models\Role::firstOrCreate(['tenant_id' => $second->id, 'name' => 'business_admin']);
-        \App\Models\TenantMembership::create(['tenant_id' => $second->id, 'user_id' => $owner->id, 'role_id' => $role->id, 'status' => 'pending']);
+        $second = Tenant::create(['name' => 'Second Retail', 'slug' => 'second-retail', 'business_code' => 'SECOND_RETAIL', 'status' => 'pending']);
+        $role = Role::firstOrCreate(['tenant_id' => $second->id, 'name' => 'business_admin']);
+        TenantMembership::create(['tenant_id' => $second->id, 'user_id' => $owner->id, 'role_id' => $role->id, 'status' => 'pending']);
         $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(30), [
             'id' => $owner->id, 'hash' => sha1($owner->getEmailForVerification()), 'tenant_id' => $second->id,
         ]);
@@ -101,7 +105,7 @@ class BusinessEmailVerificationTest extends TestCase
             'business_name' => 'Acme Retail', 'business_code' => 'ACME_RETAIL', 'owner_name' => 'Acme Owner',
             'owner_email' => 'owner@example.test', 'password' => 'Strong-password-123', 'password_confirmation' => 'Strong-password-123',
         ])->assertCreated()->assertJsonPath('data.email_delivery', 'queued');
-        Queue::assertPushed(\App\Jobs\SendBusinessEmailVerification::class);
+        Queue::assertPushed(SendBusinessEmailVerification::class);
     }
 
     public function test_invalid_registration_password_is_rejected_without_creating_records(): void

@@ -98,6 +98,7 @@ class AuthController
         $user = $request->user();
         $user->forceFill($request->validated())->save();
         $auditLogger->record('auth.profile_updated', $user);
+
         return response()->json(['success' => true, 'data' => new UserResource($user->refresh())]);
     }
 

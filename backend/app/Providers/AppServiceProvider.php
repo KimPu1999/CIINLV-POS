@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\TranslationProvider;
 use App\Models\InventoryLocation;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceStore;
@@ -17,11 +18,10 @@ use App\Models\StockTransfer;
 use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Tenant;
-use App\Contracts\TranslationProvider;
 use App\Policies\InventoryPolicy;
-use App\Policies\PaymentPolicy;
 use App\Policies\MarketplaceListingPolicy;
 use App\Policies\MarketplaceStorePolicy;
+use App\Policies\PaymentPolicy;
 use App\Policies\PosRegisterPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\PurchaseOrderPolicy;
@@ -33,9 +33,10 @@ use App\Policies\StockTransferPolicy;
 use App\Policies\StoreMembershipPolicy;
 use App\Policies\StorePolicy;
 use App\Policies\TenantPolicy;
+use App\Services\ConfiguredTranslationProvider;
+use App\Services\PlatformHealthHeartbeatService;
 use App\Services\TenantContext;
 use App\Services\TenantContextService;
-use App\Services\ConfiguredTranslationProvider;
 use App\Services\TranslationService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -66,8 +67,8 @@ class AppServiceProvider extends ServiceProvider
         // it is polling an idle queue. It is therefore stronger evidence than
         // a failed_jobs row, which only proves that a job failed in the past.
         Queue::looping(function (): void {
-            app(\App\Services\PlatformHealthHeartbeatService::class)->recordSuccess(
-                \App\Services\PlatformHealthHeartbeatService::QUEUE_WORKER,
+            app(PlatformHealthHeartbeatService::class)->recordSuccess(
+                PlatformHealthHeartbeatService::QUEUE_WORKER,
                 [
                     'source' => 'queue_worker_loop',
                     'connection' => (string) config('queue.default'),

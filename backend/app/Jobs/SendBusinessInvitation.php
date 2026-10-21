@@ -10,8 +10,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -30,6 +30,7 @@ class SendBusinessInvitation implements ShouldQueue
 
         if (! $invitation->isPending()) {
             Cache::forget($invitation->deliverySecretCacheKey());
+
             return;
         }
 

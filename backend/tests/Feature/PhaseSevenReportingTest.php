@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\InventoryLocation;
 use App\Models\InventoryBalance;
+use App\Models\InventoryLocation;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\Store;
@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\InventoryService;
 use App\Services\StockAlertService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -127,7 +128,7 @@ class PhaseSevenReportingTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts?status=acknowledged')->assertOk()->assertJsonCount(1, 'data.data');
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/alerts/'.$alert->uuid.'/snooze', ['hours' => 24])->assertOk()->assertJsonPath('data.status', 'snoozed');
         $alert->refresh();
-        $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $alert->snoozed_until);
+        $this->assertInstanceOf(Carbon::class, $alert->snoozed_until);
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/alerts')->assertOk()->assertJsonCount(1, 'data.data');
 
         $alert->update(['snoozed_until' => now()->subMinute()]);

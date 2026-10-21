@@ -5,17 +5,17 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\Inventory\CreateWarehouseRequest;
 use App\Http\Requests\Inventory\UpdateWarehouseRequest;
 use App\Http\Resources\InventoryLocationResource;
-use App\Models\InventoryLocation;
 use App\Models\InventoryBalance;
+use App\Models\InventoryLocation;
+use App\Models\PurchaseOrder;
 use App\Models\StockMovement;
 use App\Models\StockTransfer;
-use App\Models\PurchaseOrder;
+use App\Models\TenantMembership;
 use App\Services\AuditLogger;
 use App\Services\TenantContext;
 use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class WarehouseController
@@ -34,7 +34,9 @@ class WarehouseController
         $this->requireManager($request->user(), $tenantId);
         $warehouseIds = InventoryLocation::where('tenant_id', $tenantId)->where('location_type', 'warehouse')->pluck('id');
         $balances = InventoryBalance::query()->where('inventory_balances.tenant_id', $tenantId)->whereIn('inventory_location_id', $warehouseIds);
-        $lowStock = (clone $balances)->join('product_variants', function ($join): void { $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id'); })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')->count();
+        $lowStock = (clone $balances)->join('product_variants', function ($join): void {
+            $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+        })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')->count();
         $outOfStock = (clone $balances)->whereRaw('(on_hand_quantity - reserved_quantity) <= 0')->count();
         $stock = (clone $balances)->selectRaw('COALESCE(SUM(on_hand_quantity), 0) AS units, COALESCE(SUM(on_hand_quantity * average_cost), 0) AS value')->first();
 
@@ -107,7 +109,7 @@ class WarehouseController
 
     private function validateManager(?int $userId, int $tenantId): void
     {
-        if ($userId !== null && ! \App\Models\TenantMembership::where('tenant_id', $tenantId)->where('user_id', $userId)->where('status', 'active')->exists()) {
+        if ($userId !== null && ! TenantMembership::where('tenant_id', $tenantId)->where('user_id', $userId)->where('status', 'active')->exists()) {
             abort(422, 'The warehouse manager must be an active member of this business.');
         }
     }

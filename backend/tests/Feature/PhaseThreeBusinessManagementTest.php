@@ -2,16 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendBusinessInvitation;
 use App\Models\BusinessInvitation;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
-use App\Jobs\SendBusinessInvitation;
+use App\Services\BusinessInvitationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
-use App\Services\BusinessInvitationService;
 use Tests\TestCase;
 
 class PhaseThreeBusinessManagementTest extends TestCase

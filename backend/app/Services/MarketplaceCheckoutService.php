@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\MarketplaceCart;
-use App\Models\MarketplaceCartItem;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceOrderEvent;
 use App\Models\MarketplaceOrderItem;
@@ -24,8 +23,7 @@ class MarketplaceCheckoutService
         private readonly MarketplaceInventoryReservationService $reservations,
         private readonly MarketplaceCommissionService $commissions,
         private readonly MarketplaceSettingsService $settings,
-    ) {
-    }
+    ) {}
 
     public function quote(User $customer, array $data): array
     {

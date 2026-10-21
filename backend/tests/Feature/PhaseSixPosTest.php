@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\InventoryLocation;
 use App\Models\BusinessSetting;
+use App\Models\InventoryLocation;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\Store;

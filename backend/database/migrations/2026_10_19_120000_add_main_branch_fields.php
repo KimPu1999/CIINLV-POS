@@ -35,7 +35,7 @@ return new class extends Migration
               )
         SQL);
 
-        DB::statement("CREATE UNIQUE INDEX stores_one_main_per_tenant_unique ON stores (tenant_id) WHERE is_main = TRUE AND deleted_at IS NULL");
+        DB::statement('CREATE UNIQUE INDEX stores_one_main_per_tenant_unique ON stores (tenant_id) WHERE is_main = TRUE AND deleted_at IS NULL');
     }
 
     public function down(): void

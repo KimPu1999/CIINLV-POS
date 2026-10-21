@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
 use App\Models\Role;
 use App\Models\Tenant;

@@ -11,7 +11,10 @@ class BusinessEmailVerificationNotification extends Notification
 {
     public function __construct(private readonly Tenant $tenant) {}
 
-    public function via(object $notifiable): array { return ['mail']; }
+    public function via(object $notifiable): array
+    {
+        return ['mail'];
+    }
 
     public function toMail(object $notifiable): MailMessage
     {

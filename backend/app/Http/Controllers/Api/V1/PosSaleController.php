@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Pos\CreateSaleRequest;
 use App\Http\Resources\SaleResource;
+use App\Models\Payment;
 use App\Models\PosRegister;
+use App\Models\Refund;
 use App\Models\Sale;
 use App\Models\Store;
-use App\Models\Payment;
-use App\Models\Refund;
 use App\Services\PosAccessService;
 use App\Services\PosSaleService;
 use App\Services\TenantContext;
@@ -36,6 +36,7 @@ class PosSaleController
         $refunds = Refund::query()->where('refunds.tenant_id', $context->tenant()->id)->whereIn('refunds.store_id', $storeIds)->where('refunds.status', 'succeeded')->when($request->filled('from'), fn ($q) => $q->where('refunds.processed_at', '>=', $request->date('from')))->when($request->filled('to'), fn ($q) => $q->where('refunds.processed_at', '<=', $request->date('to')->endOfDay()));
 
         $verifiedPayments = Payment::query()->where('payments.tenant_id', $context->tenant()->id)->whereIn('payments.store_id', $storeIds)->where('payments.status', 'verified')->whereHas('sale', fn ($sale) => $sale->whereIn('status', ['completed', 'partially_refunded', 'refunded']))->when($request->filled('from'), fn ($q) => $q->where('payments.verified_at', '>=', $request->date('from')))->when($request->filled('to'), fn ($q) => $q->where('payments.verified_at', '<=', $request->date('to')->endOfDay()));
+
         return response()->json(['success' => true, 'data' => ['total_transactions' => (clone $sales)->count(), 'completed_transactions' => (clone $completed)->count(), 'gross_sales' => number_format((float) (clone $completed)->sum('subtotal'), 2, '.', ''), 'discounts' => number_format((float) (clone $completed)->sum('discount_total'), 2, '.', ''), 'tax_collected' => number_format((float) (clone $completed)->sum('tax_total'), 2, '.', ''), 'refund_amount' => number_format((float) $refunds->sum('amount'), 2, '.', ''), 'net_sales' => number_format((float) (clone $completed)->sum('grand_total') - (float) $refunds->sum('amount'), 2, '.', ''), 'cash_sales' => number_format((float) (clone $verifiedPayments)->where('method', 'cash')->sum('amount'), 2, '.', ''), 'card_sales' => number_format((float) (clone $verifiedPayments)->whereIn('method', ['card_terminal', 'qr', 'bank_transfer'])->sum('amount'), 2, '.', ''), 'voided_transactions' => (clone $sales)->where('status', 'cancelled')->count()]]);
     }
 

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Auth\AcceptBusinessInvitationRequest;
-use App\Http\Resources\TenantResource;
 use App\Http\Resources\BusinessInvitationResource;
+use App\Http\Resources\TenantResource;
 use App\Http\Resources\UserResource;
 use App\Services\AuditLogger;
 use App\Services\BusinessInvitationService;

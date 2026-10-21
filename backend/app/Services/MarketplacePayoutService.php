@@ -15,9 +15,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplacePayoutService
 {
-    public function __construct(private readonly MarketplaceSettingsService $settings)
-    {
-    }
+    public function __construct(private readonly MarketplaceSettingsService $settings) {}
 
     public function request(array $data, User $actor): MarketplacePayout
     {

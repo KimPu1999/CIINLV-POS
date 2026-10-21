@@ -8,8 +8,8 @@ use App\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -148,11 +148,18 @@ class PlatformSecurityController
         if (! Hash::check($data['password'], (string) $request->user()->password)) {
             throw ValidationException::withMessages(['password' => ['The Super Admin password is incorrect.']]);
         }
-        try { $sessionId = Crypt::decryptString($data['session_reference']); } catch (\Throwable) { abort(422, 'The session reference is invalid or expired.'); }
+        try {
+            $sessionId = Crypt::decryptString($data['session_reference']);
+        } catch (\Throwable) {
+            abort(422, 'The session reference is invalid or expired.');
+        }
         $session = DB::table('sessions')->where('id', $sessionId)->first(['id', 'user_id']);
-        if (! $session) abort(404, 'The session is no longer active.');
+        if (! $session) {
+            abort(404, 'The session is no longer active.');
+        }
         DB::table('sessions')->where('id', $sessionId)->delete();
         $auditLogger->record('platform.session_revoked', $request->user(), metadata: ['target_user_id' => $session->user_id]);
+
         return response()->json(['success' => true, 'message' => 'Session revoked.']);
     }
 
@@ -183,6 +190,7 @@ class PlatformSecurityController
     private function filteredQuery(SecurityAuditQueryRequest $request)
     {
         [$from, $to] = $this->dateBounds($request);
+
         return AuditLog::query()
             ->whereBetween('audit_logs.created_at', [$from, $to])
             ->when($request->filled('action'), fn ($query) => $query->where('audit_logs.action', $request->string('action')->toString()))
@@ -209,18 +217,23 @@ class PlatformSecurityController
     {
         $to = $request->filled('to') ? CarbonImmutable::parse($request->input('to'))->endOfDay() : CarbonImmutable::now();
         $from = $request->filled('from') ? CarbonImmutable::parse($request->input('from'))->startOfDay() : $to->subDays(((int) $request->input('days', 30)) - 1)->startOfDay();
+
         return [$from, $to];
     }
 
     private function range(SecurityAuditQueryRequest $request): array
     {
         [$from, $to] = $this->dateBounds($request);
+
         return ['from' => $from->toIso8601String(), 'to' => $to->toIso8601String()];
     }
 
     private function activeSessionCount(): ?int
     {
-        if (config('session.driver') !== 'database' || ! Schema::hasTable('sessions')) return null;
+        if (config('session.driver') !== 'database' || ! Schema::hasTable('sessions')) {
+            return null;
+        }
+
         return (int) DB::table('sessions')->whereNotNull('user_id')->where('last_activity', '>=', now()->subMinutes((int) config('session.lifetime'))->timestamp)->count();
     }
 
@@ -244,7 +257,10 @@ class PlatformSecurityController
             'severity' => $metadata['severity'] ?? $this->severityFor($log->action),
             'correlation_id' => $metadata['correlation_id'] ?? null,
         ];
-        if ($includeMetadata) $data['metadata'] = $metadata;
+        if ($includeMetadata) {
+            $data['metadata'] = $metadata;
+        }
+
         return $data;
     }
 
@@ -270,15 +286,20 @@ class PlatformSecurityController
     {
         $blocked = ['password', 'password_confirmation', 'token', 'plain_token', 'access_token', 'authorization', 'secret', 'api_key', 'payment_credentials'];
         foreach ($metadata as $key => $value) {
-            if (in_array(strtolower((string) $key), $blocked, true)) $metadata[$key] = '[REDACTED]';
-            elseif (is_array($value)) $metadata[$key] = $this->redact($value);
+            if (in_array(strtolower((string) $key), $blocked, true)) {
+                $metadata[$key] = '[REDACTED]';
+            } elseif (is_array($value)) {
+                $metadata[$key] = $this->redact($value);
+            }
         }
+
         return $metadata;
     }
 
     private function csvValue(mixed $value): string
     {
         $value = (string) $value;
+
         return preg_match('/^[=+\-@]/', $value) ? "'".$value : $value;
     }
 }

@@ -119,17 +119,17 @@ class ReceiptService
 
     private function privateImageData(?string $path): ?string
     {
-        if (!$path) {
+        if (! $path) {
             return null;
         }
 
         $disk = Storage::disk('private');
-        if (!$disk->exists($path)) {
+        if (! $disk->exists($path)) {
             return null;
         }
 
         $mime = $disk->mimeType($path);
-        if (!is_string($mime) || !str_starts_with($mime, 'image/')) {
+        if (! is_string($mime) || ! str_starts_with($mime, 'image/')) {
             return null;
         }
 

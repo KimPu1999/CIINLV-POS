@@ -30,5 +30,4 @@ class Supplier extends Model
     {
         return $this->hasMany(PurchaseOrder::class);
     }
-
 }

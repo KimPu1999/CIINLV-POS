@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Marketplace\MarketplaceListingRequest;
+use App\Http\Requests\Marketplace\UpdateMarketplaceStoreRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceListingImagesRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceStoreMediaRequest;
-use App\Http\Requests\Marketplace\UpdateMarketplaceStoreRequest;
 use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceStoreResource;
 use App\Http\Resources\MarketplaceVendorOrderResource;
@@ -24,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplaceVendorController
 {
@@ -308,7 +309,7 @@ class MarketplaceVendorController
         if (! $store) {
             $settings = app(MarketplaceSettingsService::class);
             if (! $settings->sellerRegistrationEnabled()) {
-                throw new \Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException('New marketplace seller registration is currently closed.');
+                throw new UnprocessableEntityHttpException('New marketplace seller registration is currently closed.');
             }
             $approved = ! $settings->sellerApprovalRequired() && $tenant->status === 'active';
             $store = MarketplaceStore::create([

@@ -13,9 +13,17 @@ class TranslationServiceTest extends TestCase
 {
     private function service(): TranslationService
     {
-        return new TranslationService(new class implements TranslationProvider {
-            public function isConfigured(): bool { return false; }
-            public function translate(string $text, string $sourceLocale, string $targetLocale, array $context = []): string { return $text; }
+        return new TranslationService(new class implements TranslationProvider
+        {
+            public function isConfigured(): bool
+            {
+                return false;
+            }
+
+            public function translate(string $text, string $sourceLocale, string $targetLocale, array $context = []): string
+            {
+                return $text;
+            }
         });
     }
 

@@ -88,10 +88,19 @@ class PlatformDashboardController
     private function alerts(int $pendingOwnerActivation, int $expiredInvitations, array $health): array
     {
         $alerts = [];
-        if ($pendingOwnerActivation > 0) $alerts[] = ['type' => 'owner_activation', 'severity' => 'warning', 'count' => $pendingOwnerActivation, 'label' => 'Owner activation pending'];
-        if ($expiredInvitations > 0) $alerts[] = ['type' => 'expired_invitations', 'severity' => 'warning', 'count' => $expiredInvitations, 'label' => 'Owner invitations expired'];
-        if (($health['recent_failed_jobs'] ?? 0) > 0) $alerts[] = ['type' => 'failed_jobs', 'severity' => 'critical', 'count' => $health['recent_failed_jobs'], 'label' => 'Failed queue jobs in the last 24 hours'];
-        if (($health['checks']['postgresql']['status'] ?? null) === 'failed') $alerts[] = ['type' => 'database', 'severity' => 'critical', 'count' => 1, 'label' => 'PostgreSQL readiness check failed'];
+        if ($pendingOwnerActivation > 0) {
+            $alerts[] = ['type' => 'owner_activation', 'severity' => 'warning', 'count' => $pendingOwnerActivation, 'label' => 'Owner activation pending'];
+        }
+        if ($expiredInvitations > 0) {
+            $alerts[] = ['type' => 'expired_invitations', 'severity' => 'warning', 'count' => $expiredInvitations, 'label' => 'Owner invitations expired'];
+        }
+        if (($health['recent_failed_jobs'] ?? 0) > 0) {
+            $alerts[] = ['type' => 'failed_jobs', 'severity' => 'critical', 'count' => $health['recent_failed_jobs'], 'label' => 'Failed queue jobs in the last 24 hours'];
+        }
+        if (($health['checks']['postgresql']['status'] ?? null) === 'failed') {
+            $alerts[] = ['type' => 'database', 'severity' => 'critical', 'count' => 1, 'label' => 'PostgreSQL readiness check failed'];
+        }
+
         return $alerts;
     }
 }

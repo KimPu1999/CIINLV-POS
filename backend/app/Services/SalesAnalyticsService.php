@@ -112,10 +112,10 @@ class SalesAnalyticsService
         }
         $stores = $this->scope->storeIds($request->user(), $tenant, $request->input('store_id'));
         $rows = $this->salesQuery($tenant, $stores, $from->utc(), $to->utc())
-            ->selectRaw("date_trunc(?, sales.completed_at AT TIME ZONE ?)::date AS bucket, COUNT(sales.id) AS transaction_count, COALESCE(SUM(sales.grand_total), 0) AS gross_sales", [$period === 'daily' ? 'day' : ($period === 'weekly' ? 'week' : 'month'), $timezone])
+            ->selectRaw('date_trunc(?, sales.completed_at AT TIME ZONE ?)::date AS bucket, COUNT(sales.id) AS transaction_count, COALESCE(SUM(sales.grand_total), 0) AS gross_sales', [$period === 'daily' ? 'day' : ($period === 'weekly' ? 'week' : 'month'), $timezone])
             ->groupBy('bucket')->orderBy('bucket')->get()->keyBy(fn ($row) => (string) $row->bucket);
         $refunds = Refund::where('refunds.tenant_id', $tenant->id)->whereIn('refunds.store_id', $stores)->where('refunds.status', 'succeeded')->whereBetween('refunds.processed_at', [$from->utc(), $to->utc()])
-            ->selectRaw("date_trunc(?, refunds.processed_at AT TIME ZONE ?)::date AS bucket, COALESCE(SUM(refunds.amount), 0) AS refunds", [$period === 'daily' ? 'day' : ($period === 'weekly' ? 'week' : 'month'), $timezone])->groupBy('bucket')->pluck('refunds', 'bucket');
+            ->selectRaw('date_trunc(?, refunds.processed_at AT TIME ZONE ?)::date AS bucket, COALESCE(SUM(refunds.amount), 0) AS refunds', [$period === 'daily' ? 'day' : ($period === 'weekly' ? 'week' : 'month'), $timezone])->groupBy('bucket')->pluck('refunds', 'bucket');
         $cursor = $period === 'daily' ? $from : ($period === 'weekly' ? $from->startOfWeek() : $from->startOfMonth());
         $end = $period === 'daily' ? $to->startOfDay() : ($period === 'weekly' ? $to->startOfWeek() : $to->startOfMonth());
         $points = [];
@@ -127,6 +127,7 @@ class SalesAnalyticsService
             $points[] = ['label' => $period === 'monthly' ? $cursor->format('M Y') : $cursor->format('d M'), 'date' => $key, 'net_sales' => number_format($gross - $refund, 2, '.', ''), 'transactions' => (int) ($row->transaction_count ?? 0)];
             $cursor = $period === 'daily' ? $cursor->addDay() : ($period === 'weekly' ? $cursor->addWeek() : $cursor->addMonth());
         }
+
         return ['period' => $period, 'currency' => $tenant->businessSetting?->currency_code ?: 'MMK', 'points' => $points, 'basis' => ['sales' => 'completed_at', 'refunds' => 'processed_at', 'timezone' => $timezone]];
     }
 

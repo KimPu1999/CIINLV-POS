@@ -83,18 +83,18 @@ return new class extends Migration
         });
 
         DB::statement("ALTER TABLE marketplace_settings ADD CONSTRAINT marketplace_settings_currency_code_check CHECK (currency_code ~ '^[A-Z]{3}$')");
-        DB::statement("ALTER TABLE marketplace_settings ADD CONSTRAINT marketplace_settings_commission_rate_check CHECK (default_commission_rate >= 0 AND default_commission_rate <= 100)");
+        DB::statement('ALTER TABLE marketplace_settings ADD CONSTRAINT marketplace_settings_commission_rate_check CHECK (default_commission_rate >= 0 AND default_commission_rate <= 100)');
         DB::statement("ALTER TABLE marketplace_settings ADD CONSTRAINT marketplace_settings_commission_base_check CHECK (commission_base IN ('item_subtotal'))");
-        DB::statement("ALTER TABLE marketplace_commission_rules ADD CONSTRAINT marketplace_commission_rules_rate_check CHECK (rate >= 0 AND rate <= 100)");
+        DB::statement('ALTER TABLE marketplace_commission_rules ADD CONSTRAINT marketplace_commission_rules_rate_check CHECK (rate >= 0 AND rate <= 100)');
         DB::statement("ALTER TABLE marketplace_commission_rules ADD CONSTRAINT marketplace_commission_rules_base_check CHECK (commission_base IN ('item_subtotal'))");
         DB::statement("ALTER TABLE marketplace_commission_rules ADD CONSTRAINT marketplace_commission_rules_status_check CHECK (status IN ('active', 'inactive'))");
-        DB::statement("ALTER TABLE marketplace_order_commissions ADD CONSTRAINT marketplace_order_commissions_rate_check CHECK (commission_rate >= 0 AND commission_rate <= 100)");
-        DB::statement("ALTER TABLE marketplace_order_commissions ADD CONSTRAINT marketplace_order_commissions_amounts_check CHECK (commission_base_amount >= 0 AND commission_amount >= 0 AND seller_net_amount >= 0)");
+        DB::statement('ALTER TABLE marketplace_order_commissions ADD CONSTRAINT marketplace_order_commissions_rate_check CHECK (commission_rate >= 0 AND commission_rate <= 100)');
+        DB::statement('ALTER TABLE marketplace_order_commissions ADD CONSTRAINT marketplace_order_commissions_amounts_check CHECK (commission_base_amount >= 0 AND commission_amount >= 0 AND seller_net_amount >= 0)');
         DB::statement("ALTER TABLE marketplace_order_commissions ADD CONSTRAINT marketplace_order_commissions_status_check CHECK (status IN ('pending', 'payable', 'reversed'))");
         DB::statement("ALTER TABLE marketplace_settlement_entries ADD CONSTRAINT marketplace_settlement_entries_type_check CHECK (entry_type IN ('platform_commission', 'seller_earning', 'refund', 'payout', 'adjustment'))");
         DB::statement("ALTER TABLE marketplace_settlement_entries ADD CONSTRAINT marketplace_settlement_entries_direction_check CHECK (direction IN ('credit', 'debit'))");
         DB::statement("ALTER TABLE marketplace_settlement_entries ADD CONSTRAINT marketplace_settlement_entries_status_check CHECK (status IN ('pending', 'available', 'reversed'))");
-        DB::statement("ALTER TABLE marketplace_settlement_entries ADD CONSTRAINT marketplace_settlement_entries_amount_check CHECK (amount >= 0)");
+        DB::statement('ALTER TABLE marketplace_settlement_entries ADD CONSTRAINT marketplace_settlement_entries_amount_check CHECK (amount >= 0)');
     }
 
     public function down(): void

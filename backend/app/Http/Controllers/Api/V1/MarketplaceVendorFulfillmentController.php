@@ -10,7 +10,6 @@ use App\Models\MarketplaceVendorOrder;
 use App\Services\MarketplaceFulfillmentService;
 use App\Services\TenantContext;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class MarketplaceVendorFulfillmentController
 {

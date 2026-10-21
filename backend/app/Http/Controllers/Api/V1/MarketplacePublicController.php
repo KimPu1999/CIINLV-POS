@@ -14,12 +14,11 @@ use App\Services\MarketplaceSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class MarketplacePublicController
 {
-    public function __construct(private readonly MarketplaceSettingsService $settings)
-    {
-    }
+    public function __construct(private readonly MarketplaceSettingsService $settings) {}
 
     public function stores(Request $request): JsonResponse
     {
@@ -65,12 +64,24 @@ class MarketplacePublicController
                         ->orWhereHas('store', fn (Builder $store) => $store->where('marketplace_stores.name', 'ilike', $term));
                 });
             })
-            ->when($request->filled('category'), fn (Builder $query) => $query->whereHas('product.category', fn (Builder $category) => $category
-                ->where('categories.slug', $request->string('category'))
-                ->orWhere('categories.uuid', $request->string('category'))))
-            ->when($request->filled('store'), fn (Builder $query) => $query->whereHas('store', fn (Builder $store) => $store
-                ->where('marketplace_stores.slug', $request->string('store'))
-                ->orWhere('marketplace_stores.uuid', $request->string('store'))));
+            ->when($request->filled('category'), function (Builder $query) use ($request): void {
+                $category = (string) $request->input('category');
+                $query->whereHas('product.category', function (Builder $categoryQuery) use ($category): void {
+                    $categoryQuery->where('categories.slug', $category);
+                    if (Str::isUuid($category)) {
+                        $categoryQuery->orWhere('categories.uuid', $category);
+                    }
+                });
+            })
+            ->when($request->filled('store'), function (Builder $query) use ($request): void {
+                $store = (string) $request->input('store');
+                $query->whereHas('store', function (Builder $storeQuery) use ($store): void {
+                    $storeQuery->where('marketplace_stores.slug', $store);
+                    if (Str::isUuid($store)) {
+                        $storeQuery->orWhere('marketplace_stores.uuid', $store);
+                    }
+                });
+            });
 
         $query
             ->when($request->filled('min_price'), fn (Builder $listing) => $listing->whereHas('product.variants', fn (Builder $variant) => $variant

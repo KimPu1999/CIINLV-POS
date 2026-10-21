@@ -8,7 +8,10 @@ use Illuminate\Validation\Rules\File;
 
 class RegisterBusinessRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true;
+    }
 
     protected function prepareForValidation(): void
     {

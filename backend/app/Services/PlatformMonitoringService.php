@@ -177,6 +177,7 @@ class PlatformMonitoringService
 
             if (! $configured) {
                 $results[$disk] = $result;
+
                 continue;
             }
 

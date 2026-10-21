@@ -21,7 +21,7 @@ class PlatformMonitoringTest extends TestCase
             'connection' => 'sync',
             'queue' => 'default',
             'payload' => '{"command":"redacted-in-response"}',
-            'exception' => "RuntimeException: should never be returned",
+            'exception' => 'RuntimeException: should never be returned',
             'failed_at' => now(),
         ]);
 

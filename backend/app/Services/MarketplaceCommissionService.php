@@ -16,9 +16,7 @@ use Illuminate\Support\Facades\Schema;
 
 class MarketplaceCommissionService
 {
-    public function __construct(private readonly MarketplaceSettingsService $settings)
-    {
-    }
+    public function __construct(private readonly MarketplaceSettingsService $settings) {}
 
     public function storageAvailable(): bool
     {
@@ -250,7 +248,7 @@ class MarketplaceCommissionService
         if (! ($filters['status'] ?? null)) {
             $summaryQuery->whereIn('status', ['pending', 'payable']);
         }
-        $summary = $summaryQuery->selectRaw("COALESCE(SUM(commission_base_amount), 0) AS eligible_sales_total, COALESCE(SUM(commission_amount), 0) AS commission_total, COALESCE(SUM(seller_net_amount), 0) AS seller_earnings_total, COUNT(*) AS rows")->first();
+        $summary = $summaryQuery->selectRaw('COALESCE(SUM(commission_base_amount), 0) AS eligible_sales_total, COALESCE(SUM(commission_amount), 0) AS commission_total, COALESCE(SUM(seller_net_amount), 0) AS seller_earnings_total, COUNT(*) AS rows')->first();
         $rows = $query->latest()->paginate($filters['per_page'] ?? 25);
 
         return ['configured' => true, 'summary' => ['eligible_sales_total' => $this->money($summary?->eligible_sales_total), 'commission_total' => $this->money($summary?->commission_total), 'seller_earnings_total' => $this->money($summary?->seller_earnings_total), 'rows' => (int) ($summary?->rows ?? 0)], 'data' => $rows];
@@ -264,9 +262,9 @@ class MarketplaceCommissionService
 
         $rows = MarketplaceOrderCommission::query()
             ->select('tenant_id')
-            ->selectRaw("COALESCE(SUM(commission_base_amount), 0) AS eligible_sales_total")
-            ->selectRaw("COALESCE(SUM(commission_amount), 0) AS platform_commission_total")
-            ->selectRaw("COALESCE(SUM(seller_net_amount), 0) AS seller_earnings_total")
+            ->selectRaw('COALESCE(SUM(commission_base_amount), 0) AS eligible_sales_total')
+            ->selectRaw('COALESCE(SUM(commission_amount), 0) AS platform_commission_total')
+            ->selectRaw('COALESCE(SUM(seller_net_amount), 0) AS seller_earnings_total')
             ->whereIn('status', ['pending', 'payable'])
             ->when($tenantIds, fn (Builder $builder) => $builder->whereIn('tenant_id', $tenantIds))
             ->groupBy('tenant_id')

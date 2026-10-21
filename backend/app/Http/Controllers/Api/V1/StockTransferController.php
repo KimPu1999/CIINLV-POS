@@ -37,9 +37,13 @@ class StockTransferController
     {
         $tenantId = $context->tenant()->id;
         $ids = $this->accessibleLocationIds(request()->user(), $tenantId);
-        $query = StockTransfer::query()->where('tenant_id', $tenantId)->where(function ($q) use ($ids): void { $q->whereIn('source_location_id', $ids)->orWhereIn('destination_location_id', $ids); });
+        $query = StockTransfer::query()->where('tenant_id', $tenantId)->where(function ($q) use ($ids): void {
+            $q->whereIn('source_location_id', $ids)->orWhereIn('destination_location_id', $ids);
+        });
 
-        return response()->json(['success' => true, 'data' => ['total_transfers' => (clone $query)->count(), 'draft_transfers' => (clone $query)->where('status', 'draft')->count(), 'pending_approval' => (clone $query)->where('status', 'pending_approval')->count(), 'approved_transfers' => (clone $query)->where('status', 'approved')->count(), 'in_transit' => (clone $query)->where('status', 'dispatched')->count(), 'partially_received' => (clone $query)->where('status', 'partially_received')->count(), 'completed_transfers' => (clone $query)->where('status', 'received')->count(), 'cancelled_transfers' => (clone $query)->where('status', 'cancelled')->count(), 'unresolved_discrepancies' => DB::table('stock_transfer_items')->join('stock_transfers', 'stock_transfers.id', '=', 'stock_transfer_items.stock_transfer_id')->where('stock_transfers.tenant_id', $tenantId)->where(function ($q) use ($ids): void { $q->whereIn('stock_transfers.source_location_id', $ids)->orWhereIn('stock_transfers.destination_location_id', $ids); })->where(fn ($q) => $q->where('stock_transfer_items.damaged_quantity', '>', 0)->orWhere('stock_transfer_items.missing_quantity', '>', 0))->count()]]);
+        return response()->json(['success' => true, 'data' => ['total_transfers' => (clone $query)->count(), 'draft_transfers' => (clone $query)->where('status', 'draft')->count(), 'pending_approval' => (clone $query)->where('status', 'pending_approval')->count(), 'approved_transfers' => (clone $query)->where('status', 'approved')->count(), 'in_transit' => (clone $query)->where('status', 'dispatched')->count(), 'partially_received' => (clone $query)->where('status', 'partially_received')->count(), 'completed_transfers' => (clone $query)->where('status', 'received')->count(), 'cancelled_transfers' => (clone $query)->where('status', 'cancelled')->count(), 'unresolved_discrepancies' => DB::table('stock_transfer_items')->join('stock_transfers', 'stock_transfers.id', '=', 'stock_transfer_items.stock_transfer_id')->where('stock_transfers.tenant_id', $tenantId)->where(function ($q) use ($ids): void {
+            $q->whereIn('stock_transfers.source_location_id', $ids)->orWhereIn('stock_transfers.destination_location_id', $ids);
+        })->where(fn ($q) => $q->where('stock_transfer_items.damaged_quantity', '>', 0)->orWhere('stock_transfer_items.missing_quantity', '>', 0))->count()]]);
     }
 
     public function locations(TenantContext $context): JsonResponse

@@ -3,9 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
-use App\Models\MarketplaceListing;
 use App\Models\MarketplaceOrder;
-use App\Models\MarketplaceOrderCommission;
 use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;

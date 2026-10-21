@@ -108,6 +108,7 @@ class PlatformBusinessController
         abort_unless(in_array($document, ['business_logo', 'id_front_image', 'id_back_image', 'company_certificate_image'], true), 404);
         $path = $document === 'business_logo' ? $business->logo_path : $business->{$document.'_path'};
         abort_unless($path && Storage::disk('private')->exists($path), 404, 'Verification document not found.');
+
         return response()->file(Storage::disk('private')->path($path));
     }
 

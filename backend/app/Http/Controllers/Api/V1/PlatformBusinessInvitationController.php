@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Resources\BusinessInvitationResource;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
-use App\Http\Resources\BusinessInvitationResource;
 use App\Services\AuditLogger;
 use App\Services\BusinessInvitationService;
 use Illuminate\Http\JsonResponse;

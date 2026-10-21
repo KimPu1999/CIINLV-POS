@@ -6,13 +6,14 @@ use App\Models\AlertPreference;
 use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
 use App\Models\StockAlert;
+use App\Services\AuditLogger;
 use App\Services\ReportScopeService;
 use App\Services\StockAlertService;
 use App\Services\TenantContext;
 use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StockAlertController
@@ -64,7 +65,9 @@ class StockAlertController
             'low_stock_items' => (clone $low)->count(),
             'out_of_stock_items' => (clone $out)->count(),
             'unique_variants' => (clone $base)->distinct('inventory_balances.product_variant_id')->count('inventory_balances.product_variant_id'),
-            'locations_affected' => (clone $base)->where(function ($q): void { $q->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level'); })->distinct('inventory_balances.inventory_location_id')->count('inventory_balances.inventory_location_id'),
+            'locations_affected' => (clone $base)->where(function ($q): void {
+                $q->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level');
+            })->distinct('inventory_balances.inventory_location_id')->count('inventory_balances.inventory_location_id'),
             'open_alerts' => (clone $active)->whereIn('stock_alerts.status', ['open', 'acknowledged'])->count(),
             'snoozed_alerts' => (clone $active)->where('stock_alerts.status', 'snoozed')->where('stock_alerts.snoozed_until', '>', now())->count(),
         ]]);
@@ -99,7 +102,7 @@ class StockAlertController
         abort_unless((int) $alert->tenant_id === (int) $context->tenant()->id && $scope->locationIds($request->user(), $context->tenant())->contains($alert->inventory_location_id), 403);
 
         $result = $service->acknowledge($alert, $request->user());
-        app(\App\Services\AuditLogger::class)->record('inventory.stock_alert_acknowledged', $request->user(), $context->tenant(), $result, ['alert_type' => $result->alert_type]);
+        app(AuditLogger::class)->record('inventory.stock_alert_acknowledged', $request->user(), $context->tenant(), $result, ['alert_type' => $result->alert_type]);
 
         return response()->json(['success' => true, 'data' => $this->alertPayload($result->load(['location.store', 'variant.product']), $service)]);
     }
@@ -109,7 +112,7 @@ class StockAlertController
         $data = $request->validate(['hours' => ['required', 'integer', 'min:1', 'max:168']]);
         abort_unless((int) $alert->tenant_id === (int) $context->tenant()->id && $scope->locationIds($request->user(), $context->tenant())->contains($alert->inventory_location_id), 403);
         $result = $service->snooze($alert, $request->user(), (int) $data['hours']);
-        app(\App\Services\AuditLogger::class)->record('inventory.stock_alert_snoozed', $request->user(), $context->tenant(), $result, ['hours' => (int) $data['hours']]);
+        app(AuditLogger::class)->record('inventory.stock_alert_snoozed', $request->user(), $context->tenant(), $result, ['hours' => (int) $data['hours']]);
 
         return response()->json(['success' => true, 'data' => $this->alertPayload($result->load(['location.store', 'variant.product']), $service)]);
     }
@@ -118,7 +121,7 @@ class StockAlertController
     {
         abort_unless((int) $alert->tenant_id === (int) $context->tenant()->id && $scope->locationIds($request->user(), $context->tenant())->contains($alert->inventory_location_id), 403);
         $result = $service->reopen($alert);
-        app(\App\Services\AuditLogger::class)->record('inventory.stock_alert_reopened', $request->user(), $context->tenant(), $result);
+        app(AuditLogger::class)->record('inventory.stock_alert_reopened', $request->user(), $context->tenant(), $result);
 
         return response()->json(['success' => true, 'data' => $this->alertPayload($result->load(['location.store', 'variant.product']), $service)]);
     }
@@ -143,10 +146,11 @@ class StockAlertController
         $replenishment = $service->replenishment($alert);
         $translations = app(TranslationService::class);
         $locale = $translations->locale(request());
+
         return ['id' => $alert->uuid, 'alert_type' => $alert->alert_type, 'status' => $alert->status, 'available_quantity' => $alert->available_quantity, 'threshold_quantity' => $alert->threshold_quantity, 'incoming_quantity' => $replenishment['incoming_quantity'], 'target_quantity' => $replenishment['target_quantity'], 'recommended_quantity' => $replenishment['recommended_quantity'], 'first_triggered_at' => $alert->first_triggered_at, 'last_triggered_at' => $alert->last_triggered_at, 'snoozed_until' => $alert->snoozed_until, 'location' => ['id' => $alert->location?->uuid, 'name' => $alert->location ? $translations->localizedValue($alert->location, 'name', $locale) : null, 'code' => $alert->location?->code, 'location_type' => $alert->location?->location_type, 'store' => $alert->location?->store?->name], 'variant' => ['id' => $alert->variant?->uuid, 'sku' => $alert->variant?->sku, 'barcode' => $alert->variant?->barcode, 'product' => $alert->variant?->product ? $translations->localizedValue($alert->variant->product, 'name', $locale) : null]];
     }
 
-    private function locationIds(Request $request, TenantContext $context, ReportScopeService $scope): \Illuminate\Support\Collection
+    private function locationIds(Request $request, TenantContext $context, ReportScopeService $scope): Collection
     {
         $ids = $scope->locationIds($request->user(), $context->tenant(), $request->input('store_id'));
         if (! $request->filled('location_id')) {
@@ -161,6 +165,7 @@ class StockAlertController
     private function csvCell(mixed $value): string
     {
         $value = (string) ($value ?? '');
+
         return in_array($value[0] ?? '', ['=', '+', '-', '@'], true) ? "'".$value : $value;
     }
 }

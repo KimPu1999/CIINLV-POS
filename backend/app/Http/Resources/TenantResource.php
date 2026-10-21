@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Services\TranslationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Services\TranslationService;
 
 class TenantResource extends JsonResource
 {
@@ -14,11 +14,15 @@ class TenantResource extends JsonResource
         $locale = $translations->locale($request);
         $platformViewer = $request->user()?->isSuperAdmin() ?? false;
         $documentUrl = function (?string $path, string $document) use ($platformViewer): ?string {
-            if (! $path) return null;
+            if (! $path) {
+                return null;
+            }
+
             return $platformViewer
                 ? route('platform.businesses.verification', [$this->uuid, $document])
                 : route('business.verification.document', $document);
         };
+
         return [
             'id' => $this->uuid,
             'name' => $this->name,

@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources;
 
-use App\Support\PublicMediaUrl;
 use App\Services\TranslationService;
+use App\Support\PublicMediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

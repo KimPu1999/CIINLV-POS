@@ -2,45 +2,48 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Requests\Marketplace\MarketplaceApprovalRequest;
 use App\Http\Requests\Marketplace\CollectMarketplaceCodPaymentRequest;
+use App\Http\Requests\Marketplace\MarketplaceApprovalRequest;
 use App\Http\Requests\Marketplace\MarketplaceCommissionRuleRequest;
 use App\Http\Requests\Marketplace\MarketplaceListingModerationRequest;
 use App\Http\Requests\Marketplace\MarketplaceRequestDecisionRequest;
 use App\Http\Requests\Marketplace\MarketplaceSettingsUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceStoreStatusRequest;
 use App\Http\Resources\MarketplaceCancellationRequestResource;
+use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceOrderResource;
 use App\Http\Resources\MarketplaceRefundRequestResource;
 use App\Http\Resources\MarketplaceReturnRequestResource;
 use App\Http\Resources\MarketplaceShipmentResource;
 use App\Http\Resources\MarketplaceStoreResource;
-use App\Models\MarketplaceCancellationRequest;
+use App\Models\Category;
 use App\Models\MarketplaceAuditLog;
-use App\Models\MarketplaceListing;
+use App\Models\MarketplaceCancellationRequest;
 use App\Models\MarketplaceCommissionRule;
+use App\Models\MarketplaceListing;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceOrderCommission;
-use App\Models\MarketplacePayout;
 use App\Models\MarketplacePayment;
+use App\Models\MarketplacePayout;
 use App\Models\MarketplaceRefundRequest;
 use App\Models\MarketplaceReturnRequest;
 use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
-use App\Models\Category;
 use App\Models\Tenant;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceOrderRequestService;
 use App\Services\MarketplacePayoutService;
 use App\Services\MarketplaceSettingsService;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
-use Carbon\CarbonImmutable;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 class MarketplaceAdminController
 {
@@ -139,7 +142,7 @@ class MarketplaceAdminController
 
         return response()->json([
             'success' => true,
-            'data' => \App\Http\Resources\MarketplaceListingResource::collection($listings),
+            'data' => MarketplaceListingResource::collection($listings),
             'meta' => ['total' => $listings->total(), 'per_page' => $listings->perPage(), 'current_page' => $listings->currentPage(), 'last_page' => $listings->lastPage()],
         ]);
     }
@@ -156,7 +159,7 @@ class MarketplaceAdminController
         $listing->forceFill(['status' => $status, 'published_at' => $status === 'published' ? ($listing->published_at ?? now()) : null])->save();
         $audit->record('marketplace.listing_moderated', $request->user(), $listing->tenant, $listing, ['from_status' => $previous, 'to_status' => $status, 'reason' => $request->input('reason')]);
 
-        return response()->json(['success' => true, 'data' => new \App\Http\Resources\MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
+        return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
     }
 
     public function approval(MarketplaceApprovalRequest $request, MarketplaceStore $store, MarketplaceAuditLogger $audit): JsonResponse
@@ -314,6 +317,7 @@ class MarketplaceAdminController
     public function settings(MarketplaceSettingsService $settings, MarketplaceCommissionService $commissions): JsonResponse
     {
         $current = $settings->current();
+
         return response()->json(['success' => true, 'data' => [
             'configured' => $current['configured'],
             'settings' => $current['settings'],
@@ -327,7 +331,7 @@ class MarketplaceAdminController
         $data = $request->validated();
         $current = $settings->current()['settings'];
         if (isset($data['revision']) && (int) $data['revision'] !== (int) $current['revision']) {
-            throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('These marketplace settings changed in another session. Reload before saving.');
+            throw new ConflictHttpException('These marketplace settings changed in another session. Reload before saving.');
         }
         unset($data['revision']);
         $saved = $settings->update($data, $request->user(), $audit);
@@ -338,7 +342,7 @@ class MarketplaceAdminController
     public function commissionRules(Request $request, MarketplaceSettingsService $settings): JsonResponse
     {
         if (! $settings->storageAvailable()) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+            throw new ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
         }
         $ruleRelations = ['tenant:id,name,business_code'];
         if (Schema::hasColumn('marketplace_commission_rules', 'category_id')) {
@@ -358,7 +362,7 @@ class MarketplaceAdminController
     public function commissionBusinesses(Request $request, MarketplaceSettingsService $settings, MarketplaceCommissionService $commissions): JsonResponse
     {
         if (! $settings->storageAvailable()) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+            throw new ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
         }
 
         $sort = in_array($request->input('sort'), ['name', 'business_code', 'status', 'created_at'], true) ? $request->input('sort') : 'name';
@@ -422,13 +426,13 @@ class MarketplaceAdminController
     public function storeCommissionRule(MarketplaceCommissionRuleRequest $request, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
     {
         if (! $settings->storageAvailable()) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+            throw new ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
         }
         $data = $request->validated();
         $advanced = Schema::hasColumn('marketplace_commission_rules', 'rule_type');
         $data['rule_type'] = $data['rule_type'] ?? (! empty($data['tenant_id']) ? 'business' : 'global');
         if (! $advanced && ! in_array($data['rule_type'], ['global', 'business'], true)) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Advanced commission rules are not available until the reviewed additive migration is applied.');
+            throw new ServiceUnavailableHttpException(null, 'Advanced commission rules are not available until the reviewed additive migration is applied.');
         }
         $this->validateCommissionRuleScope($data);
         $effectiveFrom = isset($data['effective_from']) ? CarbonImmutable::parse($data['effective_from']) : CarbonImmutable::now();
@@ -472,7 +476,7 @@ class MarketplaceAdminController
     public function updateCommissionRule(MarketplaceCommissionRuleRequest $request, string $rule, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
     {
         if (! $settings->storageAvailable()) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+            throw new ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
         }
         $existing = MarketplaceCommissionRule::query()->where('uuid', $rule)->firstOrFail();
         $data = $request->validated();
@@ -528,7 +532,7 @@ class MarketplaceAdminController
     public function removeCommissionRule(Request $request, string $rule, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
     {
         if (! $settings->storageAvailable()) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+            throw new ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
         }
 
         $removed = DB::transaction(function () use ($request, $rule, $audit): MarketplaceCommissionRule {
@@ -635,7 +639,7 @@ class MarketplaceAdminController
     {
         $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'status' => ['nullable', 'in:requested,approved,processing,paid,rejected,failed,cancelled'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
         if (! Schema::hasTable('marketplace_payouts')) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Payout storage is not available. Apply the reviewed additive payout migration first.');
+            throw new ServiceUnavailableHttpException(null, 'Payout storage is not available. Apply the reviewed additive payout migration first.');
         }
         $payouts = MarketplacePayout::query()->with(['tenant:id,name,business_code', 'requester:id,name,email', 'approver:id,name,email'])->when($data['tenant_id'] ?? null, fn (Builder $query, $tenantId) => $query->where('tenant_id', $tenantId))->when($data['status'] ?? null, fn (Builder $query, $status) => $query->where('status', $status))->latest()->paginate($data['per_page'] ?? 25);
 
@@ -652,7 +656,7 @@ class MarketplaceAdminController
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
         if (! Schema::hasTable('marketplace_payouts')) {
-            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Payout storage is not available. Apply the reviewed additive payout migration first.');
+            throw new ServiceUnavailableHttpException(null, 'Payout storage is not available. Apply the reviewed additive payout migration first.');
         }
         $payout = $payouts->request($data, $request->user());
         $audit->record('marketplace.payout_requested', $request->user(), $payout->tenant, $payout, ['amount' => (string) $payout->amount, 'currency_code' => $payout->currency_code, 'reason' => $payout->reason]);
@@ -770,6 +774,7 @@ class MarketplaceAdminController
         $commissions ??= app(MarketplaceCommissionService::class);
         $settingsAvailable = $settings->storageAvailable();
         $ledgerAvailable = $commissions->storageAvailable();
+
         return [
             'commission_rules' => ['available' => $settingsAvailable, 'reason' => $settingsAvailable ? 'Commission rates and seller overrides are persisted with effective dates.' : 'The reviewed commission migration is pending.'],
             'settlement_ledger' => ['available' => $ledgerAvailable, 'reason' => $ledgerAvailable ? 'Order-level commission snapshots and seller earnings are persisted.' : 'The reviewed settlement migration is pending.'],

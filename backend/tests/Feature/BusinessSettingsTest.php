@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class BusinessSettingsTest extends TestCase
@@ -86,8 +86,11 @@ class BusinessSettingsTest extends TestCase
         $user = User::factory()->create();
         $tenant = Tenant::create(['name' => $code, 'slug' => strtolower($code), 'business_code' => $code, 'status' => 'active', 'subscription_status' => 'trial']);
         $role = DB::table('roles')->where('tenant_id', $tenant->id)->where('name', 'business_admin')->first();
-        if (! $role) $role = (object) ['id' => DB::table('roles')->insertGetId(['tenant_id' => $tenant->id, 'name' => 'business_admin', 'created_at' => now(), 'updated_at' => now()])];
+        if (! $role) {
+            $role = (object) ['id' => DB::table('roles')->insertGetId(['tenant_id' => $tenant->id, 'name' => 'business_admin', 'created_at' => now(), 'updated_at' => now()])];
+        }
         DB::table('tenant_memberships')->insert(['tenant_id' => $tenant->id, 'user_id' => $user->id, 'role_id' => $role->id, 'status' => 'active', 'joined_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+
         return [$user, $tenant];
     }
 }

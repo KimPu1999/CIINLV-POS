@@ -17,6 +17,7 @@ class BusinessSettingsController
     public function show(TenantContext $context): JsonResponse
     {
         $settings = $context->tenant()->businessSetting()->firstOrCreate(['tenant_id' => $context->tenant()->getKey()]);
+
         return response()->json(['success' => true, 'data' => $this->payload($settings)]);
     }
 
@@ -30,6 +31,7 @@ class BusinessSettingsController
     public function receipt(TenantContext $context): JsonResponse
     {
         $settings = $context->tenant()->businessSetting()->firstOrCreate(['tenant_id' => $context->tenant()->getKey()]);
+
         return response()->json(['success' => true, 'data' => array_merge((array) $settings->receipt_configuration, ['revision' => $settings->revision])]);
     }
 
@@ -49,6 +51,7 @@ class BusinessSettingsController
             return $settings->refresh();
         });
         $auditLogger->record('business.receipt_settings_updated', $request->user(), $tenant, $settings);
+
         return response()->json(['success' => true, 'data' => array_merge((array) $settings->receipt_configuration, ['revision' => $settings->revision])]);
     }
 
@@ -85,12 +88,14 @@ class BusinessSettingsController
     public function subscription(TenantContext $context): JsonResponse
     {
         $tenant = $context->tenant();
+
         return response()->json(['success' => true, 'data' => ['plan' => $tenant->subscription_status, 'status' => $tenant->status, 'trial_start_at' => null, 'trial_expires_at' => null, 'billing_period' => null, 'features' => config('business.features', []), 'limits' => ['stores' => config('business.default_branch_limit'), 'products' => null, 'users' => null]]]);
     }
 
     private function payload($settings): array
     {
         $localization = (array) $settings->receipt_configuration;
+
         return array_merge($settings->toArray(), ['revision' => (int) ($settings->revision ?: 1), 'currency_code' => $settings->currency_code ?: 'MMK', 'timezone' => $settings->timezone ?: 'Asia/Yangon', 'locale' => $settings->locale ?: 'en', 'date_format' => $localization['date_format'] ?? 'DD/MM/YYYY', 'time_format' => $localization['time_format'] ?? '24', 'number_format' => $localization['number_format'] ?? '1,234.56', 'language' => $localization['language'] ?? ($settings->locale ?: 'en'), 'payment_provider_status' => 'not_configured', 'supported_payment_methods' => ['cash']]);
     }
 
@@ -99,7 +104,7 @@ class BusinessSettingsController
         $tenant = $context->tenant();
         Gate::authorize('updateProfile', $tenant);
         $data = $request->validated();
-        $settings = DB::transaction(function () use ($data, $request, $tenant, $section): object {
+        $settings = DB::transaction(function () use ($data, $tenant, $section): object {
             $settings = $tenant->businessSetting()->lockForUpdate()->first();
             if (! $settings) {
                 $settings = $tenant->businessSetting()->create(['tenant_id' => $tenant->getKey()]);

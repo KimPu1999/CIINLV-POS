@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Pos\CreateReturnRequest;
 use App\Http\Resources\SaleReturnResource;
+use App\Models\Refund;
 use App\Models\Sale;
 use App\Models\SaleReturn;
 use App\Models\Store;
-use App\Models\Refund;
 use App\Services\PosAccessService;
 use App\Services\SaleReturnService;
 use App\Services\TenantContext;

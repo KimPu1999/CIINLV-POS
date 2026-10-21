@@ -14,9 +14,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplaceInventoryReservationService
 {
-    public function __construct(private readonly InventoryService $inventory)
-    {
-    }
+    public function __construct(private readonly InventoryService $inventory) {}
 
     public function reserve(MarketplaceOrder $order, MarketplaceOrderItem $item, ProductVariant $variant, string $quantity, int $ttlMinutes = 1440): void
     {

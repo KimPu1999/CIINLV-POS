@@ -27,11 +27,11 @@ use App\Http\Controllers\Api\V1\MarketplaceVendorFulfillmentController;
 use App\Http\Controllers\Api\V1\PasswordController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAdminController;
 use App\Http\Controllers\Api\V1\PlatformBusinessAuditController;
-use App\Http\Controllers\Api\V1\PlatformBusinessController;
 use App\Http\Controllers\Api\V1\PlatformBusinessControlController;
+use App\Http\Controllers\Api\V1\PlatformBusinessController;
 use App\Http\Controllers\Api\V1\PlatformBusinessDeletionController;
-use App\Http\Controllers\Api\V1\PlatformBusinessLifecycleController;
 use App\Http\Controllers\Api\V1\PlatformBusinessInvitationController;
+use App\Http\Controllers\Api\V1\PlatformBusinessLifecycleController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PlatformMonitoringController;
 use App\Http\Controllers\Api\V1\PlatformSecurityController;
@@ -58,8 +58,8 @@ use App\Http\Controllers\Api\V1\StoreMembershipController;
 use App\Http\Controllers\Api\V1\StoreSettingsController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\TranslationController;
-use App\Http\Middleware\SetApiLocale;
 use App\Http\Controllers\Api\V1\WarehouseController;
+use App\Http\Middleware\SetApiLocale;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {

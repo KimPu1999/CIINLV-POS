@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceShipment;
-use App\Models\MarketplaceShipmentEvent;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -15,8 +14,7 @@ class MarketplaceFulfillmentService
 {
     public function __construct(
         private readonly MarketplaceInventoryReservationService $reservations,
-    ) {
-    }
+    ) {}
 
     public function createShipment(MarketplaceVendorOrder $vendorOrder, User $actor, array $data): MarketplaceShipment
     {

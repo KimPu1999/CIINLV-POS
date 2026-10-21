@@ -7,10 +7,8 @@ use App\Models\CustomerAddress;
 use App\Models\CustomerProfile;
 use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
-use App\Models\MarketplaceInventoryReservation;
 use App\Models\MarketplaceListing;
-use App\Models\MarketplaceRefundRequest;
-use App\Models\MarketplaceShipment;
+use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceStore;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -154,11 +152,11 @@ class MarketplaceFulfillmentTest extends TestCase
         $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listing->uuid, 'variant_id' => $variant->uuid, 'quantity' => 1])->assertCreated();
     }
 
-    private function checkout(User $customer, CustomerAddress $address, string $key): \App\Models\MarketplaceOrder
+    private function checkout(User $customer, CustomerAddress $address, string $key): MarketplaceOrder
     {
         $id = $this->actingAs($customer, 'sanctum')->withHeader('Idempotency-Key', $key)->postJson('/api/v1/marketplace/checkout', ['address_id' => $address->id, 'payment_method' => 'cod'])->assertCreated()->json('data.id');
 
-        return \App\Models\MarketplaceOrder::where('uuid', $id)->firstOrFail();
+        return MarketplaceOrder::where('uuid', $id)->firstOrFail();
     }
 
     private function vendor(string $code, int $price, int $stock): array

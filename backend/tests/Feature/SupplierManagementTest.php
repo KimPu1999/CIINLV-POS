@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
-use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;

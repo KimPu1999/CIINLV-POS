@@ -37,7 +37,9 @@ class InventoryController
         $locationIds = $this->accessibleLocationIds($request->user(), $tenantId);
         $balances = InventoryBalance::query()->where('inventory_balances.tenant_id', $tenantId)->whereIn('inventory_balances.inventory_location_id', $locationIds);
         $totals = (clone $balances)->selectRaw('COALESCE(SUM(on_hand_quantity), 0) AS on_hand, COALESCE(SUM(reserved_quantity), 0) AS reserved, COALESCE(SUM(on_hand_quantity * average_cost), 0) AS value')->first();
-        $lowStock = (clone $balances)->join('product_variants', function ($join): void { $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id'); })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')->count();
+        $lowStock = (clone $balances)->join('product_variants', function ($join): void {
+            $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+        })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')->count();
         $outOfStock = (clone $balances)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= 0')->count();
 
         return response()->json(['success' => true, 'data' => ['total_stock_units' => $totals?->on_hand ?? '0', 'available_stock' => bcsub((string) ($totals?->on_hand ?? 0), (string) ($totals?->reserved ?? 0), 3), 'reserved_stock' => $totals?->reserved ?? '0', 'total_inventory_value' => $totals?->value ?? '0', 'low_stock_products' => $lowStock, 'out_of_stock_products' => $outOfStock, 'locations' => $locationIds->count(), 'recent_movements' => StockMovement::with(['location', 'variant.product'])->where('tenant_id', $tenantId)->whereIn('inventory_location_id', $locationIds)->latest('created_at')->limit(8)->get()->map(fn (StockMovement $movement): array => ['id' => $movement->uuid, 'movement_type' => $movement->movement_type, 'quantity_delta' => $movement->quantity_delta, 'sku' => $movement->variant?->sku, 'product' => $movement->variant?->product?->name, 'location' => $movement->location?->name, 'created_at' => $movement->created_at])]]);
@@ -141,6 +143,7 @@ class InventoryController
     {
         $translations = app(TranslationService::class);
         $locale = $translations->locale(request());
+
         return ['location' => ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale)], 'variant' => ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $translations->localizedValue($balance->variant->product, 'name', $locale)], 'on_hand_quantity' => $balance->on_hand_quantity, 'reserved_quantity' => $balance->reserved_quantity, 'available_quantity' => $balance->available_quantity, 'average_cost' => $balance->average_cost, 'version' => $balance->version];
     }
 

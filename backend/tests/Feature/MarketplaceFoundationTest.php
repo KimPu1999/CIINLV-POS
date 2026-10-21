@@ -191,6 +191,11 @@ class MarketplaceFoundationTest extends TestCase
             ->assertJsonPath('data.0.store_slug', 'marketplace-f')
             ->assertJsonPath('data.0.category_slug', 'marketplace-f-general');
 
+        $this->getJson('/api/v1/marketplace/products?store=marketplace-f&category=marketplace-f-general')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $listing->uuid);
+
         $this->getJson('/api/v1/marketplace/products/public-filter-product')
             ->assertOk()
             ->assertJsonPath('data.slug', 'public-filter-product')

@@ -18,12 +18,12 @@ class MarketplaceOrderRequestService
         private readonly MarketplaceInventoryReservationService $reservations,
         private readonly MarketplaceFulfillmentService $fulfillment,
         private readonly MarketplaceCommissionService $commissions,
-    ) {
-    }
+    ) {}
 
     public function createCancellation(MarketplaceOrder $order, User $customer, string $reason): MarketplaceCancellationRequest
     {
         $this->assertCustomer($order, $customer);
+
         return DB::transaction(function () use ($order, $customer, $reason): MarketplaceCancellationRequest {
             $lockedOrder = MarketplaceOrder::query()->whereKey($order->id)->lockForUpdate()->with(['vendorOrders.shipments', 'payments'])->firstOrFail();
             if (! in_array($lockedOrder->status, ['confirmed', 'processing'], true) || $lockedOrder->vendorOrders->contains(fn (MarketplaceVendorOrder $vendor): bool => $vendor->shipments->contains(fn ($shipment): bool => in_array($shipment->status, ['shipped', 'in_transit', 'delivered', 'returned'], true)))) {
@@ -46,6 +46,7 @@ class MarketplaceOrderRequestService
     public function createReturn(MarketplaceOrder $order, User $customer, string $reason, array $items): MarketplaceReturnRequest
     {
         $this->assertCustomer($order, $customer);
+
         return DB::transaction(function () use ($order, $customer, $reason, $items): MarketplaceReturnRequest {
             $lockedOrder = MarketplaceOrder::query()->whereKey($order->id)->lockForUpdate()->with(['vendorOrders', 'items'])->firstOrFail();
             if ($lockedOrder->status !== 'delivered' && ! $lockedOrder->vendorOrders->every(fn (MarketplaceVendorOrder $vendor): bool => $vendor->status === 'delivered')) {

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Models\Translation;
 use App\Models\Tenant;
+use App\Models\Translation;
 use App\Services\TenantContext;
 use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
