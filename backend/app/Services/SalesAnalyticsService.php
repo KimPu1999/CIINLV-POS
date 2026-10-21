@@ -8,7 +8,6 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SaleReturnItem;
 use App\Models\Tenant;
-use App\Services\TranslationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -79,13 +78,11 @@ class SalesAnalyticsService
         [$from, $to] = $this->range($tenant, $request->input('from'), $request->input('to'));
         $rows = $this->salesQuery($tenant, $this->scope->storeIds($request->user(), $tenant, $request->input('store_id')), $from, $to)->join('users', 'users.id', '=', 'sales.cashier_user_id')->groupBy('sales.cashier_user_id', 'users.name')->selectRaw('sales.cashier_user_id, users.name, COUNT(sales.id) AS transaction_count, SUM(sales.grand_total) AS gross_sales')->orderByDesc('gross_sales')->get();
 
-        $translations = app(TranslationService::class);
-        $locale = $translations->locale($request);
         return ['basis' => 'completed_at', 'rows' => $rows->map(fn ($row): array => [
-            'product_variant_id' => $row->product_variant_id,
-            'quantity_sold' => $row->quantity_sold,
-            'sales_total' => $row->sales_total,
-            'variant' => $row->variant ? ['sku' => $row->variant->sku, 'product' => $row->variant->product ? ['name' => $translations->localizedValue($row->variant->product, 'name', $locale)] : null] : null,
+            'cashier_user_id' => $row->cashier_user_id,
+            'cashier_name' => $row->name,
+            'transaction_count' => (int) $row->transaction_count,
+            'gross_sales' => $this->money($row->gross_sales),
         ])->values()];
     }
 

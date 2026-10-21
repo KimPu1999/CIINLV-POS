@@ -206,7 +206,10 @@ class PosSaleService
 
     private function calculate(Store $store, array $payload, User $actor): array
     {
-        $store->loadMissing(['setting', 'tenant.businessSetting']);
+        // Refresh settings for every calculation so a request cannot reuse a
+        // stale tenant/store relation after an administrator changes tax or
+        // POS configuration.
+        $store->load(['setting', 'tenant.businessSetting']);
         $posConfiguration = (array) ($store->tenant?->businessSetting?->pos_configuration ?? []);
         $rawQuantities = [];
         foreach ($payload['items'] as $input) {

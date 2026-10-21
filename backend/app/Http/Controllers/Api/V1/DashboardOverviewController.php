@@ -48,6 +48,7 @@ class DashboardOverviewController
         $locale = $translations->locale($request);
         $rows->getCollection()->transform(fn (InventoryBalance $balance): array => [
             'id' => $balance->uuid,
+            'product_variant_id' => $balance->product_variant_id,
             'location' => $balance->location ? ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale)] : null,
             'variant' => $balance->variant ? ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $balance->variant->product ? ['name' => $translations->localizedValue($balance->variant->product, 'name', $locale)] : null] : null,
             'on_hand_quantity' => $balance->on_hand_quantity,

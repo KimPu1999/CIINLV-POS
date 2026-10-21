@@ -53,13 +53,15 @@ class TranslationService
     public function validateLocale(?string $locale): string
     {
         $locale = strtolower(trim((string) ($locale ?: self::DEFAULT_LOCALE)));
-        if (! in_array($locale, self::SUPPORTED_LOCALES, true)) {
+        $baseLocale = preg_split('/[-_]/', $locale, 2)[0] ?: $locale;
+
+        if (! in_array($baseLocale, self::SUPPORTED_LOCALES, true)) {
             throw ValidationException::withMessages([
                 'lang' => ['Supported locales are en and my.'],
             ]);
         }
 
-        return $locale;
+        return $baseLocale;
     }
 
     public function fieldsFor(Model|string $model): array

@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Laravel tests and static checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ciinlv_test
+          POSTGRES_USER: ciinlv
+          POSTGRES_PASSWORD: ciinlv
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ciinlv -d ciinlv_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: testing
+      APP_DEBUG: false
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: ciinlv_test
+      DB_USERNAME: ciinlv
+      DB_PASSWORD: ciinlv
+      DB_SSLMODE: prefer
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, fileinfo, gd, bcmath, pdo_pgsql, zip
+          coverage: none
+      - uses: ramsey/composer-install@v3
+        with:
+          working-directory: backend
+      - run: php -l app/Services/TranslationService.php
+      - run: php artisan migrate --force --no-interaction
+      - run: php artisan test
+      - run: vendor/bin/pint --test
+      - run: composer audit --locked --no-interaction
+
+  frontend:
+    name: POS/Admin frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run audit:i18n
+
+  marketplace-frontend:
+    name: Marketplace frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: marketplace-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: marketplace-frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run lint
