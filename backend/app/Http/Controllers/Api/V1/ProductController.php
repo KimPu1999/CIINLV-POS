@@ -17,7 +17,10 @@ use App\Services\ProductService;
 use App\Services\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class ProductController
 {
@@ -118,17 +121,73 @@ class ProductController
     {
         $this->assertTenant($product, $context);
         Gate::authorize('manage', $product);
-        $files = $request->file('images', []);
-        $primary = $request->integer('primary_index');
-        foreach ($files as $index => $file) {
-            $path = $file->store('tenants/'.$context->tenant()->uuid.'/products/'.$product->uuid, 'public');
-            if ($primary === $index) {
-                ProductImage::where('product_id', $product->id)->update(['is_primary' => false]);
-            } ProductImage::create(['tenant_id' => $product->tenant_id, 'product_id' => $product->id, 'storage_path' => $path, 'sort_order' => $index, 'is_primary' => $primary === $index]);
+        $files = array_values($request->file('images', []));
+        $primaryIndex = $request->has('primary_index') ? (int) $request->input('primary_index') : null;
+        $storedPaths = [];
+
+        try {
+            $savedProduct = DB::transaction(function () use ($files, $primaryIndex, $product, $context, &$storedPaths): Product {
+                $nextSortOrder = ((int) ProductImage::query()
+                    ->where('tenant_id', $product->tenant_id)
+                    ->where('product_id', $product->id)
+                    ->max('sort_order')) + 1;
+
+                if ($primaryIndex !== null) {
+                    ProductImage::query()
+                        ->where('tenant_id', $product->tenant_id)
+                        ->where('product_id', $product->id)
+                        ->update(['is_primary' => false]);
+                }
+
+                foreach ($files as $index => $file) {
+                    $path = $file->store('tenants/'.$context->tenant()->uuid.'/products/'.$product->uuid, 'public');
+
+                    if (! is_string($path) || $path === '') {
+                        throw new \RuntimeException('The product image could not be stored.');
+                    }
+
+                    $storedPaths[] = $path;
+                    ProductImage::create([
+                        'tenant_id' => $product->tenant_id,
+                        'product_id' => $product->id,
+                        'storage_path' => $path,
+                        'sort_order' => $nextSortOrder + $index,
+                        'is_primary' => $primaryIndex === $index,
+                    ]);
+                }
+
+                // A product should always have a deterministic primary image,
+                // while an existing primary remains unchanged on gallery-only uploads.
+                if ($primaryIndex === null && ! ProductImage::query()
+                    ->where('tenant_id', $product->tenant_id)
+                    ->where('product_id', $product->id)
+                    ->where('is_primary', true)
+                    ->exists()) {
+                    ProductImage::query()
+                        ->where('tenant_id', $product->tenant_id)
+                        ->where('product_id', $product->id)
+                        ->orderBy('sort_order')
+                        ->first()?->update(['is_primary' => true]);
+                }
+
+                return $product->refresh()->load('images');
+            });
+        } catch (Throwable $exception) {
+            foreach ($storedPaths as $storedPath) {
+                Storage::disk('public')->delete($storedPath);
+            }
+
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Product images could not be saved. Please try again.',
+            ], 500);
         }
+
         $auditLogger->record('inventory.product_images_uploaded', $request->user(), $context->tenant(), $product, ['count' => count($files)]);
 
-        return response()->json(['success' => true, 'data' => new ProductResource($product->refresh()->load('images'))]);
+        return response()->json(['success' => true, 'data' => new ProductResource($savedProduct)]);
     }
 
     private function assertTenant(Product $product, TenantContext $context): void

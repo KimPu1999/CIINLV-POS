@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Support\PublicMediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class MarketplaceCartItemResource extends JsonResource
 {
@@ -25,7 +25,7 @@ class MarketplaceCartItemResource extends JsonResource
             'sku' => $variant?->sku,
             'unit_price' => $variant?->selling_price,
             'currency' => $this->cart?->currency_code ?: 'MMK',
-            'image_url' => ($image = $listing?->product?->images?->first()) ? Storage::disk('public')->url($image->storage_path) : null,
+            'image_url' => ($image = $listing?->product?->images?->first()) ? PublicMediaUrl::make($image->storage_path) : null,
             'store_id' => $listing?->store?->uuid,
             'store_name' => $listing?->store?->name,
             'store_slug' => $listing?->store?->slug,

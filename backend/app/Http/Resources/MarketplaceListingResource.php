@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Support\PublicMediaUrl;
 use App\Services\TranslationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class MarketplaceListingResource extends JsonResource
 {
@@ -23,13 +23,13 @@ class MarketplaceListingResource extends JsonResource
             : 0);
         $imageUrls = $images->map(fn ($image): array => [
             'id' => $image->uuid,
-            'url' => Storage::disk('public')->url($image->storage_path),
+            'url' => PublicMediaUrl::make($image->storage_path),
             'sort_order' => $image->sort_order,
             'is_primary' => (bool) $image->is_primary,
         ])->values()->all();
         $listingImageUrls = $listingImages->map(fn ($image): array => [
             'id' => (string) $image->id,
-            'url' => Storage::disk('public')->url($image->image_path),
+            'url' => PublicMediaUrl::make($image->image_path),
             'sort_order' => $image->sort_order,
         ])->values()->all();
         $allImages = [...$listingImageUrls, ...$imageUrls];

@@ -691,13 +691,17 @@ function ProductCard({ listing, saved, locale, t, addToCart, toggleWishlist }: {
 }
 
 function ProductVisual({ listing, compact = false }: { listing: MarketplaceListing; compact?: boolean }) {
-  return <div className={'relative overflow-hidden bg-gradient-to-br from-blue-100 via-sky-50 to-white dark:from-blue-950/60 dark:via-slate-900 dark:to-slate-900 ' + (compact ? 'aspect-square' : 'min-h-[360px] rounded-[2rem]')}><div className="absolute -right-10 -top-10 size-40 rounded-full bg-white/70 blur-2xl dark:bg-blue-400/10" />{listing.imageUrl ? <img src={listing.imageUrl} alt="" className="relative size-full min-h-full object-cover" /> : <div className="relative grid h-full min-h-[inherit] place-items-center text-blue-300 dark:text-blue-700"><Package size={compact ? 48 : 86} strokeWidth={1.3} /></div>}</div>
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [listing.imageUrl])
+  const image = listing.imageUrl && !failed ? listing.imageUrl : null
+  return <div className={'relative overflow-hidden bg-gradient-to-br from-blue-100 via-sky-50 to-white dark:from-blue-950/60 dark:via-slate-900 dark:to-slate-900 ' + (compact ? 'aspect-square' : 'min-h-[360px] rounded-[2rem]')}><div className="absolute -right-10 -top-10 size-40 rounded-full bg-white/70 blur-2xl dark:bg-blue-400/10" />{image ? <img src={image} alt="" className="relative size-full min-h-full object-cover" onError={() => setFailed(true)} /> : <div className="relative grid h-full min-h-[inherit] place-items-center text-blue-300 dark:text-blue-700"><Package size={compact ? 48 : 86} strokeWidth={1.3} /></div>}</div>
 }
 
 function ProductGallery({ listing, t }: { listing: MarketplaceListing; t: (key: TranslationKey) => string }) {
   const [selected, setSelected] = useState(listing.imageUrl ?? '')
+  const [failed, setFailed] = useState(false)
   const images = listing.images.length > 0 ? listing.images : listing.imageUrl ? [{ id: 'primary', url: listing.imageUrl }] : []
-  return <div aria-label={t('imageGallery')}><div className="overflow-hidden rounded-[2rem] border border-slate-200 dark:border-slate-800">{selected ? <img src={selected} alt={listing.name} className="aspect-square w-full object-cover" /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400 dark:bg-slate-900"><Package size={86} strokeWidth={1.3} /></div>}</div>{images.length > 1 && <div className="mt-4 flex gap-3 overflow-x-auto pb-1">{images.map((image) => <button type="button" key={image.id} onClick={() => setSelected(image.url)} className={'size-20 shrink-0 overflow-hidden rounded-xl border-2 transition ' + (selected === image.url ? 'border-blue-600' : 'border-transparent')}><img src={image.url} alt="" className="size-full object-cover" /></button>)}</div>}</div>
+  return <div aria-label={t('imageGallery')}><div className="overflow-hidden rounded-[2rem] border border-slate-200 dark:border-slate-800">{selected && !failed ? <img src={selected} alt={listing.name} className="aspect-square w-full object-cover" onError={() => setFailed(true)} /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400 dark:bg-slate-900"><Package size={86} strokeWidth={1.3} /></div>}</div>{images.length > 1 && <div className="mt-4 flex gap-3 overflow-x-auto pb-1">{images.map((image) => <button type="button" key={image.id} onClick={() => { setSelected(image.url); setFailed(false) }} className={'size-20 shrink-0 overflow-hidden rounded-xl border-2 transition ' + (selected === image.url ? 'border-blue-600' : 'border-transparent')}><img src={image.url} alt="" className="size-full object-cover" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} /></button>)}</div>}</div>
 }
 
 function ProductThumb({ listing }: { listing: MarketplaceListing }) {

@@ -53,6 +53,11 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData && config.headers) {
+    if (typeof config.headers.delete === 'function') config.headers.delete('Content-Type')
+    else delete (config.headers as Record<string, string>)['Content-Type']
+  }
+
   const tenantId = window.localStorage.getItem('ciinlv_tenant_id')
   if (tenantId) config.headers.set('X-Tenant-Id', tenantId)
   const language = window.localStorage.getItem('ciinlv_language') === 'my' ? 'my' : 'en'
