@@ -8,9 +8,11 @@ import {
   Heart,
   LoaderCircle,
   LogIn,
+  Mail,
   MapPin,
   Minus,
   Package,
+  Phone,
   Plus,
   Search,
   ShieldCheck,
@@ -49,6 +51,7 @@ import {
   fetchProduct,
   fetchProducts,
   fetchStore,
+  fetchStores,
   formatPrice,
   getStoredLocale,
   getStoredTheme,
@@ -80,6 +83,7 @@ import {
   type MarketplaceOrder,
   type PaginationMeta,
   type ProductPage,
+  type StorePage,
   type Theme,
   type TranslationKey,
 } from './lib/marketplace'
@@ -589,32 +593,131 @@ function CategoryDetailPage({ locale, catalog, t, wishlist, addToCart, toggleWis
   </PageContainer>
 }
 
-function StoresPage({ catalog, t }: AppServices) {
-  return <PageContainer><PageIntro eyebrow={t('stores')} title={t('exploreStores')} body={t('discoverBody')} /><div className="mt-10"><StoreGrid stores={catalog.data.stores} t={t} large /></div></PageContainer>
+function StoresPage({ locale, t }: AppServices) {
+  const [params, setParams] = useSearchParams()
+  const search = params.get('search') ?? ''
+  const page = Number(params.get('page') ?? 1)
+  const [result, setResult] = useState<StorePage>({ status: 'loading', stores: [], meta: emptyMeta() })
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setResult((current) => ({ ...current, status: 'loading' }))
+    void fetchStores(locale, { search, page, perPage: 24 }, controller.signal).then(setResult)
+    return () => controller.abort()
+  }, [locale, page, search])
+
+  const applySearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const next = new URLSearchParams(params)
+    const value = String(new FormData(event.currentTarget).get('search') ?? '').trim()
+    if (value) next.set('search', value)
+    else next.delete('search')
+    next.delete('page')
+    setParams(next)
+  }
+  const setPage = (nextPage: number) => {
+    const next = new URLSearchParams(params)
+    if (nextPage <= 1) next.delete('page')
+    else next.set('page', String(nextPage))
+    setParams(next)
+  }
+
+  return <PageContainer>
+    <nav aria-label={t('primaryNavigation')} className="mb-7 flex items-center gap-2 text-sm font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{t('home')}</Link><ChevronRight size={15} /><span className="text-slate-700 dark:text-slate-200">{t('stores')}</span></nav>
+    <section className="relative overflow-hidden rounded-[2rem] bg-[#0F172A] px-6 py-10 text-white shadow-xl shadow-slate-300/20 sm:px-10 sm:py-14"><div className="absolute -right-20 -top-24 size-72 rounded-full bg-[#1D4ED8]/35 blur-3xl" /><div className="absolute -bottom-28 left-1/3 size-72 rounded-full bg-[#F59E0B]/15 blur-3xl" /><div className="relative max-w-2xl"><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-200">{t('stores')}</p><h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{t('exploreStores')}</h1><p className="mt-5 max-w-xl leading-8 text-slate-300">{t('discoverBody')}</p><div className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-blue-100"><Store size={17} /> {result.status === 'ready' ? `${result.meta.total} ${t('stores')}` : t('loading')}</div></div></section>
+    <form key={search} onSubmit={applySearch} role="search" className="relative z-10 mx-auto -mt-6 flex max-w-3xl items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-300/25 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"><Search size={19} className="ml-3 shrink-0 text-[#1D4ED8]" /><input name="search" defaultValue={search} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" /><button type="submit" className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#1D4ED8] px-5 text-sm font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <ArrowRight size={16} /></button></form>
+    <div className="mt-14">{result.status === 'loading' ? <StoreSkeletonGrid /> : result.status === 'error' ? <ErrorState message={result.message ?? t('apiUnavailable')} t={t} /> : result.stores.length > 0 ? <><StoreGrid stores={result.stores} t={t} large /><Pagination meta={result.meta} t={t} onPage={setPage} /></> : <EmptyState icon={<Store size={28} />} title={t('noStores')} body={t('noStoresBody')} />}</div>
+  </PageContainer>
 }
 
 function StorePage({ catalog, locale, t, addToCart, wishlist, toggleWishlist }: AppServices) {
   const { slug = '' } = useParams()
-  const fallback = catalog.data.stores.find((item) => item.slug === slug)
+  const [params, setParams] = useSearchParams()
+  const fallback = catalog.data.stores.find((item) => item.slug === slug || item.id === slug)
   const [store, setStore] = useState<MarketplaceStore | null>(fallback ?? null)
   const [loading, setLoading] = useState(!fallback)
   const [error, setError] = useState('')
-  const [storeSearch, setStoreSearch] = useState('')
-  const [storeCategory, setStoreCategory] = useState('')
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const search = params.get('search') ?? ''
+  const category = params.get('category') ?? ''
+  const minPrice = params.get('min_price') ?? ''
+  const maxPrice = params.get('max_price') ?? ''
+  const sort = (params.get('sort') as 'newest' | 'oldest' | 'price-low' | 'price-high' | 'name' | null) ?? 'newest'
+  const page = Number(params.get('page') ?? 1)
+  const storeKey = store?.slug ?? slug
+  const [result, setResult] = useState<ProductPage>({ status: 'loading', listings: [], meta: emptyMeta() })
+
   useEffect(() => {
     const controller = new AbortController()
+    setLoading(!fallback)
+    setError('')
     void fetchStore(slug, locale, controller.signal).then(setStore).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(apiErrorMessage(reason)) }).finally(() => setLoading(false))
     return () => controller.abort()
   }, [locale, slug])
+
+  useEffect(() => {
+    if (!storeKey) return
+    const controller = new AbortController()
+    setResult((current) => ({ ...current, status: 'loading' }))
+    void fetchProducts(locale, { search, category, store: storeKey, minPrice, maxPrice, sort, page, perPage: 24 }, controller.signal).then(setResult)
+    return () => controller.abort()
+  }, [category, locale, maxPrice, minPrice, page, search, sort, storeKey])
+
+  const updateParam = (key: string, value: string) => {
+    const next = new URLSearchParams(params)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    next.delete('page')
+    setParams(next)
+  }
+  const applySearch = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); updateParam('search', String(new FormData(event.currentTarget).get('search') ?? '').trim()) }
+  const applyFilters = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const next = new URLSearchParams(params)
+    const nextMinPrice = String(formData.get('min_price') ?? '').trim()
+    const nextMaxPrice = String(formData.get('max_price') ?? '').trim()
+    if (nextMinPrice) next.set('min_price', nextMinPrice)
+    else next.delete('min_price')
+    if (nextMaxPrice) next.set('max_price', nextMaxPrice)
+    else next.delete('max_price')
+    next.delete('page')
+    setParams(next)
+    setMobileFiltersOpen(false)
+  }
+  const clearFilters = () => setParams({})
+  const setPage = (nextPage: number) => {
+    const next = new URLSearchParams(params)
+    if (nextPage <= 1) next.delete('page')
+    else next.set('page', String(nextPage))
+    setParams(next)
+  }
+  const categoryOptions = Array.from(new Map((store?.listings ?? []).filter((item) => item.categoryName).map((item) => [item.categorySlug ?? item.categoryId ?? item.categoryName!, { value: item.categorySlug ?? item.categoryId ?? item.categoryName!, label: item.categoryName! }])).values())
+  const activeFilters = [
+    search ? { key: 'search', label: t('searchPlaceholder'), value: search } : null,
+    category ? { key: 'category', label: t('categoryFilter'), value: category } : null,
+    minPrice ? { key: 'min_price', label: t('minPrice'), value: minPrice } : null,
+    maxPrice ? { key: 'max_price', label: t('maxPrice'), value: maxPrice } : null,
+  ].filter((item): item is { key: string; label: string; value: string } => Boolean(item))
+  const verified = store?.approvalStatus === 'approved' && store.isActive !== false
+
   if (loading && !store) return <PageContainer><LoadingState t={t} /></PageContainer>
-  if (!store || error) return <PageContainer>{error ? <ErrorState message={error} t={t} /> : <CatalogEmpty status="ready" t={t} />}</PageContainer>
-  const listings = store.listings ?? catalog.data.listings.filter((item) => item.storeSlug === slug || item.storeId === store.id)
-  const storeCategories = Array.from(new Set(listings.map((item) => item.categoryName).filter((item): item is string => Boolean(item))))
-  const visibleListings = listings.filter((item) => {
-    const matchesSearch = !storeSearch || [item.name, item.description, item.brand].filter(Boolean).join(' ').toLowerCase().includes(storeSearch.toLowerCase())
-    return matchesSearch && (!storeCategory || item.categoryName === storeCategory)
-  })
-  return <PageContainer><div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-gradient-to-br from-blue-700 to-slate-950 p-8 text-white shadow-xl sm:p-12">{store.bannerUrl && <img src={store.bannerUrl} alt="" className="absolute inset-0 size-full object-cover opacity-25" />}<div className="relative"><StoreMark name={store.name} /><h1 className="mt-8 text-4xl font-black tracking-tight">{store.name}</h1><p className="mt-4 max-w-2xl leading-8 text-blue-100">{store.description || t('discoverBody')}</p></div></div><div className="mt-12"><SectionHeading eyebrow={t('storeDetails')} title={t('productsFromStore')} /><div className="mb-6 flex flex-col gap-3 sm:flex-row"><label className="relative block min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} /><input value={storeSearch} onChange={(event) => setStoreSearch(event.target.value)} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-blue-500 dark:border-slate-800 dark:bg-slate-900" /></label>{storeCategories.length > 0 && <select value={storeCategory} onChange={(event) => setStoreCategory(event.target.value)} aria-label={t('categoryFilter')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold outline-none focus:border-blue-500 dark:border-slate-800 dark:bg-slate-900"><option value="">{t('categories')}</option>{storeCategories.map((item) => <option key={item}>{item}</option>)}</select>}</div><div className="mt-6">{visibleListings.length > 0 ? <ProductGrid listings={visibleListings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <EmptyState icon={<Store size={28} />} title={t('noStoreListings')} body={t('noListingsBody')} />}</div></div></PageContainer>
+  if (!store) return <PageContainer><ErrorState message={error || t('apiUnavailable')} t={t} /></PageContainer>
+
+  return <PageContainer>
+    <nav aria-label={t('primaryNavigation')} className="mb-7 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{t('home')}</Link><ChevronRight size={15} /><Link to="/stores" className="transition hover:text-blue-600">{t('stores')}</Link><ChevronRight size={15} /><span className="text-slate-700 dark:text-slate-200">{store.name}</span></nav>
+    <section className="relative overflow-hidden rounded-[2rem] bg-[#0F172A] text-white shadow-xl shadow-slate-300/20 dark:shadow-black/20"><div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/90 to-[#1D4ED8]/65" />{store.bannerUrl && <img src={store.bannerUrl} alt="" className="absolute inset-0 size-full object-cover opacity-30" />}<div className="relative grid gap-8 px-6 py-8 sm:px-10 sm:py-12 lg:grid-cols-[1fr_auto] lg:items-end"><div className="flex flex-col gap-6 sm:flex-row sm:items-end"><div className="grid size-24 shrink-0 place-items-center rounded-[1.5rem] border-4 border-white/80 bg-white shadow-xl">{store.logoUrl ? <img src={store.logoUrl} alt={`${store.name} logo`} className="size-full rounded-[1.15rem] object-cover" /> : <StoreMark name={store.name} />}</div><div><div className="flex flex-wrap items-center gap-2">{verified && <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-black text-emerald-200"><ShieldCheck size={14} /> {t('verifiedBusinesses')}</span>}{store.businessCategory && <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-blue-100">{store.businessCategory}</span>}</div><h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">{store.name}</h1>{store.businessName && store.businessName !== store.name && <p className="mt-2 text-sm font-semibold text-blue-200">{store.businessName}</p>}<p className="mt-4 max-w-2xl leading-8 text-slate-300">{store.description || t('discoverBody')}</p></div></div><div className="flex flex-wrap gap-3 text-sm font-bold text-blue-100"><span className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">{result.status === 'ready' ? `${result.meta.total} ${t('products')}` : t('loading')}</span></div></div></section>
+    <nav aria-label={t('storeDetails')} className="mt-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4 dark:border-slate-800"><a href="#products" className="rounded-xl bg-blue-50 px-4 py-2 text-sm font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">{t('productsFromStore')}</a><a href="#about" className="rounded-xl px-4 py-2 text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-blue-600 dark:text-slate-300 dark:hover:bg-slate-900">{t('storeDetails')}</a></nav>
+    <div id="products" className="mt-8 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-col gap-3 lg:flex-row"><form key={search} onSubmit={applySearch} role="search" className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl bg-[#F8FAFC] px-4 dark:bg-slate-950"><Search size={19} className="shrink-0 text-[#1D4ED8]" /><input name="search" defaultValue={search} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-12 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" /><button type="submit" className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#1D4ED8] px-4 text-xs font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <ArrowRight size={15} /></button></form><div className="flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => setMobileFiltersOpen(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:text-slate-200 lg:hidden"><SlidersHorizontal size={17} /> {t('filters')}</button><label className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900"><span>{t('sortBy')}</span><select value={sort} onChange={(event) => updateParam('sort', event.target.value === 'newest' ? '' : event.target.value)} className="bg-transparent font-black text-slate-800 outline-none dark:text-white"><option value="newest">{t('newest')}</option><option value="oldest">{t('oldest')}</option><option value="price-low">{t('priceLow')}</option><option value="price-high">{t('priceHigh')}</option><option value="name">{t('nameAZ')}</option></select></label></div></div></div>
+    {activeFilters.length > 0 && <div className="mt-5 flex flex-wrap items-center gap-2"><span className="mr-1 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('filters')}</span>{activeFilters.map((filter) => <button type="button" key={filter.key} onClick={() => updateParam(filter.key, '')} className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:border-blue-300 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200"><span>{filter.label}: {filter.value}</span><X size={13} /></button>)}<button type="button" onClick={clearFilters} className="ml-1 text-xs font-black text-slate-500 underline-offset-4 hover:text-blue-600 hover:underline">{t('clear')}</button></div>}
+    <div className="mt-8 grid gap-8 lg:grid-cols-[270px_minmax(0,1fr)]"><aside className="hidden h-fit lg:sticky lg:top-28 lg:block lg:self-start"><div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><StoreProductFilterPanel key={`${category}-${minPrice}-${maxPrice}`} categories={categoryOptions} category={category} minPrice={minPrice} maxPrice={maxPrice} t={t} onCategoryChange={(value) => updateParam('category', value)} onApply={applyFilters} onClear={clearFilters} /></div></aside><div className="min-w-0">{result.status === 'loading' ? <ProductSkeletonGrid /> : result.status === 'error' ? <ErrorState message={result.message ?? t('apiUnavailable')} t={t} /> : result.listings.length > 0 ? <><ProductGrid listings={result.listings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /><Pagination meta={result.meta} t={t} onPage={setPage} /></> : <EmptyState icon={<Store size={28} />} title={t('noStoreListings')} body={t('noListingsBody')} />}</div></div>
+    {mobileFiltersOpen && <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t('filters')}><button type="button" onClick={() => setMobileFiltersOpen(false)} className="absolute inset-0 size-full bg-slate-950/50" aria-label={t('close')} /><aside className="absolute right-0 top-0 h-full w-[min(90vw,380px)] overflow-y-auto bg-white p-5 shadow-2xl dark:bg-slate-900"><div className="mb-6 flex items-center justify-between"><h2 className="text-lg font-black">{t('filters')}</h2><button type="button" onClick={() => setMobileFiltersOpen(false)} className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-500 dark:border-slate-700" aria-label={t('close')}><X size={18} /></button></div><StoreProductFilterPanel key={`${category}-${minPrice}-${maxPrice}-mobile`} categories={categoryOptions} category={category} minPrice={minPrice} maxPrice={maxPrice} t={t} onCategoryChange={(value) => updateParam('category', value)} onApply={applyFilters} onClear={clearFilters} /></aside></div>}
+    <section id="about" className="mt-12 grid gap-6 lg:grid-cols-[1fr_360px]"><div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">{t('storeDetails')}</p><h2 className="mt-3 text-2xl font-black text-[#0F172A] dark:text-white">{store.name}</h2><p className="mt-4 max-w-2xl leading-8 text-slate-500 dark:text-slate-400">{store.description || t('discoverBody')}</p>{store.businessCategory && <p className="mt-5 text-sm font-bold text-slate-600 dark:text-slate-300">{t('categoryFilter')}: {store.businessCategory}</p>}</div>{(store.publicContactEmail || store.publicContactPhone) && <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><h2 className="text-lg font-black">{t('storeDetails')}</h2><div className="mt-5 grid gap-3">{store.publicContactEmail && <a href={`mailto:${store.publicContactEmail}`} className="inline-flex items-center gap-3 rounded-xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-200"><Mail size={17} />{store.publicContactEmail}</a>}{store.publicContactPhone && <a href={`tel:${store.publicContactPhone}`} className="inline-flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:bg-slate-950 dark:text-slate-200"><Phone size={17} />{store.publicContactPhone}</a>}</div></div>}</section>
+  </PageContainer>
+}
+
+function StoreProductFilterPanel({ categories, category, minPrice, maxPrice, t, onCategoryChange, onApply, onClear }: { categories: Array<{ value: string; label: string }>; category: string; minPrice: string; maxPrice: string; t: (key: TranslationKey) => string; onCategoryChange: (value: string) => void; onApply: (event: FormEvent<HTMLFormElement>) => void; onClear: () => void }) {
+  return <><div className="flex items-center justify-between"><div><h2 className="text-sm font-black">{t('filters')}</h2><p className="mt-1 text-xs font-semibold text-slate-400">{t('securedByServer')}</p></div><button type="button" onClick={onClear} className="text-xs font-black text-blue-600">{t('clear')}</button></div><form onSubmit={onApply} className="mt-6 grid gap-5">{categories.length > 0 && <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('categoryFilter')}</span><select value={category} onChange={(event) => onCategoryChange(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('categories')}</option>{categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>}<div className="grid grid-cols-2 gap-2"><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('minPrice')}</span><input name="min_price" type="number" min="0" inputMode="decimal" defaultValue={minPrice} className="h-11 min-w-0 rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label><label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('maxPrice')}</span><input name="max_price" type="number" min="0" inputMode="decimal" defaultValue={maxPrice} className="h-11 min-w-0 rounded-xl border border-slate-200 bg-[#F8FAFC] px-3 outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label></div><div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20"><div className="flex items-center gap-2 text-xs font-black text-emerald-700 dark:text-emerald-300"><ShieldCheck size={16} /> {t('availability')}</div><p className="mt-2 text-xs font-semibold leading-5 text-emerald-800/80 dark:text-emerald-200/80">{t('securedByServer')}</p></div><button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] text-sm font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <Search size={16} /></button></form></>
 }
 
 function WishlistPage({ catalog, locale, t, wishlist, toggleWishlist, addToCart }: AppServices) {
@@ -888,7 +991,12 @@ function CategoryGrid({ categories, t, large = false }: { categories: Marketplac
 
 function StoreGrid({ stores, t, large = false }: { stores: MarketplaceStore[]; t: (key: TranslationKey) => string; large?: boolean }) {
   if (stores.length === 0) return <EmptyState icon={<Store size={28} />} title={t('noStores')} body={t('noStoresBody')} />
-  return <div className={'grid gap-4 ' + (large ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4')}>{stores.map((store) => <Link key={store.id} to={`/stores/${store.slug ?? store.id}`} className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center gap-3">{store.logoUrl ? <img src={store.logoUrl} alt="" className="size-10 rounded-xl object-cover" /> : <StoreMark name={store.name} />}<div className="min-w-0"><h3 className="truncate font-black text-slate-950 dark:text-white">{store.name}</h3><p className="mt-1 text-xs font-semibold text-slate-400">{store.productCount ?? 0} {t('products')}</p></div></div><p className="mt-5 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{store.description || t('discoverBody')}</p><span className="mt-5 inline-flex items-center gap-1 text-sm font-black text-blue-600">{t('viewStore')} <ChevronRight size={15} /></span></Link>)}</div>
+  return <div className={'grid gap-5 ' + (large ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4')}>{stores.map((store) => <StoreCard key={store.id} store={store} t={t} />)}</div>
+}
+
+function StoreCard({ store, t }: { store: MarketplaceStore; t: (key: TranslationKey) => string }) {
+  const verified = store.approvalStatus === 'approved' && store.isActive !== false
+  return <Link to={`/stores/${store.slug ?? store.id}`} className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-950/5 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-black/20"><div className="relative aspect-[16/8] overflow-hidden bg-gradient-to-br from-[#1D4ED8] to-[#0F172A]">{store.bannerUrl ? <img src={store.bannerUrl} alt="" loading="lazy" className="size-full object-cover opacity-80 transition duration-500 group-hover:scale-105" /> : <div className="grid size-full place-items-center text-white/80"><Store size={48} strokeWidth={1.1} /></div>}<div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/80 via-transparent to-transparent" /><div className="absolute bottom-4 left-5 grid size-14 place-items-center rounded-2xl border-4 border-white bg-white shadow-lg dark:border-slate-900"><span className="grid size-full place-items-center overflow-hidden rounded-xl bg-blue-50 dark:bg-blue-950/40">{store.logoUrl ? <img src={store.logoUrl} alt={`${store.name} logo`} loading="lazy" className="size-full object-cover" /> : <StoreMark name={store.name} />}</span></div></div><div className="p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="truncate text-lg font-black text-slate-950 dark:text-white">{store.name}</h2>{store.businessName && store.businessName !== store.name && <p className="mt-1 truncate text-xs font-semibold text-slate-400">{store.businessName}</p>}</div>{verified && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"><ShieldCheck size={12} /> {t('verifiedBusinesses')}</span>}</div>{store.businessCategory && <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#1D4ED8]">{store.businessCategory}</p>}<p className="mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-slate-500 dark:text-slate-400">{store.description || t('discoverBody')}</p><div className="mt-5 flex items-center justify-between gap-3"><span className="text-xs font-bold text-slate-400">{store.productCount == null ? '—' : `${store.productCount} ${t('products')}`}</span><span className="inline-flex items-center gap-1 text-sm font-black text-[#1D4ED8]">{t('viewStore')} <ChevronRight size={15} /></span></div></div></Link>
 }
 
 function CatalogEmpty({ status, t }: { status: CatalogResult['status']; t: (key: TranslationKey) => string }) {
@@ -915,6 +1023,10 @@ function ProductSkeletonGrid() {
 
 function CategorySkeletonGrid() {
   return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }, (_, index) => <div key={index} className="animate-pulse rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><div className="size-16 rounded-2xl bg-slate-200 dark:bg-slate-800" /><div className="mt-5 h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-800" /><div className="mt-2 h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-800" /></div>)}</div>
+}
+
+function StoreSkeletonGrid() {
+  return <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }, (_, index) => <div key={index} className="animate-pulse overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><div className="aspect-[16/8] bg-slate-200 dark:bg-slate-800" /><div className="grid gap-3 p-5"><div className="h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-800" /><div className="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-800" /><div className="h-4 w-full rounded bg-slate-200 dark:bg-slate-800" /></div></div>)}</div>
 }
 
 function ErrorState({ message, t }: { message: string; t: (key: TranslationKey) => string }) {

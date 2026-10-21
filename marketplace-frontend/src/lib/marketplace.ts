@@ -45,9 +45,16 @@ export interface MarketplaceStore {
   name: string
   slug?: string | null
   description?: string | null
+  businessCategory?: string | null
+  publicContactEmail?: string | null
+  publicContactPhone?: string | null
   logoUrl?: string | null
   bannerUrl?: string | null
   businessName?: string | null
+  approvalStatus?: string | null
+  isActive?: boolean
+  businessStatus?: string | null
+  createdAt?: string | null
   productCount?: number | null
   listings?: MarketplaceListing[]
 }
@@ -97,6 +104,13 @@ export type CatalogStatus = 'ready' | 'loading' | 'not-configured' | 'error'
 export interface CatalogResult {
   status: CatalogStatus
   data: MarketplaceCatalog
+  message?: string
+}
+
+export interface StorePage {
+  status: CatalogStatus
+  stores: MarketplaceStore[]
+  meta: PaginationMeta
   message?: string
 }
 
@@ -375,7 +389,7 @@ function normalizeListing(value: unknown): MarketplaceListing {
 function normalizeStore(value: unknown): MarketplaceStore {
   const item = asRecord(value) ?? {}
   const listings = Array.isArray(item.listings) ? item.listings.map(normalizeListing).filter((listing) => listing.id) : undefined
-  return { id: String(item.id ?? item.uuid ?? ''), name: String(item.name ?? item.business_name ?? 'Store'), slug: typeof item.slug === 'string' ? item.slug : null, description: typeof item.description === 'string' ? item.description : null, logoUrl: typeof item.logo_url === 'string' ? item.logo_url : null, bannerUrl: typeof item.banner_url === 'string' ? item.banner_url : null, businessName: typeof item.business_name === 'string' ? item.business_name : null, productCount: item.product_count == null ? null : Number(item.product_count), listings }
+  return { id: String(item.id ?? item.uuid ?? ''), name: String(item.name ?? item.business_name ?? 'Store'), slug: typeof item.slug === 'string' ? item.slug : null, description: typeof item.description === 'string' ? item.description : null, businessCategory: typeof item.business_category === 'string' ? item.business_category : null, publicContactEmail: typeof item.public_contact_email === 'string' ? item.public_contact_email : null, publicContactPhone: typeof item.public_contact_phone === 'string' ? item.public_contact_phone : null, logoUrl: typeof item.logo_url === 'string' ? item.logo_url : null, bannerUrl: typeof item.banner_url === 'string' ? item.banner_url : null, businessName: typeof item.business_name === 'string' ? item.business_name : null, approvalStatus: typeof item.approval_status === 'string' ? item.approval_status : null, isActive: item.is_active == null ? undefined : Boolean(item.is_active), businessStatus: typeof item.business_status === 'string' ? item.business_status : null, createdAt: typeof item.created_at === 'string' ? item.created_at : null, productCount: item.product_count == null ? null : Number(item.product_count), listings }
 }
 
 function normalizeCategory(value: unknown): MarketplaceCategory {
@@ -406,6 +420,16 @@ export async function fetchProducts(locale: Locale, query: ProductQuery = {}, si
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     return { status: 'error', listings: [], meta: { total: 0, perPage: query.perPage ?? 24, currentPage: query.page ?? 1, lastPage: 1 }, message: error instanceof Error ? error.message : 'Unable to load products.' }
+  }
+}
+
+export async function fetchStores(locale: Locale, query: { search?: string; page?: number; perPage?: number } = {}, signal?: AbortSignal): Promise<StorePage> {
+  try {
+    const result = await collection('/stores', locale, { search: query.search, page: query.page, per_page: query.perPage ?? 24 }, signal)
+    return { status: 'ready', stores: result.values.map(normalizeStore).filter((store) => store.id), meta: result.meta }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    return { status: 'error', stores: [], meta: { total: 0, perPage: query.perPage ?? 24, currentPage: query.page ?? 1, lastPage: 1 }, message: error instanceof Error ? error.message : 'Unable to load marketplace stores.' }
   }
 }
 
