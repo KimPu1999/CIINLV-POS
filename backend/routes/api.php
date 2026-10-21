@@ -153,8 +153,12 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::prefix('admin/marketplace')->middleware('platform.admin')->group(function (): void {
+            Route::get('/dashboard', [MarketplaceAdminController::class, 'dashboard']);
             Route::get('/stores', [MarketplaceAdminController::class, 'stores']);
             Route::patch('/stores/{store}/approval', [MarketplaceAdminController::class, 'approval']);
+            Route::patch('/stores/{store}/status', [MarketplaceAdminController::class, 'storeStatus']);
+            Route::get('/listings', [MarketplaceAdminController::class, 'listings']);
+            Route::patch('/listings/{listing}/moderation', [MarketplaceAdminController::class, 'moderateListing']);
             Route::get('/orders', [MarketplaceAdminController::class, 'orders']);
             Route::get('/shipments', [MarketplaceAdminController::class, 'shipments']);
             Route::get('/cancellation-requests', [MarketplaceAdminController::class, 'cancellationRequests']);
@@ -163,6 +167,9 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/return-requests/{return}/decision', [MarketplaceAdminController::class, 'decideReturn']);
             Route::get('/refund-requests', [MarketplaceAdminController::class, 'refundRequests']);
             Route::post('/orders/{order}/cod/collect', [MarketplaceAdminController::class, 'collectCod']);
+            Route::get('/reports', [MarketplaceAdminController::class, 'reports']);
+            Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
+            Route::get('/settings', [MarketplaceAdminController::class, 'settings']);
         });
 
         Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {

@@ -11,9 +11,10 @@ type SidebarNavItemProps = {
   icon: SidebarIcon
   collapsed: boolean
   onNavigate: () => void
+  end?: boolean
 }
 
-export function SidebarNavItem({ label, path, icon: Icon, collapsed, onNavigate }: SidebarNavItemProps) {
+export function SidebarNavItem({ label, path, icon: Icon, collapsed, onNavigate, end = false }: SidebarNavItemProps) {
   const { t } = useTranslation()
   const translatedLabel = translateStatic(t, label)
   const anchorRef = useRef<HTMLAnchorElement>(null)
@@ -81,6 +82,7 @@ export function SidebarNavItem({ label, path, icon: Icon, collapsed, onNavigate 
       <NavLink
         ref={anchorRef}
         to={path}
+        end={end}
         onClick={() => {
           hideTooltip()
           onNavigate()

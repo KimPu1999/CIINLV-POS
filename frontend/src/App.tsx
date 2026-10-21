@@ -56,7 +56,7 @@ const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor
 const MarketplaceSettingsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceSettingsPage: Page }) => ({ default: Page })))
 
 type Icon = React.ComponentType<{ size?: number; className?: string }>
-type NavItem = { label: string; path: string; icon: Icon; roles?: ('super_admin' | 'business')[]; section?: string }
+type NavItem = { label: string; path: string; icon: Icon; roles?: ('super_admin' | 'business')[]; section?: string; end?: boolean }
 const BRAND_LOGO_SRC = '/ciinlv-logo.png'
 
 function BrandLogo({ showName = true, className = '', imageClassName = 'h-10 w-10', nameClassName = 'text-lg font-bold' }: { showName?: boolean; className?: string; imageClassName?: string; nameClassName?: string }) {
@@ -71,7 +71,17 @@ const platformNav: NavItem[] = [
   { label: 'Businesses', path: '/platform/businesses', icon: Building2, roles: ['super_admin'] },
   { label: 'Business registration', path: '/platform/businesses/new', icon: ClipboardList, roles: ['super_admin'] },
   { label: 'Audit & security', path: '/platform/audit', icon: Activity, roles: ['super_admin'] },
-  { label: 'Marketplace operations', path: '/platform/marketplace', icon: ShoppingCart, roles: ['super_admin'] },
+  { label: 'Marketplace control center', path: '/platform/marketplace', icon: ShoppingCart, roles: ['super_admin'], section: 'Marketplace management', end: true },
+  { label: 'Vendor management', path: '/platform/marketplace/vendors', icon: Store, roles: ['super_admin'] },
+  { label: 'Product moderation', path: '/platform/marketplace/listings', icon: Package, roles: ['super_admin'] },
+  { label: 'Marketplace orders', path: '/platform/marketplace/orders', icon: Receipt, roles: ['super_admin'] },
+  { label: 'Payments & refunds', path: '/platform/marketplace/refunds', icon: ShieldCheck, roles: ['super_admin'] },
+  { label: 'Commissions', path: '/platform/marketplace/finance', icon: BarChart3, roles: ['super_admin'] },
+  { label: 'Vendor payouts', path: '/platform/marketplace/finance', icon: Receipt, roles: ['super_admin'] },
+  { label: 'Disputes', path: '/platform/marketplace/disputes', icon: AlertTriangle, roles: ['super_admin'] },
+  { label: 'Reports & analytics', path: '/platform/marketplace/reports', icon: BarChart3, roles: ['super_admin'] },
+  { label: 'Marketplace audit logs', path: '/platform/marketplace/audit', icon: Activity, roles: ['super_admin'] },
+  { label: 'Marketplace settings', path: '/platform/marketplace/settings', icon: Settings, roles: ['super_admin'] },
 ]
 
 const businessNav: NavItem[] = [
@@ -249,7 +259,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
         <BrandLogo showName={!collapsed} className="min-w-0 overflow-hidden" imageClassName="h-10 w-10" nameClassName="text-lg font-bold text-white" />
         <button className="lg:hidden" onClick={() => setMobile(false)} aria-label="Close navigation"><X size={20} /></button>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon, section }) => <Fragment key={`${path}-${collapsed ? 'collapsed' : 'expanded'}`}>{section && !collapsed && <p className="mb-2 mt-5 px-4 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{translateStatic(t, section)}</p>}<SidebarNavItem label={label} path={path} icon={Icon} collapsed={collapsed} onNavigate={() => setMobile(false)} /></Fragment>)}</nav>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon, section, end }, index) => <Fragment key={`${path}-${label}-${index}-${collapsed ? 'collapsed' : 'expanded'}`}>{section && !collapsed && <p className="mb-2 mt-5 px-4 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{translateStatic(t, section)}</p>}<SidebarNavItem label={label} path={path} icon={Icon} collapsed={collapsed} end={end} onNavigate={() => setMobile(false)} /></Fragment>)}</nav>
       <div className="border-t border-white/10 p-3"><button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white"><LogOut size={19} />{!collapsed && 'Sign out'}</button></div>
     </aside>
     {mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}
@@ -268,7 +278,19 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="businesses/:id/admins" element={<BusinessAdminsPage />} />
           <Route path="businesses/:id" element={<BusinessControlCenterPage />} />
           <Route path="audit" element={<ResourcePage title="Audit & security" description="Review platform audit records from the backend." endpoint="/api/v1/platform/businesses" columns={['name', 'status', 'created_at']} />} />
-          <Route path="marketplace" element={<MarketplaceAdminPage />} />
+          <Route path="marketplace" element={<MarketplaceAdminPage tab="overview" />} />
+          <Route path="marketplace/vendors" element={<MarketplaceAdminPage tab="vendors" />} />
+          <Route path="marketplace/listings" element={<MarketplaceAdminPage tab="listings" />} />
+          <Route path="marketplace/orders" element={<MarketplaceAdminPage tab="orders" />} />
+          <Route path="marketplace/shipments" element={<MarketplaceAdminPage tab="shipments" />} />
+          <Route path="marketplace/cancellations" element={<MarketplaceAdminPage tab="cancellations" />} />
+          <Route path="marketplace/returns" element={<MarketplaceAdminPage tab="returns" />} />
+          <Route path="marketplace/refunds" element={<MarketplaceAdminPage tab="refunds" />} />
+          <Route path="marketplace/finance" element={<MarketplaceAdminPage tab="finance" />} />
+          <Route path="marketplace/disputes" element={<MarketplaceAdminPage tab="disputes" />} />
+          <Route path="marketplace/reports" element={<MarketplaceAdminPage tab="reports" />} />
+          <Route path="marketplace/audit" element={<MarketplaceAdminPage tab="audit" />} />
+          <Route path="marketplace/settings" element={<MarketplaceAdminPage tab="settings" />} />
           <Route path="branches" element={<BranchListPage />} />
           <Route path="branches/:id/dashboard" element={<BranchDashboardPage />} />
           <Route path="store-manager" element={<BranchDashboardPage />} />
