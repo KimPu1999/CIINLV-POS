@@ -17,6 +17,7 @@ class MarketplaceOrderRequestService
     public function __construct(
         private readonly MarketplaceInventoryReservationService $reservations,
         private readonly MarketplaceFulfillmentService $fulfillment,
+        private readonly MarketplaceCommissionService $commissions,
     ) {
     }
 
@@ -107,6 +108,7 @@ class MarketplaceOrderRequestService
                     }
                 }
                 $order->update(['status' => 'cancelled', 'payment_status' => $order->payment_status === 'pending' ? 'cancelled' : $order->payment_status]);
+                $this->commissions->reversePending($order);
                 $order->events()->create(['actor_user_id' => $actor->id, 'event' => 'cancellation_approved', 'from_status' => 'confirmed', 'to_status' => 'cancelled', 'metadata' => ['request_id' => $locked->uuid]]);
             }
             $locked->update(['status' => $decision, 'decision_note' => $note, 'decided_by' => $actor->id, 'decided_at' => now()]);

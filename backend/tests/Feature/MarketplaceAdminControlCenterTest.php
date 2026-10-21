@@ -135,7 +135,7 @@ class MarketplaceAdminControlCenterTest extends TestCase
 
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/reports')->assertOk()->assertJsonPath('data.summary.orders', 0);
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/audit-logs')->assertOk()->assertJsonStructure(['data', 'meta']);
-        $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/settings')->assertOk()->assertJsonPath('data.configured', false);
+        $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/settings')->assertOk()->assertJsonPath('data.configured', true);
     }
 
     private function businessWithAdmin(string $code, string $email): array

@@ -10,14 +10,20 @@ use App\Models\MarketplaceListing;
 use App\Models\MarketplaceStore;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\MarketplaceSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MarketplacePublicController
 {
+    public function __construct(private readonly MarketplaceSettingsService $settings)
+    {
+    }
+
     public function stores(Request $request): JsonResponse
     {
+        $this->settings->assertAvailable();
         $stores = MarketplaceStore::query()
             ->public()
             ->with('tenant')
@@ -35,6 +41,7 @@ class MarketplacePublicController
 
     public function store(MarketplaceStore $store): JsonResponse
     {
+        $this->settings->assertAvailable();
         $store = MarketplaceStore::query()
             ->public()
             ->with(['tenant', 'listings' => fn ($query) => $query->public()->with($this->listingRelations())])
@@ -46,6 +53,7 @@ class MarketplacePublicController
 
     public function products(Request $request): JsonResponse
     {
+        $this->settings->assertAvailable();
         $query = $this->publicListings($request)
             ->when($request->filled('search'), function (Builder $query) use ($request): void {
                 $term = '%'.$request->string('search').'%';
@@ -87,6 +95,7 @@ class MarketplacePublicController
 
     public function product(MarketplaceListing $product): JsonResponse
     {
+        $this->settings->assertAvailable();
         $listing = $this->publicListings()
             ->with($this->listingRelations())
             ->where('marketplace_listings.slug', $product->slug)
@@ -97,6 +106,7 @@ class MarketplacePublicController
 
     public function categories(Request $request): JsonResponse
     {
+        $this->settings->assertAvailable();
         $categories = Category::query()
             ->where('categories.status', 'active')
             ->whereHas('products', fn (Builder $product) => $product->whereHas('marketplaceListings', fn (Builder $listing) => $listing->public()))

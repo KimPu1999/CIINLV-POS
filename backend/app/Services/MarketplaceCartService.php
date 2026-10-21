@@ -12,8 +12,13 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplaceCartService
 {
+    public function __construct(private readonly MarketplaceSettingsService $settings)
+    {
+    }
+
     public function get(User $customer): MarketplaceCart
     {
+        $this->settings->assertAvailable();
         return DB::transaction(function () use ($customer): MarketplaceCart {
             return $this->load($this->activeCart($customer, true));
         });
@@ -21,6 +26,7 @@ class MarketplaceCartService
 
     public function add(User $customer, array $data): MarketplaceCart
     {
+        $this->settings->assertAvailable();
         return DB::transaction(function () use ($customer, $data): MarketplaceCart {
             $cart = $this->activeCart($customer, true);
             $listing = $this->listing($data['listing_id']);
@@ -57,6 +63,7 @@ class MarketplaceCartService
 
     public function update(User $customer, string $itemUuid, array $data): MarketplaceCart
     {
+        $this->settings->assertAvailable();
         return DB::transaction(function () use ($customer, $itemUuid, $data): MarketplaceCart {
             $cart = $this->activeCart($customer, true);
             $item = MarketplaceCartItem::where('uuid', $itemUuid)->where('marketplace_cart_id', $cart->id)->lockForUpdate()->firstOrFail();
@@ -72,6 +79,7 @@ class MarketplaceCartService
 
     public function remove(User $customer, string $itemUuid): MarketplaceCart
     {
+        $this->settings->assertAvailable();
         return DB::transaction(function () use ($customer, $itemUuid): MarketplaceCart {
             $cart = $this->activeCart($customer, true);
             MarketplaceCartItem::where('uuid', $itemUuid)->where('marketplace_cart_id', $cart->id)->firstOrFail()->delete();
@@ -82,6 +90,7 @@ class MarketplaceCartService
 
     public function clear(User $customer): MarketplaceCart
     {
+        $this->settings->assertAvailable();
         return DB::transaction(function () use ($customer): MarketplaceCart {
             $cart = $this->activeCart($customer, true);
             $cart->items()->delete();

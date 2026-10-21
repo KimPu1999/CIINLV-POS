@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class MarketplaceVendorOrder extends Model
@@ -49,5 +50,10 @@ class MarketplaceVendorOrder extends Model
     public function shipments(): HasMany
     {
         return $this->hasMany(MarketplaceShipment::class, 'marketplace_vendor_order_id');
+    }
+
+    public function commission(): HasOne
+    {
+        return $this->hasOne(MarketplaceOrderCommission::class, 'marketplace_vendor_order_id');
     }
 }

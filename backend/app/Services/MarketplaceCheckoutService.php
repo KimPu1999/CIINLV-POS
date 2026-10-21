@@ -22,11 +22,14 @@ class MarketplaceCheckoutService
     public function __construct(
         private readonly MarketplaceCartService $carts,
         private readonly MarketplaceInventoryReservationService $reservations,
+        private readonly MarketplaceCommissionService $commissions,
+        private readonly MarketplaceSettingsService $settings,
     ) {
     }
 
     public function quote(User $customer, array $data): array
     {
+        $this->settings->assertAvailable();
         $cart = $this->carts->get($customer);
         $address = $this->address($customer, (int) $data['address_id']);
         $calculation = $this->calculate($cart, $data['delivery_options'] ?? []);
@@ -37,6 +40,7 @@ class MarketplaceCheckoutService
     /** @return array{order: MarketplaceOrder, replayed: bool} */
     public function checkout(User $customer, array $data, string $idempotencyKey): array
     {
+        $this->settings->assertAvailable();
         if ($idempotencyKey === '') {
             throw new UnprocessableEntityHttpException('An Idempotency-Key header is required for checkout.');
         }
@@ -117,6 +121,7 @@ class MarketplaceCheckoutService
                     ]);
                     $this->reservations->reserve($order, $orderItem, $line['variant'], $line['quantity']);
                 }
+                $this->commissions->snapshotForVendorOrder($order, $vendorOrder);
             }
 
             MarketplacePayment::create([

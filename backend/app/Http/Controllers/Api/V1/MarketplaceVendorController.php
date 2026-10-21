@@ -15,6 +15,7 @@ use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Services\MarketplaceAuditLogger;
+use App\Services\MarketplaceSettingsService;
 use App\Services\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -197,6 +198,11 @@ class MarketplaceVendorController
         }
 
         $status = $data['status'] ?? 'draft';
+        $requiresApproval = app(MarketplaceSettingsService::class)->listingApprovalRequired();
+        $submittedForApproval = $status === 'published' && $requiresApproval;
+        if ($submittedForApproval) {
+            $status = 'draft';
+        }
         $this->ensurePublishable($status, $store, $product);
         $slug = $this->uniqueSlug($data['slug'] ?? $product->slug, $product->id);
         $listing = MarketplaceListing::create([
@@ -207,7 +213,7 @@ class MarketplaceVendorController
             'status' => $status,
             'published_at' => $status === 'published' ? now() : null,
         ]);
-        $audit->record('marketplace.listing_created', $request->user(), $tenant, $listing, ['product_id' => $product->uuid]);
+        $audit->record('marketplace.listing_created', $request->user(), $tenant, $listing, ['product_id' => $product->uuid, 'submitted_for_approval' => $submittedForApproval]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->load($this->listingRelations()))], 201);
     }
@@ -231,13 +237,17 @@ class MarketplaceVendorController
         }
 
         $status = $data['status'] ?? $listing->status;
+        $submittedForApproval = array_key_exists('status', $data) && $status === 'published' && app(MarketplaceSettingsService::class)->listingApprovalRequired() && $listing->status !== 'published';
+        if ($submittedForApproval) {
+            $status = 'draft';
+        }
         $this->ensurePublishable($status, $listing->store, $product);
         if (isset($data['slug']) && MarketplaceListing::query()->where('slug', $data['slug'])->where('id', '!=', $listing->getKey())->exists()) {
             throw ValidationException::withMessages(['slug' => ['This marketplace product URL is already in use.']]);
         }
         $data['published_at'] = $status === 'published' ? ($listing->published_at ?? now()) : null;
         $listing->update($data);
-        $audit->record('marketplace.listing_updated', $request->user(), $context->tenant(), $listing);
+        $audit->record('marketplace.listing_updated', $request->user(), $context->tenant(), $listing, ['submitted_for_approval' => $submittedForApproval]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
     }
@@ -266,10 +276,23 @@ class MarketplaceVendorController
     private function getOrCreateStore(TenantContext $context): MarketplaceStore
     {
         $tenant = $context->tenant();
-        $store = MarketplaceStore::query()->firstOrCreate(
-            ['tenant_id' => $tenant->id],
-            ['name' => $tenant->display_name ?: $tenant->name, 'slug' => $this->uniqueStoreSlug($tenant->slug ?: $tenant->name), 'description' => $tenant->description, 'approval_status' => 'pending', 'is_active' => true],
-        );
+        $store = MarketplaceStore::query()->where('tenant_id', $tenant->id)->first();
+        if (! $store) {
+            $settings = app(MarketplaceSettingsService::class);
+            if (! $settings->sellerRegistrationEnabled()) {
+                throw new \Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException('New marketplace seller registration is currently closed.');
+            }
+            $approved = ! $settings->sellerApprovalRequired() && $tenant->status === 'active';
+            $store = MarketplaceStore::create([
+                'tenant_id' => $tenant->id,
+                'name' => $tenant->display_name ?: $tenant->name,
+                'slug' => $this->uniqueStoreSlug($tenant->slug ?: $tenant->name),
+                'description' => $tenant->description,
+                'approval_status' => $approved ? 'approved' : 'pending',
+                'approved_at' => $approved ? now() : null,
+                'is_active' => true,
+            ]);
+        }
 
         return $store->load('tenant');
     }

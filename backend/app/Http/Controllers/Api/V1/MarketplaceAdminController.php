@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Marketplace\MarketplaceApprovalRequest;
 use App\Http\Requests\Marketplace\CollectMarketplaceCodPaymentRequest;
+use App\Http\Requests\Marketplace\MarketplaceCommissionRuleRequest;
 use App\Http\Requests\Marketplace\MarketplaceListingModerationRequest;
 use App\Http\Requests\Marketplace\MarketplaceRequestDecisionRequest;
+use App\Http\Requests\Marketplace\MarketplaceSettingsUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceStoreStatusRequest;
 use App\Http\Resources\MarketplaceCancellationRequestResource;
 use App\Http\Resources\MarketplaceOrderResource;
@@ -16,6 +18,7 @@ use App\Http\Resources\MarketplaceStoreResource;
 use App\Models\MarketplaceCancellationRequest;
 use App\Models\MarketplaceAuditLog;
 use App\Models\MarketplaceListing;
+use App\Models\MarketplaceCommissionRule;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplacePayment;
 use App\Models\MarketplaceRefundRequest;
@@ -23,7 +26,9 @@ use App\Models\MarketplaceReturnRequest;
 use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
 use App\Services\MarketplaceAuditLogger;
+use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceOrderRequestService;
+use App\Services\MarketplaceSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,9 +38,10 @@ use Carbon\CarbonImmutable;
 
 class MarketplaceAdminController
 {
-    public function dashboard(Request $request): JsonResponse
+    public function dashboard(Request $request, MarketplaceCommissionService $commissions): JsonResponse
     {
         $range = $this->dateRange($request);
+        $financialTotals = $commissions->dashboardTotals($range);
         $publishedListings = MarketplaceListing::query()
             ->where('status', 'published')
             ->whereNotNull('published_at')
@@ -58,8 +64,8 @@ class MarketplaceAdminController
                     'successful_payments' => MarketplacePayment::query()->where('status', 'paid')->whereBetween('paid_at', $range)->count(),
                     'pending_fulfillment' => DB::table('marketplace_vendor_orders')->whereIn('status', ['pending', 'processing'])->whereBetween('created_at', $range)->count(),
                     'refund_total' => $this->money($refundTotal),
-                    'platform_commission_revenue' => null,
-                    'outstanding_vendor_liabilities' => null,
+                    'platform_commission_revenue' => $financialTotals['commission_revenue'],
+                    'outstanding_vendor_liabilities' => $financialTotals['vendor_liabilities'],
                 ],
                 'recent_orders' => MarketplaceOrder::query()->with(['vendorOrders.store'])->whereBetween('created_at', $range)->latest()->limit(8)->get()->map(fn (MarketplaceOrder $order): array => [
                     'id' => $order->uuid,
@@ -165,7 +171,7 @@ class MarketplaceAdminController
         return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
     }
 
-    public function collectCod(CollectMarketplaceCodPaymentRequest $request, string $order, MarketplaceAuditLogger $audit): JsonResponse
+    public function collectCod(CollectMarketplaceCodPaymentRequest $request, string $order, MarketplaceAuditLogger $audit, MarketplaceCommissionService $commissions): JsonResponse
     {
         $model = DB::transaction(function () use ($request, $order): MarketplaceOrder {
             $model = MarketplaceOrder::where('uuid', $order)->lockForUpdate()->firstOrFail();
@@ -173,6 +179,7 @@ class MarketplaceAdminController
             if ($payment->status === 'pending') {
                 $payment->update(['status' => 'paid', 'paid_at' => now(), 'metadata' => array_merge((array) $payment->metadata, ['collected_by' => $request->user()->uuid, 'verification_note' => $request->input('verification_note')])]);
                 $model->update(['payment_status' => 'paid']);
+                $commissions->markOrderPayable($model);
                 $model->events()->create(['actor_user_id' => $request->user()->id, 'event' => 'cod_payment_collected', 'from_status' => 'pending', 'to_status' => 'paid', 'metadata' => ['verification_note' => $request->input('verification_note')]]);
             }
 
@@ -298,13 +305,116 @@ class MarketplaceAdminController
         return response()->json(['success' => true, 'data' => $data, 'meta' => ['total' => $logs->total(), 'per_page' => $logs->perPage(), 'current_page' => $logs->currentPage(), 'last_page' => $logs->lastPage()]]);
     }
 
-    public function settings(): JsonResponse
+    public function settings(MarketplaceSettingsService $settings, MarketplaceCommissionService $commissions): JsonResponse
     {
+        $current = $settings->current();
         return response()->json(['success' => true, 'data' => [
-            'configured' => false,
-            'message' => 'Marketplace financial rules, payout provider settings, dispute workflows, and review moderation settings are not stored in the current schema.',
-            'financial_capabilities' => $this->financialCapabilities(),
+            'configured' => $current['configured'],
+            'settings' => $current['settings'],
+            'message' => $current['configured'] ? 'Marketplace settings are persisted.' : 'The reviewed marketplace settings migration is pending; defaults are shown and saving is disabled until it is applied.',
+            'financial_capabilities' => $this->financialCapabilities($settings, $commissions),
         ]]);
+    }
+
+    public function updateSettings(MarketplaceSettingsUpdateRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $data = $request->validated();
+        $current = $settings->current()['settings'];
+        if (isset($data['revision']) && (int) $data['revision'] !== (int) $current['revision']) {
+            throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('These marketplace settings changed in another session. Reload before saving.');
+        }
+        unset($data['revision']);
+        $saved = $settings->update($data, $request->user(), $audit);
+
+        return response()->json(['success' => true, 'data' => $settings->current()['settings']]);
+    }
+
+    public function commissionRules(Request $request, MarketplaceSettingsService $settings): JsonResponse
+    {
+        if (! $settings->storageAvailable()) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+        }
+        $rules = MarketplaceCommissionRule::query()->with('tenant:id,name')->when($request->filled('tenant_id'), fn (Builder $query) => $query->where('tenant_id', $request->integer('tenant_id')))->orderByDesc('effective_from')->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+
+        return response()->json(['success' => true, 'data' => $rules->getCollection()->map(fn (MarketplaceCommissionRule $rule): array => ['id' => $rule->uuid, 'tenant_id' => $rule->tenant_id, 'business_name' => $rule->tenant?->name, 'rate' => (string) $rule->rate, 'commission_base' => $rule->commission_base, 'status' => $rule->status, 'effective_from' => $rule->effective_from?->toIso8601String(), 'effective_until' => $rule->effective_until?->toIso8601String()])->values(), 'meta' => ['total' => $rules->total(), 'per_page' => $rules->perPage(), 'current_page' => $rules->currentPage(), 'last_page' => $rules->lastPage()]]);
+    }
+
+    public function storeCommissionRule(MarketplaceCommissionRuleRequest $request, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
+    {
+        if (! $settings->storageAvailable()) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+        }
+        $data = $request->validated();
+        $effectiveFrom = isset($data['effective_from']) ? CarbonImmutable::parse($data['effective_from']) : CarbonImmutable::now();
+        $rule = DB::transaction(function () use ($data, $effectiveFrom, $request, $audit): MarketplaceCommissionRule {
+            $scope = MarketplaceCommissionRule::query()->where('status', 'active')->where('effective_from', '<=', $effectiveFrom)->whereNull('effective_until');
+            $data['tenant_id'] = $data['tenant_id'] ?? null;
+            $data['commission_base'] = $data['commission_base'] ?? 'item_subtotal';
+            $data['status'] = $data['status'] ?? 'active';
+            $data['effective_from'] = $effectiveFrom;
+            if ($data['status'] === 'active') {
+                $scope->when($data['tenant_id'] === null, fn (Builder $query) => $query->whereNull('tenant_id'), fn (Builder $query) => $query->where('tenant_id', $data['tenant_id']))->lockForUpdate()->update(['status' => 'inactive', 'effective_until' => $effectiveFrom, 'updated_by' => $request->user()->id]);
+            }
+            $rule = MarketplaceCommissionRule::create($data + ['created_by' => $request->user()->id, 'updated_by' => $request->user()->id]);
+            $audit->record('marketplace.commission_rule_created', $request->user(), metadata: ['rule_id' => $rule->uuid, 'tenant_id' => $rule->tenant_id, 'rate' => (string) $rule->rate, 'effective_from' => $rule->effective_from?->toIso8601String()]);
+
+            return $rule;
+        });
+
+        return response()->json(['success' => true, 'data' => ['id' => $rule->uuid, 'tenant_id' => $rule->tenant_id, 'rate' => (string) $rule->rate, 'commission_base' => $rule->commission_base, 'status' => $rule->status, 'effective_from' => $rule->effective_from?->toIso8601String()]], 201);
+    }
+
+    public function updateCommissionRule(MarketplaceCommissionRuleRequest $request, string $rule, MarketplaceAuditLogger $audit, MarketplaceSettingsService $settings): JsonResponse
+    {
+        if (! $settings->storageAvailable()) {
+            throw new \Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException(null, 'Commission rule storage is not available. Apply the reviewed marketplace settings migration first.');
+        }
+        $existing = MarketplaceCommissionRule::query()->where('uuid', $rule)->firstOrFail();
+        $data = $request->validated();
+        $effectiveFrom = isset($data['effective_from']) ? CarbonImmutable::parse($data['effective_from']) : CarbonImmutable::now();
+        $replacement = DB::transaction(function () use ($existing, $data, $effectiveFrom, $request, $audit): MarketplaceCommissionRule {
+            $locked = MarketplaceCommissionRule::query()->whereKey($existing->id)->lockForUpdate()->firstOrFail();
+            if ($locked->status === 'active' && $locked->effective_until === null) {
+                $locked->update(['status' => 'inactive', 'effective_until' => $effectiveFrom, 'updated_by' => $request->user()->id]);
+            }
+            $attributes = [
+                'tenant_id' => array_key_exists('tenant_id', $data) ? $data['tenant_id'] : $locked->tenant_id,
+                'rate' => $data['rate'],
+                'commission_base' => $data['commission_base'] ?? $locked->commission_base,
+                'status' => $data['status'] ?? 'active',
+                'effective_from' => $effectiveFrom,
+                'effective_until' => $data['effective_until'] ?? null,
+                'created_by' => $request->user()->id,
+                'updated_by' => $request->user()->id,
+            ];
+            $replacement = MarketplaceCommissionRule::create($attributes);
+            $audit->record('marketplace.commission_rule_replaced', $request->user(), metadata: ['replaced_rule_id' => $locked->uuid, 'replacement_rule_id' => $replacement->uuid, 'rate' => (string) $replacement->rate]);
+
+            return $replacement;
+        });
+
+        return response()->json(['success' => true, 'data' => ['id' => $replacement->uuid, 'tenant_id' => $replacement->tenant_id, 'rate' => (string) $replacement->rate, 'commission_base' => $replacement->commission_base, 'status' => $replacement->status, 'effective_from' => $replacement->effective_from?->toIso8601String()]]);
+    }
+
+    public function commissionPreview(Request $request, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        $data = $request->validate(['tenant_id' => ['required', 'integer', 'exists:tenants,id'], 'base_amount' => ['required', 'numeric', 'min:0'], 'currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'], 'at' => ['nullable', 'date']]);
+
+        return response()->json(['success' => true, 'data' => $commissions->preview((int) $data['tenant_id'], (string) $data['base_amount'], $data['currency_code'] ?? null, isset($data['at']) ? CarbonImmutable::parse($data['at']) : null)]);
+    }
+
+    public function commissionReports(Request $request, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'status' => ['nullable', 'in:pending,payable,reversed'], 'from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+
+        return response()->json(['success' => true, 'data' => $commissions->report($data)]);
+    }
+
+    public function payoutSummaries(Request $request, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+
+        return response()->json(['success' => true, 'data' => $commissions->payoutSummaries($data)]);
     }
 
     private function dateRange(Request $request): array
@@ -325,11 +435,15 @@ class MarketplaceAdminController
         return number_format((float) ($value ?? 0), 2, '.', '');
     }
 
-    private function financialCapabilities(): array
+    private function financialCapabilities(?MarketplaceSettingsService $settings = null, ?MarketplaceCommissionService $commissions = null): array
     {
+        $settings ??= app(MarketplaceSettingsService::class);
+        $commissions ??= app(MarketplaceCommissionService::class);
+        $settingsAvailable = $settings->storageAvailable();
+        $ledgerAvailable = $commissions->storageAvailable();
         return [
-            'commission_rules' => ['available' => false, 'reason' => 'No commission rule or immutable settlement schema exists yet.'],
-            'settlement_ledger' => ['available' => false, 'reason' => 'No marketplace settlement ledger exists yet.'],
+            'commission_rules' => ['available' => $settingsAvailable, 'reason' => $settingsAvailable ? 'Commission rates and seller overrides are persisted with effective dates.' : 'The reviewed commission migration is pending.'],
+            'settlement_ledger' => ['available' => $ledgerAvailable, 'reason' => $ledgerAvailable ? 'Order-level commission snapshots and seller earnings are persisted.' : 'The reviewed settlement migration is pending.'],
             'payouts' => ['available' => false, 'reason' => 'No payout provider or payout records exist yet.'],
             'real_money_refunds' => ['available' => false, 'reason' => 'No verified refund provider is configured.'],
             'disputes' => ['available' => false, 'reason' => 'No dispute workflow or evidence schema exists yet.'],

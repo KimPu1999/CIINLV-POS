@@ -172,6 +172,13 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reports', [MarketplaceAdminController::class, 'reports']);
             Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
             Route::get('/settings', [MarketplaceAdminController::class, 'settings']);
+            Route::patch('/settings', [MarketplaceAdminController::class, 'updateSettings']);
+            Route::get('/commission-rules', [MarketplaceAdminController::class, 'commissionRules']);
+            Route::post('/commission-rules', [MarketplaceAdminController::class, 'storeCommissionRule']);
+            Route::patch('/commission-rules/{rule}', [MarketplaceAdminController::class, 'updateCommissionRule']);
+            Route::get('/commission-preview', [MarketplaceAdminController::class, 'commissionPreview']);
+            Route::get('/commission-reports', [MarketplaceAdminController::class, 'commissionReports']);
+            Route::get('/payout-summaries', [MarketplaceAdminController::class, 'payoutSummaries']);
         });
 
         Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
