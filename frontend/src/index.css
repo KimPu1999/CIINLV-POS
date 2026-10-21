@@ -268,11 +268,24 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 /* Shared dashboard rhythm: stat-card grids keep the 8px spacing scale while
    leaving page-specific grids and form layouts untouched. */
 .min-h-screen.bg-slate-50 > aside + div main .grid:has(> .dashboard-stat-card) {
-  gap: 20px !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 12px !important;
 }
 
 .dashboard-stat-card:hover {
-  box-shadow: var(--shadow-large) !important;
+  box-shadow: var(--shadow-medium) !important;
+}
+
+@media (min-width: 480px) {
+  .min-h-screen.bg-slate-50 > aside + div main .grid:has(> .dashboard-stat-card) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .min-h-screen.bg-slate-50 > aside + div main .grid:has(> .dashboard-stat-card) {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
 }
 
 .toolbar-icon-button {

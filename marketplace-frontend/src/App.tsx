@@ -33,6 +33,7 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import { BrandLogo } from './components/BrandLogo'
+import { CompactSummaryCard } from './components/CompactSummaryCard'
 import { MarketplaceShell, StoreMark } from './components/MarketplaceShell'
 import {
   apiErrorMessage,
@@ -944,10 +945,10 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
 
           <section id="overview" className="scroll-mt-28">
             <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">{t('account')}</p><h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">{t('accountOverview')}</h2></div><Link to="/shop" className="hidden items-center gap-1 text-sm font-black text-blue-600 hover:gap-2 sm:inline-flex">{t('startShopping')} <ArrowRight size={16} /></Link></div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <AccountStatCard icon={<Package size={20} />} label={t('ordersCount')} value={count(ordersMeta?.total ?? null)} tone="blue" />
-              <AccountStatCard icon={<Heart size={20} />} label={t('savedItems')} value={count(wishlist.length)} tone="rose" />
-              <AccountStatCard icon={<MapPin size={20} />} label={t('savedAddresses')} value={count(customer.addresses.length)} tone="amber" />
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 sm:grid-cols-3">
+              <CompactSummaryCard icon={<Package size={20} />} label={t('ordersCount')} value={count(ordersMeta?.total ?? null)} tone="blue" />
+              <CompactSummaryCard icon={<Heart size={20} />} label={t('savedItems')} value={count(wishlist.length)} tone="rose" />
+              <CompactSummaryCard icon={<MapPin size={20} />} label={t('savedAddresses')} value={count(customer.addresses.length)} tone="amber" />
             </div>
           </section>
 
@@ -988,11 +989,6 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
       </div>
     </div>
   </PageContainer>
-}
-
-function AccountStatCard({ icon, label, value, tone }: { icon: ReactNode; label: string; value: string; tone: 'blue' | 'rose' | 'amber' }) {
-  const styles = { blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300', rose: 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-300', amber: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' }
-  return <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><span className={'grid size-11 place-items-center rounded-2xl ' + styles[tone]}>{icon}</span><p className="mt-5 text-3xl font-black tracking-tight text-slate-950 dark:text-white">{value}</p><p className="mt-1 text-sm font-bold text-slate-500">{label}</p></div>
 }
 
 function OrdersPage({ locale, t }: AppServices) {

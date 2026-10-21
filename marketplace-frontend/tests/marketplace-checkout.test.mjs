@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
+const compactSummaryCard = await readFile(new URL('../src/components/CompactSummaryCard.tsx', import.meta.url), 'utf8')
 const api = await readFile(new URL('../src/lib/marketplace.ts', import.meta.url), 'utf8')
 
 test('checkout page uses server quote and idempotent COD checkout', () => {
@@ -45,4 +46,12 @@ test('customer account dashboard uses authenticated profile, address, order and 
   assert.match(app, /deleteCustomerAddress\(/)
   assert.match(app, /signOut/)
   assert.match(app, /accountSecurity/)
+})
+
+test('customer account summary cards use the compact responsive layout', () => {
+  assert.match(app, /CompactSummaryCard/)
+  assert.match(app, /grid grid-cols-1 gap-3 min-\[480px\]:grid-cols-2 sm:grid-cols-3/)
+  assert.match(compactSummaryCard, /min-h-\[112px\].*rounded-\[12px\].*p-4/)
+  assert.match(compactSummaryCard, /size-9 shrink-0/)
+  assert.match(compactSummaryCard, /text-\[22px\].*overflow-wrap:anywhere/)
 })
