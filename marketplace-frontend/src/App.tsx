@@ -293,6 +293,7 @@ function App() {
         <Route path="/stores" element={<StoresPage {...services} />} />
         <Route path="/stores/:slug" element={<StorePage {...services} />} />
         <Route path="/categories" element={<CategoriesPage {...services} />} />
+        <Route path="/categories/:slug" element={<CategoryDetailPage {...services} />} />
         <Route path="/wishlist" element={<WishlistPage {...services} />} />
         <Route path="/cart" element={<CartPage {...services} />} />
         <Route path="/checkout" element={<CheckoutPage {...services} />} />
@@ -388,9 +389,9 @@ function TrustItem({ icon, label }: { icon: ReactNode; label: string }) {
   return <div className="flex items-center gap-3 bg-white px-5 py-5 dark:bg-slate-900"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#1D4ED8] dark:bg-blue-950/40 dark:text-blue-300">{icon}</span><span className="text-sm font-black text-slate-800 dark:text-slate-100">{label}</span></div>
 }
 
-function HomepageCategoryGrid({ categories, t }: { categories: MarketplaceCategory[]; t: (key: TranslationKey) => string }) {
+function HomepageCategoryGrid({ categories, t, large = false }: { categories: MarketplaceCategory[]; t: (key: TranslationKey) => string; large?: boolean }) {
   if (categories.length === 0) return <CategoryGrid categories={categories} t={t} />
-  return <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">{categories.map((category, index) => <Link key={category.id} to={`/shop?category=${encodeURIComponent(category.slug ?? category.id)}`} className="group rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-950/5 dark:border-slate-800 dark:bg-slate-900 sm:p-5"><div className={'relative grid size-16 place-items-center overflow-hidden rounded-2xl text-[#1D4ED8] dark:text-blue-300 ' + ['bg-blue-50 dark:bg-blue-950/40', 'bg-cyan-50 dark:bg-cyan-950/40', 'bg-amber-50 dark:bg-amber-950/30'][index % 3]}><Package size={25} strokeWidth={1.6} />{category.imageUrl && <img src={category.imageUrl} alt="" className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-105" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} />}</div><h3 className="mt-5 truncate font-black text-slate-950 dark:text-white">{category.name}</h3><p className="mt-1 text-xs font-semibold text-slate-400">{category.productCount ?? 0} {t('products')}</p></Link>)}</div>
+  return <div className={'grid gap-4 ' + (large ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6')}>{categories.map((category, index) => <Link key={category.id} to={`/categories/${encodeURIComponent(category.slug ?? category.id)}`} className="group rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-950/5 dark:border-slate-800 dark:bg-slate-900 sm:p-5"><div className={'relative grid size-16 place-items-center overflow-hidden rounded-2xl text-[#1D4ED8] dark:text-blue-300 ' + ['bg-blue-50 dark:bg-blue-950/40', 'bg-cyan-50 dark:bg-cyan-950/40', 'bg-amber-50 dark:bg-amber-950/30'][index % 3]}><Package size={25} strokeWidth={1.6} />{category.imageUrl && <img src={category.imageUrl} alt="" className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-105" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} />}</div><h3 className="mt-5 truncate font-black text-slate-950 dark:text-white">{category.name}</h3><p className="mt-1 text-xs font-semibold text-slate-400">{category.productCount ?? 0} {t('products')}</p></Link>)}</div>
 }
 
 function SellerSpotlight({ store, t }: { store: MarketplaceStore; t: (key: TranslationKey) => string }) {
@@ -501,7 +502,91 @@ function ProductPage({ catalog, locale, t, addToCart, wishlist, toggleWishlist }
 }
 
 function CategoriesPage({ catalog, t }: AppServices) {
-  return <PageContainer><PageIntro eyebrow={t('categories')} title={t('browseCategories')} body={t('discoverBody')} /><div className="mt-10"><CategoryGrid categories={catalog.data.categories} t={t} large /></div></PageContainer>
+  const [search, setSearch] = useState('')
+  const visibleCategories = catalog.data.categories.filter((category) => `${category.name} ${category.description ?? ''}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
+  return <PageContainer>
+    <nav aria-label={t('primaryNavigation')} className="mb-7 flex items-center gap-2 text-sm font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{t('home')}</Link><ChevronRight size={15} /><span className="text-slate-700 dark:text-slate-200">{t('categories')}</span></nav>
+    <section className="relative overflow-hidden rounded-[2rem] bg-[#0F172A] px-6 py-10 text-white shadow-xl shadow-slate-300/20 sm:px-10 sm:py-14"><div className="absolute -right-20 -top-24 size-72 rounded-full bg-[#1D4ED8]/35 blur-3xl" /><div className="absolute -bottom-28 left-1/3 size-72 rounded-full bg-[#F59E0B]/15 blur-3xl" /><div className="relative max-w-2xl"><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-200">{t('categories')}</p><h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{t('browseCategories')}</h1><p className="mt-5 max-w-xl leading-8 text-slate-300">{t('discoverBody')}</p><div className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-blue-100"><Package size={17} /> {catalog.status === 'ready' ? `${catalog.data.categories.length} ${t('categories')}` : t('loading')}</div></div></section>
+    <form onSubmit={(event) => event.preventDefault()} role="search" className="relative z-10 mx-auto -mt-6 flex max-w-3xl items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-300/25 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"><Search size={19} className="ml-3 shrink-0 text-[#1D4ED8]" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" /><span className="hidden rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-200 sm:inline-flex">{t('categories')}</span></form>
+    <div className="mt-14">{catalog.status === 'loading' ? <CategorySkeletonGrid /> : catalog.status === 'error' ? <ErrorState message={catalog.message ?? t('apiUnavailable')} t={t} /> : visibleCategories.length > 0 ? <HomepageCategoryGrid categories={visibleCategories} t={t} large /> : <EmptyState icon={<Search size={28} />} title={t('noCategories')} body={t('noCategoriesBody')} />}</div>
+  </PageContainer>
+}
+
+function CategoryDetailPage({ locale, catalog, t, wishlist, addToCart, toggleWishlist }: AppServices) {
+  const { slug = '' } = useParams()
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const category = catalog.data.categories.find((item) => item.slug === slug || item.id === slug)
+  const categoryKey = category?.slug ?? category?.id ?? ''
+  const search = params.get('search') ?? ''
+  const store = params.get('store') ?? ''
+  const minPrice = params.get('min_price') ?? ''
+  const maxPrice = params.get('max_price') ?? ''
+  const sort = (params.get('sort') as 'newest' | 'oldest' | 'price-low' | 'price-high' | 'name' | null) ?? 'newest'
+  const page = Number(params.get('page') ?? 1)
+  const [result, setResult] = useState<ProductPage>({ status: 'loading', listings: [], meta: emptyMeta() })
+
+  useEffect(() => {
+    if (!categoryKey) return
+    const controller = new AbortController()
+    setResult((current) => ({ ...current, status: 'loading' }))
+    void fetchProducts(locale, { search, category: categoryKey, store, minPrice, maxPrice, sort, page, perPage: 24 }, controller.signal).then(setResult)
+    return () => controller.abort()
+  }, [categoryKey, locale, maxPrice, minPrice, page, search, sort, store])
+
+  const updateParam = (key: string, value: string) => {
+    const next = new URLSearchParams(params)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    next.delete('page')
+    setParams(next)
+  }
+  const applySearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    updateParam('search', String(new FormData(event.currentTarget).get('search') ?? '').trim())
+  }
+  const applyFilters = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const next = new URLSearchParams(params)
+    const nextMinPrice = String(formData.get('min_price') ?? '').trim()
+    const nextMaxPrice = String(formData.get('max_price') ?? '').trim()
+    if (nextMinPrice) next.set('min_price', nextMinPrice)
+    else next.delete('min_price')
+    if (nextMaxPrice) next.set('max_price', nextMaxPrice)
+    else next.delete('max_price')
+    next.delete('page')
+    setParams(next)
+    setMobileFiltersOpen(false)
+  }
+  const clearFilters = () => setParams({})
+  const setPage = (nextPage: number) => {
+    const next = new URLSearchParams(params)
+    if (nextPage <= 1) next.delete('page')
+    else next.set('page', String(nextPage))
+    setParams(next)
+  }
+  const status = result.status
+  const activeFilters = [
+    search ? { key: 'search', label: t('searchPlaceholder'), value: search } : null,
+    store ? { key: 'store', label: t('storeFilter'), value: store } : null,
+    minPrice ? { key: 'min_price', label: t('minPrice'), value: minPrice } : null,
+    maxPrice ? { key: 'max_price', label: t('maxPrice'), value: maxPrice } : null,
+  ].filter((item): item is { key: string; label: string; value: string } => Boolean(item))
+
+  if (catalog.status === 'loading') return <PageContainer><LoadingState t={t} /></PageContainer>
+  if (catalog.status === 'error') return <PageContainer><ErrorState message={catalog.message ?? t('apiUnavailable')} t={t} /></PageContainer>
+  if (!category) return <PageContainer><EmptyState icon={<Package size={28} />} title={t('noCategories')} body={t('noCategoriesBody')} action={<Link to="/categories" className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#1D4ED8] px-4 text-sm font-black text-white">{t('categories')} <ArrowRight size={16} /></Link>} /></PageContainer>
+
+  return <PageContainer>
+    <nav aria-label={t('primaryNavigation')} className="mb-7 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{t('home')}</Link><ChevronRight size={15} /><Link to="/categories" className="transition hover:text-blue-600">{t('categories')}</Link><ChevronRight size={15} /><span className="text-slate-700 dark:text-slate-200">{category.name}</span></nav>
+    <section className="relative overflow-hidden rounded-[2rem] bg-[#0F172A] shadow-xl shadow-slate-300/20 dark:shadow-black/20"><div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/90 to-[#1D4ED8]/65" />{category.imageUrl && <img src={category.imageUrl} alt="" className="absolute inset-0 size-full object-cover opacity-25" />}<div className="relative max-w-3xl px-6 py-10 sm:px-10 sm:py-14"><p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">{t('categories')}</p><h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">{category.name}</h1><p className="mt-5 max-w-2xl leading-8 text-slate-300">{category.description || t('discoverBody')}</p><div className="mt-7 flex flex-wrap gap-3"><span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-blue-100"><Package size={16} /> {result.status === 'ready' ? `${result.meta.total} ${t('products')}` : t('loading')}</span><Link to="/categories" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm font-black text-white transition hover:bg-white/10">{t('browseCategories')} <ArrowRight size={15} /></Link></div></div></section>
+    <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-col gap-3 lg:flex-row"><form key={search} onSubmit={applySearch} role="search" className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl bg-[#F8FAFC] px-4 dark:bg-slate-950"><Search size={19} className="shrink-0 text-[#1D4ED8]" /><input name="search" defaultValue={search} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-12 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" /><button type="submit" className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#1D4ED8] px-4 text-xs font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <ArrowRight size={15} /></button></form><div className="flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => setMobileFiltersOpen(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:text-slate-200 lg:hidden"><SlidersHorizontal size={17} /> {t('filters')}</button><label className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-500 dark:border-slate-700 dark:bg-slate-900"><span>{t('sortBy')}</span><select value={sort} onChange={(event) => updateParam('sort', event.target.value === 'newest' ? '' : event.target.value)} className="bg-transparent font-black text-slate-800 outline-none dark:text-white"><option value="newest">{t('newest')}</option><option value="oldest">{t('oldest')}</option><option value="price-low">{t('priceLow')}</option><option value="price-high">{t('priceHigh')}</option><option value="name">{t('nameAZ')}</option></select></label></div></div></div>
+    {activeFilters.length > 0 && <div className="mt-5 flex flex-wrap items-center gap-2"><span className="mr-1 text-xs font-black uppercase tracking-[0.16em] text-slate-400">{t('filters')}</span>{activeFilters.map((filter) => <button type="button" key={filter.key} onClick={() => updateParam(filter.key, '')} className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:border-blue-300 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200"><span>{filter.label}: {filter.value}</span><X size={13} /></button>)}<button type="button" onClick={clearFilters} className="ml-1 text-xs font-black text-slate-500 underline-offset-4 hover:text-blue-600 hover:underline">{t('clear')}</button></div>}
+    <div className="mt-8 grid gap-8 lg:grid-cols-[270px_minmax(0,1fr)]"><aside className="hidden h-fit lg:sticky lg:top-28 lg:block lg:self-start"><div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><ShopFilterPanel key={`${categoryKey}-${store}-${minPrice}-${maxPrice}`} categories={catalog.data.categories} stores={catalog.data.stores} category={categoryKey} store={store} minPrice={minPrice} maxPrice={maxPrice} t={t} onCategoryChange={(value) => value ? navigate(`/categories/${encodeURIComponent(value)}`) : navigate('/categories')} onStoreChange={(value) => updateParam('store', value)} onApply={applyFilters} onClear={clearFilters} /></div></aside><div className="min-w-0">{status === 'loading' ? <ProductSkeletonGrid /> : result.status === 'error' ? <ErrorState message={result.message ?? t('apiUnavailable')} t={t} /> : result.listings.length > 0 ? <><ProductGrid listings={result.listings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /><Pagination meta={result.meta} t={t} onPage={setPage} /></> : <CatalogEmpty status="ready" t={t} />}</div></div>
+    {mobileFiltersOpen && <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t('filters')}><button type="button" onClick={() => setMobileFiltersOpen(false)} className="absolute inset-0 size-full bg-slate-950/50" aria-label={t('close')} /><aside className="absolute right-0 top-0 h-full w-[min(90vw,380px)] overflow-y-auto bg-white p-5 shadow-2xl dark:bg-slate-900"><div className="mb-6 flex items-center justify-between"><h2 className="text-lg font-black">{t('filters')}</h2><button type="button" onClick={() => setMobileFiltersOpen(false)} className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-500 dark:border-slate-700" aria-label={t('close')}><X size={18} /></button></div><ShopFilterPanel key={`${categoryKey}-${store}-${minPrice}-${maxPrice}-mobile`} categories={catalog.data.categories} stores={catalog.data.stores} category={categoryKey} store={store} minPrice={minPrice} maxPrice={maxPrice} t={t} onCategoryChange={(value) => value ? navigate(`/categories/${encodeURIComponent(value)}`) : navigate('/categories')} onStoreChange={(value) => updateParam('store', value)} onApply={applyFilters} onClear={clearFilters} /></aside></div>}
+  </PageContainer>
 }
 
 function StoresPage({ catalog, t }: AppServices) {
@@ -798,7 +883,7 @@ function ProductThumb({ listing }: { listing: MarketplaceListing }) {
 
 function CategoryGrid({ categories, t, large = false }: { categories: MarketplaceCategory[]; t: (key: TranslationKey) => string; large?: boolean }) {
   if (categories.length === 0) return <EmptyState icon={<Package size={28} />} title={t('noCategories')} body={t('noCategoriesBody')} />
-  return <div className={'grid gap-4 ' + (large ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6')}>{categories.map((category, index) => <Link key={category.id} to={`/shop?category=${encodeURIComponent(category.slug ?? category.id)}`} className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><span className={'grid size-12 place-items-center rounded-2xl text-blue-600 dark:text-blue-300 ' + ['bg-blue-50 dark:bg-blue-950/40', 'bg-cyan-50 dark:bg-cyan-950/40', 'bg-indigo-50 dark:bg-indigo-950/40'][index % 3]}><Package size={22} /></span><h3 className="mt-5 font-black text-slate-950 dark:text-white">{category.name}</h3><p className="mt-1 text-xs font-semibold text-slate-400">{category.productCount ?? 0} {t('products')}</p></Link>)}</div>
+  return <div className={'grid gap-4 ' + (large ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6')}>{categories.map((category, index) => <Link key={category.id} to={`/categories/${encodeURIComponent(category.slug ?? category.id)}`} className="group rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><span className={'grid size-12 place-items-center rounded-2xl text-blue-600 dark:text-blue-300 ' + ['bg-blue-50 dark:bg-blue-950/40', 'bg-cyan-50 dark:bg-cyan-950/40', 'bg-indigo-50 dark:bg-indigo-950/40'][index % 3]}><Package size={22} /></span><h3 className="mt-5 font-black text-slate-950 dark:text-white">{category.name}</h3><p className="mt-1 text-xs font-semibold text-slate-400">{category.productCount ?? 0} {t('products')}</p></Link>)}</div>
 }
 
 function StoreGrid({ stores, t, large = false }: { stores: MarketplaceStore[]; t: (key: TranslationKey) => string; large?: boolean }) {
@@ -826,6 +911,10 @@ function LoadingState({ t }: { t: (key: TranslationKey) => string }) {
 
 function ProductSkeletonGrid() {
   return <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="animate-pulse overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"><div className="aspect-square bg-slate-200 dark:bg-slate-800" /><div className="grid gap-3 p-5"><div className="h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-800" /><div className="h-5 w-3/4 rounded bg-slate-200 dark:bg-slate-800" /><div className="h-5 w-1/2 rounded bg-slate-200 dark:bg-slate-800" /></div></div>)}</div>
+}
+
+function CategorySkeletonGrid() {
+  return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }, (_, index) => <div key={index} className="animate-pulse rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><div className="size-16 rounded-2xl bg-slate-200 dark:bg-slate-800" /><div className="mt-5 h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-800" /><div className="mt-2 h-3 w-1/3 rounded bg-slate-200 dark:bg-slate-800" /></div>)}</div>
 }
 
 function ErrorState({ message, t }: { message: string; t: (key: TranslationKey) => string }) {
