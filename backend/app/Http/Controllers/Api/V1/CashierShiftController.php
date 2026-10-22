@@ -23,7 +23,7 @@ class CashierShiftController
     public function open(OpenShiftRequest $request, TenantContext $context, CashierShiftService $service): JsonResponse
     {
         $store = Store::where('tenant_id', $context->tenant()->id)->where('uuid', $request->input('store_id'))->firstOrFail();
-        $register = PosRegister::where('tenant_id', $context->tenant()->id)->where('uuid', $request->input('register_id'))->firstOrFail();
+        $register = PosRegister::where('tenant_id', $context->tenant()->id)->where('store_id', $store->id)->where('uuid', $request->input('register_id'))->firstOrFail();
         Gate::forUser($request->user())->authorize('operate', $register);
         $shift = $service->open($store, $register, $request->user(), (string) $request->input('opening_amount'), $request->input('notes'));
 
@@ -35,6 +35,34 @@ class CashierShiftController
         $shift = CashierShift::with(['store', 'register', 'cashier'])->where('tenant_id', $context->tenant()->id)->where('cashier_user_id', $request->user()->id)->where('status', 'open')->first();
 
         return response()->json(['success' => true, 'data' => $shift ? new CashierShiftResource($shift) : null]);
+    }
+
+    public function registerStatus(Request $request, TenantContext $context): JsonResponse
+    {
+        $store = Store::where('tenant_id', $context->tenant()->id)->where('uuid', $request->input('store_id'))->firstOrFail();
+        $register = PosRegister::where('tenant_id', $context->tenant()->id)
+            ->where('store_id', $store->id)
+            ->where('uuid', $request->input('register_id'))
+            ->firstOrFail();
+        Gate::forUser($request->user())->authorize('operate', $register);
+
+        $shift = CashierShift::with(['store', 'register', 'cashier'])
+            ->where('tenant_id', $context->tenant()->id)
+            ->where('store_id', $store->id)
+            ->where('register_id', $register->id)
+            ->where('status', 'open')
+            ->first();
+        $state = ! $shift ? 'closed' : ((int) $shift->cashier_user_id === (int) $request->user()->id ? 'current' : 'in_use');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'register_id' => $register->uuid,
+                'store_id' => $store->uuid,
+                'state' => $state,
+                'shift' => $shift ? new CashierShiftResource($shift) : null,
+            ],
+        ]);
     }
 
     public function index(Request $request, TenantContext $context, PosAccessService $access): JsonResponse

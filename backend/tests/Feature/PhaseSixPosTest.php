@@ -6,6 +6,7 @@ use App\Models\BusinessSetting;
 use App\Models\CashierShift;
 use App\Models\InventoryLocation;
 use App\Models\Product;
+use App\Models\PosRegister;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\Store;
@@ -207,6 +208,42 @@ class PhaseSixPosTest extends TestCase
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => -1])->assertUnprocessable();
         $this->assertDatabaseCount('cashier_shifts', 0);
         $this->assertDatabaseCount('cash_movements', 0);
+    }
+
+    public function test_multiple_registers_have_independent_branch_scoped_shifts_and_sales_context(): void
+    {
+        [$tenant, $admin, $cashierA, $store, $location, $variant] = $this->posFixture('BUS-A', 'multiple-registers');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $cashierB = $this->userWithMembership($tenant, 'cashier-b-multiple-registers@example.com', 'cashier');
+        StoreMembership::create(['tenant_id' => $tenant->id, 'store_id' => $store->id, 'user_id' => $cashierB->id, 'role' => 'cashier', 'status' => 'active', 'assigned_by' => $admin->id, 'assigned_at' => now()]);
+        $registerA = $this->register($admin, $store, $headers);
+        $registerB = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/registers', ['store_id' => $store->uuid, 'name' => 'Counter 2', 'code' => 'REG-002'])->assertCreated()->json('data.id');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/registers/'.$registerB.'/members', ['user_id' => $cashierA->id])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/registers/'.$registerB.'/members', ['user_id' => $cashierB->id])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/registers/'.$registerA.'/members', ['user_id' => $cashierB->id])->assertCreated();
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/registers?store_id='.$store->uuid.'&active_only=1')->assertOk()->assertJsonCount(2, 'data');
+        $this->openShift($cashierA, $store, $registerA, $headers);
+        $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'shift-register-b')->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $registerB, 'opening_amount' => 100])->assertCreated();
+        $this->actingAs($cashierA, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/register-status?store_id='.$store->uuid.'&register_id='.$registerA)->assertOk()->assertJsonPath('data.state', 'current');
+        $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/register-status?store_id='.$store->uuid.'&register_id='.$registerA)->assertOk()->assertJsonPath('data.state', 'in_use')->assertJsonPath('data.shift.cashier_name', $cashierA->name);
+        $this->actingAs($cashierA, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'same-cashier-second-register')->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $registerB, 'opening_amount' => 0])->assertConflict();
+        $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'same-register-second-cashier')->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $registerA, 'opening_amount' => 0])->assertConflict();
+
+        $shiftB = $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/register-status?store_id='.$store->uuid.'&register_id='.$registerB)->assertOk()->json('data.shift.id');
+        $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shiftB.'/close', ['actual_amount' => 100])->assertOk();
+        $shiftA = $this->actingAs($cashierA, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/register-status?store_id='.$store->uuid.'&register_id='.$registerA)->json('data.shift.id');
+        $this->actingAs($cashierA, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shiftA.'/close', ['actual_amount' => 100])->assertOk();
+        $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'reopen-closed-register')->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $registerA, 'opening_amount' => 0])->assertCreated();
+
+        $sale = $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'sale-register-context')->postJson('/api/v1/pos/sales', ['store_id' => $store->uuid, 'register_id' => $registerA, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 1]]])->assertCreated();
+        $saleId = $sale->json('data.id');
+        $shiftId = $sale->json('data.cashier_shift_id');
+        $sale->assertJsonPath('data.register_id', $registerA);
+        $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'payment-register-context')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'cash', 'amount' => 10, 'received_amount' => 10])->assertCreated();
+        $this->actingAs($cashierB, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk();
+        $this->assertDatabaseHas('sales', ['uuid' => $saleId, 'register_id' => PosRegister::where('uuid', $registerA)->value('id'), 'cashier_shift_id' => $shiftId, 'cashier_user_id' => $cashierB->id]);
+        $this->assertDatabaseHas('payments', ['sale_id' => Sale::where('uuid', $saleId)->value('id'), 'register_id' => PosRegister::where('uuid', $registerA)->value('id'), 'cashier_shift_id' => $shiftId]);
     }
 
     public function test_branch_salespeople_are_filtered_and_recorded_on_sale_and_payment_context(): void

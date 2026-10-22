@@ -56,3 +56,11 @@ test('cash received keeps an editable digit-only string and calculates overpayme
   assert.match(source, /const change = totalPaid > total \? totalPaid - total : 0n/)
   assert.match(source, /const paymentComplete = total > 0n && totalPaid >= total && balance <= 0n/)
 })
+
+test('POS register selection is branch-scoped and exposes the selected register shift state', () => {
+  assert.match(source, /active_only: 1, store_id: branchId/)
+  assert.match(source, /\/api\/v1\/pos\/shifts\/register-status/)
+  assert.match(source, /register_already_in_use/)
+  assert.match(source, /registerShiftState === 'in_use'/)
+  assert.match(source, /setRegisterShiftState\('closed'\)/)
+})

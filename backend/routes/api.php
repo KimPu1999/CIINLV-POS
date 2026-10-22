@@ -397,6 +397,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::delete('/registers/{register}/members/{membership}', [PosRegisterMembershipController::class, 'destroy']);
                 Route::post('/shifts/open', [CashierShiftController::class, 'open']);
                 Route::get('/shifts/current', [CashierShiftController::class, 'current']);
+                Route::get('/shifts/register-status', [CashierShiftController::class, 'registerStatus']);
                 Route::get('/shifts', [CashierShiftController::class, 'index']);
                 Route::post('/shifts/{shift}/close', [CashierShiftController::class, 'close']);
                 Route::post('/shifts/{shift}/cash-movements', [CashierShiftController::class, 'movement']);

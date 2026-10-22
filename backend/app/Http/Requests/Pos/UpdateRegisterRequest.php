@@ -13,6 +13,6 @@ class UpdateRegisterRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['name' => ['sometimes', 'string', 'max:120'], 'code' => ['sometimes', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/'], 'status' => ['sometimes', 'in:active,inactive,suspended'], 'settings' => ['sometimes', 'array', 'max:20']];
+        return ['store_id' => ['sometimes', 'uuid'], 'name' => ['sometimes', 'string', 'max:120'], 'code' => ['sometimes', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/'], 'status' => ['sometimes', 'in:active,inactive,suspended'], 'settings' => ['sometimes', 'array', 'max:20']];
     }
 }

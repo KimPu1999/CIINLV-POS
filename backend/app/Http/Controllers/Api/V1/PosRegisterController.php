@@ -54,14 +54,27 @@ class PosRegisterController
         return response()->json(['success' => true, 'data' => new PosRegisterResource($register->load('store'))]);
     }
 
-    public function update(UpdateRegisterRequest $request, PosRegister $register, TenantContext $context, AuditLogger $audit): JsonResponse
+    public function update(UpdateRegisterRequest $request, PosRegister $register, TenantContext $context, PosAccessService $access, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($register, $context);
         Gate::forUser($request->user())->authorize('manage', $register);
+        $targetStore = $register->store;
+        if ($request->filled('store_id')) {
+            $targetStore = $this->resolveStore($request->input('store_id'), $context);
+            abort_unless($access->canManage($request->user(), $targetStore), 403, 'Register management access is required for the selected branch.');
+            if ((int) $targetStore->id !== (int) $register->store_id && CashierShift::where('tenant_id', $register->tenant_id)->where('register_id', $register->id)->where('status', 'open')->exists()) {
+                throw new ConflictHttpException('Close the active cashier shift before moving this register to another branch.');
+            }
+        }
         if ($request->filled('status') && $request->input('status') !== 'active' && CashierShift::where('tenant_id', $register->tenant_id)->where('register_id', $register->id)->where('status', 'open')->exists()) {
             throw new ConflictHttpException('Close the active cashier shift before deactivating this register.');
         }
-        $register->update($request->validated());
+        $data = $request->validated();
+        unset($data['store_id']);
+        if ($request->filled('store_id')) {
+            $data['store_id'] = $targetStore->id;
+        }
+        $register->update($data);
         $audit->record('pos.register_updated', $request->user(), $context->tenant(), $register);
 
         return response()->json(['success' => true, 'data' => new PosRegisterResource($register->fresh('store'))]);

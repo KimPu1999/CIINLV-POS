@@ -284,6 +284,8 @@
     "shift_note": "Shift note (optional)",
     "select_register_before_checkout": "Select a register before completing a sale.",
     "no_active_register": "No active register is available for this branch.",
+    "register_already_in_use": "Register is already in use",
+    "unable_to_load_register_status": "Unable to load the selected register status.",
     "checkout_requires_cart": "Add at least one product before completing a sale.",
     "print_receipt": "Print receipt",
     "allow_popups_to_print_receipt": "Allow pop-ups to print the receipt.",
