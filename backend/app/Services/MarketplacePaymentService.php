@@ -31,6 +31,9 @@ class MarketplacePaymentService
             if ($payment->status !== 'pending') {
                 throw new ConflictHttpException('This COD payment is not available for collection.');
             }
+            if ($vendorOrder) {
+                $this->assertVendorFulfillmentActive($lockedOrder, $vendorOrder);
+            }
 
             $scopeTotal = (string) ($vendorOrder?->total ?: $lockedOrder->grand_total);
             $collections = (array) ($metadata['vendor_collections'] ?? []);
@@ -99,5 +102,20 @@ class MarketplacePaymentService
     private function money(string $value): string
     {
         return bcadd($value, '0', 2);
+    }
+
+    private function assertVendorFulfillmentActive(MarketplaceOrder $order, MarketplaceVendorOrder $vendorOrder): void
+    {
+        if (! in_array($order->status, ['confirmed', 'processing', 'partially_shipped', 'shipped'], true)) {
+            throw new UnprocessableEntityHttpException('The order must be confirmed before receiving payment.');
+        }
+
+        $active = $vendorOrder->shipments()
+            ->whereIn('status', ['ready', 'ready_to_ship', 'processing', 'shipped', 'in_transit'])
+            ->exists();
+
+        if (! $active) {
+            throw new UnprocessableEntityHttpException('Activate Shipping / Fulfillment before receiving payment.');
+        }
     }
 }

@@ -39,6 +39,11 @@ class MarketplaceSalesHistoryTest extends TestCase
             ->assertJsonCount(0, 'data')
             ->assertJsonPath('meta.summary.sales_count', 0);
 
+        $shipment = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson($url.'/shipments', ['delivery_type' => 'self_delivery'])
+            ->assertCreated()
+            ->json('data');
+
         $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'sales-history-cod'])
             ->postJson($url.'/payments/cod/collect', ['amount_received' => 1500])
             ->assertOk()
@@ -51,10 +56,6 @@ class MarketplaceSalesHistoryTest extends TestCase
             ->assertJsonPath('data.0.receipt_available', true)
             ->assertJsonPath('data.0.payment_status', 'paid');
 
-        $shipment = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
-            ->postJson($url.'/shipments', ['delivery_type' => 'self_delivery'])
-            ->assertCreated()
-            ->json('data');
         foreach (['shipped', 'in_transit', 'delivered'] as $status) {
             $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
                 ->patchJson('/api/v1/vendor/marketplace/shipments/'.$shipment['id'].'/status', ['status' => $status])
@@ -92,6 +93,8 @@ class MarketplaceSalesHistoryTest extends TestCase
         $order = $this->checkout($customer, $listing, $variant, 'sales-history-c');
         $vendorOrder = $order->vendorOrders()->firstOrFail();
         $url = '/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid;
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson($url.'/shipments', ['delivery_type' => 'self_delivery'])->assertCreated();
 
         $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'sales-history-refund'])
             ->postJson($url.'/payments/cod/collect', ['amount_received' => 2200])
@@ -120,6 +123,8 @@ class MarketplaceSalesHistoryTest extends TestCase
         $customer = $this->customer('sales-history-d@example.com');
         $first = $this->checkout($customer, $listing, $variant, 'sales-history-d-1');
         $firstVendor = $first->vendorOrders()->firstOrFail();
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$firstVendor->uuid.'/shipments', ['delivery_type' => 'self_delivery'])->assertCreated();
         $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'sales-history-d-pay-1'])
             ->postJson('/api/v1/vendor/marketplace/orders/'.$firstVendor->uuid.'/payments/cod/collect', ['amount_received' => 900])
             ->assertOk();
@@ -129,6 +134,8 @@ class MarketplaceSalesHistoryTest extends TestCase
         $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listing->uuid, 'variant_id' => $variant->uuid, 'quantity' => 1])->assertCreated();
         $second = $this->checkout($customer, $listing, $variant, 'sales-history-d-2');
         $secondVendor = $second->vendorOrders()->firstOrFail();
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$secondVendor->uuid.'/shipments', ['delivery_type' => 'self_delivery'])->assertCreated();
         $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'sales-history-d-pay-2'])
             ->postJson('/api/v1/vendor/marketplace/orders/'.$secondVendor->uuid.'/payments/cod/collect', ['amount_received' => $second->grand_total])
             ->assertOk();

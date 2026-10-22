@@ -23,6 +23,7 @@ class MarketplaceVendorOrderResource extends JsonResource
             'store_name' => $this->store?->name,
             'tenant_id' => $this->tenant?->uuid,
             'status' => $this->status,
+            'order_status' => $this->order?->status,
             'payment_status' => $this->order?->payment_status,
             'payment_method' => $this->order?->payments?->sortByDesc('id')->first()?->method,
             'amount_received' => $amountReceived,

@@ -42,6 +42,8 @@ class MarketplaceBillingDocumentsTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->getJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/invoice')->assertOk()->assertJsonPath('data.grand_total', '1500.00');
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1500, 'transaction_reference' => 'CASH-001'])
             ->assertOk()->assertJsonPath('data.payment_status', 'paid');
 
@@ -61,6 +63,8 @@ class MarketplaceBillingDocumentsTest extends TestCase
         $order = $this->checkout($customer, $listing, $variant, 'billing-b');
         $vendorOrder = $order->vendorOrders()->firstOrFail();
         $url = '/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect';
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])->assertCreated();
 
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson($url, ['amount_received' => 0])->assertUnprocessable();
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson($url, ['amount_received' => 1001])->assertUnprocessable();

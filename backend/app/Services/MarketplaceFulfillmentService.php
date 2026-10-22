@@ -28,6 +28,9 @@ class MarketplaceFulfillmentService
             if (! in_array($lockedOrder->status, ['pending', 'processing'], true)) {
                 throw new ConflictHttpException('This vendor order is not eligible for shipment creation.');
             }
+            if (! in_array($lockedOrder->order?->status, ['confirmed', 'processing'], true)) {
+                throw new ConflictHttpException('This order must be confirmed before fulfillment can be activated.');
+            }
 
             $this->assertPaymentMayShip($lockedOrder->order);
             $shipment = MarketplaceShipment::create([

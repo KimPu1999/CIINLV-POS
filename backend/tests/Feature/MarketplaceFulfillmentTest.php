@@ -46,6 +46,68 @@ class MarketplaceFulfillmentTest extends TestCase
         $this->assertDatabaseCount('stock_movements', 1);
     }
 
+    public function test_cod_collection_requires_active_fulfillment_and_is_idempotent_after_payment(): void
+    {
+        [$tenant, , $listing, $variant, $admin] = $this->vendor('FULFILLMENT-PAYMENT', 1000, 2);
+        $customer = $this->customer('fulfillment-payment@example.com');
+        $address = $this->address($customer);
+        $this->addToCart($customer, $listing, $variant);
+        $order = $this->checkout($customer, $address, 'fulfillment-payment-checkout');
+        $vendorOrder = $order->vendorOrders()->firstOrFail();
+        $headers = ['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'fulfillment-payment-collect'];
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Activate Shipping / Fulfillment before receiving payment.');
+
+        $shipment = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'ready')
+            ->json('data');
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
+            ->assertOk()
+            ->assertJsonPath('data.payment_status', 'paid')
+            ->assertJsonPath('data.receipt_available', true);
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
+            ->assertOk()
+            ->assertJsonPath('idempotent_replay', true);
+
+        foreach (['shipped', 'in_transit', 'delivered'] as $status) {
+            $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+                ->patchJson('/api/v1/vendor/marketplace/shipments/'.$shipment['id'].'/status', ['status' => $status])
+                ->assertOk();
+        }
+        $this->assertDatabaseHas('marketplace_payments', ['marketplace_order_id' => $order->id, 'status' => 'paid']);
+    }
+
+    public function test_cancelled_fulfillment_blocks_pending_cod_collection(): void
+    {
+        [$tenant, , $listing, $variant, $admin] = $this->vendor('FULFILLMENT-CANCELLED-PAYMENT', 1000, 2);
+        $customer = $this->customer('fulfillment-cancelled-payment@example.com');
+        $address = $this->address($customer);
+        $this->addToCart($customer, $listing, $variant);
+        $order = $this->checkout($customer, $address, 'fulfillment-cancelled-payment-checkout');
+        $vendorOrder = $order->vendorOrders()->firstOrFail();
+        $shipment = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])
+            ->assertCreated()
+            ->json('data');
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->patchJson('/api/v1/vendor/marketplace/shipments/'.$shipment['id'].'/status', ['status' => 'cancelled'])
+            ->assertOk();
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Activate Shipping / Fulfillment before receiving payment.');
+    }
+
     public function test_invalid_shipment_transition_and_duplicate_stock_dispatch_are_rejected(): void
     {
         [$tenant, , $listing, $variant, $admin] = $this->vendor('FULFILLMENT-B', 1000, 2);
