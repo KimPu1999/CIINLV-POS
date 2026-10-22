@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceDocumentService;
+use App\Services\BusinessNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplacePaymentWebhookController
 {
-    public function __invoke(Request $request, string $provider, MarketplaceCommissionService $commissions, MarketplaceDocumentService $documents): JsonResponse
+    public function __invoke(Request $request, string $provider, MarketplaceCommissionService $commissions, MarketplaceDocumentService $documents, BusinessNotificationService $notifications): JsonResponse
     {
         $secret = (string) config('marketplace.webhook_secret');
         $signature = (string) $request->header('X-Payment-Signature');
@@ -72,6 +73,10 @@ class MarketplacePaymentWebhookController
 
             return ['payment' => $payment->fresh(), 'order' => $order->fresh(), 'replayed' => false];
         });
+
+        if (! $result['replayed'] && $result['payment']->status === 'paid') {
+            $notifications->paymentReceived($result['order'], null, $result['payment']);
+        }
 
         return response()->json(['success' => true, 'idempotent_replay' => $result['replayed'], 'data' => ['payment_reference' => $result['payment']->provider_reference, 'status' => $result['payment']->status, 'order_id' => $result['order']->uuid, 'payment_status' => $result['order']->payment_status]]);
     }

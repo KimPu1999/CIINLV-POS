@@ -12,11 +12,15 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplacePaymentService
 {
-    public function __construct(private readonly MarketplaceCommissionService $commissions, private readonly MarketplaceDocumentService $documents) {}
+    public function __construct(
+        private readonly MarketplaceCommissionService $commissions,
+        private readonly MarketplaceDocumentService $documents,
+        private readonly BusinessNotificationService $notifications,
+    ) {}
 
     public function collectCod(MarketplaceOrder $order, User $actor, array $data, ?MarketplaceVendorOrder $vendorOrder = null): array
     {
-        return DB::transaction(function () use ($order, $actor, $data, $vendorOrder): array {
+        $result = DB::transaction(function () use ($order, $actor, $data, $vendorOrder): array {
             $lockedOrder = MarketplaceOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
             $payment = $lockedOrder->payments()->where('method', 'cod')->lockForUpdate()->firstOrFail();
             $metadata = (array) $payment->metadata;
@@ -97,6 +101,12 @@ class MarketplacePaymentService
 
             return ['order' => $lockedOrder->fresh(), 'payment' => $payment->fresh(), 'replayed' => false, 'vendor_order' => $vendorOrder];
         });
+
+        if (! $result['replayed'] && $result['payment']->status === 'paid') {
+            $this->notifications->paymentReceived($result['order'], null, $result['payment']);
+        }
+
+        return $result;
     }
 
     private function money(string $value): string
@@ -106,12 +116,12 @@ class MarketplacePaymentService
 
     private function assertVendorFulfillmentActive(MarketplaceOrder $order, MarketplaceVendorOrder $vendorOrder): void
     {
-        if (! in_array($order->status, ['confirmed', 'processing', 'partially_shipped', 'shipped'], true)) {
-            throw new UnprocessableEntityHttpException('The order must be confirmed before receiving payment.');
-        }
-
         if (! in_array($vendorOrder->fulfillment_status, ['active', 'shipped', 'in_transit'], true)) {
             throw new UnprocessableEntityHttpException('Fulfillment must be active before receiving cash payment.');
+        }
+
+        if (! in_array($order->status, ['confirmed', 'processing', 'partially_shipped', 'shipped'], true)) {
+            throw new UnprocessableEntityHttpException('The order must be confirmed before receiving payment.');
         }
     }
 }

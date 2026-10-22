@@ -20,6 +20,8 @@ class MarketplaceShipmentResource extends JsonResource
             'tracking_url' => $this->tracking_url,
             'internal_tracking_id' => $this->internal_tracking_id,
             'status' => $this->status,
+            'fulfillment_status' => $this->vendorOrder?->fulfillment_status ?: 'pending',
+            'fulfillment_activated_at' => $this->vendorOrder?->fulfillment_activated_at?->toIso8601String(),
             'shipped_at' => $this->shipped_at?->toIso8601String(),
             'delivered_at' => $this->delivered_at?->toIso8601String(),
             'delivery_notes' => $this->delivery_notes,

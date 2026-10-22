@@ -23,6 +23,7 @@ class MarketplaceCheckoutService
         private readonly MarketplaceInventoryReservationService $reservations,
         private readonly MarketplaceCommissionService $commissions,
         private readonly MarketplaceSettingsService $settings,
+        private readonly BusinessNotificationService $notifications,
     ) {}
 
     public function quote(User $customer, array $data): array
@@ -148,7 +149,10 @@ class MarketplaceCheckoutService
             return $order;
         });
 
-        return ['order' => $this->loadOrder($result), 'replayed' => false];
+        $order = $this->loadOrder($result);
+        $this->notifications->orderCreated($order);
+
+        return ['order' => $order, 'replayed' => false];
     }
 
     public function loadOrder(MarketplaceOrder $order): MarketplaceOrder

@@ -17,10 +17,10 @@ class StockAlertService
 {
     public function evaluate(InventoryLocation $location, ProductVariant $variant): ?StockAlert
     {
-        return DB::transaction(function () use ($location, $variant): ?StockAlert {
+        [$alert, $shouldNotify] = DB::transaction(function () use ($location, $variant): array {
             $balance = InventoryBalance::where('tenant_id', $location->tenant_id)->where('inventory_location_id', $location->id)->where('product_variant_id', $variant->id)->lockForUpdate()->first();
             if (! $balance) {
-                return null;
+                return [null, false];
             }
             $available = bcsub((string) $balance->on_hand_quantity, (string) $balance->reserved_quantity, 3);
             $threshold = (string) ($variant->reorder_level ?? 0);
@@ -33,26 +33,39 @@ class StockAlertService
                     event(new LowStockResolved($active));
                 }
 
-                return null;
+                return [null, false];
             }
 
             if ($active) {
+                $changed = $active->alert_type !== $type;
                 $active->update(['alert_type' => $type, 'available_quantity' => $available, 'threshold_quantity' => $threshold, 'last_triggered_at' => now()]);
+                if ($changed) {
+                    event(new LowStockTriggered($active));
+                    SendStockAlert::dispatch($active->id)->afterCommit();
+                }
 
-                return $active;
+                return [$active, $changed];
             }
 
             $alert = StockAlert::where('tenant_id', $location->tenant_id)->where('inventory_location_id', $location->id)->where('product_variant_id', $variant->id)->where('status', 'resolved')->latest('resolved_at')->first();
             if ($alert) {
-                $alert->update(['alert_type' => $type, 'threshold_quantity' => $threshold, 'available_quantity' => $available, 'status' => 'open', 'first_triggered_at' => now(), 'last_triggered_at' => now(), 'resolved_at' => null]);
+                $metadata = (array) $alert->metadata;
+                $metadata['notification_cycle'] = ((int) ($metadata['notification_cycle'] ?? 0)) + 1;
+                $alert->update(['alert_type' => $type, 'threshold_quantity' => $threshold, 'available_quantity' => $available, 'status' => 'open', 'first_triggered_at' => now(), 'last_triggered_at' => now(), 'resolved_at' => null, 'metadata' => $metadata]);
             } else {
-                $alert = StockAlert::create(['tenant_id' => $location->tenant_id, 'inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'alert_type' => $type, 'threshold_quantity' => $threshold, 'available_quantity' => $available, 'status' => 'open', 'first_triggered_at' => now(), 'last_triggered_at' => now(), 'metadata' => ['source' => 'inventory_balance']]);
+                $alert = StockAlert::create(['tenant_id' => $location->tenant_id, 'inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'alert_type' => $type, 'threshold_quantity' => $threshold, 'available_quantity' => $available, 'status' => 'open', 'first_triggered_at' => now(), 'last_triggered_at' => now(), 'metadata' => ['source' => 'inventory_balance', 'notification_cycle' => 1]]);
             }
             event(new LowStockTriggered($alert));
             SendStockAlert::dispatch($alert->id)->afterCommit();
 
-            return $alert;
+            return [$alert, true];
         });
+
+        if ($shouldNotify && $alert) {
+            app(BusinessNotificationService::class)->inventoryAlert($alert->refresh());
+        }
+
+        return $alert;
     }
 
     public function acknowledge(StockAlert $alert, User $user): StockAlert

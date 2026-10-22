@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\BarcodeController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessDashboardController;
 use App\Http\Controllers\Api\V1\BusinessInvitationController;
+use App\Http\Controllers\Api\V1\BusinessNotificationController;
 use App\Http\Controllers\Api\V1\BusinessProfileController;
 use App\Http\Controllers\Api\V1\BusinessRegistrationController;
 use App\Http\Controllers\Api\V1\BusinessSettingsController;
@@ -275,6 +276,10 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/settings/appearance', [BusinessSettingsController::class, 'appearance']);
             Route::patch('/settings/data', [BusinessSettingsController::class, 'dataConfiguration']);
             Route::get('/settings/subscription', [BusinessSettingsController::class, 'subscription']);
+            Route::get('/notifications/unread-count', [BusinessNotificationController::class, 'unreadCount']);
+            Route::get('/notifications', [BusinessNotificationController::class, 'index']);
+            Route::patch('/notifications/{notification}/read', [BusinessNotificationController::class, 'markRead']);
+            Route::post('/notifications/read-all', [BusinessNotificationController::class, 'markAllRead']);
             Route::get('/dashboard', BusinessDashboardController::class);
             Route::get('/members', [BusinessController::class, 'members']);
             Route::get('/customers', [CustomerManagementController::class, 'businessIndex']);

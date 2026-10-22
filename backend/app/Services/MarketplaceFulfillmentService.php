@@ -14,11 +14,12 @@ class MarketplaceFulfillmentService
 {
     public function __construct(
         private readonly MarketplaceInventoryReservationService $reservations,
+        private readonly BusinessNotificationService $notifications,
     ) {}
 
     public function createShipment(MarketplaceVendorOrder $vendorOrder, User $actor, array $data): MarketplaceShipment
     {
-        return DB::transaction(function () use ($vendorOrder, $actor, $data): MarketplaceShipment {
+        $shipment = DB::transaction(function () use ($vendorOrder, $actor, $data): MarketplaceShipment {
             $lockedOrder = MarketplaceVendorOrder::query()->whereKey($vendorOrder->id)->lockForUpdate()->firstOrFail();
             $lockedOrder->load(['order.payments', 'store', 'items']);
 
@@ -55,6 +56,10 @@ class MarketplaceFulfillmentService
 
             return $shipment->refresh()->load(['vendorOrder.store', 'events.actor']);
         });
+
+        $this->notifications->fulfillmentReady($shipment->vendorOrder);
+
+        return $shipment;
     }
 
     public function transitionShipment(MarketplaceShipment $shipment, User $actor, string $nextStatus, ?string $description = null): MarketplaceShipment
