@@ -212,6 +212,21 @@ class MarketplaceCheckoutTest extends TestCase
         $this->assertDatabaseHas('marketplace_payments', ['method' => 'qr', 'status' => 'paid', 'provider' => 'qr']);
     }
 
+    public function test_business_admin_order_list_shows_its_checkout_and_is_tenant_scoped(): void
+    {
+        [$tenantA, , $listingA, $variantA, $adminA] = $this->vendor('CHECKOUT-VENDOR-LIST-A', 1000, 4);
+        [$tenantB, , $listingB, $variantB, $adminB] = $this->vendor('CHECKOUT-VENDOR-LIST-B', 2000, 4);
+        $customer = $this->customer('buyer-vendor-list@example.com');
+        $address = $this->address($customer);
+        foreach ([[$listingA, $variantA], [$listingB, $variantB]] as [$listing, $variant]) {
+            $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listing->uuid, 'variant_id' => $variant->uuid, 'quantity' => 1])->assertCreated();
+        }
+        $this->actingAs($customer, 'sanctum')->withHeader('Idempotency-Key', 'checkout-vendor-list')->postJson('/api/v1/marketplace/checkout', ['address_id' => $address->id, 'payment_method' => 'cod'])->assertCreated();
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/vendor/marketplace/orders?status=pending&payment_status=pending')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.payment_method', 'cod')->assertJsonPath('data.0.fulfillment_status', 'pending');
+        $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/vendor/marketplace/orders')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.total', '2000.00');
+    }
+
     private function vendor(string $code, int $price, int $stock): array
     {
         $tenant = Tenant::create(['name' => $code, 'slug' => strtolower($code), 'business_code' => $code, 'status' => 'active', 'subscription_status' => 'active']);

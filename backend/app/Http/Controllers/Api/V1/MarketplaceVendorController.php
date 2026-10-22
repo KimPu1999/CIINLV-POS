@@ -133,16 +133,27 @@ class MarketplaceVendorController
     {
         $orders = MarketplaceVendorOrder::query()
             ->where('tenant_id', $context->tenant()->id)
-            ->with(['store', 'tenant', 'items', 'order', 'shipments.events'])
+            ->with(['store', 'tenant', 'items', 'order.customer', 'order.payments', 'shipments.events'])
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('payment_status'), fn (Builder $query) => $query->whereHas('order', fn (Builder $order) => $order->where('payment_status', $request->string('payment_status')->toString())))
+            ->when($request->filled('search'), function (Builder $query) use ($request): void {
+                $term = '%'.$request->string('search')->toString().'%';
+                $query->where(function (Builder $search) use ($term): void {
+                    $search->where('vendor_order_number', 'ilike', $term)
+                        ->orWhereHas('order', fn (Builder $order) => $order->where('order_number', 'ilike', $term)->orWhereHas('customer', fn (Builder $customer) => $customer->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)));
+                });
+            })
+            ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('created_at', '>=', $request->date('from')))
+            ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('created_at', '<=', $request->date('to')))
             ->latest()
-            ->paginate(min(max((int) $request->input('per_page', 20), 1), 50));
+            ->paginate(min(max((int) $request->input('per_page', 20), 1), 100));
 
         return response()->json(['success' => true, 'data' => MarketplaceVendorOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);
     }
 
     public function order(Request $request, string $order, TenantContext $context): JsonResponse
     {
-        $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items', 'order.payments', 'shipments.events.actor'])->firstOrFail();
+        $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items.variant', 'order.customer', 'order.payments', 'shipments.events.actor'])->firstOrFail();
 
         return response()->json(['success' => true, 'data' => new MarketplaceVendorOrderResource($model)]);
     }
