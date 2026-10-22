@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController
 {
@@ -64,17 +65,18 @@ class AuthController
     public function logout(Request $request, AuditLogger $auditLogger): JsonResponse
     {
         $user = $request->user();
+        $currentAccessToken = $user?->currentAccessToken();
 
         if ($user) {
             $auditLogger->record('auth.logout', $user, metadata: [
-                'client_type' => $request->user()->currentAccessToken() ? 'mobile' : 'web',
+                'client_type' => $currentAccessToken instanceof PersonalAccessToken ? 'mobile' : 'web',
                 'ip_address' => $request->ip(),
                 'user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
             ]);
         }
 
-        if ($token = $request->user()?->currentAccessToken()) {
-            $token->delete();
+        if ($currentAccessToken instanceof PersonalAccessToken) {
+            $currentAccessToken->delete();
         }
 
         if (Auth::guard('web')->check()) {
@@ -84,6 +86,10 @@ class AuthController
                 $request->session()->regenerateToken();
             }
         }
+
+        // Sanctum's request guard caches the resolved user. Clear all resolved
+        // guards so a long-lived worker cannot reuse the logged-out account.
+        Auth::forgetGuards();
 
         return response()->json(['success' => true, 'message' => 'Logged out successfully.']);
     }

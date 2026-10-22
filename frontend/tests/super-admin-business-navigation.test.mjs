@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
 const auth = await readFile(new URL('../src/lib/auth.tsx', import.meta.url), 'utf8')
+const api = await readFile(new URL('../src/lib/api.ts', import.meta.url), 'utf8')
 const businesses = await readFile(new URL('../src/features/businesses.tsx', import.meta.url), 'utf8')
 
 test('Super Admin business workspace requires explicit tenant selection and preserves the selection', () => {
@@ -19,4 +20,12 @@ test('Business Management exposes the audited Manage business workflow entry poi
   assert.match(businesses, /Manage business/)
   assert.match(businesses, /localStorage\.setItem\('ciinlv_tenant_id', business\.id\)/)
   assert.match(businesses, /navigate\('\/business\/dashboard'\)/)
+})
+
+test('Platform login uses the backend cookie session and does not persist bearer credentials', () => {
+  assert.match(api, /withCredentials: true/)
+  assert.match(api, /await initializeCsrf\(\)/)
+  assert.match(api, /return currentUser\(\)/)
+  assert.doesNotMatch(api, /Authorization/)
+  assert.doesNotMatch(api, /localStorage\.setItem\([^\n]*token/i)
 })
