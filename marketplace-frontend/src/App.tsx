@@ -104,6 +104,7 @@ interface AppServices {
   t: (key: TranslationKey) => string
   addToCart: (listing: MarketplaceListing, variantId?: string) => void
   updateQuantity: (cartKey: string, quantity: number) => void
+  updateVariant: (cartKey: string, variantId: string) => void
   removeFromCart: (cartKey: string) => void
   toggleWishlist: (id: string) => void
   setCustomer: (customer: Customer | null) => void
@@ -250,6 +251,37 @@ function App() {
     return [{ ...item, quantity: nextQuantity }]
     }))
   }
+  const updateVariant = (cartKey: string, variantId: string) => {
+    const currentItem = cart.find((item) => item.cartKey === cartKey)
+    const variant = currentItem?.variants.find((item) => item.id === variantId)
+    if (!currentItem || !variant || (currentItem.variantId === variantId)) return
+    if (currentItem.trackInventory && variant.availableStock === 0) {
+      setCartError(t('errorGeneric'))
+      return
+    }
+    if (customer) {
+      if (!currentItem.serverItemId) {
+        setCartError(t('cartSync'))
+        return
+      }
+      enqueueCartMutation(async () => {
+        const next = await updateMarketplaceCartItem(currentItem.serverItemId!, currentItem.quantity, locale, variantId)
+        setCart(next.items)
+      })
+      return
+    }
+    const targetKey = `${currentItem.id}:${variantId}`
+    setCart((current) => {
+      const target = current.find((item) => item.cartKey === targetKey)
+      const availableStock = variant.availableStock ?? currentItem.availableStock
+      const nextQuantity = typeof availableStock === 'number' ? Math.min(currentItem.quantity + (target?.quantity ?? 0), availableStock) : currentItem.quantity + (target?.quantity ?? 0)
+      return current.flatMap((item) => {
+        if (item.cartKey === cartKey) return target ? [] : [{ ...currentItem, ...item, price: variant.sellingPrice, variantId, availableStock, cartKey: targetKey }]
+        if (item.cartKey === targetKey) return [{ ...item, quantity: nextQuantity }]
+        return [item]
+      })
+    })
+  }
   const removeFromCart = (cartKey: string) => {
     const item = cart.find((entry) => entry.cartKey === cartKey)
     if (customer) {
@@ -279,7 +311,7 @@ function App() {
       setCustomer(null)
     }
   }
-  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, removeFromCart, toggleWishlist, setCustomer, signOut, cartServer: Boolean(customer), cartBusy, cartError, cartMessage }
+  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, updateVariant, removeFromCart, toggleWishlist, setCustomer, signOut, cartServer: Boolean(customer), cartBusy, cartError, cartMessage }
 
   return (
     <MarketplaceShell
@@ -500,18 +532,18 @@ function ProductPage({ catalog, locale, t, addToCart, wishlist, toggleWishlist }
   const [listing, setListing] = useState<MarketplaceListing | null>(fallback ?? null)
   const [loading, setLoading] = useState(!fallback)
   const [error, setError] = useState('')
-  const [variantId, setVariantId] = useState(fallback ? preferredVariantId(fallback) : '')
+  const [variantId, setVariantId] = useState(fallback && !fallback.hasSizes ? preferredVariantId(fallback) : '')
   useEffect(() => {
     const controller = new AbortController()
-    void fetchProduct(slug, locale, controller.signal).then((value) => { setListing(value); setVariantId(preferredVariantId(value)) }).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(apiErrorMessage(reason)) }).finally(() => setLoading(false))
+    void fetchProduct(slug, locale, controller.signal).then((value) => { setListing(value); setVariantId(value.hasSizes ? '' : preferredVariantId(value)) }).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(apiErrorMessage(reason)) }).finally(() => setLoading(false))
     return () => controller.abort()
   }, [locale, slug])
   if (loading && !listing) return <PageContainer><LoadingState t={t} /></PageContainer>
   if (!listing || error) return <PageContainer>{error ? <ErrorState message={error} t={t} /> : <CatalogEmpty status="ready" t={t} />}</PageContainer>
-  const selected = listing.variants.find((item) => item.id === variantId) ?? listing.variants[0]
+  const selected = listing.variants.find((item) => item.id === variantId) ?? (listing.hasSizes ? undefined : listing.variants[0])
   const available = listing.trackInventory ? selected?.availableStock ?? listing.availableStock : null
   const related = catalog.data.listings.filter((item) => item.id !== listing.id && item.categoryId === listing.categoryId).slice(0, 4)
-  return <PageContainer><Link to="/shop" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-blue-600"><ArrowLeft size={16} /> {t('backToShop')}</Link><div className="mt-8 grid gap-10 lg:grid-cols-2"><ProductGallery listing={listing} t={t} /><div className="self-center"><p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">{listing.storeSlug ? <Link to={`/stores/${listing.storeSlug}`} className="hover:underline">{listing.storeName || t('marketplace')}</Link> : listing.storeName || t('marketplace')}</p><h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">{listing.name}</h1><p className="mt-5 text-3xl font-black text-blue-600">{formatPrice(selected?.sellingPrice ?? listing.price, listing.currency, locale)}</p><p className="mt-6 max-w-xl text-base leading-8 text-slate-500 dark:text-slate-400">{listing.description || t('discoverBody')}</p>{listing.variants.length > 1 && <div className="mt-7"><p className="text-sm font-black">{t('selectVariant')}</p><div className="mt-3 flex flex-wrap gap-2">{listing.variants.map((item) => <button key={item.id} type="button" onClick={() => setVariantId(item.id)} disabled={listing.trackInventory && item.availableStock === 0} className={'rounded-xl border px-3 py-2 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (item.id === selected?.id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300') + (listing.trackInventory && item.availableStock === 0 ? ' cursor-not-allowed opacity-40' : '')}>{variantLabel(item, t)}{listing.trackInventory && item.availableStock === 0 && ` · ${t('soldOut')}`}</button>)}</div></div>}<div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => addToCart(listing, selected?.id)} disabled={available === 0} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300"><ShoppingBag size={18} /> {t('addToCart')}</button><button type="button" onClick={() => toggleWishlist(listing.id)} className={'inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-sm font-black transition ' + (wishlist.includes(listing.id) ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-700 hover:border-blue-300 dark:border-slate-800 dark:text-slate-200')}><Heart size={18} fill={wishlist.includes(listing.id) ? 'currentColor' : 'none'} /> {wishlist.includes(listing.id) ? t('saved') : t('save')}</button></div><div className="mt-8 grid gap-3 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 dark:text-slate-400"><span className="flex items-center gap-2"><ShieldCheck size={17} className="text-emerald-500" /> {available === 0 ? t('soldOut') : t('available')}</span><span className="flex items-center gap-2"><Truck size={17} className="text-blue-500" /> {t('thoughtfulDelivery')}</span></div></div></div>{related.length > 0 && <section className="mt-20"><SectionHeading eyebrow={t('productDetails')} title={t('browseCollection')} /><ProductGrid listings={related} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}</PageContainer>
+  return <PageContainer><Link to="/shop" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-blue-600"><ArrowLeft size={16} /> {t('backToShop')}</Link><div className="mt-8 grid gap-10 lg:grid-cols-2"><ProductGallery listing={listing} t={t} /><div className="self-center"><p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">{listing.storeSlug ? <Link to={`/stores/${listing.storeSlug}`} className="hover:underline">{listing.storeName || t('marketplace')}</Link> : listing.storeName || t('marketplace')}</p><h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">{listing.name}</h1><p className="mt-5 text-3xl font-black text-blue-600">{formatPrice(selected?.sellingPrice ?? listing.price, listing.currency, locale)}</p><p className="mt-6 max-w-xl text-base leading-8 text-slate-500 dark:text-slate-400">{listing.description || t('discoverBody')}</p>{(listing.hasSizes || listing.variants.length > 1) && <div className="mt-7"><p className="text-sm font-black">{t('selectVariant')}</p><div className="mt-3 flex flex-wrap gap-2">{listing.variants.map((item) => <button key={item.id} type="button" onClick={() => setVariantId(item.id)} disabled={listing.trackInventory && item.availableStock === 0} className={'rounded-xl border px-3 py-2 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (item.id === selected?.id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300') + (listing.trackInventory && item.availableStock === 0 ? ' cursor-not-allowed opacity-40' : '')}>{variantLabel(item, t)}{listing.trackInventory && item.availableStock === 0 && ` · ${t('soldOut')}`}</button>)}</div></div>}<div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => addToCart(listing, selected?.id)} disabled={!selected || (listing.hasSizes && !variantId) || available === 0} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300"><ShoppingBag size={18} /> {t('addToCart')}</button><button type="button" onClick={() => toggleWishlist(listing.id)} className={'inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-sm font-black transition ' + (wishlist.includes(listing.id) ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-700 hover:border-blue-300 dark:border-slate-800 dark:text-slate-200')}><Heart size={18} fill={wishlist.includes(listing.id) ? 'currentColor' : 'none'} /> {wishlist.includes(listing.id) ? t('saved') : t('save')}</button></div><div className="mt-8 grid gap-3 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 dark:text-slate-400"><span className="flex items-center gap-2"><ShieldCheck size={17} className="text-emerald-500" /> {available === 0 ? t('soldOut') : t('available')}</span><span className="flex items-center gap-2"><Truck size={17} className="text-blue-500" /> {t('thoughtfulDelivery')}</span></div></div></div>{related.length > 0 && <section className="mt-20"><SectionHeading eyebrow={t('productDetails')} title={t('browseCollection')} /><ProductGrid listings={related} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}</PageContainer>
 }
 
 function CategoriesPage({ catalog, t }: AppServices) {
@@ -734,9 +766,42 @@ function WishlistPage({ catalog, locale, t, wishlist, toggleWishlist, addToCart 
   return <PageContainer><PageIntro eyebrow={t('wishlist')} title={t('wishlist')} body={t('discoverBody')} /><div className="mt-10">{listings.length > 0 ? <ProductGrid listings={listings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <EmptyState icon={<Heart size={28} />} title={t('wishlist')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} />}</div></PageContainer>
 }
 
-function CartPage({ cart, locale, t, updateQuantity, removeFromCart, cartServer }: AppServices) {
+function CartPage({ cart, locale, t, updateQuantity, updateVariant, removeFromCart, cartServer }: AppServices) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  return <PageContainer><PageIntro eyebrow={t('cart')} title={t('cart')} body={t('discoverBody')} />{<div className={'mt-8 rounded-2xl border p-4 text-sm font-semibold leading-6 ' + (cartServer ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200')}>{t(cartServer ? 'serverCart' : 'localCartNotice')}</div>}<div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">{cart.length > 0 ? <><div className="grid gap-3">{cart.map((item) => <div key={item.cartKey} className="flex gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><ProductThumb listing={item} /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><Link to={`/product/${item.slug ?? item.id}`} className="font-black text-slate-950 hover:text-blue-600 dark:text-white">{item.name}</Link><p className="mt-1 text-xs font-semibold text-slate-400">{item.storeName || t('marketplace')}{item.variantId && item.variants.length > 1 ? ` · ${t('variant')}` : ''}</p></div><button type="button" onClick={() => removeFromCart(item.cartKey)} className="grid size-9 place-items-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-500" aria-label={t('removeItem')}><TrashIcon /></button></div><div className="mt-5 flex items-center justify-between"><span className="font-black text-blue-600">{formatPrice(item.price, item.currency, locale)}</span><div className="flex items-center gap-2 rounded-xl border border-slate-200 p-1 dark:border-slate-700"><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity - 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('decreaseQuantity')}><Minus size={14} /></button><span className="w-7 text-center text-sm font-black">{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('increaseQuantity')}><Plus size={14} /></button></div></div></div></div>)}</div><OrderSummary subtotal={subtotal} currency={cart[0]?.currency ?? 'MMK'} locale={locale} t={t} /></> : <div className="lg:col-span-2"><EmptyState icon={<ShoppingBag size={28} />} title={t('cartEmpty')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div>}</div></PageContainer>
+  return <PageContainer>
+    <PageIntro eyebrow={t('cart')} title={t('cart')} body={t('discoverBody')} />
+    <div className={'mt-8 rounded-2xl border p-4 text-sm font-semibold leading-6 ' + (cartServer ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200')}>
+      {t(cartServer ? 'serverCart' : 'localCartNotice')}
+    </div>
+    <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
+      {cart.length > 0 ? <>
+        <div className="grid gap-3">
+          {cart.map((item) => <div key={item.cartKey} className="flex gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <ProductThumb listing={item} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Link to={`/product/${item.slug ?? item.id}`} className="font-black text-slate-950 hover:text-blue-600 dark:text-white">{item.name}</Link>
+                  <p className="mt-1 text-xs font-semibold text-slate-400">{item.storeName || t('marketplace')}{cartVariantLabel(item, t)}</p>
+                  {item.variants.length > 1 && <label className="mt-2 inline-flex items-center gap-2 text-xs font-black text-blue-600"><span className="sr-only">{t('variant')} {item.name}</span><select value={item.variantId ?? ''} onChange={(event) => updateVariant(item.cartKey, event.target.value)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">{item.variants.map((variant) => <option key={variant.id} value={variant.id} disabled={item.trackInventory && variant.availableStock === 0}>{variantLabel(variant, t)}{item.trackInventory && variant.availableStock === 0 ? ` · ${t('soldOut')}` : ''}</option>)}</select></label>}
+                </div>
+                <button type="button" onClick={() => removeFromCart(item.cartKey)} className="grid size-9 place-items-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-500" aria-label={t('removeItem')}><TrashIcon /></button>
+              </div>
+              <div className="mt-5 flex items-center justify-between">
+                <span className="font-black text-blue-600">{formatPrice(item.price, item.currency, locale)}</span>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 p-1 dark:border-slate-700">
+                  <button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity - 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('decreaseQuantity')}><Minus size={14} /></button>
+                  <span className="w-7 text-center text-sm font-black">{item.quantity}</span>
+                  <button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('increaseQuantity')}><Plus size={14} /></button>
+                </div>
+              </div>
+            </div>
+          </div>)}
+        </div>
+        <OrderSummary subtotal={subtotal} currency={cart[0]?.currency ?? 'MMK'} locale={locale} t={t} />
+      </> : <div className="lg:col-span-2"><EmptyState icon={<ShoppingBag size={28} />} title={t('cartEmpty')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div>}
+    </div>
+  </PageContainer>
 }
 
 function CheckoutPage({ cart, locale, customer, t }: AppServices) {
@@ -1205,12 +1270,20 @@ function AddressField({ label, value, onChange, wide = false, required = false }
 }
 
 function variantLabel(variant: MarketplaceVariant, t: (key: TranslationKey) => string): string {
+  if (variant.size) return variant.size
   const attributes = variant.attributes ? Object.values(variant.attributes).join(' / ') : ''
   return attributes || variant.unit || variant.sku || `${t('variant')} ${variant.id.slice(0, 6)}`
 }
 
+function cartVariantLabel(item: CartItem, t: (key: TranslationKey) => string): string {
+  const variant = item.variants[0]
+  if (variant?.size) return ` · ${variant.size}`
+  if (item.variantId && item.variants.length > 1) return ` · ${t('variant')}`
+  return ''
+}
+
 function preferredVariantId(listing: MarketplaceListing): string {
-  return listing.variants.find((variant) => variant.availableStock !== 0)?.id ?? listing.variantId ?? listing.variants[0]?.id ?? ''
+  return listing.variants.find((variant) => variant.isDefault && variant.availableStock !== 0)?.id ?? listing.variants.find((variant) => variant.availableStock !== 0)?.id ?? listing.variantId ?? listing.variants[0]?.id ?? ''
 }
 
 function emptyAddress(name: string): CustomerAddressInput {

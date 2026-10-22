@@ -18,6 +18,7 @@ class MarketplaceListingResource extends JsonResource
         $images = $product?->relationLoaded('images') ? $product->images : collect();
         $listingImages = $this->relationLoaded('images') ? $this->images : collect();
         $firstVariant = $variants->first();
+        $defaultVariant = $variants->firstWhere('is_default', true) ?: $firstVariant;
         $availableStock = $variants->sum(fn ($variant): float => $variant->relationLoaded('balances')
             ? $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity)
             : 0);
@@ -42,10 +43,11 @@ class MarketplaceListingResource extends JsonResource
             'slug' => $this->slug,
             'description' => $product ? $translations->localizedValue($product, 'description', $locale) : null,
             'brand' => $product ? $translations->localizedValue($product, 'brand', $locale) : null,
-            'price' => $firstVariant?->selling_price,
+            'price' => $defaultVariant?->selling_price,
             'currency' => $this->tenant?->currency_code ?: 'MMK',
             'status' => $this->status,
             'track_inventory' => (bool) ($product?->track_inventory ?? true),
+            'has_sizes' => (bool) ($product?->has_sizes ?? false),
             'available_stock' => $product?->track_inventory ? $availableStock : null,
             'store_id' => $this->store?->uuid,
             'store_name' => $this->store?->name,
@@ -60,6 +62,8 @@ class MarketplaceListingResource extends JsonResource
                 'sku' => $variant->sku,
                 'unit' => $variant->unit,
                 'attributes' => $variant->attributes,
+                'size' => is_array($variant->attributes) ? ($variant->attributes['size'] ?? null) : null,
+                'is_default' => (bool) $variant->is_default,
                 'selling_price' => $variant->selling_price,
                 'available_stock' => $variant->relationLoaded('balances')
                     ? $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity)

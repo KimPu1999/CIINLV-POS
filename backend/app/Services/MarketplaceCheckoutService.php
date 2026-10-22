@@ -149,7 +149,7 @@ class MarketplaceCheckoutService
 
     public function loadOrder(MarketplaceOrder $order): MarketplaceOrder
     {
-        return $order->load(['payments', 'vendorOrders.store', 'vendorOrders.tenant', 'vendorOrders.items', 'vendorOrders.shipments.events']);
+        return $order->load(['payments', 'vendorOrders.store', 'vendorOrders.tenant', 'vendorOrders.items.variant', 'vendorOrders.shipments.events']);
     }
 
     private function calculate(MarketplaceCart $cart, array $deliveryOptions, bool $lock = false): array

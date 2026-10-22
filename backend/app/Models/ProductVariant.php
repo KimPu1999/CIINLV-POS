@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class ProductVariant extends Model
 {
-    protected $fillable = ['tenant_id', 'product_id', 'sku', 'barcode', 'barcode_type', 'unit', 'attributes', 'purchase_cost', 'selling_price', 'reorder_level', 'status'];
+    protected $fillable = ['tenant_id', 'product_id', 'sku', 'barcode', 'barcode_type', 'unit', 'attributes', 'is_default', 'purchase_cost', 'selling_price', 'reorder_level', 'status'];
 
     protected static function booted(): void
     {
@@ -18,7 +18,7 @@ class ProductVariant extends Model
 
     protected function casts(): array
     {
-        return ['attributes' => 'array', 'purchase_cost' => 'decimal:4', 'selling_price' => 'decimal:4', 'reorder_level' => 'decimal:3'];
+        return ['attributes' => 'array', 'is_default' => 'boolean', 'purchase_cost' => 'decimal:4', 'selling_price' => 'decimal:4', 'reorder_level' => 'decimal:3'];
     }
 
     public function getRouteKeyName(): string

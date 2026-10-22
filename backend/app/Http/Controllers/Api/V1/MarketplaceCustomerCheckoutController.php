@@ -61,7 +61,7 @@ class MarketplaceCustomerCheckoutController
     {
         $orders = MarketplaceOrder::query()
             ->where('customer_user_id', $request->user()->id)
-            ->with(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items', 'vendorOrders.shipments.events.actor', 'events'])
+            ->with(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items.variant', 'vendorOrders.shipments.events.actor', 'events'])
             ->latest()
             ->paginate(min(max((int) $request->input('per_page', 20), 1), 50));
 
@@ -70,7 +70,7 @@ class MarketplaceCustomerCheckoutController
 
     public function order(Request $request, string $order): JsonResponse
     {
-        $model = MarketplaceOrder::query()->where('customer_user_id', $request->user()->id)->where('uuid', $order)->with(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items', 'vendorOrders.shipments.events.actor', 'events'])->firstOrFail();
+        $model = MarketplaceOrder::query()->where('customer_user_id', $request->user()->id)->where('uuid', $order)->with(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items.variant', 'vendorOrders.shipments.events.actor', 'events'])->firstOrFail();
 
         return response()->json(['success' => true, 'data' => new MarketplaceOrderResource($model)]);
     }

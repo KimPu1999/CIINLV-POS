@@ -70,7 +70,7 @@ class PhaseSixPosTest extends TestCase
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shiftId.'/close', ['actual_amount' => 120])->assertOk()->assertJsonPath('data.expected_amount', '120.00');
         $this->assertDatabaseHas('inventory_balances', ['inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 8]);
         $this->assertDatabaseCount('stock_movements', 2);
-        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/sales/'.$saleId.'/receipt')->assertOk()->assertJsonPath('data.content.grand_total', '20.00');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/sales/'.$saleId.'/receipt')->assertOk()->assertJsonPath('data.content.grand_total', '20.00')->assertJsonPath('data.content.items.0.size', 'M');
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->get('/api/v1/pos/sales/'.$saleId.'/receipt/pdf?format=58mm')->assertOk()->assertHeader('Content-Type', 'application/pdf');
     }
 
@@ -170,8 +170,8 @@ class PhaseSixPosTest extends TestCase
         $store = Store::create(['tenant_id' => $tenant->id, 'name' => 'Store '.$suffix, 'code' => 'STORE-'.strtoupper(substr($suffix, 0, 3)), 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $admin->id]);
         StoreMembership::create(['tenant_id' => $tenant->id, 'store_id' => $store->id, 'user_id' => $cashier->id, 'role' => 'cashier', 'status' => 'active', 'assigned_by' => $admin->id, 'assigned_at' => now()]);
         $location = InventoryLocation::create(['tenant_id' => $tenant->id, 'location_type' => 'store', 'store_id' => $store->id, 'name' => 'Store Stockroom', 'code' => 'STOCK-'.strtoupper(substr($suffix, 0, 3)), 'status' => 'active']);
-        $product = Product::create(['tenant_id' => $tenant->id, 'name' => 'Coffee '.$suffix, 'slug' => strtolower('coffee-'.$suffix), 'status' => 'active', 'track_inventory' => true, 'created_by' => $admin->id]);
-        $variant = $product->variants()->create(['tenant_id' => $tenant->id, 'sku' => 'SKU-'.strtoupper(substr($suffix, 0, 3)), 'selling_price' => 10, 'purchase_cost' => 5, 'status' => 'active']);
+        $product = Product::create(['tenant_id' => $tenant->id, 'name' => 'Coffee '.$suffix, 'slug' => strtolower('coffee-'.$suffix), 'status' => 'active', 'track_inventory' => true, 'has_sizes' => true, 'created_by' => $admin->id]);
+        $variant = $product->variants()->create(['tenant_id' => $tenant->id, 'sku' => 'SKU-'.strtoupper(substr($suffix, 0, 3)), 'attributes' => ['size' => 'M'], 'selling_price' => 10, 'purchase_cost' => 5, 'status' => 'active']);
         app(InventoryService::class)->mutate($location, $variant, 'opening_stock', '10', $admin, 'test', 'opening-'.$suffix, null, 'test-opening', '5');
 
         return [$tenant, $admin, $cashier, $store, $location, $variant];

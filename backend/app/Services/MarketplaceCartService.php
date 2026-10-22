@@ -71,8 +71,27 @@ class MarketplaceCartService
             $item->load(['listing.store', 'listing.product', 'variant']);
             $quantity = $this->quantity((string) $data['quantity']);
             $this->assertPublicListing($item->listing);
-            $this->assertStock($item->listing, $item->variant, $quantity);
-            $item->update(['quantity' => $quantity]);
+            $variant = array_key_exists('variant_id', $data)
+                ? $this->variant($item->listing, $data['variant_id'])
+                : $item->variant;
+            $this->assertStock($item->listing, $variant, $quantity);
+            if ($variant->isNot($item->variant)) {
+                $target = MarketplaceCartItem::where('marketplace_cart_id', $cart->id)
+                    ->where('marketplace_listing_id', $item->marketplace_listing_id)
+                    ->where('product_variant_id', $variant->id)
+                    ->lockForUpdate()
+                    ->first();
+                if ($target) {
+                    $mergedQuantity = $this->addQuantity((string) $target->quantity, $quantity);
+                    $this->assertStock($item->listing, $variant, $mergedQuantity);
+                    $target->update(['quantity' => $mergedQuantity]);
+                    $item->delete();
+                } else {
+                    $item->update(['product_variant_id' => $variant->id, 'quantity' => $quantity]);
+                }
+            } else {
+                $item->update(['quantity' => $quantity]);
+            }
 
             return $this->load($cart->refresh());
         });
@@ -133,6 +152,7 @@ class MarketplaceCartService
     {
         return $cart->load([
             'items.listing.product.images',
+            'items.listing.product.variants.balances',
             'items.listing.store',
             'items.variant.balances',
         ]);
@@ -152,7 +172,7 @@ class MarketplaceCartService
     public function variant(MarketplaceListing $listing, ?string $uuid): ProductVariant
     {
         $query = $listing->product->variants()->where('status', 'active');
-        $variant = $uuid ? $query->where('uuid', $uuid)->first() : $query->orderBy('id')->first();
+        $variant = $uuid ? $query->where('uuid', $uuid)->first() : $query->orderByDesc('is_default')->orderBy('id')->first();
         if (! $variant) {
             throw new UnprocessableEntityHttpException('The selected product variant is unavailable.');
         }

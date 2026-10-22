@@ -13,6 +13,8 @@ export interface MarketplaceVariant {
   sku?: string | null
   unit?: string | null
   attributes?: Record<string, string> | null
+  size?: string | null
+  isDefault?: boolean
   sellingPrice: number
   availableStock?: number | null
   status: string
@@ -36,6 +38,7 @@ export interface MarketplaceListing {
   categoryName?: string | null
   availableStock?: number | null
   trackInventory: boolean
+  hasSizes: boolean
   variantId?: string | null
   variants: MarketplaceVariant[]
 }
@@ -239,7 +242,7 @@ export interface MarketplaceOrder {
   grandTotal: string
   deliveryAddress: Record<string, unknown>
   createdAt?: string | null
-  vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; items: Array<{ id: string; name: string; quantity: string; unitPrice: string; lineTotal: string }>; shipments: MarketplaceShipment[] }>
+  vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; items: Array<{ id: string; name: string; sku?: string; size?: string | null; quantity: string; unitPrice: string; lineTotal: string }>; shipments: MarketplaceShipment[] }>
   events?: Array<{ id: number; event: string; fromStatus?: string | null; toStatus?: string | null; createdAt?: string | null }>
 }
 
@@ -376,14 +379,15 @@ function normalizeImage(value: unknown): MarketplaceImage | null {
 function normalizeVariant(value: unknown): MarketplaceVariant | null {
   const variant = asRecord(value)
   if (!variant || !variant.id) return null
-  return { id: String(variant.id), sku: typeof variant.sku === 'string' ? variant.sku : null, unit: typeof variant.unit === 'string' ? variant.unit : null, attributes: asRecord(variant.attributes) as Record<string, string> | null, sellingPrice: Number(variant.selling_price ?? 0), availableStock: variant.available_stock == null ? null : Number(variant.available_stock), status: String(variant.status ?? 'active') }
+  const attributes = asRecord(variant.attributes) as Record<string, string> | null
+  return { id: String(variant.id), sku: typeof variant.sku === 'string' ? variant.sku : null, unit: typeof variant.unit === 'string' ? variant.unit : null, attributes, size: typeof variant.size === 'string' ? variant.size : (typeof attributes?.size === 'string' ? attributes.size : null), isDefault: Boolean(variant.is_default), sellingPrice: Number(variant.selling_price ?? 0), availableStock: variant.available_stock == null ? null : Number(variant.available_stock), status: String(variant.status ?? 'active') }
 }
 
 function normalizeListing(value: unknown): MarketplaceListing {
   const item = asRecord(value) ?? {}
   const variants = Array.isArray(item.variants) ? item.variants.map(normalizeVariant).filter((variant): variant is MarketplaceVariant => Boolean(variant)) : []
   const images = Array.isArray(item.images) ? item.images.map(normalizeImage).filter((image): image is MarketplaceImage => Boolean(image)) : []
-  return { id: String(item.id ?? item.uuid ?? ''), name: String(item.name ?? 'Untitled product'), slug: typeof item.slug === 'string' ? item.slug : null, description: typeof item.description === 'string' ? item.description : null, brand: typeof item.brand === 'string' ? item.brand : null, price: Number(item.price ?? item.selling_price ?? variants[0]?.sellingPrice ?? 0), currency: String(item.currency ?? item.currency_code ?? 'MMK'), imageUrl: typeof item.image_url === 'string' ? item.image_url : images[0]?.url ?? null, images, storeId: typeof item.store_id === 'string' ? item.store_id : null, storeSlug: typeof item.store_slug === 'string' ? item.store_slug : null, storeName: typeof item.store_name === 'string' ? item.store_name : null, categoryId: typeof item.category_id === 'string' ? item.category_id : null, categorySlug: typeof item.category_slug === 'string' ? item.category_slug : null, categoryName: typeof item.category_name === 'string' ? item.category_name : null, availableStock: item.available_stock == null ? null : Number(item.available_stock), trackInventory: item.track_inventory !== false, variantId: typeof item.variant_id === 'string' ? item.variant_id : variants[0]?.id ?? null, variants }
+  return { id: String(item.id ?? item.uuid ?? ''), name: String(item.name ?? 'Untitled product'), slug: typeof item.slug === 'string' ? item.slug : null, description: typeof item.description === 'string' ? item.description : null, brand: typeof item.brand === 'string' ? item.brand : null, price: Number(item.price ?? item.selling_price ?? variants[0]?.sellingPrice ?? 0), currency: String(item.currency ?? item.currency_code ?? 'MMK'), imageUrl: typeof item.image_url === 'string' ? item.image_url : images[0]?.url ?? null, images, storeId: typeof item.store_id === 'string' ? item.store_id : null, storeSlug: typeof item.store_slug === 'string' ? item.store_slug : null, storeName: typeof item.store_name === 'string' ? item.store_name : null, categoryId: typeof item.category_id === 'string' ? item.category_id : null, categorySlug: typeof item.category_slug === 'string' ? item.category_slug : null, categoryName: typeof item.category_name === 'string' ? item.category_name : null, availableStock: item.available_stock == null ? null : Number(item.available_stock), trackInventory: item.track_inventory !== false, hasSizes: item.has_sizes === true, variantId: typeof item.variant_id === 'string' ? item.variant_id : variants.find((variant) => variant.isDefault)?.id ?? variants[0]?.id ?? null, variants }
 }
 
 function normalizeStore(value: unknown): MarketplaceStore {
@@ -510,6 +514,8 @@ function normalizeCartItem(value: unknown): CartItem {
   const item = asRecord(value) ?? {}
   const variantId = typeof item.variant_id === 'string' ? item.variant_id : null
   const price = Number(item.unit_price ?? 0)
+  const attributes = asRecord(item.attributes) as Record<string, string> | null
+  const variants = Array.isArray(item.variants) ? item.variants.map(normalizeVariant).filter((variant): variant is MarketplaceVariant => Boolean(variant)) : []
   const listing: MarketplaceListing = {
     id: String(item.listing_id ?? ''),
     name: String(item.name ?? 'Product'),
@@ -525,8 +531,9 @@ function normalizeCartItem(value: unknown): CartItem {
     storeName: typeof item.store_name === 'string' ? item.store_name : null,
     availableStock: item.available_stock == null ? null : Number(item.available_stock),
     trackInventory: item.track_inventory !== false,
+    hasSizes: typeof item.size === 'string' || Boolean(attributes?.size),
     variantId,
-    variants: variantId ? [{ id: variantId, sku: typeof item.sku === 'string' ? item.sku : null, unit: null, attributes: null, sellingPrice: price, availableStock: item.available_stock == null ? null : Number(item.available_stock), status: 'active' }] : [],
+    variants: variants.length > 0 ? variants : (variantId ? [{ id: variantId, sku: typeof item.sku === 'string' ? item.sku : null, unit: null, attributes, size: typeof item.size === 'string' ? item.size : (typeof attributes?.size === 'string' ? attributes.size : null), isDefault: false, sellingPrice: price, availableStock: item.available_stock == null ? null : Number(item.available_stock), status: 'active' }] : []),
   }
   const serverItemId = String(item.id ?? '')
   return { ...listing, quantity: Math.max(1, Number(item.quantity ?? 1)), cartKey: serverItemId, serverItemId }
@@ -543,8 +550,8 @@ export async function addMarketplaceCartItem(data: { listing_id: string; variant
   return normalizeCart(unwrap<unknown>(payload))
 }
 
-export async function updateMarketplaceCartItem(id: string, quantity: number, locale: Locale): Promise<MarketplaceCart> {
-  const payload = await requestJson(withQuery(`/cart/items/${encodeURIComponent(id)}`, {}, locale), { method: 'PATCH', body: JSON.stringify({ quantity }) }, locale, true)
+export async function updateMarketplaceCartItem(id: string, quantity: number, locale: Locale, variantId?: string | null): Promise<MarketplaceCart> {
+  const payload = await requestJson(withQuery(`/cart/items/${encodeURIComponent(id)}`, {}, locale), { method: 'PATCH', body: JSON.stringify({ quantity, ...(variantId ? { variant_id: variantId } : {}) }) }, locale, true)
   return normalizeCart(unwrap<unknown>(payload))
 }
 
@@ -592,7 +599,7 @@ function normalizeOrder(value: unknown): MarketplaceOrder {
   const data = asRecord(value) ?? {}
   const vendors = Array.isArray(data.vendor_orders) ? data.vendor_orders.map((vendor) => {
     const item = asRecord(vendor) ?? {}
-    const items = Array.isArray(item.items) ? item.items.map((line) => { const row = asRecord(line) ?? {}; return { id: String(row.id ?? ''), name: String(row.name ?? ''), quantity: String(row.quantity ?? '0'), unitPrice: String(row.unit_price ?? '0'), lineTotal: String(row.line_total ?? '0') } }) : []
+    const items = Array.isArray(item.items) ? item.items.map((line) => { const row = asRecord(line) ?? {}; const variant = asRecord(row.variant); return { id: String(row.id ?? ''), name: String(row.name ?? ''), sku: typeof row.sku === 'string' ? row.sku : undefined, size: typeof row.size === 'string' ? row.size : (typeof asRecord(variant)?.attributes === 'object' ? String(asRecord(asRecord(variant)?.attributes)?.size ?? '') || null : null), quantity: String(row.quantity ?? '0'), unitPrice: String(row.unit_price ?? '0'), lineTotal: String(row.line_total ?? '0') } }) : []
     const shipments = Array.isArray(item.shipments) ? item.shipments.map(normalizeShipment) : []
     return { id: String(item.id ?? ''), vendorOrderNumber: String(item.vendor_order_number ?? ''), storeName: typeof item.store_name === 'string' ? item.store_name : null, status: String(item.status ?? 'pending'), total: String(item.total ?? '0'), items, shipments }
   }) : []
@@ -642,7 +649,7 @@ export function readStoredCart(): CartItem[] {
   if (typeof window === 'undefined') return []
   try {
     const value = JSON.parse(window.localStorage.getItem(cartStorageKey) ?? '[]') as Partial<CartItem>[]
-    return Array.isArray(value) ? value.filter((item) => item && typeof item.id === 'string').map((item) => ({ ...item as CartItem, cartKey: item.cartKey ?? `${item.id}:${item.variantId ?? 'default'}`, quantity: Math.max(1, Number(item.quantity ?? 1)), images: item.images ?? [], variants: item.variants ?? [], trackInventory: item.trackInventory !== false })) : []
+    return Array.isArray(value) ? value.filter((item) => item && typeof item.id === 'string').map((item) => ({ ...item as CartItem, cartKey: item.cartKey ?? `${item.id}:${item.variantId ?? 'default'}`, quantity: Math.max(1, Number(item.quantity ?? 1)), images: item.images ?? [], variants: item.variants ?? [], trackInventory: item.trackInventory !== false, hasSizes: item.hasSizes === true })) : []
   } catch {
     return []
   }

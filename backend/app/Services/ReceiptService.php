@@ -54,7 +54,7 @@ class ReceiptService
             'cashier' => $sale->cashier?->name,
             'register' => $sale->register?->name,
             'currency_code' => $sale->currency_code,
-            'items' => $sale->items->map(fn ($item) => ['name' => $item->variant?->product ? $this->translations->localizedValue($item->variant->product, 'name', $locale) : $item->product_name_snapshot, 'original_name' => $item->product_name_snapshot, 'sku' => $item->sku_snapshot, 'quantity' => $item->quantity, 'unit_price' => $item->unit_price, 'discount_amount' => $item->discount_amount, 'tax_amount' => $item->tax_amount, 'line_total' => $item->line_total])->values()->all(),
+            'items' => $sale->items->map(fn ($item) => ['name' => $item->variant?->product ? $this->translations->localizedValue($item->variant->product, 'name', $locale) : $item->product_name_snapshot, 'original_name' => $item->product_name_snapshot, 'sku' => $item->sku_snapshot, 'size' => is_array($item->variant?->attributes) ? ($item->variant->attributes['size'] ?? null) : null, 'quantity' => $item->quantity, 'unit_price' => $item->unit_price, 'discount_amount' => $item->discount_amount, 'tax_amount' => $item->tax_amount, 'line_total' => $item->line_total])->values()->all(),
             'subtotal' => $sale->subtotal,
             'discount_total' => $sale->discount_total,
             'taxable_amount' => $sale->taxable_amount,
@@ -107,7 +107,7 @@ class ReceiptService
     {
         $escape = static fn ($value): string => e((string) $value);
         $labels = $data['labels'];
-        $items = collect($data['items'])->map(fn (array $item): string => '<tr><td>'.$escape($item['name']).'<br><small>'.$escape($item['sku']).'</small></td><td>'.$escape($item['quantity']).'</td><td>'.$escape($item['unit_price']).'</td><td>'.$escape($item['line_total']).'</td></tr>')->implode('');
+        $items = collect($data['items'])->map(fn (array $item): string => '<tr><td>'.$escape($item['name']).($item['size'] ? '<br><small>Size: '.$escape($item['size']).'</small>' : '').'<br><small>'.$escape($item['sku']).'</small></td><td>'.$escape($item['quantity']).'</td><td>'.$escape($item['unit_price']).'</td><td>'.$escape($item['line_total']).'</td></tr>')->implode('');
         $payments = collect($data['payments'])->map(fn (array $payment): string => '<div>'.$escape($payment['method']).': '.$escape($payment['amount']).'</div>')->implode('');
         $adjustments = collect($data['adjustments'] ?? [])->filter(fn (array $adjustment): bool => ($adjustment['type'] ?? '') === 'surcharge')->map(fn (array $adjustment): string => '<p>'.$escape($adjustment['label']).': '.$escape($adjustment['amount']).'</p>')->implode('');
 

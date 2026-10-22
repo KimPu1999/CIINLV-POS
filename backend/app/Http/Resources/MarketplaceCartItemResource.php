@@ -12,6 +12,7 @@ class MarketplaceCartItemResource extends JsonResource
     {
         $listing = $this->listing;
         $variant = $this->variant;
+        $variants = $listing?->product?->relationLoaded('variants') ? $listing->product->variants->where('status', 'active') : collect();
 
         return [
             'id' => $this->uuid,
@@ -23,6 +24,9 @@ class MarketplaceCartItemResource extends JsonResource
             'description' => $listing?->product?->description,
             'brand' => $listing?->product?->brand,
             'sku' => $variant?->sku,
+            'attributes' => $variant?->attributes,
+            'size' => is_array($variant?->attributes) ? ($variant->attributes['size'] ?? null) : null,
+            'variants' => $variants->map(fn ($item): array => ['id' => $item->uuid, 'sku' => $item->sku, 'attributes' => $item->attributes, 'size' => is_array($item->attributes) ? ($item->attributes['size'] ?? null) : null, 'selling_price' => $item->selling_price, 'available_stock' => $item->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity), 'status' => $item->status])->values()->all(),
             'unit_price' => $variant?->selling_price,
             'currency' => $this->cart?->currency_code ?: 'MMK',
             'image_url' => ($image = $listing?->product?->images?->first()) ? PublicMediaUrl::make($image->storage_path) : null,

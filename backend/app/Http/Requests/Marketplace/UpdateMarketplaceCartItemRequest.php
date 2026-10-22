@@ -13,6 +13,6 @@ class UpdateMarketplaceCartItemRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['quantity' => ['required', 'numeric', 'gt:0', 'max:999999']];
+        return ['quantity' => ['required', 'numeric', 'gt:0', 'max:999999'], 'variant_id' => ['sometimes', 'nullable', 'uuid']];
     }
 }

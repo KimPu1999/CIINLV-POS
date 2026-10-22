@@ -84,7 +84,7 @@ class ProductController
         $this->assertTenant($product, $context);
         Gate::authorize('view', $product);
 
-        return response()->json(['success' => true, 'data' => new ProductResource($product->load(['category', 'variants', 'images']))]);
+        return response()->json(['success' => true, 'data' => new ProductResource($product->load(['category', 'variants.balances', 'images']))]);
     }
 
     public function update(UpdateProductRequest $request, Product $product, TenantContext $context, ProductService $service, AuditLogger $auditLogger): JsonResponse
@@ -93,7 +93,7 @@ class ProductController
         Gate::authorize('manage', $product);
         $data = $request->validated();
         $data['source_locale'] ??= $request->input('lang', app()->getLocale());
-        $product = $service->update($product, $data);
+        $product = $service->update($product, $data, $request->user());
         $auditLogger->record('inventory.product_updated', $request->user(), $context->tenant(), $product);
 
         return response()->json(['success' => true, 'data' => new ProductResource($product)]);

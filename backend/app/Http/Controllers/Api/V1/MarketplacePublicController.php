@@ -145,7 +145,7 @@ class MarketplacePublicController
             'tenant',
             'product.category',
             'product.images',
-            'product.variants' => fn ($query) => $query->where('product_variants.status', 'active')->with('balances'),
+            'product.variants' => fn ($query) => $query->where('product_variants.status', 'active')->orderByDesc('is_default')->orderBy('id')->with('balances'),
             'images',
         ];
     }

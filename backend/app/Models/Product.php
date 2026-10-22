@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
-    protected $fillable = ['tenant_id', 'category_id', 'name', 'slug', 'description', 'brand', 'status', 'track_inventory', 'tax_exempt', 'created_by'];
+    protected $fillable = ['tenant_id', 'category_id', 'name', 'slug', 'description', 'brand', 'status', 'track_inventory', 'has_sizes', 'tax_exempt', 'created_by'];
 
     protected static function booted(): void
     {
@@ -18,7 +18,7 @@ class Product extends Model
 
     protected function casts(): array
     {
-        return ['track_inventory' => 'boolean', 'tax_exempt' => 'boolean'];
+        return ['track_inventory' => 'boolean', 'has_sizes' => 'boolean', 'tax_exempt' => 'boolean'];
     }
 
     public function getRouteKeyName(): string
