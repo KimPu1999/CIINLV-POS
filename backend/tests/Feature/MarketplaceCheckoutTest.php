@@ -192,6 +192,26 @@ class MarketplaceCheckoutTest extends TestCase
         $this->assertDatabaseCount('marketplace_payments', 1);
     }
 
+    public function test_configured_online_payment_stays_pending_until_signed_callback_and_callback_is_idempotent(): void
+    {
+        config(['marketplace.online_payments_enabled' => true, 'marketplace.webhook_secret' => 'test-webhook-secret']);
+        [, , $listing, $variant] = $this->vendor('CHECKOUT-ONLINE', 1000, 4);
+        $customer = $this->customer('buyer-online@example.com');
+        $address = $this->address($customer);
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listing->uuid, 'variant_id' => $variant->uuid, 'quantity' => 1])->assertCreated();
+
+        $response = $this->actingAs($customer, 'sanctum')->withHeader('Idempotency-Key', 'checkout-online')->postJson('/api/v1/marketplace/checkout', ['address_id' => $address->id, 'payment_method' => 'qr'])->assertCreated()->assertJsonPath('data.payment_status', 'pending');
+        $reference = $response->json('data.payments.0.provider_reference');
+        $payload = ['event_id' => 'evt-online-1', 'payment_reference' => $reference, 'status' => 'paid', 'amount' => '1000.00', 'currency_code' => 'MMK'];
+        $raw = json_encode($payload, JSON_THROW_ON_ERROR);
+        $signature = hash_hmac('sha256', $raw, 'test-webhook-secret');
+
+        $this->withHeaders(['X-Payment-Signature' => $signature])->postJson('/api/v1/marketplace/payments/webhook/qr', $payload)->assertOk()->assertJsonPath('data.status', 'paid');
+        $this->withHeaders(['X-Payment-Signature' => $signature])->postJson('/api/v1/marketplace/payments/webhook/qr', $payload)->assertOk()->assertJsonPath('idempotent_replay', true);
+        $this->assertDatabaseHas('marketplace_orders', ['payment_status' => 'paid']);
+        $this->assertDatabaseHas('marketplace_payments', ['method' => 'qr', 'status' => 'paid', 'provider' => 'qr']);
+    }
+
     private function vendor(string $code, int $price, int $stock): array
     {
         $tenant = Tenant::create(['name' => $code, 'slug' => strtolower($code), 'business_code' => $code, 'status' => 'active', 'subscription_status' => 'active']);

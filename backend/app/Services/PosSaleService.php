@@ -29,6 +29,7 @@ class PosSaleService
         private readonly InventoryService $inventory,
         private readonly AuditLogger $audit,
         private readonly ReceiptService $receipts,
+        private readonly InvoiceService $invoices,
     ) {}
 
     public function preview(Store $store, array $payload, User $actor): array
@@ -143,6 +144,7 @@ class PosSaleService
             }
             $sale->update(['paid_total' => $verified, 'balance_due' => '0.00', 'change_due' => $change, 'payment_status' => 'paid', 'status' => 'completed', 'completed_at' => now()]);
             $this->receipts->ensure($sale, $actor);
+            $this->invoices->sync($sale);
             $this->audit->record('pos.sale_completed', $actor, $sale->store->tenant, $sale, ['sale_number' => $sale->sale_number, 'grand_total' => $sale->grand_total]);
 
             return $sale->fresh(['items.variant', 'payments', 'store', 'register', 'receipt']);

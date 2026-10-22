@@ -116,5 +116,9 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute((int) env('EXPORT_RATE_LIMIT_PER_MINUTE', 10))->by((string) $key);
         });
+
+        RateLimiter::for('payments', function (Request $request): Limit {
+            return Limit::perMinute((int) env('PAYMENT_WEBHOOK_RATE_LIMIT_PER_MINUTE', 120))->by((string) $request->ip());
+        });
     }
 }

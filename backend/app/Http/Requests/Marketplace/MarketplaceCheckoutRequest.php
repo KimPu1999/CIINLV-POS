@@ -15,7 +15,7 @@ class MarketplaceCheckoutRequest extends FormRequest
     {
         return [
             'address_id' => ['required', 'integer', 'exists:customer_addresses,id'],
-            'payment_method' => ['required', 'in:cod'],
+            'payment_method' => ['required', 'in:cod,card,qr,bank_transfer'],
             'promotion_code' => ['nullable', 'string', 'max:100'],
             'delivery_options' => ['sometimes', 'array', 'max:100'],
             'delivery_options.*' => ['sometimes', 'array', 'max:5'],

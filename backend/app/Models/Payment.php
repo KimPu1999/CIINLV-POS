@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 
 class Payment extends Model
 {
-    protected $fillable = ['tenant_id', 'store_id', 'sale_id', 'method', 'amount', 'currency_code', 'status', 'external_reference', 'provider', 'verified_at', 'collected_by', 'idempotency_key', 'request_hash', 'metadata'];
+    protected $fillable = ['tenant_id', 'store_id', 'sale_id', 'invoice_id', 'method', 'amount', 'currency_code', 'status', 'external_reference', 'provider', 'verified_at', 'collected_by', 'idempotency_key', 'request_hash', 'metadata'];
 
     protected static function booted(): void
     {
@@ -39,6 +39,8 @@ class Payment extends Model
     {
         return $this->belongsTo(Sale::class);
     }
+
+    public function invoice(): BelongsTo { return $this->belongsTo(Invoice::class); }
 
     public function collector(): BelongsTo
     {

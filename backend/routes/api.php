@@ -17,12 +17,14 @@ use App\Http\Controllers\Api\V1\CustomerManagementController;
 use App\Http\Controllers\Api\V1\DashboardOverviewController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\InventoryController;
+use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\InventoryReportController;
 use App\Http\Controllers\Api\V1\MarketplaceAdminController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAddressController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerCheckoutController;
 use App\Http\Controllers\Api\V1\MarketplacePublicController;
+use App\Http\Controllers\Api\V1\MarketplacePaymentWebhookController;
 use App\Http\Controllers\Api\V1\MarketplaceVendorController;
 use App\Http\Controllers\Api\V1\MarketplaceVendorFulfillmentController;
 use App\Http\Controllers\Api\V1\PasswordController;
@@ -74,6 +76,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/products/{product:slug}', [MarketplacePublicController::class, 'product']);
         Route::get('/categories', [MarketplacePublicController::class, 'categories']);
         Route::get('/search', [MarketplacePublicController::class, 'search']);
+        Route::post('/payments/webhook/{provider}', MarketplacePaymentWebhookController::class)->middleware('throttle:payments');
     });
 
     Route::prefix('marketplace/auth')->middleware(['web', 'throttle:auth', SetApiLocale::class])->group(function (): void {
@@ -384,6 +387,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reports/stock-valuation', [InventoryReportController::class, 'valuation']);
 
             Route::prefix('pos')->group(function (): void {
+                Route::get('/invoices', [InvoiceController::class, 'index']);
+                Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
                 Route::apiResource('registers', PosRegisterController::class)->only(['index', 'store', 'show', 'update']);
                 Route::get('/registers/{register}/members', [PosRegisterMembershipController::class, 'index']);
                 Route::post('/registers/{register}/members', [PosRegisterMembershipController::class, 'store']);

@@ -585,13 +585,15 @@ function normalizeQuote(value: unknown): CheckoutQuote {
   return { currencyCode: String(data.currency_code ?? 'MMK'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), deliveryAddress: address ? { id: Number(address.id ?? 0), recipientName: String(address.recipient_name ?? ''), phone: typeof address.phone === 'string' ? address.phone : null, addressLine1: String(address.address_line_1 ?? ''), addressLine2: typeof address.address_line_2 === 'string' ? address.address_line_2 : null, city: String(address.city ?? ''), region: typeof address.region === 'string' ? address.region : null, postalCode: typeof address.postal_code === 'string' ? address.postal_code : null, country: String(address.country ?? 'MM'), isDefault: false } : null, paymentMethods: Array.isArray(data.payment_methods) ? data.payment_methods.map(String) : ['cod'], onlinePaymentStatus: String(data.online_payment_status ?? 'not_configured'), vendors }
 }
 
-export async function fetchCheckoutQuote(addressId: number, locale: Locale): Promise<CheckoutQuote> {
-  const payload = await requestJson(withQuery('/checkout/quote', {}, locale), { method: 'POST', body: JSON.stringify({ address_id: addressId, payment_method: 'cod' }) }, locale, true)
+export type MarketplacePaymentMethod = 'cod' | 'card' | 'qr' | 'bank_transfer'
+
+export async function fetchCheckoutQuote(addressId: number, locale: Locale, paymentMethod: MarketplacePaymentMethod = 'cod'): Promise<CheckoutQuote> {
+  const payload = await requestJson(withQuery('/checkout/quote', {}, locale), { method: 'POST', body: JSON.stringify({ address_id: addressId, payment_method: paymentMethod }) }, locale, true)
   return normalizeQuote(unwrap<unknown>(payload))
 }
 
-export async function checkoutMarketplace(addressId: number, locale: Locale, idempotencyKey: string): Promise<MarketplaceOrder> {
-  const payload = await requestJson(withQuery('/checkout', {}, locale), { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ address_id: addressId, payment_method: 'cod' }) }, locale, true)
+export async function checkoutMarketplace(addressId: number, locale: Locale, idempotencyKey: string, paymentMethod: MarketplacePaymentMethod = 'cod'): Promise<MarketplaceOrder> {
+  const payload = await requestJson(withQuery('/checkout', {}, locale), { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ address_id: addressId, payment_method: paymentMethod }) }, locale, true)
   return normalizeOrder(unwrap<unknown>(payload))
 }
 

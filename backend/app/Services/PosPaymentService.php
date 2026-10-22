@@ -13,7 +13,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class PosPaymentService
 {
-    public function __construct(private readonly PosAccessService $access, private readonly PosSaleService $sales, private readonly AuditLogger $audit) {}
+    public function __construct(private readonly PosAccessService $access, private readonly PosSaleService $sales, private readonly AuditLogger $audit, private readonly InvoiceService $invoices) {}
 
     public function add(Sale $sale, array $payload, User $actor, string $idempotencyKey): Payment
     {
@@ -50,6 +50,7 @@ class PosPaymentService
             }
             $payment = Payment::create(['tenant_id' => $sale->tenant_id, 'store_id' => $sale->store_id, 'sale_id' => $sale->id, 'method' => $payload['method'], 'amount' => $amount, 'currency_code' => $sale->currency_code, 'status' => $payload['method'] === 'cash' ? 'verified' : 'pending', 'external_reference' => $payload['external_reference'] ?? null, 'provider' => $payload['provider'] ?? null, 'verified_at' => $payload['method'] === 'cash' ? now() : null, 'collected_by' => $actor->id, 'idempotency_key' => $idempotencyKey, 'request_hash' => $hash, 'metadata' => $payload['metadata'] ?? null]);
             $this->sales->refreshPaymentTotals($sale);
+            if ($sale->status === 'completed') $this->invoices->sync($sale->fresh());
             $this->audit->record('pos.payment_created', $actor, $sale->store->tenant, $payment, ['sale_id' => $sale->uuid, 'method' => $payment->method, 'status' => $payment->status, 'amount' => $payment->amount]);
 
             return $payment;
@@ -83,6 +84,7 @@ class PosPaymentService
             }
             $payment->update(['external_reference' => $payload['external_reference'], 'provider' => $payload['provider'], 'status' => 'verified', 'verified_at' => now(), 'metadata' => array_merge($payment->metadata ?? [], ['verification_note' => $payload['verification_note'], 'verification_mode' => 'manual_authorized'])]);
             $this->sales->refreshPaymentTotals($payment->sale);
+            $this->invoices->sync($payment->sale->fresh());
             $this->audit->record('pos.payment_verified', $actor, $payment->store->tenant, $payment, ['sale_id' => $payment->sale->uuid, 'provider' => $payment->provider, 'external_reference' => $payment->external_reference]);
 
             return $payment->fresh();

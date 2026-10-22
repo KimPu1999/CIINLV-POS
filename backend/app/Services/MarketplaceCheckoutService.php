@@ -39,6 +39,9 @@ class MarketplaceCheckoutService
     public function checkout(User $customer, array $data, string $idempotencyKey): array
     {
         $this->settings->assertAvailable();
+        if ($data['payment_method'] !== 'cod' && ! config('marketplace.online_payments_enabled', false)) {
+            throw new UnprocessableEntityHttpException('The selected online payment method is not configured. Choose cash on delivery or configure a verified payment provider.');
+        }
         if ($idempotencyKey === '') {
             throw new UnprocessableEntityHttpException('An Idempotency-Key header is required for checkout.');
         }
@@ -123,21 +126,22 @@ class MarketplaceCheckoutService
                 $this->commissions->snapshotForVendorOrder($order, $vendorOrder, $data['promotion_code'] ?? null);
             }
 
-            MarketplacePayment::create([
+            $payment = MarketplacePayment::create([
                 'marketplace_order_id' => $order->id,
-                'method' => 'cod',
-                'provider' => null,
+                'method' => $data['payment_method'],
+                'provider' => $data['payment_method'] === 'cod' ? null : ($data['provider'] ?? null),
                 'status' => 'pending',
                 'amount' => $calculation['grand_total'],
                 'currency_code' => $calculation['currency_code'],
-                'idempotency_key' => $order->uuid.':cod',
-                'metadata' => ['collection' => 'authorized_fulfillment_only'],
+                'idempotency_key' => $order->uuid.':'.$data['payment_method'],
+                'metadata' => ['collection' => $data['payment_method'] === 'cod' ? 'authorized_fulfillment_only' : 'verified_provider_callback'],
             ]);
+            $payment->update(['provider_reference' => 'MKT-PAY-'.$payment->uuid]);
             MarketplaceOrderEvent::create([
                 'marketplace_order_id' => $order->id,
                 'event' => 'order_created',
                 'to_status' => 'confirmed',
-                'metadata' => ['payment_method' => 'cod'],
+                'metadata' => ['payment_method' => $data['payment_method']],
             ]);
             $cart->update(['status' => 'converted']);
 
@@ -253,8 +257,8 @@ class MarketplaceCheckoutService
             'tax_total' => $calculation['tax_total'],
             'grand_total' => $calculation['grand_total'],
             'delivery_address' => $address,
-            'payment_methods' => ['cod'],
-            'online_payment_status' => 'not_configured',
+            'payment_methods' => ['cod', 'card', 'qr', 'bank_transfer'],
+            'online_payment_status' => config('marketplace.online_payments_enabled', false) ? 'configured' : 'not_configured',
             'vendors' => array_map(static function (array $vendor): array {
                 return ['store_id' => $vendor['store_uuid'], 'store_name' => $vendor['store_name'], 'currency_code' => $vendor['currency_code'], 'subtotal' => $vendor['subtotal'], 'shipping_total' => $vendor['shipping_total'], 'tax_total' => $vendor['tax_total'], 'total' => $vendor['total'], 'delivery_options' => $vendor['delivery_options'], 'items' => array_map(static fn (array $item): array => ['listing_id' => $item['listing_id'], 'variant_id' => $item['variant_id'], 'name' => $item['name'], 'sku' => $item['sku'], 'quantity' => $item['quantity'], 'unit_price' => $item['unit_price'], 'tax_amount' => $item['tax_amount'], 'line_total' => $item['line_total'], 'currency_code' => $item['currency_code']], $vendor['items'])];
             }, $calculation['vendors']),
