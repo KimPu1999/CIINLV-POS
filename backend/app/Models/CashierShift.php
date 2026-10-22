@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class CashierShift extends Model
 {
-    protected $fillable = ['tenant_id', 'store_id', 'register_id', 'cashier_user_id', 'opening_amount', 'closing_amount', 'expected_amount', 'actual_amount', 'cash_difference', 'status', 'opened_at', 'closed_at'];
+    protected $fillable = ['tenant_id', 'store_id', 'register_id', 'cashier_user_id', 'opening_amount', 'closing_amount', 'expected_amount', 'actual_amount', 'cash_difference', 'status', 'notes', 'opened_at', 'closed_at'];
 
     protected static function booted(): void
     {

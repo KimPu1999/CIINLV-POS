@@ -13,6 +13,6 @@ class CloseShiftRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['actual_amount' => ['required', 'numeric', 'min:0', 'decimal:0,2']];
+        return ['actual_amount' => ['required', 'numeric', 'min:0', 'decimal:0,2'], 'notes' => ['nullable', 'string', 'max:1000']];
     }
 }

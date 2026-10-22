@@ -162,6 +162,29 @@ class PhaseSixPosTest extends TestCase
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shift.'/close', ['actual_amount' => 110])->assertOk()->assertJsonPath('data.cash_difference', '0.00');
     }
 
+    public function test_branch_salespeople_are_filtered_and_recorded_on_sale_and_payment_context(): void
+    {
+        [$tenant, $admin, $cashier, $store, $location, $variant] = $this->posFixture('BUS-A', 'salesperson-context');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $salesperson = $this->userWithMembership($tenant, 'salesperson-context@example.com', 'cashier');
+        StoreMembership::create(['tenant_id' => $tenant->id, 'store_id' => $store->id, 'user_id' => $salesperson->id, 'role' => 'salesperson', 'status' => 'active', 'assigned_by' => $admin->id, 'assigned_at' => now()]);
+        $register = $this->register($admin, $store, $headers);
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/registers?store_id='.$store->uuid.'&active_only=1')->assertOk()->assertJsonCount(1, 'data');
+        $salespeople = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/salespersons?store_id='.$store->uuid)->assertOk();
+        $salespeople->assertJsonFragment(['id' => $salesperson->id, 'name' => $salesperson->name, 'role' => 'salesperson']);
+
+        $this->openShift($cashier, $store, $register, $headers);
+        $sale = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'sale-salesperson-context')->postJson('/api/v1/pos/sales', ['store_id' => $store->uuid, 'register_id' => $register, 'salesperson_id' => $salesperson->id, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 1]]])->assertCreated();
+        $saleId = $sale->json('data.id');
+        $shiftId = $sale->json('data.cashier_shift_id');
+        $this->assertNotNull($shiftId);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'payment-salesperson-context')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'cash', 'amount' => 12, 'received_amount' => 12])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk()->assertJsonPath('data.salesperson_user_id', $salesperson->id);
+        $this->assertDatabaseHas('sales', ['uuid' => $saleId, 'cashier_shift_id' => $shiftId, 'salesperson_user_id' => $salesperson->id]);
+        $this->assertDatabaseHas('payments', ['sale_id' => App\Models\Sale::where('uuid', $saleId)->value('id'), 'cashier_shift_id' => App\Models\CashierShift::where('uuid', $shiftId)->value('id'), 'received_amount' => '12.00', 'change_amount' => '2.00']);
+    }
+
     private function posFixture(string $code, string $suffix): array
     {
         $tenant = Tenant::create(['name' => $code, 'slug' => strtolower($code.'-'.$suffix), 'business_code' => $code.'-'.strtoupper(substr($suffix, 0, 3)), 'status' => 'active', 'subscription_status' => 'active']);

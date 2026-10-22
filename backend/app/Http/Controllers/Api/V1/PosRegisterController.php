@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\Pos\CreateRegisterRequest;
 use App\Http\Requests\Pos\UpdateRegisterRequest;
 use App\Http\Resources\PosRegisterResource;
+use App\Models\CashierShift;
 use App\Models\PosRegister;
 use App\Models\Store;
 use App\Services\AuditLogger;
@@ -14,13 +15,23 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class PosRegisterController
 {
     public function index(TenantContext $context, PosAccessService $access, Request $request): JsonResponse
     {
-        $stores = $context->tenant()->stores()->get()->filter(fn (Store $store) => $access->canAccessStore($request->user(), $store))->pluck('id');
-        $registers = PosRegister::with('store')->where('tenant_id', $context->tenant()->id)->whereIn('store_id', $stores)->orderBy('store_id')->orderBy('name')->get();
+        $stores = $context->tenant()->stores()->get()->filter(fn (Store $store) => $access->canAccessStore($request->user(), $store));
+        $storeIds = $stores->pluck('id');
+        if ($request->filled('store_id')) {
+            $store = $stores->firstWhere('uuid', $request->string('store_id')->toString());
+            $storeIds = $store ? collect([$store->id]) : collect();
+        }
+        $query = PosRegister::with('store')->where('tenant_id', $context->tenant()->id)->whereIn('store_id', $storeIds);
+        if ($request->boolean('active_only')) {
+            $query->where('status', 'active');
+        }
+        $registers = $query->orderBy('store_id')->orderBy('name')->get();
 
         return response()->json(['success' => true, 'data' => PosRegisterResource::collection($registers)]);
     }
@@ -47,6 +58,9 @@ class PosRegisterController
     {
         $this->assertTenant($register, $context);
         Gate::forUser($request->user())->authorize('manage', $register);
+        if ($request->filled('status') && $request->input('status') !== 'active' && CashierShift::where('tenant_id', $register->tenant_id)->where('register_id', $register->id)->where('status', 'open')->exists()) {
+            throw new ConflictHttpException('Close the active cashier shift before deactivating this register.');
+        }
         $register->update($request->validated());
         $audit->record('pos.register_updated', $request->user(), $context->tenant(), $register);
 

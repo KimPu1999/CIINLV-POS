@@ -22,7 +22,7 @@ class PosPaymentService
             if (! $this->access->canOperate($actor, $sale->store)) {
                 throw new AccessDeniedHttpException('You cannot accept payments in this store.');
             }
-            $hash = hash('sha256', json_encode(['sale_id' => $sale->uuid, 'method' => $payload['method'], 'amount' => $payload['amount'], 'external_reference' => $payload['external_reference'] ?? null, 'provider' => $payload['provider'] ?? null], JSON_THROW_ON_ERROR));
+            $hash = hash('sha256', json_encode(['sale_id' => $sale->uuid, 'method' => $payload['method'], 'amount' => $payload['amount'], 'received_amount' => $payload['received_amount'] ?? null, 'external_reference' => $payload['external_reference'] ?? null, 'provider' => $payload['provider'] ?? null], JSON_THROW_ON_ERROR));
             $existing = Payment::where('tenant_id', $sale->tenant_id)->where('idempotency_key', $idempotencyKey)->first();
             if ($existing) {
                 if ($existing->request_hash !== $hash) {
@@ -48,7 +48,9 @@ class PosPaymentService
             if (! empty($payload['external_reference']) && ! empty($payload['provider']) && Payment::where('tenant_id', $sale->tenant_id)->where('provider', $payload['provider'])->where('external_reference', $payload['external_reference'])->exists()) {
                 throw new ConflictHttpException('This external payment reference has already been recorded.');
             }
-            $payment = Payment::create(['tenant_id' => $sale->tenant_id, 'store_id' => $sale->store_id, 'sale_id' => $sale->id, 'method' => $payload['method'], 'amount' => $amount, 'currency_code' => $sale->currency_code, 'status' => $payload['method'] === 'cash' ? 'verified' : 'pending', 'external_reference' => $payload['external_reference'] ?? null, 'provider' => $payload['provider'] ?? null, 'verified_at' => $payload['method'] === 'cash' ? now() : null, 'collected_by' => $actor->id, 'idempotency_key' => $idempotencyKey, 'request_hash' => $hash, 'metadata' => $payload['metadata'] ?? null]);
+            $received = $payload['method'] === 'cash' ? (string) ($payload['received_amount'] ?? $amount) : $amount;
+            $change = $payload['method'] === 'cash' ? max(0, (float) bcsub(bcadd($verified, $received, 2), (string) $sale->grand_total, 2)) : 0;
+            $payment = Payment::create(['tenant_id' => $sale->tenant_id, 'store_id' => $sale->store_id, 'register_id' => $sale->register_id, 'cashier_shift_id' => $sale->cashier_shift_id, 'sale_id' => $sale->id, 'method' => $payload['method'], 'amount' => $amount, 'received_amount' => $received, 'change_amount' => number_format($change, 2, '.', ''), 'currency_code' => $sale->currency_code, 'status' => $payload['method'] === 'cash' ? 'verified' : 'pending', 'external_reference' => $payload['external_reference'] ?? null, 'provider' => $payload['provider'] ?? null, 'verified_at' => $payload['method'] === 'cash' ? now() : null, 'collected_by' => $actor->id, 'idempotency_key' => $idempotencyKey, 'request_hash' => $hash, 'metadata' => $payload['metadata'] ?? null]);
             $this->sales->refreshPaymentTotals($sale);
             if ($sale->status === 'completed') $this->invoices->sync($sale->fresh());
             $this->audit->record('pos.payment_created', $actor, $sale->store->tenant, $payment, ['sale_id' => $sale->uuid, 'method' => $payment->method, 'status' => $payment->status, 'amount' => $payment->amount]);

@@ -190,6 +190,8 @@
     "branch": "Branch",
     "salesperson": "Salesperson",
     "salesperson_select": "Select salesperson",
+    "select_salesperson_before_checkout": "Select a salesperson before completing checkout.",
+    "no_active_salesperson": "No active salesperson is assigned to this branch.",
     "register": "Register",
     "scan": "Scan",
     "scan_barcode_and_press_enter": "Scan barcode and press Enter",
@@ -279,6 +281,7 @@
     "complete_cash_sale": "Complete cash sale",
     "open_shift_to_checkout": "Open shift to checkout",
     "open_shift_before_sale": "Open a cashier shift before completing a sale.",
+    "shift_note": "Shift note (optional)",
     "select_register_before_checkout": "Select a register before completing a sale.",
     "no_active_register": "No active register is available for this branch.",
     "checkout_requires_cart": "Add at least one product before completing a sale.",
@@ -799,5 +802,29 @@
     ,"authorized_account_details": "Authorized account details"
     ,"search_name_or_email": "Search name or email"
     ,"last_login": "Last login"
+    ,"register_management": "Register management"
+    ,"register_management_description": "Create and maintain branch-scoped POS registers used by checkout and cashier shifts."
+    ,"add_register": "Add register"
+    ,"save_register": "Save register"
+    ,"all_accessible_branches": "All accessible branches"
+    ,"cashiers": "Cashiers"
+    ,"register_isolated_to_branch": "Registers remain isolated to the selected branch."
+    ,"edit_register": "Edit register"
+    ,"register_cashiers": "Register cashiers"
+    ,"select_branch_cashier": "Select a branch cashier"
+    ,"assign": "Assign"
+    ,"no_cashier_assigned": "No cashier is assigned to this register."
+    ,"existing_user": "Existing user"
+    ,"select_user": "Select a user"
+    ,"branch_role": "Branch role"
+    ,"sales_staff": "Sales staff"
+    ,"cashier": "Cashier"
+    ,"store_manager": "Store manager"
+    ,"inventory_manager": "Inventory manager"
+    ,"current_branch_staff": "Current branch staff"
+    ,"no_registers_for_branch": "No registers found for this branch."
+    ,"staff_salesperson_management": "Staff & salesperson management"
+    ,"staff_salesperson_management_description": "Assign existing business users to branches. Cashiers remain responsible for shifts; salesperson is recorded on each sale."
+    ,"no_staff_for_branch": "No staff assigned to this branch."
   }
 }

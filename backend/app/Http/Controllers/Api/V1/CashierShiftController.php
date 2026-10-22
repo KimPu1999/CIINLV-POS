@@ -25,7 +25,7 @@ class CashierShiftController
         $store = Store::where('tenant_id', $context->tenant()->id)->where('uuid', $request->input('store_id'))->firstOrFail();
         $register = PosRegister::where('tenant_id', $context->tenant()->id)->where('uuid', $request->input('register_id'))->firstOrFail();
         Gate::forUser($request->user())->authorize('operate', $register);
-        $shift = $service->open($store, $register, $request->user(), (string) $request->input('opening_amount'));
+        $shift = $service->open($store, $register, $request->user(), (string) $request->input('opening_amount'), $request->input('notes'));
 
         return response()->json(['success' => true, 'data' => new CashierShiftResource($shift)], 201);
     }
@@ -51,7 +51,7 @@ class CashierShiftController
     public function close(CloseShiftRequest $request, CashierShift $shift, TenantContext $context, CashierShiftService $service): JsonResponse
     {
         $this->assertTenant($shift, $context);
-        $closed = $service->close($shift, $request->user(), (string) $request->input('actual_amount'));
+        $closed = $service->close($shift, $request->user(), (string) $request->input('actual_amount'), $request->input('notes'));
 
         return response()->json(['success' => true, 'data' => new CashierShiftResource($closed)]);
     }

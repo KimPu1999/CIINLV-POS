@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class Sale extends Model
 {
-    protected $fillable = ['tenant_id', 'store_id', 'register_id', 'cashier_user_id', 'customer_id', 'sale_number', 'subtotal', 'discount_total', 'taxable_amount', 'tax_total', 'service_charge_total', 'fee_total', 'rounding_adjustment', 'grand_total', 'paid_total', 'balance_due', 'change_due', 'refunded_total', 'tax_breakdown', 'currency_code', 'status', 'payment_status', 'idempotency_key', 'request_hash', 'held_at', 'completed_at'];
+    protected $fillable = ['tenant_id', 'store_id', 'register_id', 'cashier_shift_id', 'cashier_user_id', 'salesperson_user_id', 'customer_id', 'sale_number', 'subtotal', 'discount_total', 'taxable_amount', 'tax_total', 'service_charge_total', 'fee_total', 'rounding_adjustment', 'grand_total', 'paid_total', 'balance_due', 'change_due', 'refunded_total', 'tax_breakdown', 'currency_code', 'status', 'payment_status', 'idempotency_key', 'request_hash', 'held_at', 'completed_at'];
 
     protected static function booted(): void
     {
@@ -45,6 +45,16 @@ class Sale extends Model
     public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_user_id');
+    }
+
+    public function salesperson(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'salesperson_user_id');
+    }
+
+    public function cashierShift(): BelongsTo
+    {
+        return $this->belongsTo(CashierShift::class, 'cashier_shift_id');
     }
 
     public function items(): HasMany

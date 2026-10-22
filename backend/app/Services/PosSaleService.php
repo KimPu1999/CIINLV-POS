@@ -13,6 +13,7 @@ use App\Models\PosRegister;
 use App\Models\ProductVariant;
 use App\Models\Sale;
 use App\Models\Store;
+use App\Models\StoreMembership;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
@@ -52,13 +53,16 @@ class PosSaleService
 
                 return $existing->load(['items.variant', 'payments', 'store', 'register']);
             }
-            $this->assertOpenShift($store, $register, $actor);
+            $shift = $this->openShift($store, $register, $actor);
+            $salespersonId = $this->salespersonId($store, $payload['salesperson_id'] ?? null, $actor);
             $calculation = $this->calculate($store, $payload, $actor);
             $sale = Sale::create([
                 'tenant_id' => $store->tenant_id,
                 'store_id' => $store->id,
                 'register_id' => $register->id,
+                'cashier_shift_id' => $shift->id,
                 'cashier_user_id' => $actor->id,
+                'salesperson_user_id' => $salespersonId,
                 'customer_id' => $payload['customer_id'] ?? null,
                 'sale_number' => $this->nextNumber($store, 'SALE'),
                 'subtotal' => $calculation['subtotal'],
@@ -96,7 +100,7 @@ class PosSaleService
             }
             $this->audit->record('pos.sale_created', $actor, $store->tenant, $sale, ['store_id' => $store->uuid, 'sale_number' => $sale->sale_number]);
 
-            return $sale->load(['items.variant', 'payments', 'store', 'register']);
+            return $sale->load(['items.variant', 'payments', 'store', 'register', 'cashierShift', 'salesperson']);
         });
     }
 
@@ -113,7 +117,14 @@ class PosSaleService
             if (! $this->access->canOperate($actor, $sale->store)) {
                 throw new AccessDeniedHttpException('You cannot complete sales in this store.');
             }
-            $shift = CashierShift::where('tenant_id', $sale->tenant_id)->where('store_id', $sale->store_id)->where('register_id', $sale->register_id)->where('cashier_user_id', $sale->cashier_user_id)->where('status', 'open')->lockForUpdate()->first();
+            $shift = CashierShift::where('tenant_id', $sale->tenant_id)
+                ->where('store_id', $sale->store_id)
+                ->where('register_id', $sale->register_id)
+                ->where('cashier_user_id', $sale->cashier_user_id)
+                ->when($sale->cashier_shift_id, fn ($query) => $query->whereKey($sale->cashier_shift_id))
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->first();
             if (! $shift) {
                 throw new ConflictHttpException('The cashier shift must be open before completing this sale.');
             }
@@ -412,11 +423,37 @@ class PosSaleService
         }
     }
 
-    private function assertOpenShift(Store $store, PosRegister $register, User $actor): void
+    private function openShift(Store $store, PosRegister $register, User $actor): CashierShift
     {
-        if (! CashierShift::where('tenant_id', $store->tenant_id)->where('store_id', $store->id)->where('register_id', $register->id)->where('cashier_user_id', $actor->id)->where('status', 'open')->exists()) {
+        $shift = CashierShift::where('tenant_id', $store->tenant_id)->where('store_id', $store->id)->where('register_id', $register->id)->where('cashier_user_id', $actor->id)->where('status', 'open')->first();
+        if (! $shift) {
             throw new ConflictHttpException('Open an authorized cashier shift before creating a sale.');
         }
+
+        return $shift;
+    }
+
+    private function salespersonId(Store $store, mixed $requestedId, User $actor): int
+    {
+        if ($requestedId === null || $requestedId === '') {
+            return (int) $actor->id;
+        }
+
+        $membership = StoreMembership::query()
+            ->where('tenant_id', $store->tenant_id)
+            ->where('store_id', $store->id)
+            ->where('user_id', (int) $requestedId)
+            ->whereIn('role', ['salesperson', 'sales_staff', 'cashier'])
+            ->where('status', 'active')
+            ->whereNull('revoked_at')
+            ->whereHas('user', fn ($query) => $query->where('status', User::STATUS_ACTIVE))
+            ->first();
+
+        if (! $membership) {
+            throw new UnprocessableEntityHttpException('The selected salesperson is not assigned to the selected branch.');
+        }
+
+        return (int) $membership->user_id;
     }
 
     private function hashPayload(array $payload, Store $store, PosRegister $register): string
@@ -424,6 +461,7 @@ class PosSaleService
         return hash('sha256', json_encode([
             'store_id' => $store->uuid,
             'register_id' => $register->uuid,
+            'salesperson_id' => $payload['salesperson_id'] ?? null,
             'items' => $payload['items'],
             'discount_type' => $payload['discount_type'] ?? 'fixed',
             'discount_value' => $payload['discount_value'] ?? $payload['discount_amount'] ?? '0',

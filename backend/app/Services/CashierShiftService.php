@@ -17,9 +17,9 @@ class CashierShiftService
 {
     public function __construct(private readonly PosAccessService $access, private readonly AuditLogger $audit) {}
 
-    public function open(Store $store, PosRegister $register, User $cashier, string $openingAmount): CashierShift
+    public function open(Store $store, PosRegister $register, User $cashier, string $openingAmount, ?string $notes = null): CashierShift
     {
-        return DB::transaction(function () use ($store, $register, $cashier, $openingAmount): CashierShift {
+        return DB::transaction(function () use ($store, $register, $cashier, $openingAmount, $notes): CashierShift {
             $this->assertRegister($store, $register, $cashier);
             if (CashierShift::where('tenant_id', $store->tenant_id)->where('register_id', $register->id)->where('status', 'open')->exists()) {
                 throw new ConflictHttpException('This register already has an open cashier shift.');
@@ -36,6 +36,7 @@ class CashierShiftService
                 'opening_amount' => $openingAmount,
                 'expected_amount' => $openingAmount,
                 'status' => 'open',
+                'notes' => $notes,
                 'opened_at' => now(),
             ]);
             CashMovement::create([
@@ -56,9 +57,9 @@ class CashierShiftService
         });
     }
 
-    public function close(CashierShift $shift, User $actor, string $actualAmount): CashierShift
+    public function close(CashierShift $shift, User $actor, string $actualAmount, ?string $notes = null): CashierShift
     {
-        $closed = DB::transaction(function () use ($shift, $actor, $actualAmount): CashierShift {
+        $closed = DB::transaction(function () use ($shift, $actor, $actualAmount, $notes): CashierShift {
             $shift = CashierShift::whereKey($shift->id)->lockForUpdate()->with('store', 'register')->firstOrFail();
             if ($shift->status !== 'open') {
                 throw new ConflictHttpException('This cashier shift is already closed.');
@@ -72,6 +73,7 @@ class CashierShiftService
                 'expected_amount' => $expected,
                 'actual_amount' => $actualAmount,
                 'cash_difference' => bcsub($actualAmount, $expected, 2),
+                'notes' => $notes ?: $shift->notes,
                 'status' => 'closed',
                 'closed_at' => now(),
             ]);

@@ -14,6 +14,6 @@ class UpdateStoreMemberRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['role' => ['sometimes', Rule::in(['store_manager', 'inventory_manager', 'cashier'])], 'status' => ['sometimes', Rule::in(['active', 'suspended', 'revoked'])]];
+        return ['role' => ['sometimes', Rule::in(['store_manager', 'inventory_manager', 'cashier', 'salesperson', 'sales_staff'])], 'status' => ['sometimes', Rule::in(['active', 'suspended', 'revoked'])]];
     }
 }

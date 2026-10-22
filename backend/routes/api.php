@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\V1\PosReceiptController;
 use App\Http\Controllers\Api\V1\PosRefundController;
 use App\Http\Controllers\Api\V1\PosRegisterController;
 use App\Http\Controllers\Api\V1\PosRegisterMembershipController;
+use App\Http\Controllers\Api\V1\PosSalespersonController;
 use App\Http\Controllers\Api\V1\PosReportController;
 use App\Http\Controllers\Api\V1\PosReturnController;
 use App\Http\Controllers\Api\V1\PosSaleController;
@@ -390,6 +391,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/invoices', [InvoiceController::class, 'index']);
                 Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
                 Route::apiResource('registers', PosRegisterController::class)->only(['index', 'store', 'show', 'update']);
+                Route::get('/salespersons', [PosSalespersonController::class, 'index']);
                 Route::get('/registers/{register}/members', [PosRegisterMembershipController::class, 'index']);
                 Route::post('/registers/{register}/members', [PosRegisterMembershipController::class, 'store']);
                 Route::delete('/registers/{register}/members/{membership}', [PosRegisterMembershipController::class, 'destroy']);

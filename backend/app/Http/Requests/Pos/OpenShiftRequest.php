@@ -13,6 +13,6 @@ class OpenShiftRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['store_id' => ['required', 'uuid'], 'register_id' => ['required', 'uuid'], 'opening_amount' => ['required', 'numeric', 'min:0', 'decimal:0,2']];
+        return ['store_id' => ['required', 'uuid'], 'register_id' => ['required', 'uuid'], 'opening_amount' => ['required', 'numeric', 'min:0', 'decimal:0,2'], 'notes' => ['nullable', 'string', 'max:1000']];
     }
 }

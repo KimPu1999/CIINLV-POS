@@ -36,6 +36,8 @@ const InventoryManagementPage = lazy(() => import('./features/inventory').then((
 const PurchaseOrdersPage = lazy(() => import('./features/purchase-orders').then(({ PurchaseOrdersPage: Page }) => ({ default: Page })))
 const StockTransfersPage = lazy(() => import('./features/stock-transfers').then(({ StockTransfersPage: Page }) => ({ default: Page })))
 const POSCheckoutPage = lazy(() => import('./features/pos-checkout').then(({ POSCheckoutPage: Page }) => ({ default: Page })))
+const RegisterManagementPage = lazy(() => import('./features/pos-management').then(({ RegisterManagementPage: Page }) => ({ default: Page })))
+const StaffManagementPage = lazy(() => import('./features/pos-management').then(({ StaffManagementPage: Page }) => ({ default: Page })))
 const SalesHistoryPage = lazy(() => import('./features/sales-history').then(({ SalesHistoryPage: Page }) => ({ default: Page })))
 const ReturnsRefundsPage = lazy(() => import('./features/returns-refunds').then(({ ReturnsRefundsPage: Page }) => ({ default: Page })))
 const ReportsAnalyticsPage = lazy(() => import('./features/reports-analytics').then(({ ReportsAnalyticsPage: Page }) => ({ default: Page })))
@@ -101,6 +103,8 @@ const businessNav: NavItem[] = [
   { label: 'Purchase orders', path: '/business/purchase-orders', icon: ClipboardList, roles: ['business'] },
   { label: 'Stock transfers', path: '/business/stock-transfers', icon: Truck, roles: ['business'] },
   { label: 'POS checkout', path: '/business/pos', icon: ShoppingCart, roles: ['business'] },
+  { label: 'Registers', path: '/business/registers', icon: Receipt, roles: ['business'] },
+  { label: 'Staff & salespeople', path: '/business/staff', icon: CircleUserRound, roles: ['business'] },
   { label: 'Sales history', path: '/business/sales', icon: Receipt, roles: ['business'] },
   { label: 'Returns & refunds', path: '/business/returns', icon: CircleUserRound, roles: ['business'] },
   { label: 'Reports & analytics', path: '/business/reports', icon: BarChart3, roles: ['business'] },
@@ -329,6 +333,8 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="purchase-orders" element={<ResourcePage title="Purchase orders & receiving" description="Create and receive purchase orders through the Laravel workflow." endpoint="/api/v1/purchase-orders" columns={['order_number', 'status', 'ordered_at']} />} />
           <Route path="stock-transfers" element={<ResourcePage title="Stock transfers" description="Track branch and warehouse stock transfers." endpoint="/api/v1/stock-transfers" columns={['transfer_number', 'status']} />} />
           <Route path="pos" element={<PosPage />} />
+          <Route path="registers" element={<RegisterManagementPage />} />
+          <Route path="staff" element={<StaffManagementPage />} />
           <Route path="sales" element={<ResourcePage title="Sales history" description="Completed, held and cancelled POS sales." endpoint="/api/v1/pos/sales" columns={['sale_number', 'status', 'grand_total', 'completed_at']} />} />
           <Route path="returns" element={<ResourcePage title="Returns & refunds" description="Review return requests and refund states." endpoint="/api/v1/pos/returns" columns={['return_number', 'status', 'refund_total']} />} />
           <Route path="reports" element={<ReportsPage />} />
