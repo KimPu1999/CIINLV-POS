@@ -55,6 +55,7 @@ const MarketplaceShippingPage = lazy(() => import('./features/marketplace-vendor
 const MarketplaceReviewsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReviewsPage: Page }) => ({ default: Page })))
 const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceEarningsPage: Page }) => ({ default: Page })))
 const MarketplaceSettingsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceSettingsPage: Page }) => ({ default: Page })))
+const CustomerManagementPage = lazy(() => import('./features/customer-management').then(({ CustomerManagementPage: Page }) => ({ default: Page })))
 
 type Icon = React.ComponentType<{ size?: number; className?: string }>
 type NavItem = { label: string; path: string; icon: Icon; roles?: ('super_admin' | 'business')[]; section?: string; end?: boolean }
@@ -71,6 +72,7 @@ const platformNav: NavItem[] = [
   { label: 'Platform overview', path: '/platform/dashboard', icon: LayoutDashboard, roles: ['super_admin'] },
   { label: 'Platform monitoring', path: '/platform/monitoring', icon: Activity, roles: ['super_admin'] },
   { label: 'Businesses', path: '/platform/businesses', icon: Building2, roles: ['super_admin'] },
+  { label: 'Customers', path: '/platform/customers', icon: CircleUserRound, roles: ['super_admin'] },
   { label: 'Business registration', path: '/platform/businesses/new', icon: ClipboardList, roles: ['super_admin'] },
   { label: 'Audit & security', path: '/platform/audit', icon: Activity, roles: ['super_admin'] },
   { label: 'Marketplace control center', path: '/platform/marketplace', icon: ShoppingCart, roles: ['super_admin'], section: 'Marketplace management', end: true },
@@ -88,6 +90,7 @@ const platformNav: NavItem[] = [
 
 const businessNav: NavItem[] = [
   { label: 'Business dashboard', path: '/business/dashboard', icon: LayoutDashboard, roles: ['business'] },
+  { label: 'Customers', path: '/business/customers', icon: CircleUserRound, roles: ['business'] },
   { label: 'Branches & dashboards', path: '/business/branches', icon: Store, roles: ['business'] },
   { label: 'Products', path: '/business/products', icon: Package, roles: ['business'] },
   { label: 'Categories', path: '/business/categories', icon: Boxes, roles: ['business'] },
@@ -116,6 +119,7 @@ const businessNav: NavItem[] = [
 
 const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
   '/business/dashboard',
+  '/business/customers',
   '/business/branches',
   '/business/products',
   '/business/categories',
@@ -294,6 +298,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="dashboard" element={<OverviewPage user={user} />} />
           <Route path="monitoring" element={<PlatformMonitoringPage />} />
           <Route path="businesses" element={<BusinessListPage />} />
+          <Route path="customers" element={<CustomerManagementPage platform />} />
           <Route path="businesses/new" element={<BusinessRegistrationScreen />} />
           <Route path="businesses/:id/edit" element={<BusinessEditPage />} />
           <Route path="businesses/:id/admins" element={<BusinessAdminsPage />} />
@@ -329,6 +334,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="alerts" element={<ResourcePage title="Low-stock alerts" description="Live inventory alerts from the backend." endpoint="/api/v1/alerts" columns={['alert_type', 'status', 'available_quantity']} />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="customers" element={<CustomerManagementPage />} />
           <Route path="verification" element={<BusinessVerificationPage />} />
           <Route path="marketplace/overview" element={<MarketplaceOverviewPage />} />
           <Route path="marketplace/store" element={<MarketplaceStorePage />} />

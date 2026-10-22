@@ -5,6 +5,8 @@ import {
   Check,
   ChevronRight,
   CircleAlert,
+  Eye,
+  EyeOff,
   Heart,
   LoaderCircle,
   LogIn,
@@ -63,6 +65,8 @@ import {
   readStoredCart,
   readStoredWishlist,
   registerCustomer,
+  forgotCustomerPassword,
+  resetCustomerPassword,
   translate,
   updateCustomer,
   updateCustomerAddress,
@@ -307,6 +311,8 @@ function App() {
         <Route path="/order-success" element={<ProtectedRoute {...services}><OrderSuccessPage {...services} /></ProtectedRoute>} />
         <Route path="/login" element={<AuthPage {...services} />} />
         <Route path="/register" element={<AuthPage {...services} mode="register" />} />
+        <Route path="/forgot-password" element={<CustomerForgotPasswordPage {...services} />} />
+        <Route path="/reset-password" element={<CustomerResetPasswordPage {...services} />} />
         <Route path="/account" element={<ProtectedRoute {...services}><AccountPage {...services} /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute {...services}><OrdersPage {...services} /></ProtectedRoute>} />
         <Route path="/tracking/:id" element={<ProtectedRoute {...services}><TrackingPage {...services} /></ProtectedRoute>} />
@@ -774,7 +780,7 @@ function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServi
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const isRegister = mode === 'register'
-  const [form, setForm] = useState({ name: '', email: '', password: '', password_confirmation: '', phone: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', password_confirmation: '', phone: '', terms_accepted: false, remember: false })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
@@ -793,7 +799,7 @@ function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServi
     }
     setBusy(true)
     try {
-      const next = isRegister ? await registerCustomer(form, locale) : await loginCustomer(form.email, form.password, locale)
+      const next = isRegister ? await registerCustomer(form, locale) : await loginCustomer(form.email, form.password, locale, form.remember)
       setCustomer(next)
       navigate(params.get('next') || '/account', { replace: true })
     } catch (reason: unknown) {
@@ -820,17 +826,31 @@ function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServi
           {isRegister && fieldError('email')}
           {isRegister && <Field label={t('phoneOptional')} name="phone" type="tel" value={form.phone} onChange={(value) => update('phone', value)} autoComplete="tel" />}
           {isRegister && fieldError('phone')}
-          <Field label={t('password')} name="password" type="password" value={form.password} onChange={(value) => update('password', value)} placeholder={t('passwordPlaceholder')} autoComplete={isRegister ? 'new-password' : 'current-password'} required />
+          <PasswordField label={t('password')} name="password" value={form.password} onChange={(value) => update('password', value)} placeholder={t('passwordPlaceholder')} autoComplete={isRegister ? 'new-password' : 'current-password'} required />
           {isRegister && fieldError('password')}
-          <p className="-mt-2 text-xs font-semibold text-slate-400">{t('passwordRequirements')}</p>
-          {isRegister && <Field label={t('confirmPassword')} name="password_confirmation" type="password" value={form.password_confirmation} onChange={(value) => update('password_confirmation', value)} autoComplete="new-password" required />}
+          {isRegister && <PasswordStrength password={form.password} />}
+          {!isRegister && <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-500"><span className="inline-flex items-center gap-2"><input type="checkbox" checked={form.remember} onChange={(event) => setForm((current) => ({ ...current, remember: event.target.checked }))} className="size-4 accent-blue-600" />Remember me</span><Link to="/forgot-password" className="font-black text-blue-600 hover:underline">Forgot password?</Link></label>}
+          {isRegister && <PasswordField label={t('confirmPassword')} name="password_confirmation" value={form.password_confirmation} onChange={(value) => update('password_confirmation', value)} autoComplete="new-password" required />}
           {isRegister && fieldError('password_confirmation')}
+          {isRegister && <label className="flex items-start gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300"><input type="checkbox" checked={form.terms_accepted} onChange={(event) => setForm((current) => ({ ...current, terms_accepted: event.target.checked }))} className="mt-1 size-4 accent-blue-600" required /><span>I agree to the <Link to="/terms" className="text-blue-600 hover:underline">Terms and Conditions</Link>.</span></label>}
         </div>
         <button type="submit" disabled={busy} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={18} /> : <LogIn size={18} />} {isRegister ? t('createAccount') : t('continue')}</button>
         <p className="mt-6 text-center text-sm font-semibold text-slate-500">{isRegister ? t('alreadyHaveAccount') + ' ' : t('noAccount') + ' '}<Link to={isRegister ? '/login' : '/register'} className="text-blue-600 hover:underline">{isRegister ? t('signIn') : t('createAccount')}</Link></p>
       </form>
     </div>
   </PageContainer>
+}
+
+function PasswordField({ label, name, value, onChange, placeholder, autoComplete, required = false }: { label: string; name: string; value: string; onChange: (value: string) => void; placeholder?: string; autoComplete?: string; required?: boolean }) {
+  const [visible, setVisible] = useState(false)
+  return <label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300"><span>{label}</span><span className="relative"><input name={name} type={visible ? 'text' : 'password'} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} autoComplete={autoComplete} required={required} className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-12 font-medium outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900" /><button type="button" onClick={() => setVisible((current) => !current)} aria-label={visible ? 'Hide password' : 'Show password'} className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800">{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button></span></label>
+}
+
+function PasswordStrength({ password }: { password: string }) {
+  const checks = [password.length >= 12, /[A-Z]/.test(password), /[a-z]/.test(password), /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)]
+  const score = checks.filter(Boolean).length
+  const label = score < 3 ? 'Weak' : score < 5 ? 'Good' : 'Strong'
+  return <div className="-mt-2" aria-live="polite"><div className="flex gap-1">{checks.map((valid, index) => <span key={index} className={'h-1.5 flex-1 rounded-full ' + (valid ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800')} />)}</div><p className="mt-2 text-xs font-semibold text-slate-400">Password strength: {password ? label : 'Use at least 12 characters with upper/lowercase, a number and a symbol.'}</p></div>
 }
 
 function ProtectedRoute({ customer, authLoading, t, children }: AppServices & { children: ReactNode }) {
@@ -1219,4 +1239,22 @@ function TrashIcon() {
   return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v5M14 11v5" /></svg>
 }
 
+function CustomerForgotPasswordPage({ locale, t }: AppServices) {
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(''); setError(''); try { await forgotCustomerPassword(email, locale); setMessage('If an account matches that email, reset instructions have been sent.') } catch (reason: unknown) { setError(apiErrorMessage(reason, t('errorGeneric'))) } finally { setBusy(false) } }
+  return <PageContainer><div className="mx-auto max-w-xl rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:p-12"><h1 className="text-3xl font-black">Forgot password?</h1><p className="mt-3 text-sm leading-6 text-slate-500">Enter your customer account email and we will send a secure, time-limited reset link.</p>{message && <p role="status" className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{message}</p>}{error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800">{error}</p>}<form onSubmit={submit} className="mt-7 grid gap-5"><Field label={t('email')} name="email" type="email" value={email} onChange={setEmail} autoComplete="email" required /><button type="submit" disabled={busy} className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white disabled:opacity-60">{busy ? t('loading') : 'Send reset link'}</button></form><Link to="/login" className="mt-6 inline-flex text-sm font-black text-blue-600 hover:underline">Back to sign in</Link></div></PageContainer>
+}
+function CustomerResetPasswordPage({ locale, t }: AppServices) {
+  const [params] = useSearchParams()
+  const [form, setForm] = useState({ email: params.get('email') ?? '', token: params.get('token') ?? '', password: '', password_confirmation: '' })
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); setMessage(''); setError(''); try { await resetCustomerPassword(form, locale); setMessage('Password reset successfully. You can now sign in.') } catch (reason: unknown) { setError(apiErrorMessage(reason, t('errorGeneric'))) } finally { setBusy(false) } }
+  return <PageContainer><div className="mx-auto max-w-xl rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:p-12"><h1 className="text-3xl font-black">Set a new password</h1>{message && <p role="status" className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{message} <Link to="/login" className="underline">Sign in</Link></p>}{error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800">{error}</p>}<form onSubmit={submit} className="mt-7 grid gap-5"><Field label={t('email')} name="email" type="email" value={form.email} onChange={(value) => update('email', value)} required /><PasswordField label={t('password')} name="password" value={form.password} onChange={(value) => update('password', value)} autoComplete="new-password" required /><PasswordField label={t('confirmPassword')} name="password_confirmation" value={form.password_confirmation} onChange={(value) => update('password_confirmation', value)} autoComplete="new-password" required /><button type="submit" disabled={busy || !form.token} className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white disabled:opacity-60">{busy ? t('loading') : 'Reset password'}</button></form></div></PageContainer>
+}
 export default App

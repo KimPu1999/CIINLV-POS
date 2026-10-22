@@ -13,7 +13,7 @@ class CustomerAccount
         $user = $request->user();
         $profile = $user?->customerProfile;
 
-        if (! $user || $user->isSuperAdmin() || ! $profile?->isActive()) {
+        if (! $user || $user->isSuperAdmin() || $user->memberships()->where('status', 'active')->exists() || ! $profile?->isActive()) {
             throw new AccessDeniedHttpException('A customer account is required for this marketplace endpoint.');
         }
 

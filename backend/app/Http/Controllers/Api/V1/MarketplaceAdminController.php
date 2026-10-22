@@ -182,7 +182,7 @@ class MarketplaceAdminController
 
     public function collectCod(CollectMarketplaceCodPaymentRequest $request, string $order, MarketplaceAuditLogger $audit, MarketplaceCommissionService $commissions): JsonResponse
     {
-        $model = DB::transaction(function () use ($request, $order): MarketplaceOrder {
+        $model = DB::transaction(function () use ($request, $order, $commissions): MarketplaceOrder {
             $model = MarketplaceOrder::where('uuid', $order)->lockForUpdate()->firstOrFail();
             $payment = $model->payments()->where('method', 'cod')->lockForUpdate()->firstOrFail();
             if ($payment->status === 'pending') {

@@ -29,6 +29,7 @@ class MarketplaceFoundationTest extends TestCase
             'password' => 'CorrectPassword1!',
             'password_confirmation' => 'CorrectPassword1!',
             'phone' => '0912345678',
+            'terms_accepted' => true,
         ])->assertCreated()->assertJsonPath('data.email', 'customer@example.com');
 
         $this->getJson('/api/v1/marketplace/auth/me')->assertOk()->assertJsonPath('data.phone', '0912345678');
@@ -59,6 +60,7 @@ class MarketplaceFoundationTest extends TestCase
             'password' => 'CorrectPassword1!',
             'password_confirmation' => 'CorrectPassword1!',
             'phone' => '0912345678',
+            'terms_accepted' => true,
         ];
 
         $this->postJson('/api/v1/marketplace/auth/register', $payload)->assertCreated();
@@ -77,6 +79,7 @@ class MarketplaceFoundationTest extends TestCase
             'email' => 'permissions@example.com',
             'password' => 'CorrectPassword1!',
             'password_confirmation' => 'CorrectPassword1!',
+            'terms_accepted' => true,
         ])->assertCreated();
 
         $user = User::query()->where('email', 'permissions@example.com')->firstOrFail();

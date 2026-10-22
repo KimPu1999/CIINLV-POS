@@ -465,14 +465,22 @@ export async function fetchCustomer(locale: Locale, signal?: AbortSignal): Promi
   }
 }
 
-export async function loginCustomer(email: string, password: string, locale: Locale): Promise<Customer> {
-  const payload = await requestJson(withQuery('/auth/login', {}, locale), { method: 'POST', body: JSON.stringify({ email, password }) }, locale, true)
+export async function loginCustomer(email: string, password: string, locale: Locale, remember = false): Promise<Customer> {
+  const payload = await requestJson(withQuery('/auth/login', {}, locale), { method: 'POST', body: JSON.stringify({ email, password, remember }) }, locale, true)
   return normalizeCustomer(unwrap<unknown>(payload))
 }
 
-export async function registerCustomer(data: { name: string; email: string; password: string; password_confirmation: string; phone?: string }, locale: Locale): Promise<Customer> {
+export async function registerCustomer(data: { name: string; email: string; password: string; password_confirmation: string; phone?: string; terms_accepted: boolean }, locale: Locale): Promise<Customer> {
   const payload = await requestJson(withQuery('/auth/register', {}, locale), { method: 'POST', body: JSON.stringify(data) }, locale, true)
   return normalizeCustomer(unwrap<unknown>(payload))
+}
+
+export async function forgotCustomerPassword(email: string, locale: Locale): Promise<void> {
+  await requestJson('/api/v1/auth/forgot-password?lang=' + encodeURIComponent(locale), { method: 'POST', body: JSON.stringify({ email }) }, locale, true)
+}
+
+export async function resetCustomerPassword(data: { token: string; email: string; password: string; password_confirmation: string }, locale: Locale): Promise<void> {
+  await requestJson('/api/v1/auth/reset-password?lang=' + encodeURIComponent(locale), { method: 'POST', body: JSON.stringify(data) }, locale, true)
 }
 
 export async function updateCustomer(data: { name?: string; phone?: string; locale?: Locale }, locale: Locale): Promise<Customer> {

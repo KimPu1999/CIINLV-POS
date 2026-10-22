@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\BusinessProfileController;
 use App\Http\Controllers\Api\V1\BusinessRegistrationController;
 use App\Http\Controllers\Api\V1\BusinessSettingsController;
 use App\Http\Controllers\Api\V1\BusinessStoreController;
+use App\Http\Controllers\Api\V1\CustomerManagementController;
 use App\Http\Controllers\Api\V1\CashierShiftController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CurrentUserStoreController;
@@ -144,6 +145,13 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/businesses/deletion-reauthenticate', [PlatformBusinessDeletionController::class, 'reauthenticate']);
             Route::delete('/businesses/{business}', [PlatformBusinessDeletionController::class, 'destroy']);
 
+            Route::get('/customers', [CustomerManagementController::class, 'platformIndex']);
+            Route::get('/customers/{customer}/orders', [CustomerManagementController::class, 'platformOrders']);
+            Route::get('/customers/{customer}/activity', [CustomerManagementController::class, 'activity']);
+            Route::get('/customers/{customer}', [CustomerManagementController::class, 'platformShow']);
+            Route::patch('/customers/{customer}/status', [CustomerManagementController::class, 'updateStatus']);
+            Route::post('/customers/{customer}/password-reset', [CustomerManagementController::class, 'sendPasswordReset'])->middleware('throttle:password-reset');
+
             Route::apiResource('tenants', PlatformTenantController::class)->only(['index', 'store', 'show', 'update']);
             Route::post('/tenants/{tenant}/suspend', [PlatformTenantController::class, 'suspend']);
             Route::post('/tenants/{tenant}/activate', [PlatformTenantController::class, 'activate']);
@@ -255,6 +263,9 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/settings/subscription', [BusinessSettingsController::class, 'subscription']);
             Route::get('/dashboard', BusinessDashboardController::class);
             Route::get('/members', [BusinessController::class, 'members']);
+            Route::get('/customers', [CustomerManagementController::class, 'businessIndex']);
+            Route::get('/customers/{customer}/orders', [CustomerManagementController::class, 'businessOrders']);
+            Route::get('/customers/{customer}', [CustomerManagementController::class, 'businessShow']);
         });
 
         Route::prefix('business')->middleware('tenant.context.any')->group(function (): void {

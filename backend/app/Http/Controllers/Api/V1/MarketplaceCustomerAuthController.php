@@ -32,7 +32,13 @@ class MarketplaceCustomerAuthController
                     'status' => User::STATUS_ACTIVE,
                     'locale' => app()->getLocale(),
                 ]);
-                CustomerProfile::create(['user_id' => $user->id, 'phone' => $data['phone'] ?? null, 'status' => 'active']);
+                CustomerProfile::create([
+                    'user_id' => $user->id,
+                    'phone' => $data['phone'] ?? null,
+                    'status' => 'active',
+                    'terms_accepted_at' => now(),
+                    'terms_version' => (string) config('marketplace.terms_version', 'v1'),
+                ]);
 
                 return $user;
             });
@@ -56,7 +62,10 @@ class MarketplaceCustomerAuthController
 
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
-        $auditLogger->record('marketplace.customer_registered', $user, metadata: ['ip_address' => $request->ip()]);
+        if (config('auth.require_verified_email', false) && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+        $auditLogger->record('marketplace.customer_registered', $user, subject: $user, metadata: ['ip_address' => $request->ip()]);
 
         return response()->json(['success' => true, 'data' => new CustomerResource($user->load(['customerProfile.addresses']))], 201);
     }
@@ -66,8 +75,8 @@ class MarketplaceCustomerAuthController
         $data = $request->validated();
         $user = User::query()->where('email', $data['email'])->with('customerProfile')->first();
 
-        if (! $user || ! $user->customerProfile || ! Hash::check($data['password'], $user->password)) {
-            $auditLogger->record('marketplace.customer_login_failed', $user, metadata: ['email_hash' => hash('sha256', $data['email']), 'ip_address' => $request->ip()]);
+        if (! $user || ! $user->customerProfile || $user->memberships()->where('status', 'active')->exists() || ! Hash::check($data['password'], $user->password)) {
+            $auditLogger->record('marketplace.customer_login_failed', $user, subject: $user, metadata: ['email_hash' => hash('sha256', $data['email']), 'ip_address' => $request->ip()]);
             throw ValidationException::withMessages(['email' => ['The provided customer credentials are incorrect.']]);
         }
 
@@ -76,9 +85,9 @@ class MarketplaceCustomerAuthController
         }
 
         $user->forceFill(['last_login_at' => now(), 'last_login_ip' => $request->ip()])->save();
-        Auth::guard('web')->login($user);
+        Auth::guard('web')->login($user, (bool) ($data['remember'] ?? false));
         $request->session()->regenerate();
-        $auditLogger->record('marketplace.customer_login_succeeded', $user, metadata: ['ip_address' => $request->ip()]);
+        $auditLogger->record('marketplace.customer_login_succeeded', $user, subject: $user, metadata: ['ip_address' => $request->ip()]);
 
         return response()->json(['success' => true, 'data' => new CustomerResource($user->load(['customerProfile.addresses']))]);
     }
@@ -86,7 +95,7 @@ class MarketplaceCustomerAuthController
     public function logout(Request $request, AuditLogger $auditLogger): JsonResponse
     {
         $user = $request->user();
-        $auditLogger->record('marketplace.customer_logout', $user, metadata: ['ip_address' => $request->ip()]);
+        $auditLogger->record('marketplace.customer_logout', $user, subject: $user, metadata: ['ip_address' => $request->ip()]);
         Auth::guard('web')->logout();
         if ($request->hasSession()) {
             $request->session()->invalidate();
@@ -116,7 +125,7 @@ class MarketplaceCustomerAuthController
         if ($profileData !== []) {
             $user->customerProfile()->update($profileData);
         }
-        $auditLogger->record('marketplace.customer_profile_updated', $user);
+        $auditLogger->record('marketplace.customer_profile_updated', $user, subject: $user);
 
         return response()->json(['success' => true, 'data' => new CustomerResource($user->refresh()->load(['customerProfile.addresses']))]);
     }

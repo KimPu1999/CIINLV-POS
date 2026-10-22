@@ -21,6 +21,7 @@ class CustomerLoginRequest extends FormRequest
         return [
             'email' => ['required', 'email:rfc', 'max:255'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ];
     }
 }
