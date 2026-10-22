@@ -27,7 +27,7 @@ class CustomerManagementController
                     ->where('users.name', 'ilike', $term)
                     ->orWhere('users.email', 'ilike', $term));
             })
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('customer_profiles.status', (string) $request->input('status')))
+            ->when($request->filled('status'), fn (Builder $query) => $query->whereHas('customerProfile', fn (Builder $profile) => $profile->where('status', (string) $request->input('status'))))
             ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('users.created_at', '>=', $request->date('from')))
             ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('users.created_at', '<=', $request->date('to')))
             ->withCount('marketplaceOrders')

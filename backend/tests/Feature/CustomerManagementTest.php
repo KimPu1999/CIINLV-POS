@@ -65,6 +65,21 @@ class CustomerManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_platform_customer_status_filter_is_scoped_inside_customer_profile_relation(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $active = User::factory()->create(['email' => 'active-customer@example.com']);
+        $suspended = User::factory()->create(['email' => 'suspended-customer@example.com']);
+        CustomerProfile::create(['user_id' => $active->id, 'status' => 'active']);
+        CustomerProfile::create(['user_id' => $suspended->id, 'status' => 'suspended']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/customers?status=active')
+            ->assertOk()
+            ->assertJsonFragment(['email' => $active->email])
+            ->assertJsonMissing(['email' => $suspended->email]);
+    }
+
     public function test_business_admin_cannot_use_platform_customer_status_endpoint(): void
     {
         $admin = User::factory()->create();
