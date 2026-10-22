@@ -59,13 +59,21 @@ class MarketplaceFulfillmentTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)
             ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Activate Shipping / Fulfillment before receiving payment.');
+            ->assertJsonPath('message', 'Fulfillment must be active before receiving cash payment.');
 
         $shipment = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])
             ->assertCreated()
             ->assertJsonPath('data.status', 'ready')
+            ->assertJsonPath('data.fulfillment_status', 'active')
             ->json('data');
+
+        $vendorOrder->refresh()->update(['fulfillment_status' => 'ready']);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Fulfillment must be active before receiving cash payment.');
+        $vendorOrder->refresh()->update(['fulfillment_status' => 'active']);
 
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)
             ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
@@ -105,7 +113,7 @@ class MarketplaceFulfillmentTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Activate Shipping / Fulfillment before receiving payment.');
+            ->assertJsonPath('message', 'Fulfillment must be active before receiving cash payment.');
     }
 
     public function test_invalid_shipment_transition_and_duplicate_stock_dispatch_are_rejected(): void

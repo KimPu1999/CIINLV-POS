@@ -110,12 +110,8 @@ class MarketplacePaymentService
             throw new UnprocessableEntityHttpException('The order must be confirmed before receiving payment.');
         }
 
-        $active = $vendorOrder->shipments()
-            ->whereIn('status', ['ready', 'ready_to_ship', 'processing', 'shipped', 'in_transit'])
-            ->exists();
-
-        if (! $active) {
-            throw new UnprocessableEntityHttpException('Activate Shipping / Fulfillment before receiving payment.');
+        if (! in_array($vendorOrder->fulfillment_status, ['active', 'shipped', 'in_transit'], true)) {
+            throw new UnprocessableEntityHttpException('Fulfillment must be active before receiving cash payment.');
         }
     }
 }

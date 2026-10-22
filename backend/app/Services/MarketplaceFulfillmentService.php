@@ -46,6 +46,7 @@ class MarketplaceFulfillmentService
             ]);
             $shipment->update(['internal_tracking_id' => 'CIINLV-DEL-'.now()->format('Y').'-'.str_pad((string) $shipment->id, 6, '0', STR_PAD_LEFT)]);
             $shipment->events()->create(['status' => 'ready', 'description' => 'Shipment created.', 'event_time' => now(), 'actor_user_id' => $actor->id]);
+            $lockedOrder->update(['fulfillment_status' => 'active', 'fulfillment_activated_at' => now()]);
 
             if ($lockedOrder->status === 'pending') {
                 $this->updateVendorStatus($lockedOrder, 'processing', $actor, 'vendor_order_accepted');
@@ -101,6 +102,15 @@ class MarketplaceFulfillmentService
             if ($vendorStatus !== $vendorOrder->status) {
                 $this->updateVendorStatus($vendorOrder, $vendorStatus, $actor, 'shipment_status_updated');
             }
+            $vendorOrder->update(['fulfillment_status' => match ($nextStatus) {
+                'shipped' => 'shipped',
+                'in_transit' => 'in_transit',
+                'delivered' => 'delivered',
+                'delivery_failed' => 'delivery_failed',
+                'returned' => 'returned',
+                'cancelled' => 'cancelled',
+                default => $vendorOrder->fulfillment_status ?: 'pending',
+            }]);
             $this->syncMasterStatus($vendorOrder->order, $actor);
 
             return $lockedShipment->refresh()->load(['vendorOrder.store', 'events.actor']);
