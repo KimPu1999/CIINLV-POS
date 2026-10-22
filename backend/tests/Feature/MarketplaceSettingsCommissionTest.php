@@ -120,7 +120,7 @@ class MarketplaceSettingsCommissionTest extends TestCase
         $this->actingAs($businessAdmin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['tenant_id' => $tenant->id, 'rate' => '25.0000'])->assertForbidden();
     }
 
-    public function test_listing_submitted_as_published_stays_draft_when_listing_approval_is_required(): void
+    public function test_business_admin_can_publish_a_valid_listing_without_platform_approval(): void
     {
         [$tenant, $seller] = $this->businessWithAdmin('SETTINGS-C', 'settings-c@example.com');
         $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Settings C', 'slug' => 'settings-c', 'approval_status' => 'approved', 'is_active' => true]);
@@ -128,7 +128,7 @@ class MarketplaceSettingsCommissionTest extends TestCase
 
         $this->actingAs($seller, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->postJson('/api/v1/vendor/marketplace/listings', ['product_id' => $product->uuid, 'status' => 'published'])
-            ->assertCreated()->assertJsonPath('data.status', 'draft');
+            ->assertCreated()->assertJsonPath('data.status', 'published');
         $this->assertDatabaseHas('marketplace_audit_logs', ['action' => 'marketplace.listing_created', 'tenant_id' => $tenant->id]);
     }
 

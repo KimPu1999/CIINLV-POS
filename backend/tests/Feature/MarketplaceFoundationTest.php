@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\CustomerProfile;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceStore;
 use App\Models\Product;
@@ -87,6 +88,19 @@ class MarketplaceFoundationTest extends TestCase
         $this->assertNull($user->platform_role);
         $this->assertDatabaseMissing('tenant_memberships', ['user_id' => $user->id]);
         $this->assertDatabaseHas('customer_profiles', ['user_id' => $user->id, 'status' => 'active']);
+    }
+
+    public function test_existing_business_session_can_use_customer_marketplace_profile_without_role_conversion(): void
+    {
+        [$tenant, $businessAdmin] = $this->businessWithAdmin('MARKETPLACE-SESSION', 'marketplace-session@example.com');
+        CustomerProfile::create(['user_id' => $businessAdmin->id, 'status' => 'active']);
+
+        $this->actingAs($businessAdmin, 'sanctum')
+            ->getJson('/api/v1/marketplace/auth/me')
+            ->assertOk();
+
+        $this->assertNull($businessAdmin->refresh()->platform_role);
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $tenant->id, 'user_id' => $businessAdmin->id]);
     }
 
     public function test_business_admin_cannot_access_platform_marketplace_approval(): void

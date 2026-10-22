@@ -19,8 +19,8 @@ class MarketplaceSettingsService
         return [
             'enabled' => true,
             'seller_registration_enabled' => true,
-            'seller_approval_required' => true,
-            'listing_approval_required' => true,
+            'seller_approval_required' => false,
+            'listing_approval_required' => false,
             'maintenance_mode' => false,
             'currency_code' => strtoupper((string) config('pos.default_currency', 'MMK')),
             'default_commission_rate' => '0.0000',

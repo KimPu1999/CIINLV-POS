@@ -75,7 +75,7 @@ class MarketplaceCustomerAuthController
         $data = $request->validated();
         $user = User::query()->where('email', $data['email'])->with('customerProfile')->first();
 
-        if (! $user || ! $user->customerProfile || $user->memberships()->where('status', 'active')->exists() || ! Hash::check($data['password'], $user->password)) {
+        if (! $user || ! $user->customerProfile || ! Hash::check($data['password'], $user->password)) {
             $auditLogger->record('marketplace.customer_login_failed', $user, subject: $user, metadata: ['email_hash' => hash('sha256', $data['email']), 'ip_address' => $request->ip()]);
             throw ValidationException::withMessages(['email' => ['The provided customer credentials are incorrect.']]);
         }

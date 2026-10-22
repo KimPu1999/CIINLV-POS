@@ -14,8 +14,8 @@ return new class extends Migration
             $table->string('singleton_key', 30)->default('marketplace')->unique();
             $table->boolean('enabled')->default(true);
             $table->boolean('seller_registration_enabled')->default(true);
-            $table->boolean('seller_approval_required')->default(true);
-            $table->boolean('listing_approval_required')->default(true);
+            $table->boolean('seller_approval_required')->default(false);
+            $table->boolean('listing_approval_required')->default(false);
             $table->boolean('maintenance_mode')->default(false);
             $table->string('currency_code', 3)->default('MMK');
             $table->decimal('default_commission_rate', 7, 4)->default(0);
