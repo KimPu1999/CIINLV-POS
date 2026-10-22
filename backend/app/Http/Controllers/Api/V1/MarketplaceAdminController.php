@@ -32,7 +32,9 @@ use App\Models\MarketplaceStore;
 use App\Models\Tenant;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\MarketplaceCommissionService;
+use App\Services\MarketplaceDocumentService;
 use App\Services\MarketplaceOrderRequestService;
+use App\Services\MarketplacePaymentService;
 use App\Services\MarketplacePayoutService;
 use App\Services\MarketplaceSettingsService;
 use Carbon\CarbonImmutable;
@@ -180,23 +182,33 @@ class MarketplaceAdminController
         return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
     }
 
-    public function collectCod(CollectMarketplaceCodPaymentRequest $request, string $order, MarketplaceAuditLogger $audit, MarketplaceCommissionService $commissions): JsonResponse
+    public function collectCod(CollectMarketplaceCodPaymentRequest $request, string $order, MarketplaceAuditLogger $audit, MarketplacePaymentService $payments): JsonResponse
     {
-        $model = DB::transaction(function () use ($request, $order, $commissions): MarketplaceOrder {
-            $model = MarketplaceOrder::where('uuid', $order)->lockForUpdate()->firstOrFail();
-            $payment = $model->payments()->where('method', 'cod')->lockForUpdate()->firstOrFail();
-            if ($payment->status === 'pending') {
-                $payment->update(['status' => 'paid', 'paid_at' => now(), 'metadata' => array_merge((array) $payment->metadata, ['collected_by' => $request->user()->uuid, 'verification_note' => $request->input('verification_note')])]);
-                $model->update(['payment_status' => 'paid']);
-                $commissions->markOrderPayable($model);
-                $model->events()->create(['actor_user_id' => $request->user()->id, 'event' => 'cod_payment_collected', 'from_status' => 'pending', 'to_status' => 'paid', 'metadata' => ['verification_note' => $request->input('verification_note')]]);
-            }
+        $model = MarketplaceOrder::where('uuid', $order)->firstOrFail();
+        $result = $payments->collectCod($model, $request->user(), [
+            ...$request->validated(),
+            'idempotency_key' => $request->header('Idempotency-Key'),
+        ]);
+        $model = $result['order'];
+        if (! $result['replayed']) {
+            $audit->record('marketplace.cod_payment_collected', $request->user(), entity: $model, metadata: ['order_number' => $model->order_number]);
+        }
 
-            return $model;
-        });
-        $audit->record('marketplace.cod_payment_collected', $request->user(), entity: $model, metadata: ['order_number' => $model->order_number]);
+        return response()->json(['success' => true, 'idempotent_replay' => $result['replayed'], 'data' => new MarketplaceOrderResource($model->load(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items', 'vendorOrders.shipments.events']))]);
+    }
 
-        return response()->json(['success' => true, 'data' => new MarketplaceOrderResource($model->load(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items', 'vendorOrders.shipments.events']))]);
+    public function invoice(string $order, MarketplaceDocumentService $documents): JsonResponse
+    {
+        $model = MarketplaceOrder::where('uuid', $order)->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => $documents->invoice($model)]);
+    }
+
+    public function receipt(string $order, MarketplaceDocumentService $documents): JsonResponse
+    {
+        $model = MarketplaceOrder::where('uuid', $order)->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => $documents->receipt($model)]);
     }
 
     public function orders(Request $request): JsonResponse

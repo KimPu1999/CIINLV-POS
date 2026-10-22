@@ -14,6 +14,7 @@ use App\Http\Resources\MarketplaceReturnRequestResource;
 use App\Models\MarketplaceOrder;
 use App\Services\MarketplaceCartService;
 use App\Services\MarketplaceCheckoutService;
+use App\Services\MarketplaceDocumentService;
 use App\Services\MarketplaceOrderRequestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -73,6 +74,20 @@ class MarketplaceCustomerCheckoutController
         $model = MarketplaceOrder::query()->where('customer_user_id', $request->user()->id)->where('uuid', $order)->with(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items.variant', 'vendorOrders.shipments.events.actor', 'events'])->firstOrFail();
 
         return response()->json(['success' => true, 'data' => new MarketplaceOrderResource($model)]);
+    }
+
+    public function invoice(Request $request, string $order, MarketplaceDocumentService $documents): JsonResponse
+    {
+        $model = MarketplaceOrder::query()->where('customer_user_id', $request->user()->id)->where('uuid', $order)->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => $documents->invoice($model)]);
+    }
+
+    public function receipt(Request $request, string $order, MarketplaceDocumentService $documents): JsonResponse
+    {
+        $model = MarketplaceOrder::query()->where('customer_user_id', $request->user()->id)->where('uuid', $order)->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => $documents->receipt($model)]);
     }
 
     public function tracking(Request $request, string $order): JsonResponse

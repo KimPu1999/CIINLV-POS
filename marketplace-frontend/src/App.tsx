@@ -14,6 +14,7 @@ import {
   MapPin,
   Minus,
   Package,
+  Printer,
   Phone,
   Plus,
   Search,
@@ -49,10 +50,12 @@ import {
   fetchCustomer,
   fetchMarketplaceCart,
   fetchMarketplaceOrder,
+  fetchMarketplaceInvoice,
   fetchMarketplaceOrders,
   fetchMarketplaceOrdersPage,
   type MarketplacePaymentMethod,
   fetchMarketplaceTracking,
+  fetchMarketplaceReceipt,
   fetchProduct,
   fetchProducts,
   fetchStore,
@@ -88,6 +91,7 @@ import {
   type MarketplaceStore,
   type MarketplaceVariant,
   type MarketplaceOrder,
+  type MarketplaceDocument,
   type PaginationMeta,
   type ProductPage,
   type StorePage,
@@ -347,7 +351,9 @@ function App() {
         <Route path="/forgot-password" element={<CustomerForgotPasswordPage {...services} />} />
         <Route path="/reset-password" element={<CustomerResetPasswordPage {...services} />} />
         <Route path="/account" element={<ProtectedRoute {...services}><AccountPage {...services} /></ProtectedRoute>} />
-        <Route path="/orders" element={<ProtectedRoute {...services}><OrdersPage {...services} /></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute {...services}><CustomerOrdersPage {...services} /></ProtectedRoute>} />
+        <Route path="/orders/:id/invoice" element={<ProtectedRoute {...services}><CustomerDocumentPage {...services} kind="invoice" /></ProtectedRoute>} />
+        <Route path="/orders/:id/receipt" element={<ProtectedRoute {...services}><CustomerDocumentPage {...services} kind="receipt" /></ProtectedRoute>} />
         <Route path="/tracking/:id" element={<ProtectedRoute {...services}><TrackingPage {...services} /></ProtectedRoute>} />
         <Route path="/tracking" element={<ProtectedRoute {...services}><TrackingPage {...services} /></ProtectedRoute>} />
         <Route path="/privacy" element={<InfoPage {...services} title={services.t('privacy')} />} />
@@ -1078,6 +1084,33 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
   </PageContainer>
 }
 
+function CustomerDocumentPage({ locale, t, kind }: AppServices & { kind: 'invoice' | 'receipt' }) {
+  const { id } = useParams()
+  const [document, setDocument] = useState<MarketplaceDocument | null>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    if (!id) return
+    setLoading(true); setError('')
+    const load = kind === 'invoice' ? fetchMarketplaceInvoice(id, locale) : fetchMarketplaceReceipt(id, locale)
+    void load.then(setDocument).catch((reason: unknown) => setError(apiErrorMessage(reason, t('errorGeneric')))).finally(() => setLoading(false))
+  }, [id, kind, locale, t])
+  useEffect(() => { if (document) { const timer = window.setTimeout(() => window.print(), 250); return () => window.clearTimeout(timer) } }, [document])
+  if (loading) return <PageContainer><LoadingState t={t} /></PageContainer>
+  if (!document) return <PageContainer><EmptyState icon={<CircleAlert size={28} />} title={t('errorGeneric')} body={error || 'Document unavailable.'} action={<Link to={id ? `/tracking/${encodeURIComponent(id)}` : '/orders'} className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('myOrders')}</Link>} /></PageContainer>
+  return <div className="marketplace-print-document min-h-screen bg-white px-5 py-10 text-slate-950 sm:px-10"><div className="mx-auto max-w-3xl"><div className="flex items-start justify-between gap-5 border-b border-slate-200 pb-6"><div>{document.business.logoUrl && <img src={document.business.logoUrl} alt="" className="mb-3 h-14 max-w-40 object-contain" />}<h1 className="text-2xl font-black">{document.business.name || document.business.businessName || 'Marketplace Store'}</h1><p className="mt-1 text-sm text-slate-500">{document.business.email || ''}{document.business.phone ? ` · ${document.business.phone}` : ''}</p></div><div className="text-right"><p className="text-2xl font-black uppercase">{kind}</p><p className="mt-2 text-sm">{kind === 'invoice' ? document.invoiceNumber : document.receiptNumber}</p><p className="text-sm">Order {document.orderNumber}</p></div></div><div className="grid gap-6 border-b border-slate-200 py-6 sm:grid-cols-2"><div><p className="text-xs font-black uppercase tracking-wider text-slate-500">Bill to</p><p className="mt-2 font-bold">{document.customer.name || '—'}</p><p className="text-sm text-slate-600">{document.customer.email || ''}</p><p className="text-sm text-slate-600">{document.customer.phone || ''}</p>{document.address && <p className="mt-2 text-sm leading-6 text-slate-600">{formatDeliveryAddress(document.address)}</p>}</div><div className="sm:text-right"><p className="text-xs font-black uppercase tracking-wider text-slate-500">Payment</p><p className="mt-2 text-sm">{document.paymentMethod || '—'} · <span className="font-bold uppercase">{document.paymentStatus || '—'}</span></p>{kind === 'invoice' ? <p className="text-sm">Amount due: <span className="font-bold">{document.amountDue ?? '0.00'} {document.currencyCode}</span></p> : <p className="text-sm">Reference: <span className="font-bold">{document.transactionReference || '—'}</span></p>}</div></div><table className="mt-6 w-full text-left text-sm"><thead className="border-b-2 border-slate-950"><tr><th className="py-3">Item</th><th className="py-3">SKU / Variant</th><th className="py-3 text-right">Qty</th><th className="py-3 text-right">Unit</th><th className="py-3 text-right">Total</th></tr></thead><tbody className="divide-y divide-slate-200">{document.items.map((item, index) => <tr key={`${item.sku || item.name}-${index}`}><td className="py-3 font-semibold">{item.name || '—'}</td><td className="py-3 text-slate-600">{item.sku || item.size || '—'}</td><td className="py-3 text-right">{item.quantity ?? '—'}</td><td className="py-3 text-right">{item.unitPrice ?? '—'}</td><td className="py-3 text-right font-semibold">{item.lineTotal ?? '—'}</td></tr>)}</tbody></table><div className="ml-auto mt-6 max-w-sm space-y-2 text-sm"><CustomerDocumentTotal label="Subtotal" value={document.subtotal} currency={document.currencyCode} /><CustomerDocumentTotal label="Discount" value={document.discount} currency={document.currencyCode} /><CustomerDocumentTotal label="Tax" value={document.tax} currency={document.currencyCode} /><CustomerDocumentTotal label="Shipping" value={document.shipping} currency={document.currencyCode} /><CustomerDocumentTotal label="Grand Total" value={document.grandTotal} currency={document.currencyCode} strong />{kind === 'receipt' && <CustomerDocumentTotal label="Paid" value={document.paidAmount ?? document.amountReceived} currency={document.currencyCode} strong />}</div><div className="mt-12 border-t border-slate-200 pt-5 text-center text-sm text-slate-500">Thank you for shopping with us.</div><div className="mt-6 flex justify-center gap-3 print:hidden"><button type="button" onClick={() => window.print()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white"><Printer size={16} />Print</button><Link to={id ? `/tracking/${encodeURIComponent(id)}` : '/orders'} className="inline-flex h-11 items-center rounded-xl border border-slate-200 px-4 text-sm font-black">{t('backToShop')}</Link></div></div></div>
+}
+
+function CustomerDocumentTotal({ label, value, currency, strong = false }: { label: string; value?: string | number | null; currency?: string | null; strong?: boolean }) { return <div className={`flex justify-between gap-5 ${strong ? 'border-t border-slate-950 pt-2 text-base font-black' : ''}`}><span>{label}</span><span>{value ?? '0.00'} {currency || ''}</span></div> }
+
+function CustomerOrdersPage({ locale, t }: AppServices) {
+  const [orders, setOrders] = useState<MarketplaceOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => { let active = true; setLoading(true); void fetchMarketplaceOrders(locale).then((value) => { if (active) setOrders(value) }).catch((reason: unknown) => { if (active) setError(apiErrorMessage(reason, t('errorGeneric'))) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [locale, t])
+  return <PageContainer><PageIntro eyebrow={t('account')} title={t('myOrders')} body={t('orderHistory')} />{error && <div role="alert" className="mt-8 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800">{error}</div>}{loading ? <div className="mt-10"><LoadingState t={t} /></div> : orders.length === 0 ? <div className="mt-10"><EmptyState icon={<Package size={28} />} title={t('noOrdersYet')} body={t('noOrdersBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div> : <div className="mt-10 grid gap-4">{orders.map((order) => <section key={order.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('orderNumber')}</p><h2 className="mt-1 text-lg font-black">{order.orderNumber}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{order.createdAt ? formatAccountDate(order.createdAt, locale) : t('lastUpdated')}</p></div><div className="text-right"><p className="text-lg font-black text-blue-600">{formatPrice(Number(order.grandTotal), order.currencyCode, locale)}</p><p className="mt-1 text-xs font-black uppercase text-amber-600">{order.paymentStatus}</p></div></div><div className="mt-5 flex flex-wrap gap-2"><Link to={`/tracking/${encodeURIComponent(order.id)}`} className="inline-flex h-10 items-center rounded-xl bg-blue-600 px-3 text-sm font-black text-white">{t('trackOrder')}</Link><Link to={`/orders/${encodeURIComponent(order.id)}/invoice`} className="inline-flex h-10 items-center rounded-xl border border-slate-200 px-3 text-sm font-black dark:border-slate-700">Invoice</Link>{order.receiptAvailable && <Link to={`/orders/${encodeURIComponent(order.id)}/receipt`} className="inline-flex h-10 items-center rounded-xl border border-emerald-200 px-3 text-sm font-black text-emerald-700 dark:border-emerald-800 dark:text-emerald-300">Receipt</Link>}</div></section>)}</div>}</PageContainer>
+}
+
 function OrdersPage({ locale, t }: AppServices) {
   const [orders, setOrders] = useState<MarketplaceOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -1085,6 +1118,8 @@ function OrdersPage({ locale, t }: AppServices) {
   useEffect(() => { let active = true; setLoading(true); void fetchMarketplaceOrders(locale).then((value) => { if (active) setOrders(value) }).catch((reason: unknown) => { if (active) setError(apiErrorMessage(reason, t('errorGeneric'))) }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [locale])
   return <PageContainer><PageIntro eyebrow={t('account')} title={t('myOrders')} body={t('orderHistory')} />{error && <div role="alert" className="mt-8 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200">{error}</div>}{loading ? <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-8 text-sm font-semibold text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">{t('loading')}</div> : orders.length === 0 ? <div className="mt-10"><EmptyState icon={<Package size={28} />} title={t('noOrdersYet')} body={t('noOrdersBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div> : <div className="mt-10 grid gap-4">{orders.map((order) => <Link key={order.id} to={`/tracking/${encodeURIComponent(order.id)}`} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-slate-400">{t('orderNumber')}</p><h2 className="mt-1 text-lg font-black">{order.orderNumber}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{order.vendorOrders.length} {t('vendor')}</p></div><div className="text-right"><p className="text-lg font-black text-blue-600">{formatPrice(Number(order.grandTotal), order.currencyCode, locale)}</p><p className="mt-1 text-xs font-black uppercase text-amber-600">{t(order.paymentStatus === 'pending' ? 'pending' : 'confirmed')}</p><p className="mt-2 text-xs font-black text-blue-600">{t('trackOrder')}</p></div></div></Link>)}</div>}</PageContainer>
 }
+
+void OrdersPage
 
 function TrackingPage({ locale, t }: AppServices) {
   const { id } = useParams()

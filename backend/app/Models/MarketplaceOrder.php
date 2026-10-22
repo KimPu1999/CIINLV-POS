@@ -9,11 +9,16 @@ use Illuminate\Support\Str;
 
 class MarketplaceOrder extends Model
 {
-    protected $fillable = ['customer_user_id', 'order_number', 'promotion_code', 'currency_code', 'status', 'payment_status', 'subtotal', 'discount_total', 'shipping_total', 'tax_total', 'grand_total', 'delivery_address', 'idempotency_key', 'request_hash'];
+    protected $fillable = ['customer_user_id', 'order_number', 'invoice_number', 'promotion_code', 'currency_code', 'status', 'payment_status', 'subtotal', 'discount_total', 'shipping_total', 'tax_total', 'grand_total', 'delivery_address', 'idempotency_key', 'request_hash'];
 
     protected static function booted(): void
     {
         static::creating(fn (MarketplaceOrder $order) => $order->uuid ??= (string) Str::uuid());
+        static::created(function (MarketplaceOrder $order): void {
+            if (! $order->invoice_number) {
+                $order->forceFill(['invoice_number' => 'INV-MP-'.now()->format('Y').'-'.str_pad((string) $order->id, 6, '0', STR_PAD_LEFT)])->saveQuietly();
+            }
+        });
     }
 
     protected function casts(): array

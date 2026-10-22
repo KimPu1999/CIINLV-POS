@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, ImagePlus, Package, RefreshCw, Save, Search, Settings2, ShoppingBag, Store, Upload, Users, X } from 'lucide-react'
+import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, FileText, ImagePlus, Package, Printer, RefreshCw, Save, Search, Settings2, ShoppingBag, Store, Upload, Users, X } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DataTable, EmptyState, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
@@ -69,6 +69,7 @@ type VendorOrder = {
   id: string
   vendor_order_number: string
   order_number?: string | null
+  invoice_number?: string | null
   customer_name?: string | null
   customer_email?: string | null
   store_name?: string | null
@@ -81,10 +82,40 @@ type VendorOrder = {
   shipping_total?: string | number | null
   tax_total?: string | number | null
   total?: string | number | null
+  amount_received?: string | number | null
+  amount_due?: string | number | null
+  receipt_available?: boolean
   currency_code?: string | null
   delivery_address?: Record<string, unknown> | null
   items?: { id?: string; name?: string | null; sku?: string | null; quantity?: string | number | null; unit_price?: string | number | null; line_total?: string | number | null }[]
   shipments?: VendorShipment[]
+}
+
+type MarketplaceDocument = {
+  document_type: 'invoice' | 'receipt'
+  invoice_number?: string | null
+  receipt_number?: string | null
+  order_number?: string | null
+  order_date?: string | null
+  paid_at?: string | null
+  business?: { name?: string | null; business_name?: string | null; logo_url?: string | null; email?: string | null; phone?: string | null }
+  customer?: { name?: string | null; email?: string | null; phone?: string | null }
+  billing_address?: Record<string, unknown> | null
+  items?: { name?: string | null; variant?: Record<string, unknown> | null; size?: string | null; sku?: string | null; quantity?: string | number | null; unit_price?: string | number | null; line_total?: string | number | null }[]
+  subtotal?: string | number | null
+  discount?: string | number | null
+  tax?: string | number | null
+  shipping?: string | number | null
+  grand_total?: string | number | null
+  currency_code?: string | null
+  payment_method?: string | null
+  payment_status?: string | null
+  amount_due?: string | number | null
+  amount_received?: string | number | null
+  paid_amount?: string | number | null
+  change_amount?: string | number | null
+  transaction_reference?: string | null
+  received_by?: { name?: string | null; email?: string | null } | null
 }
 
 type VendorShipment = {
@@ -307,6 +338,55 @@ export function MarketplaceOrdersPage() {
   </>
 }
 
+function MarketplacePaymentCard({ order, orderId, onUpdated }: { order: VendorOrder; orderId?: string; onUpdated: () => Promise<void> }) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [collecting, setCollecting] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({ amount_received: String(order.amount_due ?? order.total ?? ''), received_at: '', transaction_reference: '', verification_note: '' })
+  const paymentStatus = order.payment_status || 'pending'
+  const isCod = order.payment_method === 'cod'
+  const basePath = `${marketplaceBase}/orders/${encodeURIComponent(orderId || order.id)}`
+  const collect = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!orderId) return
+    setCollecting(true); setError('')
+    try {
+      await request({ method: 'post', url: `/api/v1/vendor/marketplace/orders/${encodeURIComponent(orderId)}/payments/cod/collect`, data: { ...form, amount_received: Number(form.amount_received) }, headers: { 'Idempotency-Key': typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}` } })
+      setModalOpen(false)
+      await onUpdated()
+    } catch (err) {
+      setError(errorMessage(err, 'Unable to record the payment.'))
+    } finally { setCollecting(false) }
+  }
+
+  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+    <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold text-slate-950 dark:text-white">Payment</h2><StatusBadge status={paymentStatus} /></div>
+    <dl className="mt-5 grid gap-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-slate-500">Method</dt><dd className="font-semibold text-slate-900 dark:text-white">{order.payment_method === 'cod' ? 'Cash on Delivery' : order.payment_method || '—'}</dd></div><div className="flex justify-between gap-4"><dt className="text-slate-500">Grand total</dt><dd className="font-semibold text-slate-900 dark:text-white">{order.total ?? '—'} {order.currency_code || ''}</dd></div><div className="flex justify-between gap-4"><dt className="text-slate-500">Amount received</dt><dd className="font-semibold text-slate-900 dark:text-white">{order.amount_received ?? '0.00'} {order.currency_code || ''}</dd></div><div className="flex justify-between gap-4"><dt className="text-slate-500">Balance due</dt><dd className="font-semibold text-slate-900 dark:text-white">{order.amount_due ?? order.total ?? '—'} {order.currency_code || ''}</dd></div></dl>
+    {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">{error}</p>}
+    <div className="mt-5 flex flex-wrap gap-2"><Link to={`${basePath}/invoice`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:text-slate-200"><FileText size={16} />View Invoice</Link><Link to={`${basePath}/invoice`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:text-slate-200"><Printer size={16} />Print Invoice</Link>{order.receipt_available && <Link to={`${basePath}/receipt`} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"><Printer size={16} />Print Receipt</Link>}{isCod && paymentStatus === 'pending' && <button type="button" onClick={() => { setForm({ amount_received: String(order.amount_due ?? order.total ?? ''), received_at: '', transaction_reference: '', verification_note: '' }); setModalOpen(true) }} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">Mark Payment Received</button>}</div>
+    {modalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><form onSubmit={collect} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900"><div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-bold text-slate-950 dark:text-white">Mark Payment Received</h3><p className="mt-1 text-sm text-slate-500">Confirm the COD amount received for this order.</p></div><button type="button" onClick={() => setModalOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18} /></button></div><div className="mt-5 grid gap-4"><Field label="Amount received" value={form.amount_received} onChange={(value) => setForm({ ...form, amount_received: value })} type="number" min="0.01" step="0.01" required /><Field label="Payment date/time" value={form.received_at} onChange={(value) => setForm({ ...form, received_at: value })} type="datetime-local" /><Field label="Reference (optional)" value={form.transaction_reference} onChange={(value) => setForm({ ...form, transaction_reference: value })} /><Field label="Note (optional)" value={form.verification_note} onChange={(value) => setForm({ ...form, verification_note: value })} /></div><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold dark:border-slate-700">Cancel</button><button type="submit" disabled={collecting} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{collecting ? 'Saving…' : 'Confirm Payment Received'}</button></div></form></div>}
+  </section>
+}
+
+export function MarketplaceBillingOrderDetailPage() {
+  const { order: orderId } = useParams()
+  const { t } = useTranslation()
+  const [order, setOrder] = useState<VendorOrder | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = async () => {
+    if (!orderId) return
+    setLoading(true); setError('')
+    try { setOrder(await request<VendorOrder>({ method: 'get', url: `/api/v1/vendor/marketplace/orders/${encodeURIComponent(orderId)}` })) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_order'))) } finally { setLoading(false) }
+  }
+  useEffect(() => { void load() }, [orderId])
+
+  if (loading) return <><PageHeader title="Marketplace Order Details" description="Order, payment and document details." /><LoadingState /></>
+  if (!order) return <><PageHeader title="Marketplace Order Details" description="Order, payment and document details." /><ErrorState message={error || t('text.unable_to_load_marketplace_order')} /></>
+  return <><PageHeader title="Marketplace Order Details" description={order.vendor_order_number} action={<Link to={`${marketplaceBase}/orders`} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold dark:border-slate-700">Back</Link>} />{error && <div className="mb-5"><ErrorState message={error} /></div>}<div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Order Number</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{order.order_number || order.vendor_order_number}</h2><p className="mt-1 text-sm text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</p></div><div className="text-right"><StatusBadge status={order.status} /><p className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{order.total ?? '—'} {order.currency_code || ''}</p></div></div><div className="mt-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"><h3 className="font-bold text-slate-900 dark:text-white">Customer</h3><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{order.customer_name || '—'} · {order.customer_email || '—'}</p><p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{formatVendorAddress(order.delivery_address)}</p></div><div className="mt-6 overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-3 py-3">Product</th><th className="px-3 py-3">Variant / SKU</th><th className="px-3 py-3">Qty</th><th className="px-3 py-3">Unit price</th><th className="px-3 py-3 text-right">Total</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{(order.items || []).map((item) => <tr key={item.id}><td className="px-3 py-4 font-semibold text-slate-900 dark:text-white">{item.name || '—'}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{item.sku || '—'}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{item.quantity ?? '—'}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{item.unit_price ?? '—'}</td><td className="px-3 py-4 text-right font-semibold text-slate-900 dark:text-white">{item.line_total ?? '—'}</td></tr>)}</tbody></table></div></section><div className="grid gap-6"><MarketplacePaymentCard order={order} orderId={orderId} onUpdated={load} /><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><h2 className="text-lg font-bold text-slate-950 dark:text-white">Delivery</h2><p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{formatVendorAddress(order.delivery_address)}</p></section></div></div></>
+}
+
 export function MarketplaceOrderDetailPage() {
   const { order: orderId } = useParams()
   const { t } = useTranslation()
@@ -339,6 +419,31 @@ export function MarketplaceOrderDetailPage() {
   if (!order) return <><PageHeader title={t('text.marketplace_order_details')} description={t('text.marketplace_orders_description')} /><ErrorState message={error || t('text.unable_to_load_marketplace_order')} /></>
   return <><PageHeader title={t('text.marketplace_order_details')} description={order.vendor_order_number} action={<Link to={`${marketplaceBase}/orders`} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:text-slate-200">{t('text.back')}</Link>} />{error && <div className="mb-5"><ErrorState message={error} /></div>}{success && <div role="status" className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">{success}</div>}<div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('text.order_number')}</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{order.vendor_order_number}</h2><p className="mt-1 text-sm text-slate-500">{order.order_number || '—'} · {order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</p></div><div className="text-right"><StatusBadge status={order.status} /><p className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{order.total ?? '—'} {order.currency_code || ''}</p></div></div><div className="mt-6 rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"><h3 className="font-bold text-slate-900 dark:text-white">{t('text.customer_delivery_address')}</h3><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{formatVendorAddress(order.delivery_address)}</p></div><div className="mt-6 overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-3 py-3">{t('text.product')}</th><th className="px-3 py-3">{t('text.quantity')}</th><th className="px-3 py-3">{t('text.price')}</th><th className="px-3 py-3 text-right">{t('text.total')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{(order.items || []).map((item) => <tr key={item.id}><td className="px-3 py-4 font-semibold text-slate-900 dark:text-white">{item.name || '—'}<p className="mt-1 text-xs text-slate-500">{item.sku || '—'}</p></td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{item.quantity ?? '—'}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{item.unit_price ?? '—'}</td><td className="px-3 py-4 text-right font-semibold text-slate-900 dark:text-white">{item.line_total ?? '—'}</td></tr>)}</tbody></table></div></section><div className="grid gap-6"><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><h2 className="text-lg font-bold text-slate-950 dark:text-white">{t('text.shipment_status')}</h2>{order.shipments?.length ? <div className="mt-5 grid gap-4">{order.shipments.map((shipment) => <div key={shipment.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-slate-900 dark:text-white">{shipment.delivery_type === 'external_courier' ? t('text.external_courier') : t('text.self_delivery')}</p><p className="mt-1 text-xs text-slate-500">{shipment.internal_tracking_id || shipment.tracking_number || t('text.shipment_not_created')}</p></div><StatusBadge status={shipment.status} /></div><div className="mt-4 grid gap-2 text-sm text-slate-600 dark:text-slate-300">{shipment.carrier_name && <p><span className="font-semibold">{t('text.carrier_name')}:</span> {shipment.carrier_name}</p>}{shipment.tracking_number && <p><span className="font-semibold">{t('text.tracking_number')}:</span> {shipment.tracking_number}</p>}{shipment.delivery_notes && <p><span className="font-semibold">{t('text.delivery_notes')}:</span> {shipment.delivery_notes}</p>}</div>{nextStatuses(shipment.status).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{nextStatuses(shipment.status).map((status) => <button key={status} type="button" disabled={busy} onClick={() => void updateShipment(shipment, status)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200">{statusLabel(status, t)}</button>)}</div>}</div>)}</div> : <p className="mt-4 rounded-xl border border-dashed border-slate-300 p-4 text-sm font-semibold text-slate-500 dark:border-slate-700">{t('text.shipment_not_created')}</p>}</section>{!order.shipments?.length && <form onSubmit={createShipment} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><h2 className="text-lg font-bold text-slate-950 dark:text-white">{t('text.create_shipment')}</h2><div className="mt-5 grid gap-4"><label className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('text.delivery_type')}<select value={form.delivery_type} onChange={(event) => setForm({ ...form, delivery_type: event.target.value as VendorShipment['delivery_type'] })} className="compact-field mt-2 w-full"><option value="self_delivery">{t('text.self_delivery')}</option><option value="external_courier">{t('text.external_courier')}</option></select></label>{form.delivery_type === 'external_courier' && <><Field label={t('text.carrier_name')} value={form.carrier_name} onChange={(value) => setForm({ ...form, carrier_name: value })} /><Field label={t('text.tracking_number')} value={form.tracking_number} onChange={(value) => setForm({ ...form, tracking_number: value })} /><Field label={t('text.tracking_url')} value={form.tracking_url} onChange={(value) => setForm({ ...form, tracking_url: value })} /></>}<Field label={t('text.delivery_notes')} value={form.delivery_notes} onChange={(value) => setForm({ ...form, delivery_notes: value })} /><button type="submit" disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-60">{busy && <RefreshCw className="animate-spin" size={16} />}{t('text.save_shipment')}</button></div></form>}</div></div></>
 }
+
+function MarketplaceDocumentPage({ kind }: { kind: 'invoice' | 'receipt' }) {
+  const { order: orderId } = useParams()
+  const [document, setDocument] = useState<MarketplaceDocument | null>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!orderId) return
+    setLoading(true); setError('')
+    void request<MarketplaceDocument>({ method: 'get', url: `/api/v1/vendor/marketplace/orders/${encodeURIComponent(orderId)}/${kind}` }).then(setDocument).catch((err) => setError(errorMessage(err, kind === 'receipt' ? 'Receipt is not available until payment is verified.' : 'Unable to load invoice.'))).finally(() => setLoading(false))
+  }, [kind, orderId])
+
+  useEffect(() => { if (document) { const timer = window.setTimeout(() => window.print(), 250); return () => window.clearTimeout(timer) } }, [document])
+
+  if (loading) return <LoadingState />
+  if (!document) return <div className="p-8"><ErrorState message={error || 'Document unavailable.'} /></div>
+  const total = document.grand_total ?? '0.00'
+  return <div className="marketplace-print-document min-h-screen bg-white p-5 text-slate-950 sm:p-10"><div className="mx-auto max-w-3xl"><div className="flex items-start justify-between gap-5 border-b border-slate-200 pb-6"><div>{document.business?.logo_url && <img src={document.business.logo_url} alt="" className="mb-3 h-14 max-w-40 object-contain" />}<h1 className="text-2xl font-bold">{document.business?.name || document.business?.business_name || 'Marketplace Store'}</h1><p className="mt-1 text-sm text-slate-500">{document.business?.email || ''}{document.business?.phone ? ` · ${document.business.phone}` : ''}</p></div><div className="text-right"><p className="text-2xl font-black uppercase">{kind}</p><p className="mt-2 text-sm">{kind === 'invoice' ? document.invoice_number : document.receipt_number}</p><p className="text-sm">Order {document.order_number}</p><p className="text-sm text-slate-500">{kind === 'invoice' ? (document.order_date ? new Date(document.order_date).toLocaleString() : '') : (document.paid_at ? new Date(document.paid_at).toLocaleString() : '')}</p></div></div><div className="grid gap-6 border-b border-slate-200 py-6 sm:grid-cols-2"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Bill to</p><p className="mt-2 font-semibold">{document.customer?.name || '—'}</p><p className="text-sm text-slate-600">{document.customer?.email || ''}</p><p className="text-sm text-slate-600">{document.customer?.phone || ''}</p>{document.billing_address && <p className="mt-2 text-sm leading-6 text-slate-600">{formatVendorAddress(document.billing_address)}</p>}</div><div className="sm:text-right"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Payment</p><p className="mt-2 text-sm">Method: <span className="font-semibold">{document.payment_method || '—'}</span></p><p className="text-sm">Status: <span className="font-semibold uppercase">{document.payment_status || '—'}</span></p>{kind === 'invoice' && <p className="text-sm">Amount due: <span className="font-semibold">{document.amount_due} {document.currency_code}</span></p>}{kind === 'receipt' && <p className="text-sm">Reference: <span className="font-semibold">{document.transaction_reference || '—'}</span></p>}</div></div><table className="mt-6 w-full text-left text-sm"><thead className="border-b-2 border-slate-950"><tr><th className="py-3">Item</th><th className="py-3">SKU / Variant</th><th className="py-3 text-right">Qty</th><th className="py-3 text-right">Unit</th><th className="py-3 text-right">Total</th></tr></thead><tbody className="divide-y divide-slate-200">{(document.items || []).map((item, index) => <tr key={`${item.sku || item.name}-${index}`}><td className="py-3 font-semibold">{item.name || '—'}</td><td className="py-3 text-slate-600">{item.sku || item.size || '—'}</td><td className="py-3 text-right">{item.quantity ?? '—'}</td><td className="py-3 text-right">{item.unit_price ?? '—'}</td><td className="py-3 text-right font-semibold">{item.line_total ?? '—'}</td></tr>)}</tbody></table><div className="ml-auto mt-6 max-w-sm space-y-2 text-sm"><DocumentTotal label="Subtotal" value={document.subtotal} currency={document.currency_code} /><DocumentTotal label="Discount" value={document.discount} currency={document.currency_code} /><DocumentTotal label="Tax" value={document.tax} currency={document.currency_code} /><DocumentTotal label="Shipping" value={document.shipping} currency={document.currency_code} /><DocumentTotal label="Grand Total" value={total} currency={document.currency_code} strong />{kind === 'receipt' && <><DocumentTotal label="Paid" value={document.paid_amount ?? document.amount_received} currency={document.currency_code} strong /><DocumentTotal label="Change" value={document.change_amount} currency={document.currency_code} /></>}</div><div className="mt-12 border-t border-slate-200 pt-5 text-center text-sm text-slate-500"><p>{kind === 'receipt' ? 'Thank you for your payment.' : 'Thank you for shopping with us.'}</p>{document.received_by?.name && <p className="mt-1">Received by {document.received_by.name}</p>}</div><div className="mt-6 flex justify-center gap-3 print:hidden"><button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"><Printer size={16} />Print</button><Link to={`${marketplaceBase}/orders/${orderId}`} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Back to order</Link></div></div></div>
+}
+
+function DocumentTotal({ label, value, currency, strong = false }: { label: string; value?: string | number | null; currency?: string | null; strong?: boolean }) { return <div className={`flex justify-between gap-5 ${strong ? 'border-t border-slate-950 pt-2 text-base font-bold' : ''}`}><span>{label}</span><span>{value ?? '0.00'} {currency || ''}</span></div> }
+
+export function MarketplaceInvoicePage() { return <MarketplaceDocumentPage kind="invoice" /> }
+export function MarketplaceReceiptPage() { return <MarketplaceDocumentPage kind="receipt" /> }
 
 export function MarketplaceShippingPage() {
   const { t } = useTranslation()
@@ -401,7 +506,7 @@ export function MarketplaceSettingsPage() {
 }
 
 function MediaCard({ title, image, help, onFile, saving }: { title: string; image?: string | null; help: string; onFile: (file: File) => void; saving: boolean }) { const { t } = useTranslation(); return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><ImagePlus className="text-blue-600" size={21} /><h2 className="font-bold text-slate-950 dark:text-white">{title}</h2></div><div className="mt-4 flex aspect-[16/8] items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-800">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="text-slate-300" size={32} />}</div><p className="mt-3 text-xs leading-5 text-slate-500">{help}</p><label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:text-slate-200"><Upload size={16} />{t('text.choose_image')}<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={saving} onChange={(event) => { const file = event.target.files?.[0]; if (file) onFile(file); event.currentTarget.value = '' }} /></label></section> }
-function Field({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) { return <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}<input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label> }
+function Field({ label, value, onChange, type = 'text', min, step, required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; min?: string; step?: string; required?: boolean }) { return <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}<input type={type} value={value} min={min} step={step} required={required} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label> }
 function ReadOnly({ label, value, badge = false }: { label: string; value?: string | null; badge?: boolean }) { return <div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>{badge && value ? <div className="mt-1"><StatusBadge status={value} /></div> : <p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{value || '—'}</p>}</div> }
 function RefreshButton({ onClick }: { onClick: () => void }) { const { t } = useTranslation(); return <button type="button" onClick={onClick} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><RefreshCw size={16} />{t('text.refresh')}</button> }
 function errorMessage(error: unknown, fallback: string): string { const value = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }; return value?.response?.data?.message || Object.values(value?.response?.data?.errors || {})[0]?.[0] || fallback }

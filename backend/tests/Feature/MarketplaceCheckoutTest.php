@@ -201,6 +201,7 @@ class MarketplaceCheckoutTest extends TestCase
         $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listing->uuid, 'variant_id' => $variant->uuid, 'quantity' => 1])->assertCreated();
 
         $response = $this->actingAs($customer, 'sanctum')->withHeader('Idempotency-Key', 'checkout-online')->postJson('/api/v1/marketplace/checkout', ['address_id' => $address->id, 'payment_method' => 'qr'])->assertCreated()->assertJsonPath('data.payment_status', 'pending');
+        $orderId = $response->json('data.id');
         $reference = $response->json('data.payments.0.provider_reference');
         $payload = ['event_id' => 'evt-online-1', 'payment_reference' => $reference, 'status' => 'paid', 'amount' => '1000.00', 'currency_code' => 'MMK'];
         $raw = json_encode($payload, JSON_THROW_ON_ERROR);
@@ -210,6 +211,7 @@ class MarketplaceCheckoutTest extends TestCase
         $this->withHeaders(['X-Payment-Signature' => $signature])->postJson('/api/v1/marketplace/payments/webhook/qr', $payload)->assertOk()->assertJsonPath('idempotent_replay', true);
         $this->assertDatabaseHas('marketplace_orders', ['payment_status' => 'paid']);
         $this->assertDatabaseHas('marketplace_payments', ['method' => 'qr', 'status' => 'paid', 'provider' => 'qr']);
+        $this->actingAs($customer, 'sanctum')->getJson('/api/v1/marketplace/orders/'.$orderId.'/receipt')->assertOk()->assertJsonPath('data.payment_status', 'paid');
     }
 
     public function test_business_admin_order_list_shows_its_checkout_and_is_tenant_scoped(): void

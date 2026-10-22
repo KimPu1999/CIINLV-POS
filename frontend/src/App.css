@@ -73,3 +73,18 @@
 .sidebar-tooltip {
   animation: sidebar-tooltip-fade-in 150ms ease-out both;
 }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+
+  body * { visibility: hidden !important; }
+  .marketplace-print-document,
+  .marketplace-print-document * { visibility: visible !important; }
+  .marketplace-print-document {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-height: auto;
+    padding: 0 !important;
+  }
+}

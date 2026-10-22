@@ -232,6 +232,7 @@ export interface MarketplaceShipment {
 export interface MarketplaceOrder {
   id: string
   orderNumber: string
+  invoiceNumber?: string | null
   currencyCode: string
   status: string
   paymentStatus: string
@@ -240,10 +241,40 @@ export interface MarketplaceOrder {
   shippingTotal: string
   taxTotal: string
   grandTotal: string
+  amountReceived?: string | null
+  amountDue?: string | null
+  receiptAvailable?: boolean
   deliveryAddress: Record<string, unknown>
   createdAt?: string | null
   vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; items: Array<{ id: string; name: string; sku?: string; size?: string | null; quantity: string; unitPrice: string; lineTotal: string }>; shipments: MarketplaceShipment[] }>
   events?: Array<{ id: number; event: string; fromStatus?: string | null; toStatus?: string | null; createdAt?: string | null }>
+}
+
+export interface MarketplaceDocument {
+  documentType: 'invoice' | 'receipt'
+  invoiceNumber?: string | null
+  receiptNumber?: string | null
+  orderNumber: string
+  orderDate?: string | null
+  paidAt?: string | null
+  business: { name?: string | null; businessName?: string | null; logoUrl?: string | null; email?: string | null; phone?: string | null }
+  customer: { name?: string | null; email?: string | null; phone?: string | null }
+  address?: Record<string, unknown> | null
+  items: Array<{ name?: string | null; sku?: string | null; size?: string | null; quantity?: string | number | null; unitPrice?: string | number | null; lineTotal?: string | number | null }>
+  subtotal?: string | number | null
+  discount?: string | number | null
+  tax?: string | number | null
+  shipping?: string | number | null
+  grandTotal?: string | number | null
+  currencyCode?: string | null
+  paymentMethod?: string | null
+  paymentStatus?: string | null
+  amountDue?: string | number | null
+  amountReceived?: string | number | null
+  paidAmount?: string | number | null
+  changeAmount?: string | number | null
+  transactionReference?: string | null
+  receivedBy?: { name?: string | null; email?: string | null } | null
 }
 
 export const localeStorageKey = 'ciinlv_marketplace_language'
@@ -606,7 +637,7 @@ function normalizeOrder(value: unknown): MarketplaceOrder {
     return { id: String(item.id ?? ''), vendorOrderNumber: String(item.vendor_order_number ?? ''), storeName: typeof item.store_name === 'string' ? item.store_name : null, status: String(item.status ?? 'pending'), total: String(item.total ?? '0'), items, shipments }
   }) : []
   const events = Array.isArray(data.events) ? data.events.map((event) => { const row = asRecord(event) ?? {}; return { id: Number(row.id ?? 0), event: String(row.event ?? ''), fromStatus: typeof row.from_status === 'string' ? row.from_status : null, toStatus: typeof row.to_status === 'string' ? row.to_status : null, createdAt: typeof row.created_at === 'string' ? row.created_at : null } }) : []
-  return { id: String(data.id ?? ''), orderNumber: String(data.order_number ?? ''), currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'confirmed'), paymentStatus: String(data.payment_status ?? 'pending'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), deliveryAddress: asRecord(data.delivery_address) ?? {}, createdAt: typeof data.created_at === 'string' ? data.created_at : null, vendorOrders: vendors, events }
+  return { id: String(data.id ?? ''), orderNumber: String(data.order_number ?? ''), invoiceNumber: typeof data.invoice_number === 'string' ? data.invoice_number : null, currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'confirmed'), paymentStatus: String(data.payment_status ?? 'pending'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), amountReceived: data.amount_received == null ? null : String(data.amount_received), amountDue: data.amount_due == null ? null : String(data.amount_due), receiptAvailable: Boolean(data.receipt_available), deliveryAddress: asRecord(data.delivery_address) ?? {}, createdAt: typeof data.created_at === 'string' ? data.created_at : null, vendorOrders: vendors, events }
 }
 
 function normalizeShipment(value: unknown): MarketplaceShipment {
@@ -633,6 +664,25 @@ export async function fetchMarketplaceOrder(id: string, locale: Locale): Promise
 export async function fetchMarketplaceTracking(id: string, locale: Locale): Promise<MarketplaceOrder> {
   const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(id)}/tracking`, {}, locale), {}, locale)
   return normalizeOrder(unwrap<unknown>(payload))
+}
+
+function normalizeDocument(value: unknown): MarketplaceDocument {
+  const data = asRecord(value) ?? {}
+  const business = asRecord(data.business) ?? {}
+  const customer = asRecord(data.customer) ?? {}
+  const receivedBy = asRecord(data.received_by)
+  const items = Array.isArray(data.items) ? data.items.map((value) => { const row = asRecord(value) ?? {}; const variant = asRecord(row.variant); const attributes = asRecord(variant?.attributes); return { name: typeof row.name === 'string' ? row.name : null, sku: typeof row.sku === 'string' ? row.sku : null, size: typeof row.size === 'string' ? row.size : (typeof attributes?.size === 'string' ? attributes.size : null), quantity: row.quantity as string | number | null, unitPrice: row.unit_price as string | number | null, lineTotal: row.line_total as string | number | null } }) : []
+  return { documentType: data.document_type === 'receipt' ? 'receipt' : 'invoice', invoiceNumber: typeof data.invoice_number === 'string' ? data.invoice_number : null, receiptNumber: typeof data.receipt_number === 'string' ? data.receipt_number : null, orderNumber: String(data.order_number ?? ''), orderDate: typeof data.order_date === 'string' ? data.order_date : null, paidAt: typeof data.paid_at === 'string' ? data.paid_at : null, business: { name: typeof business.name === 'string' ? business.name : null, businessName: typeof business.business_name === 'string' ? business.business_name : null, logoUrl: typeof business.logo_url === 'string' ? business.logo_url : null, email: typeof business.email === 'string' ? business.email : null, phone: typeof business.phone === 'string' ? business.phone : null }, customer: { name: typeof customer.name === 'string' ? customer.name : null, email: typeof customer.email === 'string' ? customer.email : null, phone: typeof customer.phone === 'string' ? customer.phone : null }, address: asRecord(data.billing_address) ?? asRecord(data.shipping_address), items, subtotal: data.subtotal as string | number | null, discount: data.discount as string | number | null, tax: data.tax as string | number | null, shipping: data.shipping as string | number | null, grandTotal: data.grand_total as string | number | null, currencyCode: typeof data.currency_code === 'string' ? data.currency_code : 'MMK', paymentMethod: typeof data.payment_method === 'string' ? data.payment_method : null, paymentStatus: typeof data.payment_status === 'string' ? data.payment_status : null, amountDue: data.amount_due as string | number | null, amountReceived: data.amount_received as string | number | null, paidAmount: data.paid_amount as string | number | null, changeAmount: data.change_amount as string | number | null, transactionReference: typeof data.transaction_reference === 'string' ? data.transaction_reference : null, receivedBy: receivedBy ? { name: typeof receivedBy.name === 'string' ? receivedBy.name : null, email: typeof receivedBy.email === 'string' ? receivedBy.email : null } : null }
+}
+
+export async function fetchMarketplaceInvoice(id: string, locale: Locale): Promise<MarketplaceDocument> {
+  const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(id)}/invoice`, {}, locale), {}, locale)
+  return normalizeDocument(unwrap<unknown>(payload))
+}
+
+export async function fetchMarketplaceReceipt(id: string, locale: Locale): Promise<MarketplaceDocument> {
+  const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(id)}/receipt`, {}, locale), {}, locale)
+  return normalizeDocument(unwrap<unknown>(payload))
 }
 
 export async function requestMarketplaceCancellation(id: string, reason: string, locale: Locale): Promise<void> {

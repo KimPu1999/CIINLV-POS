@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Services\MarketplaceCommissionService;
+use App\Services\MarketplaceDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MarketplacePaymentWebhookController
 {
-    public function __invoke(Request $request, string $provider, MarketplaceCommissionService $commissions): JsonResponse
+    public function __invoke(Request $request, string $provider, MarketplaceCommissionService $commissions, MarketplaceDocumentService $documents): JsonResponse
     {
         $secret = (string) config('marketplace.webhook_secret');
         $signature = (string) $request->header('X-Payment-Signature');
@@ -31,7 +32,7 @@ class MarketplacePaymentWebhookController
             throw new UnprocessableEntityHttpException('The payment callback has no provider reference.');
         }
 
-        $result = DB::transaction(function () use ($commissions, $data, $provider, $reference, $status): array {
+        $result = DB::transaction(function () use ($commissions, $documents, $data, $provider, $reference, $status): array {
             $payment = \App\Models\MarketplacePayment::query()->where('provider_reference', $reference)->lockForUpdate()->first();
             if (! $payment || ($payment->provider !== null && $payment->provider !== $provider)) {
                 throw new ConflictHttpException('The payment reference is not recognized.');
@@ -50,7 +51,17 @@ class MarketplacePaymentWebhookController
                 throw new ConflictHttpException('A settled payment cannot transition to another state.');
             }
 
-            $payment->update(['provider' => $provider, 'status' => $status, 'paid_at' => $status === 'paid' ? now() : null, 'metadata' => array_merge((array) $payment->metadata, ['webhook_status' => $status, 'webhook_event_id' => $data['event_id'] ?? null])]);
+            $payment->update([
+                'provider' => $provider,
+                'status' => $status,
+                'amount_received' => $status === 'paid' ? $payment->amount : $payment->amount_received,
+                'received_at' => $status === 'paid' ? now() : $payment->received_at,
+                'paid_at' => $status === 'paid' ? now() : null,
+                'metadata' => array_merge((array) $payment->metadata, ['webhook_status' => $status, 'webhook_event_id' => $data['event_id'] ?? null]),
+            ]);
+            if ($status === 'paid') {
+                $documents->ensureReceiptNumber($payment->refresh());
+            }
             $payments = $order->payments()->lockForUpdate()->get();
             $nextOrderStatus = $payments->contains(fn ($item): bool => $item->status === 'paid') ? 'paid' : ($payments->every(fn ($item): bool => in_array($item->status, ['failed', 'cancelled'], true)) ? 'failed' : 'pending');
             $order->update(['payment_status' => $nextOrderStatus]);

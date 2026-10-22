@@ -180,6 +180,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/return-requests', [MarketplaceAdminController::class, 'returnRequests']);
             Route::patch('/return-requests/{return}/decision', [MarketplaceAdminController::class, 'decideReturn']);
             Route::get('/refund-requests', [MarketplaceAdminController::class, 'refundRequests']);
+            Route::get('/orders/{order}/invoice', [MarketplaceAdminController::class, 'invoice']);
+            Route::get('/orders/{order}/receipt', [MarketplaceAdminController::class, 'receipt']);
             Route::post('/orders/{order}/cod/collect', [MarketplaceAdminController::class, 'collectCod']);
             Route::get('/reports', [MarketplaceAdminController::class, 'reports']);
             Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
@@ -206,6 +208,9 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/earnings', [MarketplaceVendorController::class, 'earnings']);
             Route::get('/orders', [MarketplaceVendorController::class, 'orders']);
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
+            Route::get('/orders/{order}/invoice', [MarketplaceVendorController::class, 'invoice']);
+            Route::get('/orders/{order}/receipt', [MarketplaceVendorController::class, 'receipt']);
+            Route::post('/orders/{order}/payments/cod/collect', [MarketplaceVendorController::class, 'collectCod']);
             Route::post('/orders/{order}/shipments', [MarketplaceVendorFulfillmentController::class, 'createShipment']);
             Route::patch('/shipments/{shipment}/status', [MarketplaceVendorFulfillmentController::class, 'updateShipment']);
             Route::get('/store', [MarketplaceVendorController::class, 'store']);
@@ -239,6 +244,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/checkout/quote', [MarketplaceCustomerCheckoutController::class, 'quote'])->middleware('throttle:api');
             Route::post('/checkout', [MarketplaceCustomerCheckoutController::class, 'checkout'])->middleware('throttle:api');
             Route::get('/orders', [MarketplaceCustomerCheckoutController::class, 'orders']);
+            Route::get('/orders/{order}/invoice', [MarketplaceCustomerCheckoutController::class, 'invoice']);
+            Route::get('/orders/{order}/receipt', [MarketplaceCustomerCheckoutController::class, 'receipt']);
             Route::get('/orders/{order}/tracking', [MarketplaceCustomerCheckoutController::class, 'tracking']);
             Route::post('/orders/{order}/cancellation-requests', [MarketplaceCustomerCheckoutController::class, 'requestCancellation'])->middleware('throttle:api');
             Route::post('/orders/{order}/return-requests', [MarketplaceCustomerCheckoutController::class, 'requestReturn'])->middleware('throttle:api');

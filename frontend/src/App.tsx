@@ -52,7 +52,9 @@ const MarketplaceOverviewPage = lazy(() => import('./features/marketplace-vendor
 const MarketplaceStorePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceStorePage: Page }) => ({ default: Page })))
 const MarketplaceProductsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceProductsPage: Page }) => ({ default: Page })))
 const MarketplaceOrdersPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrdersPage: Page }) => ({ default: Page })))
-const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrderDetailPage: Page }) => ({ default: Page })))
+const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceBillingOrderDetailPage: Page }) => ({ default: Page })))
+const MarketplaceInvoicePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceInvoicePage: Page }) => ({ default: Page })))
+const MarketplaceReceiptPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReceiptPage: Page }) => ({ default: Page })))
 const MarketplaceShippingPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceShippingPage: Page }) => ({ default: Page })))
 const MarketplaceReviewsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReviewsPage: Page }) => ({ default: Page })))
 const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceEarningsPage: Page }) => ({ default: Page })))
@@ -347,6 +349,8 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="marketplace/products" element={<MarketplaceProductsPage />} />
           <Route path="marketplace/orders" element={<MarketplaceOrdersPage />} />
           <Route path="marketplace/orders/:order" element={<MarketplaceOrderDetailPage />} />
+          <Route path="marketplace/orders/:order/invoice" element={<MarketplaceInvoicePage />} />
+          <Route path="marketplace/orders/:order/receipt" element={<MarketplaceReceiptPage />} />
           <Route path="marketplace/shipping" element={<MarketplaceShippingPage />} />
           <Route path="marketplace/reviews" element={<MarketplaceReviewsPage />} />
           <Route path="marketplace/earnings" element={<MarketplaceEarningsPage />} />

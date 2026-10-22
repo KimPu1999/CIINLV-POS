@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Marketplace\MarketplaceListingRequest;
+use App\Http\Requests\Marketplace\CollectMarketplaceCodPaymentRequest;
 use App\Http\Requests\Marketplace\UpdateMarketplaceStoreRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceListingImagesRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceStoreMediaRequest;
@@ -16,6 +17,8 @@ use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\MarketplaceCommissionService;
+use App\Services\MarketplaceDocumentService;
+use App\Services\MarketplacePaymentService;
 use App\Services\MarketplaceSettingsService;
 use App\Services\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
@@ -156,6 +159,38 @@ class MarketplaceVendorController
         $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items.variant', 'order.customer', 'order.payments', 'shipments.events.actor'])->firstOrFail();
 
         return response()->json(['success' => true, 'data' => new MarketplaceVendorOrderResource($model)]);
+    }
+
+    public function invoice(string $order, TenantContext $context, MarketplaceDocumentService $documents): JsonResponse
+    {
+        $vendorOrder = $this->vendorOrder($order, $context);
+
+        return response()->json(['success' => true, 'data' => $documents->invoice($vendorOrder->order, $vendorOrder)]);
+    }
+
+    public function receipt(string $order, TenantContext $context, MarketplaceDocumentService $documents): JsonResponse
+    {
+        $vendorOrder = $this->vendorOrder($order, $context);
+
+        return response()->json(['success' => true, 'data' => $documents->receipt($vendorOrder->order, $vendorOrder)]);
+    }
+
+    public function collectCod(CollectMarketplaceCodPaymentRequest $request, string $order, TenantContext $context, MarketplacePaymentService $payments, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $vendorOrder = $this->vendorOrder($order, $context);
+        $result = $payments->collectCod($vendorOrder->order, $request->user(), [
+            ...$request->validated(),
+            'idempotency_key' => $request->header('Idempotency-Key'),
+        ], $vendorOrder);
+        if (! $result['replayed']) {
+            $audit->record('marketplace.cod_payment_collected', $request->user(), $context->tenant(), $vendorOrder, ['order_number' => $vendorOrder->order?->order_number, 'vendor_order_number' => $vendorOrder->vendor_order_number]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'idempotent_replay' => $result['replayed'],
+            'data' => new MarketplaceVendorOrderResource($vendorOrder->fresh()->load(['store', 'tenant', 'items.variant', 'order.customer', 'order.payments', 'shipments.events.actor'])),
+        ]);
     }
 
     public function store(Request $request, TenantContext $context): JsonResponse
@@ -325,6 +360,15 @@ class MarketplaceVendorController
         }
 
         return $store->load('tenant');
+    }
+
+    private function vendorOrder(string $order, TenantContext $context): MarketplaceVendorOrder
+    {
+        return MarketplaceVendorOrder::query()
+            ->where('tenant_id', $context->tenant()->id)
+            ->where('uuid', $order)
+            ->with(['store.tenant', 'tenant', 'items.variant', 'order.customer', 'order.payments', 'shipments.events.actor'])
+            ->firstOrFail();
     }
 
     private function ensurePublishable(string $status, MarketplaceStore $store, Product $product): void
