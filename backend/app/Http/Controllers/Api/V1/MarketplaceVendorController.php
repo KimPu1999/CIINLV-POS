@@ -143,13 +143,34 @@ class MarketplaceVendorController
         $orders = MarketplaceVendorOrder::query()
             ->where('tenant_id', $context->tenant()->id)
             ->with(['store', 'tenant', 'items', 'order.customer', 'order.payments', 'shipments.events'])
+            ->when($request->boolean('active_shipping'), function (Builder $query): void {
+                // Shipping is an operational queue. Completed shipment records remain
+                // queryable through Sales History and are never deleted here.
+                $query->where(function (Builder $active): void {
+                    $active->whereDoesntHave('shipments')
+                        ->orWhereHas('shipments', fn (Builder $shipment) => $shipment->whereNotIn('status', ['delivered', 'completed', 'returned', 'cancelled']));
+                });
+            })
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
+            ->when($request->filled('shipment_status'), function (Builder $query) use ($request): void {
+                $status = $request->string('shipment_status')->toString();
+                if ($status === 'ready') {
+                    $query->where(function (Builder $ready): void {
+                        $ready->whereDoesntHave('shipments')->orWhereHas('shipments', fn (Builder $shipment) => $shipment->where('status', 'ready'));
+                    });
+                } else {
+                    $query->whereHas('shipments', fn (Builder $shipment) => $shipment->where('status', $status));
+                }
+            })
+            ->when($request->filled('delivery_type'), fn (Builder $query) => $query->whereHas('shipments', fn (Builder $shipment) => $shipment->where('delivery_type', $request->string('delivery_type')->toString())))
+            ->when($request->filled('carrier'), fn (Builder $query) => $query->whereHas('shipments', fn (Builder $shipment) => $shipment->where('carrier_name', 'ilike', '%'.$request->string('carrier')->toString().'%')))
             ->when($request->filled('payment_status'), fn (Builder $query) => $query->whereHas('order', fn (Builder $order) => $order->where('payment_status', $request->string('payment_status')->toString())))
             ->when($request->filled('search'), function (Builder $query) use ($request): void {
                 $term = '%'.$request->string('search')->toString().'%';
                 $query->where(function (Builder $search) use ($term): void {
                     $search->where('vendor_order_number', 'ilike', $term)
                         ->orWhereHas('order', fn (Builder $order) => $order->where('order_number', 'ilike', $term)->orWhereHas('customer', fn (Builder $customer) => $customer->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)));
+                    $search->orWhereHas('shipments', fn (Builder $shipment) => $shipment->where('tracking_number', 'ilike', $term)->orWhere('internal_tracking_id', 'ilike', $term));
                 });
             })
             ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('created_at', '>=', $request->date('from')))
@@ -457,7 +478,10 @@ class MarketplaceVendorController
             'lowest_total' => $query->orderBy('marketplace_vendor_orders.total')->orderBy('marketplace_vendor_orders.id'),
             'latest_payment' => $query->orderByDesc(MarketplacePayment::query()->select('paid_at')->whereColumn('marketplace_payments.marketplace_order_id', 'marketplace_vendor_orders.marketplace_order_id')->latest('id')->limit(1))->orderByDesc('marketplace_vendor_orders.id'),
             'latest_delivery' => $query->orderByDesc(MarketplaceShipment::query()->select('delivered_at')->whereColumn('marketplace_shipments.marketplace_vendor_order_id', 'marketplace_vendor_orders.id')->latest('id')->limit(1))->orderByDesc('marketplace_vendor_orders.id'),
-            default => $query->orderByDesc('marketplace_vendor_orders.created_at')->orderByDesc('marketplace_vendor_orders.id'),
+            default => $query
+                ->orderByRaw("CASE WHEN marketplace_vendor_orders.status = 'delivered' OR EXISTS (SELECT 1 FROM marketplace_shipments prioritized_shipments WHERE prioritized_shipments.marketplace_vendor_order_id = marketplace_vendor_orders.id AND prioritized_shipments.status IN ('delivered', 'completed')) THEN 0 ELSE 1 END")
+                ->orderByDesc('marketplace_vendor_orders.created_at')
+                ->orderByDesc('marketplace_vendor_orders.id'),
         };
     }
 

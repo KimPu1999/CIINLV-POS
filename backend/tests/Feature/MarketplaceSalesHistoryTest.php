@@ -68,6 +68,14 @@ class MarketplaceSalesHistoryTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.shipment_status', 'delivered');
 
+        // Delivered shipments leave the operational queue, but the underlying
+        // shipment/order records remain available to Sales History.
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/orders?active_shipping=true')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+        $this->assertDatabaseHas('marketplace_shipments', ['internal_tracking_id' => $tracking, 'status' => 'delivered']);
+
         $this->actingAs($otherAdmin, 'sanctum')->withHeader('X-Tenant-Id', $otherTenant->uuid)
             ->getJson('/api/v1/vendor/marketplace/sales-history')
             ->assertOk()
