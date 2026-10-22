@@ -1,7 +1,7 @@
 import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, AlertTriangle, BarChart3, Bell, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Bell, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, History, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
@@ -56,6 +56,8 @@ const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-ven
 const MarketplaceInvoicePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceInvoicePage: Page }) => ({ default: Page })))
 const MarketplaceReceiptPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReceiptPage: Page }) => ({ default: Page })))
 const MarketplaceShippingPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceShippingPage: Page }) => ({ default: Page })))
+const MarketplaceSalesHistoryPage = lazy(() => import('./features/marketplace-sales-history').then(({ MarketplaceSalesHistoryPage: Page }) => ({ default: Page })))
+const MarketplaceSalesHistoryDetailPage = lazy(() => import('./features/marketplace-sales-history').then(({ MarketplaceSalesHistoryDetailPage: Page }) => ({ default: Page })))
 const MarketplaceReviewsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReviewsPage: Page }) => ({ default: Page })))
 const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceEarningsPage: Page }) => ({ default: Page })))
 const MarketplaceSettingsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceSettingsPage: Page }) => ({ default: Page })))
@@ -118,6 +120,7 @@ const businessNav: NavItem[] = [
   { label: 'Marketplace products', path: '/business/marketplace/products', icon: Package, roles: ['business'] },
   { label: 'Marketplace orders', path: '/business/marketplace/orders', icon: ShoppingCart, roles: ['business'] },
   { label: 'Shipping & fulfillment', path: '/business/marketplace/shipping', icon: Truck, roles: ['business'] },
+  { label: 'Sales history', path: '/business/marketplace/sales-history', icon: History, roles: ['business'] },
   { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'] },
   { label: 'Earnings & commissions', path: '/business/marketplace/earnings', icon: BarChart3, roles: ['business'] },
   { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
@@ -352,6 +355,8 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="marketplace/orders/:order/invoice" element={<MarketplaceInvoicePage />} />
           <Route path="marketplace/orders/:order/receipt" element={<MarketplaceReceiptPage />} />
           <Route path="marketplace/shipping" element={<MarketplaceShippingPage />} />
+          <Route path="marketplace/sales-history" element={<MarketplaceSalesHistoryPage />} />
+          <Route path="marketplace/sales-history/:order" element={<MarketplaceSalesHistoryDetailPage />} />
           <Route path="marketplace/reviews" element={<MarketplaceReviewsPage />} />
           <Route path="marketplace/earnings" element={<MarketplaceEarningsPage />} />
           <Route path="marketplace/settings" element={<MarketplaceSettingsPage />} />

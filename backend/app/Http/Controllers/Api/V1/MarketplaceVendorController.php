@@ -9,10 +9,15 @@ use App\Http\Requests\Marketplace\UploadMarketplaceListingImagesRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceStoreMediaRequest;
 use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceStoreResource;
+use App\Http\Resources\MarketplaceVendorSaleResource;
 use App\Http\Resources\MarketplaceVendorOrderResource;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceListingImage;
+use App\Models\MarketplaceOrderCommission;
+use App\Models\MarketplacePayment;
+use App\Models\MarketplaceRefundRequest;
 use App\Models\MarketplaceStore;
+use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Services\MarketplaceAuditLogger;
@@ -28,6 +33,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MarketplaceVendorController
 {
@@ -152,6 +158,57 @@ class MarketplaceVendorController
             ->paginate(min(max((int) $request->input('per_page', 20), 1), 100));
 
         return response()->json(['success' => true, 'data' => MarketplaceVendorOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);
+    }
+
+    public function salesHistory(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        $this->validateSalesHistoryRequest($request);
+        $query = $this->salesHistoryQuery($request, $context);
+        $summary = $this->salesHistorySummary($request, $context, $commissions);
+        $sales = $query
+            ->with($this->salesHistoryRelations())
+            ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+
+        return response()->json([
+            'success' => true,
+            'data' => MarketplaceVendorSaleResource::collection($sales),
+            'meta' => [
+                'total' => $sales->total(),
+                'per_page' => $sales->perPage(),
+                'current_page' => $sales->currentPage(),
+                'last_page' => $sales->lastPage(),
+                'summary' => $summary,
+            ],
+        ]);
+    }
+
+    public function salesHistoryExport(Request $request, TenantContext $context): StreamedResponse
+    {
+        $this->validateSalesHistoryRequest($request);
+        $query = $this->salesHistoryQuery($request, $context);
+        $relations = $this->salesHistoryRelations();
+
+        return response()->streamDownload(function () use ($query, $relations): void {
+            $handle = fopen('php://output', 'wb');
+            fputcsv($handle, ['Sale Date', 'Vendor Order No.', 'Marketplace Order No.', 'Customer', 'Items', 'Subtotal', 'Discount', 'Tax', 'Shipping', 'Grand Total', 'Currency', 'Payment Method', 'Payment Status', 'Order Status', 'Shipment Status', 'Tracking ID', 'Invoice No.', 'Receipt No.']);
+            $query->with($relations)->chunkById(250, function ($sales) use ($handle): void {
+                foreach ($sales as $sale) {
+                    fputcsv($handle, $this->salesHistoryCsvRow($sale));
+                }
+            }, 'marketplace_vendor_orders.id');
+            fclose($handle);
+        }, 'marketplace-sales-history-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    public function salesHistoryDetail(Request $request, string $order, TenantContext $context): JsonResponse
+    {
+        $this->validateSalesHistoryRequest($request);
+        $sale = $this->salesHistoryQuery($request, $context, false)
+            ->where('marketplace_vendor_orders.uuid', $order)
+            ->with($this->salesHistoryRelations())
+            ->firstOrFail();
+
+        return response()->json(['success' => true, 'data' => new MarketplaceVendorSaleResource($sale)]);
     }
 
     public function order(Request $request, string $order, TenantContext $context): JsonResponse
@@ -337,6 +394,168 @@ class MarketplaceVendorController
         $audit->record('marketplace.listing_images_uploaded', $request->user(), $context->tenant(), $listing, ['count' => count($files)]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
+    }
+
+    private function salesHistoryQuery(Request $request, TenantContext $context, bool $sort = true): Builder
+    {
+        $query = MarketplaceVendorOrder::query()
+            ->where('marketplace_vendor_orders.tenant_id', $context->tenant()->id)
+            ->whereHas('order', function (Builder $order): void {
+                $order
+                    ->whereIn('status', ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered', 'cancelled', 'partially_refunded', 'refunded'])
+                    ->whereHas('payments', fn (Builder $payment) => $payment->whereIn('status', ['authorized', 'paid', 'refunded']));
+            })
+            ->when($request->filled('search'), function (Builder $builder) use ($request): void {
+                $term = '%'.$request->string('search')->toString().'%';
+                $builder->where(function (Builder $search) use ($term): void {
+                    $search
+                        ->where('marketplace_vendor_orders.vendor_order_number', 'ilike', $term)
+                        ->orWhereHas('order', function (Builder $order) use ($term): void {
+                            $order
+                                ->where(function (Builder $orderSearch) use ($term): void {
+                                    $orderSearch
+                                        ->where('order_number', 'ilike', $term)
+                                        ->orWhere('invoice_number', 'ilike', $term);
+                                })
+                                ->orWhereHas('customer', function (Builder $customer) use ($term): void {
+                                    $customer->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term);
+                                })
+                                ->orWhereHas('payments', function (Builder $payment) use ($term): void {
+                                    $payment->where('receipt_number', 'ilike', $term)->orWhere('transaction_reference', 'ilike', $term)->orWhere('provider_reference', 'ilike', $term);
+                                });
+                        })
+                        ->orWhereHas('shipments', function (Builder $shipment) use ($term): void {
+                            $shipment->where('internal_tracking_id', 'ilike', $term)->orWhere('tracking_number', 'ilike', $term);
+                        });
+                });
+            })
+            ->when($request->filled('date_from'), fn (Builder $builder) => $builder->whereDate('marketplace_vendor_orders.created_at', '>=', $request->date('date_from')))
+            ->when($request->filled('date_to'), fn (Builder $builder) => $builder->whereDate('marketplace_vendor_orders.created_at', '<=', $request->date('date_to')))
+            ->when($request->filled('payment_method'), fn (Builder $builder) => $builder->whereHas('order.payments', fn (Builder $payment) => $payment->where('method', $request->string('payment_method')->toString())))
+            ->when($request->filled('payment_status'), fn (Builder $builder) => $builder->whereHas('order.payments', fn (Builder $payment) => $payment->where('status', $request->string('payment_status')->toString())))
+            ->when($request->filled('order_status'), fn (Builder $builder) => $builder->whereHas('order', fn (Builder $order) => $order->where('status', $request->string('order_status')->toString())))
+            ->when($request->filled('shipment_status'), function (Builder $builder) use ($request): void {
+                $shipmentStatus = $request->string('shipment_status')->toString();
+                if ($shipmentStatus === 'ready') {
+                    $builder->where(function (Builder $ready) use ($shipmentStatus): void {
+                        $ready->whereDoesntHave('shipments')->orWhereHas('shipments', fn (Builder $shipment) => $shipment->where('status', $shipmentStatus));
+                    });
+                } else {
+                    $builder->whereHas('shipments', fn (Builder $shipment) => $shipment->where('status', $shipmentStatus));
+                }
+            })
+            ->when($request->filled('min_amount'), fn (Builder $builder) => $builder->where('marketplace_vendor_orders.total', '>=', $request->input('min_amount')))
+            ->when($request->filled('max_amount'), fn (Builder $builder) => $builder->where('marketplace_vendor_orders.total', '<=', $request->input('max_amount')));
+
+        if (! $sort) {
+            return $query;
+        }
+
+        return match ($request->string('sort', 'newest')->toString()) {
+            'oldest' => $query->orderBy('marketplace_vendor_orders.created_at')->orderBy('marketplace_vendor_orders.id'),
+            'highest_total' => $query->orderByDesc('marketplace_vendor_orders.total')->orderByDesc('marketplace_vendor_orders.id'),
+            'lowest_total' => $query->orderBy('marketplace_vendor_orders.total')->orderBy('marketplace_vendor_orders.id'),
+            'latest_payment' => $query->orderByDesc(MarketplacePayment::query()->select('paid_at')->whereColumn('marketplace_payments.marketplace_order_id', 'marketplace_vendor_orders.marketplace_order_id')->latest('id')->limit(1))->orderByDesc('marketplace_vendor_orders.id'),
+            'latest_delivery' => $query->orderByDesc(MarketplaceShipment::query()->select('delivered_at')->whereColumn('marketplace_shipments.marketplace_vendor_order_id', 'marketplace_vendor_orders.id')->latest('id')->limit(1))->orderByDesc('marketplace_vendor_orders.id'),
+            default => $query->orderByDesc('marketplace_vendor_orders.created_at')->orderByDesc('marketplace_vendor_orders.id'),
+        };
+    }
+
+    private function salesHistorySummary(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): array
+    {
+        $query = $this->salesHistoryQuery($request, $context, false);
+        $totals = (clone $query)->selectRaw('COUNT(*) AS sales_count, COALESCE(SUM(marketplace_vendor_orders.total), 0) AS gross_revenue, COALESCE(SUM(marketplace_vendor_orders.discount_total), 0) AS discount_total, COALESCE(SUM(marketplace_vendor_orders.tax_total), 0) AS tax_total, COALESCE(SUM(marketplace_vendor_orders.shipping_total), 0) AS shipping_revenue')->first();
+        $orderIds = (clone $query)->select('marketplace_vendor_orders.marketplace_order_id')->distinct()->pluck('marketplace_order_id');
+        $vendorOrderIds = (clone $query)->select('marketplace_vendor_orders.id')->pluck('id');
+        $refundTotal = $orderIds->isEmpty() ? 0 : MarketplaceRefundRequest::query()->whereIn('marketplace_order_id', $orderIds)->where('status', 'approved')->sum('approved_amount');
+        $commissionConfigured = $commissions->storageAvailable();
+        $commissionTotal = $commissionConfigured && $vendorOrderIds->isNotEmpty() ? MarketplaceOrderCommission::query()->whereIn('marketplace_vendor_order_id', $vendorOrderIds)->sum('commission_amount') : 0;
+        $vendorEarnings = $commissionConfigured && $vendorOrderIds->isNotEmpty() ? MarketplaceOrderCommission::query()->whereIn('marketplace_vendor_order_id', $vendorOrderIds)->sum('seller_net_amount') : 0;
+        $grossRevenue = (float) ($totals?->gross_revenue ?? 0);
+        $refunded = (float) $refundTotal;
+
+        return [
+            'sales_count' => (int) ($totals?->sales_count ?? 0),
+            'gross_revenue' => $this->money((string) $grossRevenue),
+            'total_revenue' => $this->money((string) $grossRevenue),
+            'discount_total' => $this->money((string) ($totals?->discount_total ?? 0)),
+            'tax_total' => $this->money((string) ($totals?->tax_total ?? 0)),
+            'shipping_revenue' => $this->money((string) ($totals?->shipping_revenue ?? 0)),
+            'paid_orders' => (int) (clone $query)->whereHas('order.payments', fn (Builder $payment) => $payment->where('status', 'paid'))->count(),
+            'delivered_orders' => (int) (clone $query)->where('marketplace_vendor_orders.status', 'delivered')->count(),
+            'refunded_amount' => $this->money((string) $refunded),
+            'net_revenue' => $this->money((string) ($grossRevenue - $refunded)),
+            'commission_configured' => $commissionConfigured,
+            'marketplace_commission' => $this->money((string) $commissionTotal),
+            'vendor_earnings' => $this->money((string) $vendorEarnings),
+        ];
+    }
+
+    private function salesHistoryRelations(): array
+    {
+        return [
+            'store',
+            'tenant',
+            'items.variant',
+            'order.customer.customerProfile',
+            'order.payments.receivedBy',
+            'order.events',
+            'order.refundRequests',
+            'shipments.events.actor',
+            'commission',
+        ];
+    }
+
+    private function salesHistoryCsvRow(MarketplaceVendorOrder $sale): array
+    {
+        $order = $sale->order;
+        $payment = $order?->payments?->sortByDesc('id')->first();
+        $shipment = $sale->shipments?->sortByDesc('id')->first();
+        $shipmentStatus = $shipment?->status ?: ($sale->status === 'delivered' ? 'delivered' : 'ready');
+
+        return [
+            $sale->created_at?->toIso8601String(),
+            $sale->vendor_order_number,
+            $order?->order_number,
+            $order?->customer?->name,
+            $sale->items?->sum('quantity') ?? 0,
+            $sale->subtotal,
+            $sale->discount_total,
+            $sale->tax_total,
+            $sale->shipping_total,
+            $sale->total,
+            $sale->currency_code,
+            $payment?->method,
+            $payment?->status ?: $order?->payment_status,
+            $order?->status,
+            $shipmentStatus,
+            $shipment?->internal_tracking_id ?: $shipment?->tracking_number,
+            $order?->invoice_number,
+            $payment?->receipt_number,
+        ];
+    }
+
+    private function validateSalesHistoryRequest(Request $request): void
+    {
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'payment_method' => ['nullable', 'string', 'in:cod,online,card,qr,bank_transfer'],
+            'payment_status' => ['nullable', 'string', 'in:authorized,paid,refunded,pending,failed,cancelled'],
+            'order_status' => ['nullable', 'string', 'in:confirmed,processing,partially_shipped,shipped,delivered,cancelled,partially_refunded,refunded'],
+            'shipment_status' => ['nullable', 'string', 'in:ready,shipped,in_transit,delivered,delivery_failed,returned,cancelled'],
+            'min_amount' => ['nullable', 'numeric', 'min:0'],
+            'max_amount' => ['nullable', 'numeric', 'gte:min_amount'],
+            'sort' => ['nullable', 'string', 'in:newest,oldest,highest_total,lowest_total,latest_payment,latest_delivery'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+    }
+
+    private function money(string $value): string
+    {
+        return number_format((float) $value, 2, '.', '');
     }
 
     private function getOrCreateStore(TenantContext $context): MarketplaceStore
