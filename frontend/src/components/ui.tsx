@@ -81,9 +81,26 @@ function useCountUp(target: number | null | undefined): number {
   return value
 }
 
-export function StatusBadge({ status }: { status?: string | null }) {
+export type StatusBadgeVariant = 'default' | 'fulfillment'
+
+const fulfillmentStatusStyles: Record<string, string> = {
+  pending: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200',
+  ready: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200',
+  active: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200',
+  shipped: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200',
+  in_transit: 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-200',
+  delivered: 'border-green-300 bg-green-100 text-green-800 dark:border-green-800 dark:bg-green-950/50 dark:text-green-200',
+  failed: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200',
+  delivery_failed: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200',
+  cancelled: 'border-red-200 bg-slate-100 text-red-700 dark:border-red-900/60 dark:bg-slate-800 dark:text-red-300',
+}
+
+export function StatusBadge({ status, variant = 'default' }: { status?: string | null; variant?: StatusBadgeVariant }) {
   const { t } = useTranslation()
   const value = status || 'unknown'
+  if (variant === 'fulfillment') {
+    return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold capitalize leading-4 ${fulfillmentStatusStyles[value] || 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{t(`text.${value}`, { defaultValue: value.replaceAll('_', ' ') })}</span>
+  }
   const toneByStatus: Record<string, LabelBadgeTone> = {
     active: 'success', completed: 'success', verified: 'success', paid: 'success', succeeded: 'success', ready: 'success', healthy: 'success', ok: 'success', authenticated: 'success', open: 'success', in_stock: 'success', approved: 'success', received: 'success', resolved: 'success', configured: 'success', dispatched: 'success', posted: 'success', closed: 'success',
     pending: 'warning', submitted: 'warning', partially_received: 'warning', past_due: 'warning', processing: 'warning', acknowledged: 'warning', snoozed: 'warning', draft: 'warning', requested: 'warning', pending_approval: 'warning', in_transit: 'warning', low_stock: 'warning', stale: 'warning',
