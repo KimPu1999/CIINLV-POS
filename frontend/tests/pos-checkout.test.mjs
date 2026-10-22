@@ -45,3 +45,14 @@ test('POS checkout does not pretend unverified split payments completed', () => 
   assert.match(source, /configured-qr/)
   assert.match(source, /method !== 'cash'/)
 })
+
+test('cash received keeps an editable digit-only string and calculates overpayment safely', () => {
+  assert.match(source, /function sanitizePaymentAmount\(value: string\)/)
+  assert.match(source, /value\.replace\(\/\[\^\\d\]\/g, ''\)/)
+  assert.match(source, /type="text" inputMode="numeric" pattern="\[0-9\]\*"/)
+  assert.match(source, /onChange=\{\(event\) => onChange\(sanitizePaymentAmount\(event\.target\.value\)\)\}/)
+  assert.match(source, /const totalPaid = decimalToMinor\(cashAmount\)/)
+  assert.match(source, /const balance = total > totalPaid \? total - totalPaid : 0n/)
+  assert.match(source, /const change = totalPaid > total \? totalPaid - total : 0n/)
+  assert.match(source, /const paymentComplete = total > 0n && totalPaid >= total && balance <= 0n/)
+})
