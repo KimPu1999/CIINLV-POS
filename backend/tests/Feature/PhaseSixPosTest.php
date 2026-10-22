@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessSetting;
+use App\Models\CashierShift;
 use App\Models\InventoryLocation;
 use App\Models\Product;
 use App\Models\Role;
+use App\Models\Sale;
 use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Tenant;
@@ -157,9 +159,49 @@ class PhaseSixPosTest extends TestCase
         $register = $this->register($admin, $store, $headers);
         $this->openShift($cashier, $store, $register, $headers);
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => 100])->assertConflict();
+        $this->assertDatabaseCount('cash_movements', 1);
         $shift = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/current')->assertOk()->json('data.id');
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-in-1')->postJson('/api/v1/pos/shifts/'.$shift.'/cash-movements', ['type' => 'cash_in', 'amount' => 10, 'reason' => 'Till top-up'])->assertCreated();
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shift.'/close', ['actual_amount' => 110])->assertOk()->assertJsonPath('data.cash_difference', '0.00');
+    }
+
+    public function test_zero_opening_cash_creates_a_shift_without_a_zero_value_movement_and_duplicate_open_is_safe(): void
+    {
+        [$tenant, $admin, $cashier, $store] = $this->posFixture('BUS-A', 'zero-opening-cash');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $store, $headers);
+        $payload = ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => 0];
+
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'shift-zero-opening')->postJson('/api/v1/pos/shifts/open', $payload)->assertCreated()->assertJsonPath('data.opening_amount', '0.00');
+        $this->assertDatabaseCount('cash_movements', 0);
+        $this->assertDatabaseCount('cashier_shifts', 1);
+
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'shift-zero-opening')->postJson('/api/v1/pos/shifts/open', $payload)->assertConflict();
+        $this->assertDatabaseCount('cash_movements', 0);
+        $this->assertDatabaseCount('cashier_shifts', 1);
+    }
+
+    public function test_positive_opening_cash_creates_exactly_one_opening_float_movement(): void
+    {
+        [$tenant, $admin, $cashier, $store] = $this->posFixture('BUS-A', 'positive-opening-cash');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $store, $headers);
+
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'shift-positive-opening')->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => 100000])->assertCreated();
+
+        $this->assertDatabaseCount('cash_movements', 1);
+        $this->assertDatabaseHas('cash_movements', ['movement_type' => 'opening_float', 'amount' => '100000.00', 'reference_type' => 'cashier_shift']);
+    }
+
+    public function test_negative_opening_cash_is_rejected_without_creating_a_shift_or_movement(): void
+    {
+        [$tenant, $admin, $cashier, $store] = $this->posFixture('BUS-A', 'negative-opening-cash');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $store, $headers);
+
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => -1])->assertUnprocessable();
+        $this->assertDatabaseCount('cashier_shifts', 0);
+        $this->assertDatabaseCount('cash_movements', 0);
     }
 
     public function test_branch_salespeople_are_filtered_and_recorded_on_sale_and_payment_context(): void
@@ -182,7 +224,7 @@ class PhaseSixPosTest extends TestCase
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'payment-salesperson-context')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'cash', 'amount' => 12, 'received_amount' => 12])->assertCreated();
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk()->assertJsonPath('data.salesperson_user_id', $salesperson->id);
         $this->assertDatabaseHas('sales', ['uuid' => $saleId, 'cashier_shift_id' => $shiftId, 'salesperson_user_id' => $salesperson->id]);
-        $this->assertDatabaseHas('payments', ['sale_id' => App\Models\Sale::where('uuid', $saleId)->value('id'), 'cashier_shift_id' => App\Models\CashierShift::where('uuid', $shiftId)->value('id'), 'received_amount' => '12.00', 'change_amount' => '2.00']);
+        $this->assertDatabaseHas('payments', ['sale_id' => Sale::where('uuid', $saleId)->value('id'), 'cashier_shift_id' => $shiftId, 'received_amount' => '12.00', 'change_amount' => '2.00']);
     }
 
     private function posFixture(string $code, string $suffix): array

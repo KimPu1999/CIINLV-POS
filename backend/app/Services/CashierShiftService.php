@@ -39,18 +39,20 @@ class CashierShiftService
                 'notes' => $notes,
                 'opened_at' => now(),
             ]);
-            CashMovement::create([
-                'tenant_id' => $store->tenant_id,
-                'store_id' => $store->id,
-                'register_id' => $register->id,
-                'cashier_shift_id' => $shift->id,
-                'movement_type' => 'opening_float',
-                'amount' => $openingAmount,
-                'reference_type' => 'cashier_shift',
-                'reference_id' => $shift->uuid,
-                'created_by' => $cashier->id,
-                'idempotency_key' => 'shift:'.$shift->uuid.':opening',
-            ]);
+            if (bccomp($openingAmount, '0', 2) > 0) {
+                CashMovement::create([
+                    'tenant_id' => $store->tenant_id,
+                    'store_id' => $store->id,
+                    'register_id' => $register->id,
+                    'cashier_shift_id' => $shift->id,
+                    'movement_type' => 'opening_float',
+                    'amount' => $openingAmount,
+                    'reference_type' => 'cashier_shift',
+                    'reference_id' => $shift->uuid,
+                    'created_by' => $cashier->id,
+                    'idempotency_key' => 'shift:'.$shift->uuid.':opening',
+                ]);
+            }
             $this->audit->record('pos.shift_opened', $cashier, $store->tenant, $shift, ['store_id' => $store->uuid, 'register_id' => $register->uuid]);
 
             return $shift->load(['store', 'register', 'cashier']);

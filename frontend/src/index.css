@@ -19,8 +19,51 @@
 .pos-checkout-page .pos-cart-panel { position: sticky; top: 20px; max-height: calc(100vh - 7rem); box-shadow: 0 12px 30px rgba(30, 64, 175, .08); }
 .pos-checkout-page .pos-product-card { box-shadow: 0 5px 16px rgba(30, 64, 175, .05); }
 
+/* Keep the POS controls and catalog above the fold on common desktop
+   terminals without changing the checkout component's data flow. */
+.pos-checkout-page .dashboard-page-actions { min-height: 40px; margin-bottom: 12px !important; }
+.pos-checkout-page .pos-filter-card,
+.pos-checkout-page .pos-search-card { padding: 12px; }
+.pos-checkout-page .pos-search-card { margin-top: 12px !important; }
+.pos-checkout-page .pos-filter-card > div { gap: 12px; }
+.pos-checkout-page .pos-filter-card label > div { margin-top: 4px; }
+.pos-checkout-page .pos-filter-card select { height: 48px; min-height: 48px !important; padding-left: 52px !important; padding-right: 48px !important; }
+.pos-checkout-page .pos-filter-card > div:last-child > button,
+.pos-checkout-page .pos-filter-card > div:last-child > div { align-self: end; min-height: 48px; height: 48px; white-space: nowrap; }
+.pos-checkout-page .pos-search-card > div:first-child { gap: 12px; }
+.pos-checkout-page .pos-search-card form > input,
+.pos-checkout-page .pos-search-card > div:first-child > div > input { height: 48px; min-height: 48px; padding-left: 52px !important; line-height: 1.25; }
+.pos-checkout-page .pos-search-card form > input { padding-right: 56px !important; }
+.pos-checkout-page .pos-search-card > div:first-child > button { height: 48px; width: 48px; }
+.pos-checkout-page .pos-search-card > div:nth-child(2) { margin-top: 10px; }
+.pos-checkout-page .pos-search-card > div:nth-child(2) > div { padding-bottom: 0; }
+.pos-checkout-page .pos-category-pill { min-height: 36px; height: 36px; padding-inline: 14px; font-size: 13px; }
+.pos-checkout-page .pos-product-grid { margin-top: 12px; }
+
 @media (max-width: 1279px) {
   .pos-checkout-page .pos-cart-panel { position: fixed; top: 0; right: 0; bottom: 0; max-height: none; }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .pos-checkout-page .pos-search-card > div:first-child { grid-template-columns: minmax(0, 1fr) 48px; }
+  .pos-checkout-page .pos-search-card > div:first-child > div:last-child { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1280px) {
+  .pos-checkout-page .pos-filter-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: 12px; }
+  .pos-checkout-page .pos-search-card > div:first-child { grid-template-columns: minmax(260px, 1.2fr) 48px minmax(260px, 1fr); }
+  .pos-checkout-page .pos-filter-card > div:first-child,
+  .pos-checkout-page .pos-filter-card > div:last-child { display: contents; }
+  .pos-checkout-page .pos-filter-card > div:last-child { border-top: 0; padding-top: 0; }
+  .pos-checkout-page .pos-filter-card > div:last-child > button,
+  .pos-checkout-page .pos-filter-card > div:last-child > div { padding-inline: 16px; }
+  .pos-checkout-page .pos-product-card { border-radius: 14px; padding: 10px; }
+  .pos-checkout-page .pos-product-card > div:first-child { height: clamp(110px, 9vw, 128px); aspect-ratio: auto; }
+  .pos-checkout-page .pos-product-card > p:nth-of-type(1) { margin-top: 8px; }
+  .pos-checkout-page .pos-product-card > p:nth-of-type(2) { margin-top: 4px; }
+  .pos-checkout-page .pos-product-card > p:nth-of-type(3) { margin-top: 6px; font-size: 17px; }
+  .pos-checkout-page .pos-product-card > button,
+  .pos-checkout-page .pos-product-card > span { min-height: 36px; height: 36px; margin-top: 8px; padding-top: 0; padding-bottom: 0; }
 }
 
 /* The checkout rail is a desktop column from tablet-landscape widths upward.
@@ -36,10 +79,10 @@
 .pos-checkout-page .pos-search-card form > svg,
 .pos-checkout-page .pos-search-card > div:first-child > div > svg { top: 50%; left: 16px; width: 18px; height: 18px; pointer-events: none; transform: translateY(-50%); }
 .pos-checkout-page .pos-search-card form > input,
-.pos-checkout-page .pos-search-card > div:first-child > div > input { height: 54px; padding-left: 52px !important; line-height: 1.25; }
+.pos-checkout-page .pos-search-card > div:first-child > div > input { height: 48px; padding-left: 52px !important; line-height: 1.25; }
 .pos-checkout-page .pos-search-card form > input { padding-right: 56px !important; }
-.pos-checkout-page .pos-filter-card > div:first-child select { min-height: 54px; padding-left: 52px !important; padding-right: 48px !important; line-height: 1.25; }
-.pos-checkout-page .pos-filter-card > div:last-child select { min-height: 54px; padding-right: 48px !important; line-height: 1.25; }
+.pos-checkout-page .pos-filter-card > div:first-child select { min-height: 48px; padding-left: 52px !important; padding-right: 48px !important; line-height: 1.25; }
+.pos-checkout-page .pos-filter-card > div:last-child select { min-height: 48px; padding-left: 52px !important; padding-right: 48px !important; line-height: 1.25; }
 .pos-checkout-page .pos-payment-card .relative > span { position: absolute; top: 50%; left: 16px; transform: translateY(-50%); }
 .pos-checkout-page .pos-payment-card input { height: 54px; padding-left: 52px !important; line-height: 1.25; }
 .pos-checkout-page .pos-payment-card label > input { padding-left: 16px !important; }
