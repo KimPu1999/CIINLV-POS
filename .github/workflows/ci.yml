@@ -17,12 +17,12 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_DB: ciinlv_test
-          POSTGRES_USER: ciinlv
-          POSTGRES_PASSWORD: ciinlv
+          POSTGRES_USER: ciinlv_admin
+          POSTGRES_PASSWORD: ciinlv_admin
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U ciinlv -d ciinlv_test"
+          --health-cmd="pg_isready -U ciinlv_admin -d ciinlv_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -37,8 +37,8 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_DATABASE: ciinlv_test
-      DB_USERNAME: ciinlv
-      DB_PASSWORD: ciinlv
+      DB_USERNAME: ciinlv_runtime
+      DB_PASSWORD: ciinlv_runtime
       DB_SSLMODE: prefer
       CACHE_STORE: array
       QUEUE_CONNECTION: sync
@@ -54,6 +54,28 @@ jobs:
       - uses: ramsey/composer-install@v3
         with:
           working-directory: backend
+      - name: Create least-privilege PostgreSQL runtime role
+        env:
+          PGPASSWORD: ciinlv_admin
+        run: |
+          psql -h 127.0.0.1 -U ciinlv_admin -d ciinlv_test -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ciinlv_runtime') THEN
+                  CREATE ROLE ciinlv_runtime
+                      LOGIN
+                      PASSWORD 'ciinlv_runtime'
+                      NOSUPERUSER
+                      NOCREATEDB
+                      NOCREATEROLE
+                      NOBYPASSRLS;
+              END IF;
+          END
+          $$;
+
+          GRANT CONNECT ON DATABASE ciinlv_test TO ciinlv_runtime;
+          GRANT USAGE, CREATE ON SCHEMA public TO ciinlv_runtime;
+          SQL
       - run: php -l app/Services/TranslationService.php
       - run: php artisan migrate --force --no-interaction
       - run: php artisan test
