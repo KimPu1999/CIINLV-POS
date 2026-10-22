@@ -66,14 +66,18 @@ class PhaseSixPosTest extends TestCase
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'sale-cash-1')->postJson('/api/v1/pos/sales', $salePayload)->assertCreated();
         $this->assertDatabaseCount('sales', 1);
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'payment-cash-1')->postJson('/api/v1/pos/sales/'.$saleId.'/payments', ['method' => 'cash', 'amount' => 25])->assertCreated();
-        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk()->assertJsonPath('data.change_due', '5.00');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk()->assertJsonPath('data.id', $saleId)->assertJsonPath('data.change_due', '5.00');
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$saleId.'/complete')->assertOk();
         $shiftId = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/shifts/current')->assertOk()->json('data.id');
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shiftId.'/close', ['actual_amount' => 120])->assertOk()->assertJsonPath('data.expected_amount', '120.00');
         $this->assertDatabaseHas('inventory_balances', ['inventory_location_id' => $location->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 8]);
         $this->assertDatabaseCount('stock_movements', 2);
-        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/sales/'.$saleId.'/receipt')->assertOk()->assertJsonPath('data.content.grand_total', '20.00')->assertJsonPath('data.content.items.0.size', 'M');
+        $this->assertDatabaseCount('receipts', 1);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/sales/'.$saleId.'/receipt')->assertOk()->assertJsonPath('data.receipt.sale_id', $saleId)->assertJsonPath('data.content.grand_total', '20.00')->assertJsonPath('data.content.items.0.size', 'M')->assertJsonPath('data.content.store.name', $store->name)->assertJsonPath('data.content.register', 'Register 1')->assertJsonPath('data.content.cashier', $cashier->name)->assertJsonPath('data.content.salesperson', $cashier->name)->assertJsonPath('data.content.payments.0.method', 'cash')->assertJsonPath('data.content.payments.0.received_amount', '25.00')->assertJsonPath('data.content.payments.0.change_amount', '5.00');
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->getJson('/api/v1/pos/sales/'.$saleId.'/receipt')->assertOk();
+        $this->assertDatabaseCount('receipts', 1);
         $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->get('/api/v1/pos/sales/'.$saleId.'/receipt/pdf?format=58mm')->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertDatabaseCount('receipts', 1);
     }
 
     public function test_unverified_external_payment_cannot_complete_and_authorized_manual_verification_is_idempotent(): void
@@ -104,6 +108,7 @@ class PhaseSixPosTest extends TestCase
         $this->openShift($cashierA, $storeA, $registerA, $headersA);
         $sale = $this->actingAs($cashierA, 'sanctum')->withHeaders($headersA)->withHeader('Idempotency-Key', 'sale-tenant-a')->postJson('/api/v1/pos/sales', ['store_id' => $storeA->uuid, 'register_id' => $registerA, 'items' => [['variant_id' => $variantA->uuid, 'quantity' => 1]]])->assertCreated();
         $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/pos/sales/'.$sale->json('data.id'))->assertNotFound();
+        $this->actingAs($adminB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->getJson('/api/v1/pos/sales/'.$sale->json('data.id').'/receipt')->assertNotFound();
         $this->actingAs($cashierB, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)->postJson('/api/v1/pos/shifts/open', ['store_id' => $storeA->uuid, 'register_id' => $registerA, 'opening_amount' => 0])->assertNotFound();
         $this->assertNotSame($tenantA->id, $tenantB->id);
     }

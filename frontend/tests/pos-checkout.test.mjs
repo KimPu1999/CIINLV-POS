@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
 const source = fs.readFileSync(new URL('../src/features/pos-checkout.tsx', import.meta.url), 'utf8')
+const receiptPrintSource = fs.readFileSync(new URL('../src/lib/receipt-print.ts', import.meta.url), 'utf8')
 
 test('POS checkout uses server preview and idempotent sale/payment requests', () => {
   assert.match(source, /\/api\/v1\/pos\/checkout\/preview/)
@@ -27,6 +28,15 @@ test('POS checkout includes discount, cash drawer and receipt actions', () => {
   assert.match(source, /\/close/)
   assert.match(source, /receipt\/pdf\?format=\$\{format\}/)
   assert.match(source, /printReceipt/)
+})
+
+test('receipt printing uses the completed sale id and a printable 80mm backend receipt', () => {
+  assert.match(source, /quote\?\.status === 'completed'/)
+  assert.match(source, /printReceipt\(quote\.id/)
+  assert.match(receiptPrintSource, /window\.open\('', '_blank'/)
+  assert.match(receiptPrintSource, /\/api\/v1\/pos\/sales\/\$\{id\}\/receipt/)
+  assert.match(receiptPrintSource, /@page\{size:80mm/)
+  assert.match(receiptPrintSource, /window\.print\(\)/)
 })
 
 test('POS checkout does not pretend unverified split payments completed', () => {

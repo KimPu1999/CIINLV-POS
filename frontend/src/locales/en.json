@@ -286,6 +286,8 @@
     "no_active_register": "No active register is available for this branch.",
     "checkout_requires_cart": "Add at least one product before completing a sale.",
     "print_receipt": "Print receipt",
+    "allow_popups_to_print_receipt": "Allow pop-ups to print the receipt.",
+    "unable_to_load_receipt": "Unable to load the receipt.",
     "add": "Add",
     "view": "View",
     "submit": "Submit",
