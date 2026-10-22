@@ -10,6 +10,10 @@ function isUnauthenticatedError(error: unknown): boolean {
 }
 
 function syncTenantSelection(user: User): void {
+  // Platform Admin tenant context is selected explicitly from Business Management.
+  // Do not replace or infer it from tenant memberships.
+  if (user.platform_role === 'super_admin') return
+
   const activeBusinessAdminIds = (user.memberships ?? [])
     .filter((membership) => membership.status === 'active' && membership.role === 'business_admin')
     .map((membership) => membership.business.id)

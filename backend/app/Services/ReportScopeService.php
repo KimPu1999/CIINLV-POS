@@ -15,7 +15,8 @@ class ReportScopeService
     {
         $role = app(PosAccessService::class)->role($user, (int) $tenant->id);
         $query = Store::where('tenant_id', $tenant->id)->where('status', 'active');
-        if ($role !== 'business_admin') {
+        $platformScoped = $user->isSuperAdmin() && app(TenantContext::class)->allowsPlatformAccessTo($tenant);
+        if ($role !== 'business_admin' && ! $platformScoped) {
             $query->whereIn('id', StoreMembership::where('tenant_id', $tenant->id)->where('user_id', $user->id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'));
         }
         if ($requestedUuid !== null) {
@@ -29,8 +30,9 @@ class ReportScopeService
     {
         $stores = $this->storeIds($user, $tenant, $requestedUuid);
         $role = app(PosAccessService::class)->role($user, (int) $tenant->id);
+        $platformScoped = $user->isSuperAdmin() && app(TenantContext::class)->allowsPlatformAccessTo($tenant);
         $query = InventoryLocation::where('tenant_id', $tenant->id)->where('status', 'active')->whereIn('store_id', $stores);
-        if ($requestedUuid === null && ($role === 'business_admin' || $role === 'inventory_manager')) {
+        if ($requestedUuid === null && ($role === 'business_admin' || $role === 'inventory_manager' || $platformScoped)) {
             $query->orWhere(fn ($q) => $q->where('tenant_id', $tenant->id)->where('status', 'active')->where('location_type', 'warehouse'));
         }
         if ($requestedUuid !== null && $stores->isEmpty()) {

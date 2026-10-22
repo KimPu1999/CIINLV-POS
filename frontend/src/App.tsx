@@ -114,6 +114,16 @@ const businessNav: NavItem[] = [
   { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
 ]
 
+const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
+  '/business/dashboard',
+  '/business/branches',
+  '/business/products',
+  '/business/categories',
+  '/business/inventory',
+  '/business/sales',
+  '/business/reports',
+].includes(path))
+
 function App() {
   return <ThemeProvider><BrowserRouter><AuthProvider><LegacyStaticTextLocalizer /><AppRoutes /></AuthProvider></BrowserRouter></ThemeProvider>
 }
@@ -135,9 +145,9 @@ function AppRoutes() {
     <Route path="/accept-invitation/:token" element={<InvitationAcceptancePage />} />
     <Route path="/access-denied" element={<AccessDeniedPage />} />
     <Route path="/platform/*" element={<ProtectedRoute allow={(authenticatedUser) => authenticatedUser.platform_role === 'super_admin'}><Shell user={user!} onLogout={() => { void signOut() }} /></ProtectedRoute>} />
-    <Route path="/business/*" element={<ProtectedRoute allow={hasBusinessAdminAccess}><Shell user={user!} onLogout={() => { void signOut() }} /></ProtectedRoute>} />
+    <Route path="/business/*" element={<ProtectedRoute allow={hasBusinessWorkspaceAccess}><Shell user={user!} onLogout={() => { void signOut() }} /></ProtectedRoute>} />
     {/* Keep existing /app bookmarks working while the canonical Business Admin URL is /business. */}
-    <Route path="/app/*" element={<ProtectedRoute allow={hasBusinessAdminAccess}><Shell user={user!} onLogout={() => { void signOut() }} /></ProtectedRoute>} />
+    <Route path="/app/*" element={<ProtectedRoute allow={hasBusinessWorkspaceAccess}><Shell user={user!} onLogout={() => { void signOut() }} /></ProtectedRoute>} />
     <Route path="*" element={<Navigate to={homePath} replace />} />
   </Routes></Suspense>
 }
@@ -162,6 +172,10 @@ function ProtectedRoute({ children, allow }: { children: React.ReactNode; allow?
 
 function hasBusinessAdminAccess(user: User): boolean {
   return businessAdminMemberships(user).length > 0
+}
+
+function hasBusinessWorkspaceAccess(user: User): boolean {
+  return user.platform_role === 'super_admin' || hasBusinessAdminAccess(user)
 }
 
 function businessAdminMemberships(user: User): BusinessMembership[] {
@@ -230,7 +244,7 @@ function LoginPage() {
 
 function canNavigateTo(user: User, path: string): boolean {
   if (path.startsWith('/platform/')) return user.platform_role === 'super_admin'
-  if (path.startsWith('/business/') || path.startsWith('/app/')) return hasBusinessAdminAccess(user)
+  if (path.startsWith('/business/') || path.startsWith('/app/')) return hasBusinessWorkspaceAccess(user)
   return false
 }
 
@@ -238,13 +252,16 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobile, setMobile] = useState(false)
   const [selectedTenant, setSelectedTenant] = useState(() => window.localStorage.getItem('ciinlv_tenant_id'))
-  const role = user.platform_role === 'super_admin' ? 'super_admin' : 'business'
-  const nav = role === 'super_admin' ? platformNav : businessNav
   const location = useLocation()
+  const businessWorkspace = location.pathname.startsWith('/business/') || location.pathname.startsWith('/app/')
+  const platformBusinessWorkspace = user.platform_role === 'super_admin' && businessWorkspace
+  const role = businessWorkspace ? 'business' : user.platform_role === 'super_admin' ? 'super_admin' : 'business'
+  const nav = role === 'super_admin' ? platformNav : platformBusinessWorkspace ? platformBusinessNav : businessNav
   const platformLanding = location.pathname === '/platform/dashboard'
   const memberships = businessAdminMemberships(user)
   const selectTenant = (tenantId: string) => { window.localStorage.setItem('ciinlv_tenant_id', tenantId); setSelectedTenant(tenantId) }
   const needsTenantSelection = role === 'business' && memberships.length > 1 && !memberships.some((membership) => membership.business.id === selectedTenant)
+  const needsPlatformBusinessSelection = platformBusinessWorkspace && !selectedTenant
   const { t } = useTranslation()
   const { refreshUser } = useAuth()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -270,8 +287,9 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
         <div className="flex min-w-0 items-center gap-4"><button className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 lg:hidden" onClick={() => setMobile(true)} aria-label={t('text.open_navigation')}><Menu size={23} /></button><button className="hidden text-slate-400 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 lg:block" onClick={() => setCollapsed(!collapsed)} aria-label={t(collapsed ? 'text.expand_navigation' : 'text.collapse_navigation')}>{collapsed ? <PanelLeftOpen size={21} /> : <PanelLeftClose size={21} />}</button><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t(role === 'super_admin' ? 'text.platform_control' : 'text.business_workspace')}</p><p className="truncate font-semibold text-slate-900">{location.pathname.endsWith('/dashboard') || platformLanding ? t('text.overview') : translateStatic(t, nav.find((item) => location.pathname.startsWith(item.path))?.label ?? 'Workspace')}</p></div></div>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3"><LanguageSwitcher userId={user.id} userLanguage={user.locale} /><ThemeToggle /><TenantSwitcher user={user} onChange={selectTenant} /><Link to="/business/alerts" aria-label={t('text.notifications')} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100 hover:text-blue-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><Bell size={20} aria-hidden="true" /></Link><div className="relative"><button type="button" aria-expanded={profileMenuOpen} aria-haspopup="menu" onClick={() => setProfileMenuOpen((open) => !open)} className="inline-flex items-center gap-3 rounded-xl border border-transparent p-1.5 transition hover:-translate-y-0.5 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-blue-100 font-bold text-blue-700">{user.profile_image_url ? <img src={`${user.profile_image_url}${user.profile_image_url.includes('?') ? '&' : '?'}ui=${user.updated_at ?? Date.now()}`} alt="" className="h-full w-full object-cover transition duration-200 hover:scale-105" /> : user.name.charAt(0).toUpperCase()}</div><span className="hidden text-left sm:block"><span className="block max-w-28 truncate text-sm font-semibold text-slate-800">{user.name}</span><span className="block text-xs capitalize text-slate-400">{user.platform_role?.replaceAll('_', ' ') ?? 'business admin'}</span></span><ChevronDown size={16} className="hidden text-slate-400 sm:block" aria-hidden="true" /></button>{profileMenuOpen && <div role="menu" className="absolute right-0 top-14 z-50 w-52 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"><Link role="menuitem" to="/business/verification" onClick={() => setProfileMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('text.my_profile')}</Link><Link role="menuitem" to="/business/settings" onClick={() => setProfileMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('text.business_settings')}</Link><Link role="menuitem" to="/business/settings" onClick={() => setProfileMenuOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('text.change_password')}</Link><button role="menuitem" type="button" onClick={() => { setProfileMenuOpen(false); onLogout() }} className="block w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50">{t('text.sign_out')}</button></div>}</div></div>
       </header>
+      <WorkspaceLinks platformBusinessWorkspace={platformBusinessWorkspace} />
       <main className="mx-auto mt-0 max-w-[1600px] px-5 pb-5 pt-1 sm:px-8 sm:pb-8 sm:pt-1">
-        {needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
+        {needsPlatformBusinessSelection ? <PlatformBusinessSelectionPage /> : needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
           <Route index element={<OverviewPage user={user} />} />
           <Route path="dashboard" element={<OverviewPage user={user} />} />
           <Route path="monitoring" element={<PlatformMonitoringPage />} />
@@ -343,12 +361,26 @@ function TenantSwitcher({ user, onChange }: { user: User; onChange: (tenantId: s
   return <label className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="hidden md:inline">{t('text.business')}</span><select value={selected} onChange={(event) => onChange(event.target.value)} className="max-w-40 rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">{memberships.map((membership) => <option key={membership.business.id} value={membership.business.id}>{membership.business.name}</option>)}</select></label>
 }
 
+function WorkspaceLinks({ platformBusinessWorkspace }: { platformBusinessWorkspace: boolean }) {
+  if (!platformBusinessWorkspace) return null
+
+  return <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-5 py-3 sm:px-8"><Link to="/platform/dashboard" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Platform dashboard</Link><Link to="/platform/businesses" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Business management</Link><Link to="/platform/marketplace" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Marketplace management</Link><Link to="/platform/marketplace/settings" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Platform settings</Link></div>
+}
+
 function TenantSelectionPage({ memberships, onSelect }: { memberships: BusinessMembership[]; onSelect: (tenantId: string) => void }) {
   const { t } = useTranslation()
   return <div className="mx-auto max-w-3xl"><PageHeader title="Select a business" description="This account has access to more than one active business." /><div className="grid gap-4 md:grid-cols-2">{memberships.map((membership) => <button key={membership.business.id} type="button" onClick={() => onSelect(membership.business.id)} className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"><p className="font-semibold text-slate-950">{membership.business.name}</p><p className="mt-2 text-sm text-slate-500">{membership.business.business_code || t('text.business_account')}</p><span className="mt-4 inline-block text-sm font-semibold text-blue-700">{t('text.open_dashboard')}</span></button>)}</div></div>
 }
 
-function OverviewPage({ user }: { user: User }) { const platform = user.platform_role === 'super_admin'; return platform ? <PlatformOverviewPage /> : <BusinessDashboardPage /> }
+function PlatformBusinessSelectionPage() {
+  return <div className="mx-auto max-w-3xl"><PageHeader title="Select a business" description="Platform Admin business access is tenant-scoped. Choose a business from Business Management before opening its dashboard." action={<Link to="/platform/businesses" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Business management</Link>} /><div className="rounded-2xl border border-blue-100 bg-blue-50 p-6 text-sm leading-6 text-blue-900">No business is selected for this platform-scoped workspace. Selecting a business records an audited tenant context and does not create a membership or transfer ownership.</div></div>
+}
+
+function OverviewPage({ user }: { user: User }) {
+  const location = useLocation()
+  const businessWorkspace = location.pathname.startsWith('/business/') || location.pathname.startsWith('/app/')
+  return user.platform_role === 'super_admin' && !businessWorkspace ? <PlatformOverviewPage /> : <BusinessDashboardPage />
+}
 
 function DashboardPage({ title, endpoint, icon: Icon }: { title: string; endpoint: string; icon: Icon }) {
   const [data, setData] = useState<Record<string, unknown> | null>(null)

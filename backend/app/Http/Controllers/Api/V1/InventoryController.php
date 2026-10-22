@@ -171,6 +171,10 @@ class InventoryController
 
     private function accessibleLocationIds($user, int $tenantId): Collection
     {
+        if ($user->isSuperAdmin() && app(TenantContext::class)->allowsPlatformAccessTo($tenantId)) {
+            return InventoryLocation::where('tenant_id', $tenantId)->where('status', 'active')->pluck('id');
+        }
+
         $role = $user->memberships()->where('tenant_id', $tenantId)->where('status', 'active')->with('role')->first()?->role?->name;
         if ($role === 'business_admin') {
             return InventoryLocation::where('tenant_id', $tenantId)->pluck('id');

@@ -50,9 +50,9 @@ backend/routes/api.php defines the v1 API. Public endpoints include health, logi
 - API throttling
 - App\Http\Middleware\SetApiLocale
 
-Platform routes are protected by platform.admin. Tenant routes resolve an active business membership from X-Tenant-Id through TenantContext; a super administrator cannot use a tenant endpoint without a tenant membership. A user with one active business can omit the header; a user with multiple businesses must select a valid business UUID.
+Platform routes are protected by platform.admin. Business Admin tenant routes resolve an active business membership from X-Tenant-Id through TenantContext. A Super Admin can enter the read-only business workspace only through an explicit active-business selection from Business Management; that platform-scoped context is audited and never creates a tenant membership. A user with one active business can omit the header; a user with multiple businesses must select a valid business UUID.
 
-tenant.context requires the resolved membership role to be business_admin. tenant.context.any allows tenant-scoped operational roles, with downstream policies/services applying the more specific permissions.
+tenant.context requires the resolved membership role to be business_admin for Business Admin accounts; its explicit Super Admin exception has no membership and is platform-scoped. tenant.context.any allows tenant-scoped operational roles, with downstream policies/services applying the more specific permissions.
 
 ### Authentication
 

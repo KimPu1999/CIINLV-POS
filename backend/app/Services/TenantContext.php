@@ -16,6 +16,8 @@ class TenantContext
 
     private ?TenantMembership $membership = null;
 
+    private bool $platformScoped = false;
+
     public function resolveFor(Request $request, User $user): Tenant
     {
         return $this->resolve($request, $user, true);
@@ -29,7 +31,32 @@ class TenantContext
     private function resolve(Request $request, User $user, bool $requireBusinessAdmin): Tenant
     {
         if ($user->isSuperAdmin()) {
-            throw new AccessDeniedHttpException('A tenant membership is required for this business endpoint.');
+            $requestedUuid = trim((string) $request->header('X-Tenant-Id'));
+            if ($requestedUuid === '') {
+                throw new BadRequestHttpException('Select a business from Business Management before opening the Business Dashboard.');
+            }
+
+            $tenant = Tenant::query()
+                ->where('uuid', $requestedUuid)
+                ->where('status', 'active')
+                ->first();
+
+            if (! $tenant) {
+                throw new AccessDeniedHttpException('You do not have access to the requested business.');
+            }
+
+            $this->tenant = $tenant;
+            $this->membership = null;
+            $this->platformScoped = true;
+            App::instance(self::class, $this);
+
+            app(AuditLogger::class)->record('platform.business_context_accessed', $user, $tenant, metadata: [
+                'tenant_uuid' => $tenant->uuid,
+                'method' => $request->method(),
+                'path' => $request->path(),
+            ]);
+
+            return $tenant;
         }
 
         $memberships = $user->tenants()
@@ -62,6 +89,7 @@ class TenantContext
         }
 
         $this->tenant = $tenant;
+        $this->platformScoped = false;
         $this->membership = TenantMembership::query()
             ->whereKey($membership->pivot->id ?? null)
             ->with('role')
@@ -100,5 +128,17 @@ class TenantContext
         }
 
         return $this->membership;
+    }
+
+    public function isPlatformScoped(): bool
+    {
+        return $this->platformScoped;
+    }
+
+    public function allowsPlatformAccessTo(Tenant|int $tenant): bool
+    {
+        return $this->platformScoped
+            && $this->tenant
+            && (int) $this->tenant->getKey() === (int) ($tenant instanceof Tenant ? $tenant->getKey() : $tenant);
     }
 }

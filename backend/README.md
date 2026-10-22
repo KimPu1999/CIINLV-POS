@@ -130,7 +130,7 @@ Provision the first platform administrator interactively; no default credentials
 php artisan ciinlv:create-super-admin
 ```
 
-Platform management requires a Sanctum-authenticated user with the database-backed `users.platform_role=super_admin`. Business APIs require an active `tenant_memberships` row with a tenant-scoped `business_admin` role. The server validates `X-Tenant-Id` against that membership; changing the header cannot cross tenant boundaries.
+Platform management requires a Sanctum-authenticated user with the database-backed `users.platform_role=super_admin`. Business Admin APIs require an active `tenant_memberships` row with a tenant-scoped `business_admin` role. A Super Admin may open the read-only business workspace only after selecting an active business from Business Management; that explicit `X-Tenant-Id` context is audited and does not create ownership or a membership.
 
 Platform dashboard and tenant management APIs:
 
@@ -181,7 +181,7 @@ GET   /api/v1/business/members
 GET   /api/v1/business/dashboard
 ```
 
-For users with multiple memberships, send `X-Tenant-Id: <business-uuid>`. The header is only a context selector; every request is checked against the authenticated user’s active membership, role, and tenant status. Suspended tenants and revoked memberships are rejected even when a session or Sanctum token remains valid.
+For users with multiple memberships, send `X-Tenant-Id: <business-uuid>`. The header is only a context selector; Business Admin requests are checked against the authenticated user’s active membership, role, and tenant status. Super Admin business-workspace requests must also send an explicit header, are limited to active tenants, and are recorded as `platform.business_context_accessed`. Suspended tenants and revoked memberships are rejected even when a session or Sanctum token remains valid.
 
 Business creation is atomic and creates the tenant, default settings, normalized business-admin role, membership, invitation record, and audit event in one transaction. Send an `Idempotency-Key` header to make retries return the original persisted business instead of creating another one. Business codes are unique and are also enforced at the database layer.
 

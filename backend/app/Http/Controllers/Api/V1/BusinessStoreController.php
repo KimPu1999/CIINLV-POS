@@ -28,6 +28,7 @@ class BusinessStoreController
 
     public function store(CreateStoreRequest $request, TenantContext $context, StoreProvisioningService $service): JsonResponse
     {
+        abort_if($context->isPlatformScoped(), 403, 'Business Admin membership is required to create a branch.');
         abort_unless($context->membership()->role?->name === 'business_admin', 403, 'Business administrator access is required.');
         $store = $service->create($request->validated(), $context->tenant()->getKey(), $request->user());
 
