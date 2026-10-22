@@ -774,11 +774,12 @@ class MarketplaceAdminController
         $commissions ??= app(MarketplaceCommissionService::class);
         $settingsAvailable = $settings->storageAvailable();
         $ledgerAvailable = $commissions->storageAvailable();
+        $payoutStorageAvailable = Schema::hasTable('marketplace_payouts');
 
         return [
             'commission_rules' => ['available' => $settingsAvailable, 'reason' => $settingsAvailable ? 'Commission rates and seller overrides are persisted with effective dates.' : 'The reviewed commission migration is pending.'],
             'settlement_ledger' => ['available' => $ledgerAvailable, 'reason' => $ledgerAvailable ? 'Order-level commission snapshots and seller earnings are persisted.' : 'The reviewed settlement migration is pending.'],
-            'payouts' => ['available' => Schema::hasTable('marketplace_payouts'), 'reason' => Schema::hasTable('marketplace_payouts') ? 'Payout requests and approvals are persisted, but no money is transferred without a verified provider.' : 'No payout provider or payout records exist yet; the reviewed additive payout migration is pending.'],
+            'payouts' => ['available' => false, 'reason' => $payoutStorageAvailable ? 'Payout records are persisted, but no verified payout provider is configured.' : 'No payout provider or payout records exist yet; the reviewed additive payout migration is pending.'],
             'real_money_refunds' => ['available' => false, 'reason' => 'No verified refund provider is configured.'],
             'disputes' => ['available' => false, 'reason' => 'No dispute workflow or evidence schema exists yet.'],
         ];

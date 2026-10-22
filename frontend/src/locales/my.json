@@ -746,5 +746,18 @@
     ,"storage_probe_status": "သိုလှောင်မှု စစ်ဆေးမှုအခြေအနေ"
     ,"last_checked_at": "နောက်ဆုံး စစ်ဆေးချိန်"
     ,"unavailable": "မရရှိနိုင်ပါ"
+    ,"platform_dashboard": "ပလက်ဖောင်း ဒက်ရှ်ဘုတ်"
+    ,"business_management": "လုပ်ငန်း စီမံခန့်ခွဲမှု"
+    ,"marketplace_management": "Marketplace စီမံခန့်ခွဲမှု"
+    ,"platform_settings": "ပလက်ဖောင်း ဆက်တင်များ"
+    ,"manage_business": "လုပ်ငန်း စီမံရန်"
+    ,"customer_profile": "ဖောက်သည် ပရိုဖိုင်"
+    ,"send_reset_link": "ပြန်လည်သတ်မှတ်ရန် လင့်ခ် ပို့ရန်"
+    ,"no_authorized_orders_found": "ခွင့်ပြုထားသော အော်ဒါ မတွေ့ပါ။"
+    ,"recent_account_activity": "လတ်တလော အကောင့် လုပ်ဆောင်ချက်"
+    ,"no_authorized_activity_found": "ခွင့်ပြုထားသော လုပ်ဆောင်ချက် မတွေ့ပါ။"
+    ,"authorized_account_details": "ခွင့်ပြုထားသော အကောင့် အချက်အလက်"
+    ,"search_name_or_email": "အမည် သို့မဟုတ် အီးမေးလ် ရှာရန်"
+    ,"last_login": "နောက်ဆုံး ဝင်ရောက်မှု"
   }
 }

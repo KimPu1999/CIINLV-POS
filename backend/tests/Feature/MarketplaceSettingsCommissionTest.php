@@ -44,7 +44,7 @@ class MarketplaceSettingsCommissionTest extends TestCase
         [, $businessAdmin] = $this->businessWithAdmin('SETTINGS-A', 'settings-a@example.com');
 
         $this->actingAs($businessAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', ['enabled' => false])->assertForbidden();
-        $this->getJson('/api/v1/admin/marketplace/settings')->assertUnauthorized();
+        $this->getJson('/api/v1/admin/marketplace/settings')->assertForbidden();
     }
 
     public function test_seller_override_is_effective_and_preview_uses_exact_decimal_amounts(): void

@@ -147,11 +147,14 @@ class ProductController
                     }
 
                     $storedPaths[] = $path;
+                    $sortOffset = $primaryIndex === null
+                        ? $index
+                        : ($index === $primaryIndex ? 0 : ($index < $primaryIndex ? $index + 1 : $index));
                     ProductImage::create([
                         'tenant_id' => $product->tenant_id,
                         'product_id' => $product->id,
                         'storage_path' => $path,
-                        'sort_order' => $nextSortOrder + $index,
+                        'sort_order' => $nextSortOrder + $sortOffset,
                         'is_primary' => $primaryIndex === $index,
                     ]);
                 }

@@ -7,6 +7,7 @@ use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Role;
+use App\Models\Store;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -79,7 +80,7 @@ class CustomerManagementTest extends TestCase
     {
         $customer = User::factory()->create();
         CustomerProfile::create(['user_id' => $customer->id, 'status' => 'active']);
-        $store = \App\Models\Store::create(['tenant_id' => $tenant->id, 'name' => $tenant->name.' Store', 'code' => 'STORE-'.$tenant->id]);
+        $store = Store::create(['tenant_id' => $tenant->id, 'name' => $tenant->name.' Store', 'code' => 'STORE-'.$tenant->id]);
         $marketplaceStore = MarketplaceStore::create(['uuid' => (string) Str::uuid(), 'tenant_id' => $tenant->id, 'name' => $tenant->name.' Marketplace', 'slug' => 'marketplace-'.$tenant->id, 'approval_status' => 'approved', 'is_active' => true]);
         $order = MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'ORD-'.$tenant->id.'-'.Str::random(6), 'currency_code' => 'MMK', 'status' => 'confirmed', 'payment_status' => 'pending', 'delivery_address' => [], 'idempotency_key' => Str::uuid()->toString(), 'request_hash' => hash('sha256', Str::random())]);
         MarketplaceVendorOrder::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_store_id' => $marketplaceStore->id, 'vendor_order_number' => 'V-'.$tenant->id.'-'.Str::random(6), 'status' => 'pending', 'currency_code' => 'MMK']);

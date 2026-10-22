@@ -747,5 +747,18 @@
     ,"storage_probe_status": "Storage probe status"
     ,"last_checked_at": "Last checked at"
     ,"unavailable": "Unavailable"
+    ,"platform_dashboard": "Platform dashboard"
+    ,"business_management": "Business management"
+    ,"marketplace_management": "Marketplace management"
+    ,"platform_settings": "Platform settings"
+    ,"manage_business": "Manage business"
+    ,"customer_profile": "Customer profile"
+    ,"send_reset_link": "Send reset link"
+    ,"no_authorized_orders_found": "No authorized orders found."
+    ,"recent_account_activity": "Recent account activity"
+    ,"no_authorized_activity_found": "No authorized activity found."
+    ,"authorized_account_details": "Authorized account details"
+    ,"search_name_or_email": "Search name or email"
+    ,"last_login": "Last login"
   }
 }

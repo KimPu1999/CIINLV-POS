@@ -368,9 +368,10 @@ function TenantSwitcher({ user, onChange }: { user: User; onChange: (tenantId: s
 }
 
 function WorkspaceLinks({ platformBusinessWorkspace }: { platformBusinessWorkspace: boolean }) {
+  const { t } = useTranslation()
   if (!platformBusinessWorkspace) return null
 
-  return <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-5 py-3 sm:px-8"><Link to="/platform/dashboard" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Platform dashboard</Link><Link to="/platform/businesses" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Business management</Link><Link to="/platform/marketplace" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Marketplace management</Link><Link to="/platform/marketplace/settings" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Platform settings</Link></div>
+  return <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-5 py-3 sm:px-8"><Link to="/platform/dashboard" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">{t('text.platform_dashboard')}</Link><Link to="/platform/businesses" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">{t('text.business_management')}</Link><Link to="/platform/marketplace" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">{t('text.marketplace_management')}</Link><Link to="/platform/marketplace/settings" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">{t('text.platform_settings')}</Link></div>
 }
 
 function TenantSelectionPage({ memberships, onSelect }: { memberships: BusinessMembership[]; onSelect: (tenantId: string) => void }) {
