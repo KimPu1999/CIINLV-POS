@@ -33,6 +33,22 @@ class PlatformAdminAuthenticationTest extends TestCase
             ->assertOk();
     }
 
+    public function test_auth_me_serializes_the_authenticated_platform_identity(): void
+    {
+        $admin = User::factory()->create([
+            'platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.id', $admin->id)
+            ->assertJsonPath('data.email', $admin->email)
+            ->assertJsonPath('data.platform_role', User::PLATFORM_ROLE_SUPER_ADMIN)
+            ->assertJsonPath('data.status', User::STATUS_ACTIVE);
+    }
+
     public function test_business_account_cannot_access_platform_administrator_routes(): void
     {
         $businessAdmin = User::factory()->create([

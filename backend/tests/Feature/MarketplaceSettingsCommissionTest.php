@@ -13,6 +13,7 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\MarketplaceCommissionService;
+use App\Services\MarketplaceSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -20,6 +21,21 @@ use Tests\TestCase;
 class MarketplaceSettingsCommissionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_platform_super_admin_receives_safe_defaults_when_settings_storage_is_missing(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $defaults = (new MarketplaceSettingsService)->defaults();
+        $service = $this->mock(MarketplaceSettingsService::class);
+        $service->shouldReceive('current')->once()->andReturn(['configured' => false, 'settings' => $defaults]);
+        $service->shouldReceive('storageAvailable')->once()->andReturn(false);
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/settings')
+            ->assertOk()
+            ->assertJsonPath('data.configured', false)
+            ->assertJsonPath('data.settings.enabled', true)
+            ->assertJsonPath('data.settings.maintenance_mode', false);
+    }
 
     public function test_platform_super_admin_can_persist_marketplace_settings_and_audit_the_change(): void
     {

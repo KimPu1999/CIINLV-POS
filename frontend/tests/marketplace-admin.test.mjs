@@ -2,11 +2,13 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const [app, feature, routes, controller] = await Promise.all([
+const [app, feature, routes, controller, settingsService, settingsRequest] = await Promise.all([
   readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/features/marketplace-admin.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/routes/api.php', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/app/Http/Controllers/Api/V1/MarketplaceAdminController.php', import.meta.url), 'utf8'),
+  readFile(new URL('../../backend/app/Services/MarketplaceSettingsService.php', import.meta.url), 'utf8'),
+  readFile(new URL('../../backend/app/Http/Requests/Marketplace/MarketplaceSettingsUpdateRequest.php', import.meta.url), 'utf8'),
 ])
 
 test('Super Admin marketplace control-center routes and navigation are registered', () => {
@@ -37,6 +39,20 @@ test('control center preserves explicit blockers for unconfigured marketplace fi
   assert.match(controller, /No payout provider or payout records exist yet/)
   assert.match(controller, /No verified refund provider is configured/)
   assert.doesNotMatch(routes, /admin\/marketplace.*payouts.*POST/)
+})
+
+test('marketplace settings exposes retryable load failures and safe missing-storage defaults', () => {
+  assert.match(feature, /SettingsPanel settings=\{settings\} error=\{error\} sessionMismatch=\{sessionMismatch\} onRetry=/)
+  assert.match(feature, /getResponseStatus\(err\) === 403/)
+  assert.match(feature, /const authenticatedUser = await refreshUser\(\)/)
+  assert.match(feature, /sessionMismatch=\{sessionMismatch\}/)
+  assert.match(feature, /onSignOut=\{\(\) => void logout\(\)\}/)
+  assert.match(feature, /t\('text\.retry'\)/)
+  assert.match(feature, /!settings\.configured && .*settings\.message/)
+  assert.match(settingsService, /if \(! \$this->storageAvailable\(\)\)/)
+  assert.match(settingsService, /'configured' => false/)
+  assert.match(settingsService, /Marketplace settings storage is not available/)
+  assert.match(settingsRequest, /return \$this->user\(\)\?->isSuperAdmin\(\) === true/)
 })
 
 test('COD investigation reflects server balance, prevents paid duplicates, and uses retry-safe partial-payment keys', () => {
