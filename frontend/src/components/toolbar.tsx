@@ -173,7 +173,7 @@ export function FilterPopover({ open, activeCount = 0, statusLabel, statusActive
   return <div ref={rootRef} className="relative inline-flex flex-col items-center"><ToolbarTooltip label={`Filters: ${statusLabel}`}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={`Filters: ${statusLabel}`} onClick={() => { if (visibleOpen) { onClose(); return } announceToolbarPanel('filter', source.current); setSuppressed(false); onOpen() }} className={`toolbar-icon-button relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>{(statusActive || activeCount > 0) && <LabelBadge tone="info" className="max-w-24 truncate">{statusLabel}</LabelBadge>}{visibleOpen && <div role="dialog" aria-label={`Filter options: ${statusLabel}`} className="absolute right-0 top-full z-50 mt-2.5 w-[min(16rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out]">{children}{onClear && <button type="button" onClick={() => { onClear(); onClose(); window.setTimeout(() => triggerRef.current?.focus(), 0) }} className="mt-3 text-xs font-semibold text-slate-500 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">Clear filter</button>}</div>}</div>
 }
 
-export function FilterPanel({ open, children }: { open: boolean; children: ReactNode }) {
+export function FilterPanel({ open, children, placement = 'fixed' }: { open: boolean; children: ReactNode; placement?: 'fixed' | 'inline' }) {
   const [suppressed, setSuppressed] = useState(false)
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const [viewportWidth, setViewportWidth] = useState(typeof window === 'undefined' ? 1024 : window.innerWidth)
@@ -238,6 +238,7 @@ export function FilterPanel({ open, children }: { open: boolean; children: React
     }
   }, [anchor, visible])
   if (!visible) return null
+  if (placement === 'inline') return <div ref={panelRef} className="relative z-10 mt-2 max-w-[680px] rounded-xl border border-slate-200 bg-white p-4 premium-shadow-md dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-label="Filter options"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div></div>
   const right = anchor ? Math.max(8, viewportWidth - anchor.right) : 8
   return <div ref={panelRef} className="fixed z-50 w-[min(20rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out]" style={{ top: (anchor?.bottom ?? 0) + 10, right }} role="dialog" aria-label="Filter options"><div className="grid gap-4 sm:grid-cols-2">{children}</div></div>
 }
