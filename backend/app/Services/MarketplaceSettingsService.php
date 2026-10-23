@@ -8,6 +8,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 class MarketplaceSettingsService
@@ -30,6 +31,7 @@ class MarketplaceSettingsService
             'policies' => [],
             'revision' => 1,
             'updated_at' => null,
+            'updated_by' => null,
         ];
     }
 
@@ -45,7 +47,7 @@ class MarketplaceSettingsService
             return ['configured' => false, 'settings' => $defaults];
         }
 
-        $setting = MarketplaceSetting::query()->first();
+        $setting = MarketplaceSetting::query()->with('updatedBy:id,name,email')->first();
         if (! $setting) {
             return ['configured' => true, 'settings' => $defaults];
         }
@@ -66,18 +68,22 @@ class MarketplaceSettingsService
                 'policies' => $setting->policies ?: [],
                 'revision' => (int) $setting->revision,
                 'updated_at' => $setting->updated_at?->toIso8601String(),
+                'updated_by' => $setting->updatedBy ? ['name' => $setting->updatedBy->name, 'email' => $setting->updatedBy->email] : null,
             ]),
         ];
     }
 
-    public function update(array $data, User $actor, MarketplaceAuditLogger $audit): MarketplaceSetting
+    public function update(array $data, User $actor, MarketplaceAuditLogger $audit, ?int $expectedRevision = null): MarketplaceSetting
     {
         if (! $this->storageAvailable()) {
             throw new ServiceUnavailableHttpException(null, 'Marketplace settings storage is not available. Apply the reviewed marketplace settings migration before saving settings.');
         }
 
-        return DB::transaction(function () use ($data, $actor, $audit): MarketplaceSetting {
+        return DB::transaction(function () use ($data, $actor, $audit, $expectedRevision): MarketplaceSetting {
             $setting = MarketplaceSetting::query()->lockForUpdate()->first();
+            if ($setting && $expectedRevision !== null && (int) $setting->revision !== $expectedRevision) {
+                throw new ConflictHttpException('These marketplace settings changed in another session. Reload before saving.');
+            }
             $oldRate = $setting?->default_commission_rate;
             $reason = $data['reason'] ?? null;
             unset($data['reason']);

@@ -63,6 +63,47 @@ class MarketplaceSettingsCommissionTest extends TestCase
         $this->getJson('/api/v1/admin/marketplace/settings')->assertForbidden();
     }
 
+    public function test_settings_revision_conflicts_are_rejected_and_history_is_returned(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', [
+            'maintenance_mode' => false,
+        ])->assertOk()->assertJsonPath('data.revision', 1);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', [
+            'maintenance_mode' => true,
+            'reason' => 'Planned maintenance window',
+            'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.revision', 2);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', [
+            'enabled' => false,
+            'revision' => 1,
+        ])->assertConflict();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/settings')
+            ->assertOk()
+            ->assertJsonPath('data.settings.updated_by.name', $admin->name)
+            ->assertJsonPath('data.history.0.revision', 2)
+            ->assertJsonPath('data.history.0.reason', 'Planned maintenance window');
+    }
+
+    public function test_marketplace_settings_validation_rejects_unsupported_values(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', [
+            'currency_code' => 'US',
+            'default_commission_rate' => '101',
+            'commission_base' => 'order_total',
+            'payout_schedule' => 'daily',
+            'payout_minimum' => '-1',
+        ])->assertUnprocessable()->assertJsonValidationErrors([
+            'currency_code', 'default_commission_rate', 'commission_base', 'payout_schedule', 'payout_minimum',
+        ]);
+    }
+
     public function test_seller_override_is_effective_and_preview_uses_exact_decimal_amounts(): void
     {
         [$tenant] = $this->businessWithAdmin('SETTINGS-B', 'settings-b@example.com');

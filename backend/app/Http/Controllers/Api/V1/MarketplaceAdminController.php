@@ -635,11 +635,21 @@ class MarketplaceAdminController
     public function settings(MarketplaceSettingsService $settings, MarketplaceCommissionService $commissions): JsonResponse
     {
         $current = $settings->current();
+        $history = Schema::hasTable('marketplace_audit_logs')
+            ? MarketplaceAuditLog::query()->where('action', 'marketplace.settings_updated')->with('actor:id,name,email')->latest('created_at')->limit(10)->get()->map(fn (MarketplaceAuditLog $log): array => [
+                'id' => $log->id,
+                'created_at' => $log->created_at?->toIso8601String(),
+                'actor' => $log->actor ? ['name' => $log->actor->name, 'email' => $log->actor->email] : null,
+                'changed_fields' => $log->metadata['changed_fields'] ?? [],
+                'reason' => $log->metadata['reason'] ?? null,
+                'revision' => $log->metadata['revision'] ?? null,
+            ])->values() : [];
 
         return response()->json(['success' => true, 'data' => [
             'configured' => $current['configured'],
             'settings' => $current['settings'],
             'message' => $current['configured'] ? 'Marketplace settings are persisted.' : 'The reviewed marketplace settings migration is pending; defaults are shown and saving is disabled until it is applied.',
+            'history' => $history,
             'financial_capabilities' => $this->financialCapabilities($settings, $commissions),
         ]]);
     }
@@ -647,12 +657,9 @@ class MarketplaceAdminController
     public function updateSettings(MarketplaceSettingsUpdateRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
     {
         $data = $request->validated();
-        $current = $settings->current()['settings'];
-        if (isset($data['revision']) && (int) $data['revision'] !== (int) $current['revision']) {
-            throw new ConflictHttpException('These marketplace settings changed in another session. Reload before saving.');
-        }
+        $expectedRevision = isset($data['revision']) ? (int) $data['revision'] : null;
         unset($data['revision']);
-        $saved = $settings->update($data, $request->user(), $audit);
+        $saved = $settings->update($data, $request->user(), $audit, $expectedRevision);
 
         return response()->json(['success' => true, 'data' => $settings->current()['settings']]);
     }
