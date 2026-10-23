@@ -32,6 +32,7 @@ class StockAlertController
             }))
             ->when($status !== '' && $status !== 'all', fn ($q) => $q->where('stock_alerts.status', $status))
             ->when($request->filled('alert_type'), fn ($q) => $q->where('stock_alerts.alert_type', $request->string('alert_type')))
+            ->when($request->filled('product_id'), fn ($q) => $q->whereHas('variant.product', fn ($product) => $product->where('products.uuid', $request->string('product_id'))))
             ->when($request->filled('search'), function ($q) use ($request): void {
                 $search = '%'.$request->string('search').'%';
                 $q->where(function ($inner) use ($search): void {

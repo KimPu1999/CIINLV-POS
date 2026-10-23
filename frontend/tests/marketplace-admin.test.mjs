@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const [app, feature, detail, routes, controller, settingsService, settingsRequest] = await Promise.all([
+const [app, feature, detail, routes, controller, settingsService, settingsRequest, productController] = await Promise.all([
   readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/features/marketplace-admin.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/features/marketplace-vendor-detail.tsx', import.meta.url), 'utf8'),
@@ -10,6 +10,7 @@ const [app, feature, detail, routes, controller, settingsService, settingsReques
   readFile(new URL('../../backend/app/Http/Controllers/Api/V1/MarketplaceAdminController.php', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/app/Services/MarketplaceSettingsService.php', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/app/Http/Requests/Marketplace/MarketplaceSettingsUpdateRequest.php', import.meta.url), 'utf8'),
+  readFile(new URL('../../backend/app/Http/Controllers/Api/V1/ProductController.php', import.meta.url), 'utf8'),
 ])
 const products = await readFile(new URL('../src/features/products.tsx', import.meta.url), 'utf8')
 
@@ -223,4 +224,31 @@ test('Business Products uses URL-backed server pagination, filters, sorting, and
   assert.match(products, /text\.showing_products/)
   assert.match(products, /pageNumbers\(pageMeta\.current_page, pageMeta\.last_page\)/)
   assert.match(products, /Product management/)
+})
+
+test('Business Products Phase 2 uses authorized branches and lazy inventory actions', () => {
+  assert.match(products, /\/api\/v1\/business\/stores/)
+  assert.match(products, /branch_id/)
+  assert.match(products, /product_id: product\.id/)
+  assert.match(products, /\/api\/v1\/inventory\/movements/)
+  assert.match(products, /\/api\/v1\/inventory\/adjustments/)
+  assert.match(products, /\/api\/v1\/stock-transfers/)
+  assert.match(products, /Idempotency-Key/)
+  assert.match(products, /Authorized branch inventory|authorized_branch_inventory/)
+  assert.match(productController, /\$scope->locationIds\(/)
+  assert.match(productController, /branch_id/)
+})
+
+test('Business Products Phase 4 uses explicit selection, audited bulk status actions, and safe selected export', () => {
+  assert.match(products, /selectedIds/)
+  assert.match(products, /Select current page/)
+  assert.match(products, new RegExp('/api/v1/products/bulk-status'))
+  assert.match(products, new RegExp('/api/v1/products/export-selected'))
+  assert.match(products, /requestConfirmation/)
+  assert.match(productController, /public function bulkStatus/)
+  assert.match(productController, /public function exportSelected/)
+  assert.match(productController, /inventory\.product_status_bulk_changed/)
+  assert.match(productController, /csvSafe/)
+  assert.match(routes, /products\/bulk-status/)
+  assert.match(routes, /products\/export-selected/)
 })

@@ -8,7 +8,6 @@ use App\Http\Requests\Inventory\UpdateProductRequest;
 use App\Http\Requests\Inventory\UploadProductImagesRequest;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductVariantResource;
-use App\Models\InventoryLocation;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -21,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class ProductController
@@ -45,11 +45,9 @@ class ProductController
         ]);
         $tenant = $context->tenant();
         $query = Product::query()->where('products.tenant_id', $tenant->id);
-        $locations = null;
+        $locations = $scope->locationIds($request->user(), $tenant, $request->filled('branch_id') ? (string) $request->input('branch_id') : null);
 
         if ($request->filled('branch_id')) {
-            $storeIds = $scope->storeIds($request->user(), $tenant, (string) $request->input('branch_id'));
-            $locations = InventoryLocation::query()->where('inventory_locations.tenant_id', $tenant->id)->whereIn('inventory_locations.store_id', $storeIds)->pluck('id');
             // Non-inventory products do not need an inventory balance row. For
             // tracked products, keep the existing store-location boundary so
             // POS never presents stock belonging to another store or tenant.
@@ -61,7 +59,7 @@ class ProductController
 
         $query->with([
             'category', 'images', 'variants',
-            'variants.balances' => fn ($balance) => $locations === null ? $balance->where('inventory_balances.tenant_id', $tenant->id) : $balance->whereIn('inventory_balances.inventory_location_id', $locations),
+            'variants.balances' => fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations),
         ])
             ->when($request->filled('search'), fn ($q) => $q->where(fn ($q) => $q->where('products.name', 'ilike', '%'.$request->string('search').'%')->orWhere('products.brand', 'ilike', '%'.$request->string('search').'%')->orWhereHas('variants', fn ($v) => $v->where('product_variants.sku', 'ilike', '%'.$request->string('search').'%')->orWhere('product_variants.barcode', 'ilike', '%'.$request->string('search').'%'))))
             ->when($request->filled('category_id'), fn ($q) => $q->whereHas('category', fn ($c) => $c->where('categories.uuid', $request->string('category_id'))))
@@ -73,11 +71,11 @@ class ProductController
             ->when($request->filled('created_to'), fn ($q) => $q->whereDate('products.created_at', '<=', $request->input('created_to')));
 
         if ($request->input('stock_status') === 'out_of_stock') {
-            $query->whereDoesntHave('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations ?? InventoryLocation::where('tenant_id', $tenant->id)->pluck('id'))->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0'));
+            $query->whereDoesntHave('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0'));
         } elseif ($request->input('stock_status') === 'low_stock') {
-            $query->whereHas('variants', fn ($variant) => $variant->whereHas('balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations ?? InventoryLocation::where('tenant_id', $tenant->id)->pluck('id'))->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')));
+            $query->whereHas('variants', fn ($variant) => $variant->whereHas('balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')));
         } elseif ($request->input('stock_status') === 'in_stock') {
-            $query->whereHas('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations ?? InventoryLocation::where('tenant_id', $tenant->id)->pluck('id'))->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0'));
+            $query->whereHas('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0'));
         }
 
         $sort = in_array($request->input('sort'), ['name', 'created_at', 'status', 'selling_price', 'available_stock'], true) ? $request->input('sort') : 'name';
@@ -85,7 +83,7 @@ class ProductController
         if ($sort === 'selling_price') {
             $query->orderBy(ProductVariant::query()->select('selling_price')->whereColumn('product_variants.product_id', 'products.id')->orderByDesc('is_default')->orderBy('id')->limit(1), $direction);
         } elseif ($sort === 'available_stock') {
-            $query->orderBy(ProductVariant::query()->selectRaw('coalesce(sum(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity), 0)')->join('inventory_balances', 'inventory_balances.product_variant_id', '=', 'product_variants.id')->whereColumn('product_variants.product_id', 'products.id')->when($locations !== null, fn ($stock) => $stock->whereIn('inventory_balances.inventory_location_id', $locations), fn ($stock) => $stock->where('inventory_balances.tenant_id', $tenant->id)), $direction);
+            $query->orderBy(ProductVariant::query()->selectRaw('coalesce(sum(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity), 0)')->join('inventory_balances', 'inventory_balances.product_variant_id', '=', 'product_variants.id')->whereColumn('product_variants.product_id', 'products.id')->whereIn('inventory_balances.inventory_location_id', $locations), $direction);
         } else {
             $query->orderBy('products.'.$sort, $direction);
         }
@@ -107,12 +105,16 @@ class ProductController
         return response()->json(['success' => true, 'data' => new ProductResource($product)], 201);
     }
 
-    public function show(Product $product, TenantContext $context): JsonResponse
+    public function show(Product $product, TenantContext $context, ReportScopeService $scope, Request $request): JsonResponse
     {
         $this->assertTenant($product, $context);
         Gate::authorize('view', $product);
+        $locationIds = $scope->locationIds($request->user(), $context->tenant());
 
-        return response()->json(['success' => true, 'data' => new ProductResource($product->load(['category', 'variants.balances', 'images']))]);
+        return response()->json(['success' => true, 'data' => new ProductResource($product->load([
+            'category', 'images', 'variants',
+            'variants.balances' => fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds),
+        ]))]);
     }
 
     public function update(UpdateProductRequest $request, Product $product, TenantContext $context, ProductService $service, AuditLogger $auditLogger): JsonResponse
@@ -125,6 +127,76 @@ class ProductController
         $auditLogger->record('inventory.product_updated', $request->user(), $context->tenant(), $product);
 
         return response()->json(['success' => true, 'data' => new ProductResource($product)]);
+    }
+
+    public function bulkStatus(Request $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->requireManager($request->user(), $context->tenant()->id);
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'uuid'],
+            'status' => ['required', 'in:active,inactive'],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $results = [];
+        foreach (array_values(array_unique($data['ids'])) as $uuid) {
+            $product = Product::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $uuid)->first();
+            if (! $product) {
+                $results[] = ['id' => $uuid, 'status' => 'failed', 'message' => 'Product is not available in this business.'];
+
+                continue;
+            }
+
+            try {
+                Gate::authorize('manage', $product);
+                if ($product->status !== $data['status']) {
+                    $product->update(['status' => $data['status']]);
+                    $auditLogger->record('inventory.product_status_bulk_changed', $request->user(), $context->tenant(), $product, [
+                        'status' => $data['status'],
+                        'reason' => $data['reason'] ?? null,
+                    ]);
+                }
+                $results[] = ['id' => $product->uuid, 'status' => 'updated', 'product_status' => $product->status];
+            } catch (Throwable) {
+                $results[] = ['id' => $uuid, 'status' => 'failed', 'message' => 'You are not authorized to manage this product.'];
+            }
+        }
+
+        return response()->json(['success' => true, 'data' => [
+            'results' => $results,
+            'updated' => collect($results)->where('status', 'updated')->count(),
+            'failed' => collect($results)->where('status', 'failed')->count(),
+        ]]);
+    }
+
+    public function exportSelected(Request $request, TenantContext $context, AuditLogger $auditLogger): StreamedResponse|JsonResponse
+    {
+        $this->requireManager($request->user(), $context->tenant()->id);
+        $data = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:100'], 'ids.*' => ['required', 'uuid']]);
+        $products = Product::query()->where('tenant_id', $context->tenant()->id)->whereIn('uuid', array_values(array_unique($data['ids'])))->with(['category', 'variants'])->orderBy('id')->get();
+
+        $authorized = $products->filter(fn (Product $product): bool => Gate::allows('view', $product));
+        $auditLogger->record('inventory.products_exported', $request->user(), $context->tenant(), metadata: ['scope' => 'selected', 'count' => $authorized->count()]);
+
+        return response()->streamDownload(function () use ($authorized): void {
+            $handle = fopen('php://output', 'wb');
+            fputcsv($handle, ['Product ID', 'Name', 'SKU', 'Barcode', 'Category', 'Brand', 'Selling Price', 'Status']);
+            foreach ($authorized as $product) {
+                $variant = $product->variants->firstWhere('is_default', true) ?: $product->variants->first();
+                fputcsv($handle, [
+                    $product->uuid,
+                    $this->csvSafe($product->name),
+                    $this->csvSafe($variant?->sku),
+                    $this->csvSafe($variant?->barcode),
+                    $this->csvSafe($product->category?->name),
+                    $this->csvSafe($product->brand),
+                    $variant?->selling_price,
+                    $product->status,
+                ]);
+            }
+            fclose($handle);
+        }, 'products-selected-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function destroy(Product $product, TenantContext $context, Request $request, AuditLogger $auditLogger): JsonResponse
@@ -229,5 +301,12 @@ class ProductController
     private function requireManager($user, int $tenantId): void
     {
         abort_unless($user->memberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereHas('role', fn ($q) => $q->whereIn('name', ['business_admin', 'inventory_manager']))->exists(), 403);
+    }
+
+    private function csvSafe(?string $value): string
+    {
+        $value ??= '';
+
+        return preg_match('/^[=+\-@\t\r]/', $value) === 1 ? "'".$value : $value;
     }
 }

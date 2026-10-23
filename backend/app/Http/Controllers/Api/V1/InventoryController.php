@@ -6,6 +6,7 @@ use App\Http\Requests\Inventory\OpeningStockRequest;
 use App\Http\Requests\Inventory\StockAdjustmentRequest;
 use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockAdjustment;
 use App\Models\StockMovement;
@@ -25,7 +26,18 @@ class InventoryController
 {
     public function index(Request $request, TenantContext $context): JsonResponse
     {
-        $balances = InventoryBalance::with(['location.store', 'variant.product'])->where('tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $this->accessibleLocationIds($request->user(), $context->tenant()->id))->when($request->filled('location_id'), fn ($q) => $q->whereHas('location', fn ($l) => $l->where('uuid', (string) $request->string('location_id'))))->when($request->filled('variant_id'), fn ($q) => $q->whereHas('variant', fn ($v) => $v->where('uuid', (string) $request->string('variant_id'))))->paginate(min((int) $request->input('per_page', 50), 100));
+        $request->validate(['product_id' => ['nullable', 'uuid'], 'variant_id' => ['nullable', 'uuid'], 'location_id' => ['nullable', 'uuid'], 'store_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:120'], 'stock_status' => ['nullable', 'in:in_stock,low_stock,out_of_stock'], 'page' => ['nullable', 'integer', 'min:1'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $locationIds = $this->accessibleLocationIds($request->user(), $context->tenant()->id);
+        if ($request->filled('store_id')) {
+            $locationIds = $locationIds->intersect(InventoryLocation::where('tenant_id', $context->tenant()->id)->whereHas('store', fn ($store) => $store->where('uuid', $request->string('store_id')))->pluck('id'));
+        }
+        if ($request->filled('location_id')) {
+            $locationIds = $locationIds->intersect(InventoryLocation::where('tenant_id', $context->tenant()->id)->where('uuid', $request->string('location_id'))->pluck('id'));
+        }
+        $balances = InventoryBalance::with(['location.store', 'variant.product'])->where('tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $locationIds)->when($request->filled('product_id'), fn ($q) => $q->whereHas('variant.product', fn ($p) => $p->where('products.uuid', (string) $request->string('product_id'))->where('products.tenant_id', $context->tenant()->id)))->when($request->filled('variant_id'), fn ($q) => $q->whereHas('variant', fn ($v) => $v->where('uuid', (string) $request->string('variant_id'))))->when($request->filled('search'), fn ($q) => $q->where(function ($searchQuery) use ($request): void {
+            $term = '%'.$request->string('search').'%';
+            $searchQuery->whereHas('variant.product', fn ($p) => $p->where('products.name', 'ilike', $term)->orWhere('products.brand', 'ilike', $term))->orWhereHas('variant', fn ($v) => $v->where('sku', 'ilike', $term)->orWhere('barcode', 'ilike', $term));
+        }))->when($request->input('stock_status') === 'out_of_stock', fn ($q) => $q->whereRaw('(on_hand_quantity - reserved_quantity) <= 0'))->when($request->input('stock_status') === 'in_stock', fn ($q) => $q->whereRaw('(on_hand_quantity - reserved_quantity) > 0'))->when($request->input('stock_status') === 'low_stock', fn ($q) => $q->whereRaw('(on_hand_quantity - reserved_quantity) > 0')->whereRaw('(on_hand_quantity - reserved_quantity) <= product_variants.reorder_level'))->orderByDesc('updated_at')->paginate(min((int) $request->input('per_page', 25), 100));
         $balances->getCollection()->transform(fn (InventoryBalance $balance) => $this->balanceData($balance));
 
         return response()->json(['success' => true, 'data' => $balances]);
@@ -33,16 +45,30 @@ class InventoryController
 
     public function statistics(Request $request, TenantContext $context): JsonResponse
     {
+        $request->validate(['store_id' => ['nullable', 'uuid'], 'location_id' => ['nullable', 'uuid']]);
         $tenantId = $context->tenant()->id;
         $locationIds = $this->accessibleLocationIds($request->user(), $tenantId);
+        if ($request->filled('store_id')) {
+            $locationIds = $locationIds->intersect(InventoryLocation::where('tenant_id', $tenantId)->whereHas('store', fn ($store) => $store->where('uuid', $request->string('store_id')))->pluck('id'));
+        }
+        if ($request->filled('location_id')) {
+            $locationIds = $locationIds->intersect(InventoryLocation::where('tenant_id', $tenantId)->where('uuid', $request->string('location_id'))->pluck('id'));
+        }
         $balances = InventoryBalance::query()->where('inventory_balances.tenant_id', $tenantId)->whereIn('inventory_balances.inventory_location_id', $locationIds);
         $totals = (clone $balances)->selectRaw('COALESCE(SUM(on_hand_quantity), 0) AS on_hand, COALESCE(SUM(reserved_quantity), 0) AS reserved, COALESCE(SUM(on_hand_quantity * average_cost), 0) AS value')->first();
         $lowStock = (clone $balances)->join('product_variants', function ($join): void {
             $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
-        })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')->count();
-        $outOfStock = (clone $balances)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= 0')->count();
+        })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')->distinct()->count('product_variants.product_id');
+        $outOfStock = (clone $balances)->join('product_variants', function ($join): void {
+            $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+        })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= 0')->distinct()->count('product_variants.product_id');
+        $inStock = (clone $balances)->join('product_variants', function ($join): void {
+            $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+        })->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')->distinct()->count('product_variants.product_id');
 
-        return response()->json(['success' => true, 'data' => ['total_stock_units' => $totals?->on_hand ?? '0', 'available_stock' => bcsub((string) ($totals?->on_hand ?? 0), (string) ($totals?->reserved ?? 0), 3), 'reserved_stock' => $totals?->reserved ?? '0', 'total_inventory_value' => $totals?->value ?? '0', 'low_stock_products' => $lowStock, 'out_of_stock_products' => $outOfStock, 'locations' => $locationIds->count(), 'recent_movements' => StockMovement::with(['location', 'variant.product'])->where('tenant_id', $tenantId)->whereIn('inventory_location_id', $locationIds)->latest('created_at')->limit(8)->get()->map(fn (StockMovement $movement): array => ['id' => $movement->uuid, 'movement_type' => $movement->movement_type, 'quantity_delta' => $movement->quantity_delta, 'sku' => $movement->variant?->sku, 'product' => $movement->variant?->product?->name, 'location' => $movement->location?->name, 'created_at' => $movement->created_at])]]);
+        $totalProducts = Product::where('tenant_id', $tenantId)->whereHas('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds))->count();
+
+        return response()->json(['success' => true, 'data' => ['total_products' => $totalProducts, 'in_stock_products' => $inStock, 'total_stock_units' => $totals?->on_hand ?? '0', 'available_stock' => bcsub((string) ($totals?->on_hand ?? 0), (string) ($totals?->reserved ?? 0), 3), 'reserved_stock' => $totals?->reserved ?? '0', 'total_inventory_value' => $totals?->value ?? '0', 'low_stock_products' => $lowStock, 'out_of_stock_products' => $outOfStock, 'locations' => $locationIds->count(), 'recent_movements' => StockMovement::with(['location', 'variant.product'])->where('tenant_id', $tenantId)->whereIn('inventory_location_id', $locationIds)->latest('created_at')->limit(8)->get()->map(fn (StockMovement $movement): array => ['id' => $movement->uuid, 'movement_type' => $movement->movement_type, 'quantity_delta' => $movement->quantity_delta, 'sku' => $movement->variant?->sku, 'product' => $movement->variant?->product?->name, 'location' => $movement->location?->name, 'created_at' => $movement->created_at])]]);
     }
 
     public function location(InventoryLocation $location, TenantContext $context): JsonResponse
@@ -57,13 +83,24 @@ class InventoryController
 
     public function movements(Request $request, TenantContext $context): JsonResponse
     {
-        $query = StockMovement::with(['location', 'variant.product'])->where('tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $this->accessibleLocationIds($request->user(), $context->tenant()->id))->latest('created_at');
+        $request->validate(['product_id' => ['nullable', 'uuid'], 'variant_id' => ['nullable', 'uuid'], 'location_id' => ['nullable', 'uuid'], 'store_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:120'], 'movement_type' => ['nullable', 'string', 'max:60'], 'from' => ['nullable', 'date'], 'to' => ['nullable', 'date'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $locationIds = $this->accessibleLocationIds($request->user(), $context->tenant()->id);
+        if ($request->filled('store_id')) {
+            $locationIds = $locationIds->intersect(InventoryLocation::where('tenant_id', $context->tenant()->id)->whereHas('store', fn ($store) => $store->where('uuid', $request->string('store_id')))->pluck('id'));
+        }
+        $query = StockMovement::with(['location.store', 'variant.product', 'actor'])->where('tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $locationIds)->when($request->filled('movement_type'), fn ($q) => $q->where('movement_type', $request->string('movement_type')))->when($request->filled('from'), fn ($q) => $q->where('created_at', '>=', $request->date('from')))->when($request->filled('to'), fn ($q) => $q->where('created_at', '<=', $request->date('to')->endOfDay()))->when($request->filled('search'), fn ($q) => $q->where(function ($searchQuery) use ($request): void {
+            $term = '%'.$request->string('search').'%';
+            $searchQuery->where('reason', 'ilike', $term)->orWhereHas('variant', fn ($v) => $v->where('sku', 'ilike', $term)->orWhere('barcode', 'ilike', $term))->orWhereHas('variant.product', fn ($p) => $p->where('name', 'ilike', $term));
+        }))->latest('created_at');
+        $query->when($request->filled('product_id'), fn ($q) => $q->whereHas('variant.product', fn ($p) => $p->where('products.uuid', (string) $request->string('product_id'))->where('products.tenant_id', $context->tenant()->id)));
+        $query->when($request->filled('variant_id'), fn ($q) => $q->whereHas('variant', fn ($v) => $v->where('product_variants.uuid', (string) $request->string('variant_id'))));
         if ($request->filled('location_id')) {
             $location = InventoryLocation::where('tenant_id', $context->tenant()->id)->where('uuid', $request->string('location_id'))->firstOrFail();
             Gate::authorize('view', $location);
             $query->where('inventory_location_id', $location->id);
         }
-        $movements = $query->paginate(min((int) $request->input('per_page', 50), 100));
+        $movements = $query->paginate(min((int) $request->input('per_page', 25), 100));
+        $movements->getCollection()->transform(fn (StockMovement $movement): array => ['id' => $movement->uuid, 'movement_type' => $movement->movement_type, 'quantity_delta' => $movement->quantity_delta, 'quantity_before' => $movement->quantity_before, 'quantity_after' => $movement->quantity_after, 'reason' => $movement->reason, 'reference_type' => $movement->reference_type, 'reference_id' => $movement->reference_id, 'created_at' => $movement->created_at, 'actor' => $movement->actor?->only(['id', 'name', 'email']), 'location' => ['id' => $movement->location?->uuid, 'name' => $movement->location?->name, 'code' => $movement->location?->code, 'branch' => $movement->location?->store?->name], 'variant' => ['id' => $movement->variant?->uuid, 'sku' => $movement->variant?->sku, 'product' => $movement->variant?->product?->name]]);
 
         return response()->json(['success' => true, 'data' => $movements]);
     }
@@ -144,7 +181,7 @@ class InventoryController
         $translations = app(TranslationService::class);
         $locale = $translations->locale(request());
 
-        return ['location' => ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale)], 'variant' => ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $translations->localizedValue($balance->variant->product, 'name', $locale)], 'on_hand_quantity' => $balance->on_hand_quantity, 'reserved_quantity' => $balance->reserved_quantity, 'available_quantity' => $balance->available_quantity, 'average_cost' => $balance->average_cost, 'version' => $balance->version];
+        return ['location' => ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale), 'code' => $balance->location->code], 'branch' => $balance->location->store ? ['id' => $balance->location->store->uuid, 'name' => $balance->location->store->name, 'code' => $balance->location->store->code] : null, 'variant' => ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'barcode' => $balance->variant->barcode, 'product' => $translations->localizedValue($balance->variant->product, 'name', $locale), 'reorder_level' => $balance->variant->reorder_level, 'size' => is_array($balance->variant->attributes) ? ($balance->variant->attributes['size'] ?? null) : null], 'on_hand_quantity' => $balance->on_hand_quantity, 'reserved_quantity' => $balance->reserved_quantity, 'available_quantity' => $balance->available_quantity, 'average_cost' => $balance->average_cost, 'version' => $balance->version];
     }
 
     private function locationByUuid(string $uuid, TenantContext $context): InventoryLocation

@@ -46,7 +46,11 @@ class InventoryReportController
 
     public function inventory(Request $request, TenantContext $context): JsonResponse
     {
-        $rows = InventoryBalance::with(['location.store', 'variant.product'])->where('tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $this->locationIds($request->user(), $context->tenant()->id))->paginate(100);
+        $request->validate(['location_id' => ['nullable', 'uuid'], 'store_id' => ['nullable', 'uuid'], 'search' => ['nullable', 'string', 'max:120'], 'page' => ['nullable', 'integer', 'min:1'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $rows = InventoryBalance::with(['location.store', 'variant.product'])->where('tenant_id', $context->tenant()->id)->whereIn('inventory_location_id', $this->locationIds($request->user(), $context->tenant()->id))->when($request->filled('location_id'), fn ($q) => $q->whereHas('location', fn ($l) => $l->where('uuid', $request->string('location_id'))))->when($request->filled('store_id'), fn ($q) => $q->whereHas('location.store', fn ($s) => $s->where('uuid', $request->string('store_id'))))->when($request->filled('search'), fn ($q) => $q->where(function ($searchQuery) use ($request): void {
+            $term = '%'.$request->string('search').'%';
+            $searchQuery->whereHas('variant', fn ($v) => $v->where('sku', 'ilike', $term)->orWhere('barcode', 'ilike', $term))->orWhereHas('variant.product', fn ($p) => $p->where('name', 'ilike', $term));
+        }))->paginate(min((int) $request->input('per_page', 25), 100));
 
         return response()->json(['success' => true, 'data' => $rows]);
     }

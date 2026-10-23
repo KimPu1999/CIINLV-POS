@@ -389,6 +389,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/products/barcode/{barcode}', [BarcodeController::class, 'show']);
             Route::get('/barcodes/statistics', [BarcodeController::class, 'statistics']);
             Route::post('/product-variants/{variant}/barcode/generate', [BarcodeController::class, 'generate']);
+            Route::post('/products/bulk-status', [ProductController::class, 'bulkStatus']);
+            Route::get('/products/export-selected', [ProductController::class, 'exportSelected'])->middleware('throttle:exports');
             Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
             Route::post('/products/{product}/variants', [ProductController::class, 'variant']);
             Route::post('/products/{product}/images', [ProductController::class, 'images']);
