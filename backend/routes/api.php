@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\PlatformBusinessInvitationController;
 use App\Http\Controllers\Api\V1\PlatformBusinessLifecycleController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PlatformMonitoringController;
+use App\Http\Controllers\Api\V1\PlatformPosMonitoringController;
 use App\Http\Controllers\Api\V1\PlatformSecurityController;
 use App\Http\Controllers\Api\V1\PlatformTenantController;
 use App\Http\Controllers\Api\V1\PosCheckoutController;
@@ -117,6 +118,14 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('platform')->middleware('platform.admin')->group(function (): void {
             Route::get('/dashboard', PlatformDashboardController::class);
             Route::get('/monitoring', PlatformMonitoringController::class);
+            Route::prefix('pos-monitoring')->group(function (): void {
+                Route::get('/overview', [PlatformPosMonitoringController::class, 'overview']);
+                Route::get('/transactions', [PlatformPosMonitoringController::class, 'transactions']);
+                Route::get('/transactions/{sale}', [PlatformPosMonitoringController::class, 'show']);
+                Route::get('/refunds', [PlatformPosMonitoringController::class, 'refunds']);
+                Route::get('/payments', [PlatformPosMonitoringController::class, 'payments']);
+                Route::get('/export', [PlatformPosMonitoringController::class, 'export'])->middleware('throttle:exports');
+            });
 
             Route::get('/security/overview', [PlatformSecurityController::class, 'overview']);
             Route::get('/security/audit-logs', [PlatformSecurityController::class, 'index']);
