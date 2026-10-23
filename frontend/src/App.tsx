@@ -28,6 +28,7 @@ const BusinessDashboardPage = lazy(() => import('./features/business-dashboard')
 const PlatformOverviewPage = lazy(() => import('./features/platform-overview').then(({ PlatformOverviewPage: Page }) => ({ default: Page })))
 const PlatformMonitoringPage = lazy(() => import('./features/platform-monitoring').then(({ PlatformMonitoringPage: Page }) => ({ default: Page })))
 const PlatformPosMonitoringPage = lazy(() => import('./features/platform-pos-monitoring').then(({ PlatformPosMonitoringPage: Page }) => ({ default: Page })))
+const PlatformBusinessProductsPage = lazy(() => import('./features/platform-business-products').then(({ PlatformBusinessProductsPage: Page }) => ({ default: Page })))
 const AuditSecurityPage = lazy(() => import('./features/audit-security').then(({ AuditSecurityPage: Page }) => ({ default: Page })))
 const MarketplaceAdminPage = lazy(() => import('./features/marketplace-admin').then(({ MarketplaceAdminPage: Page }) => ({ default: Page })))
 const ProductManagementPage = lazy(() => import('./features/products').then(({ ProductManagementPage: Page }) => ({ default: Page })))
@@ -82,6 +83,7 @@ const platformNav: NavItem[] = [
   { label: 'Platform overview', path: '/platform/dashboard', icon: LayoutDashboard, roles: ['super_admin'] },
   { label: 'Platform monitoring', path: '/platform/monitoring', icon: Activity, roles: ['super_admin'] },
   { label: 'POS monitoring', path: '/platform/pos-monitoring', icon: Receipt, roles: ['super_admin'] },
+  { label: 'Business products', path: '/platform/business-products', icon: Package, roles: ['super_admin'] },
   { label: 'Businesses', path: '/platform/businesses', icon: Building2, roles: ['super_admin'] },
   { label: 'Customers', path: '/platform/customers', icon: CircleUserRound, roles: ['super_admin'] },
   { label: 'Business registration', path: '/platform/businesses/new', icon: ClipboardList, roles: ['super_admin'] },
@@ -313,6 +315,8 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="dashboard" element={<OverviewPage user={user} />} />
           <Route path="monitoring" element={<PlatformMonitoringPage />} />
           <Route path="pos-monitoring" element={<PlatformPosMonitoringPage />} />
+          <Route path="business-products/:productId" element={<PlatformBusinessProductsPage />} />
+          <Route path="business-products" element={<PlatformBusinessProductsPage />} />
           <Route path="businesses" element={<BusinessListPage />} />
           <Route path="customers" element={<CustomerManagementPage platform />} />
           <Route path="businesses/new" element={<BusinessRegistrationScreen />} />

@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\V1\PlatformBusinessController;
 use App\Http\Controllers\Api\V1\PlatformBusinessDeletionController;
 use App\Http\Controllers\Api\V1\PlatformBusinessInvitationController;
 use App\Http\Controllers\Api\V1\PlatformBusinessLifecycleController;
+use App\Http\Controllers\Api\V1\PlatformBusinessProductController;
 use App\Http\Controllers\Api\V1\PlatformDashboardController;
 use App\Http\Controllers\Api\V1\PlatformMonitoringController;
 use App\Http\Controllers\Api\V1\PlatformPosMonitoringController;
@@ -125,6 +126,11 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/refunds', [PlatformPosMonitoringController::class, 'refunds']);
                 Route::get('/payments', [PlatformPosMonitoringController::class, 'payments']);
                 Route::get('/export', [PlatformPosMonitoringController::class, 'export'])->middleware('throttle:exports');
+            });
+            Route::prefix('business-products')->group(function (): void {
+                Route::get('/export', [PlatformBusinessProductController::class, 'export'])->middleware('throttle:exports');
+                Route::get('/', [PlatformBusinessProductController::class, 'index']);
+                Route::get('/{product}', [PlatformBusinessProductController::class, 'show']);
             });
 
             Route::get('/security/overview', [PlatformSecurityController::class, 'overview']);
