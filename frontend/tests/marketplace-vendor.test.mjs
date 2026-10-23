@@ -23,7 +23,7 @@ test('marketplace delivery history preserves delivered pending COD and payment c
 })
 
 test('vendor pages use real tenant-scoped APIs and no fabricated later-phase data', () => {
-  for (const endpoint of ['/api/v1/vendor/marketplace/overview', '/api/v1/vendor/marketplace/store', '/api/v1/vendor/marketplace/listings', '/api/v1/products']) {
+  for (const endpoint of ['/api/v1/vendor/marketplace/overview', '/api/v1/vendor/marketplace/store', '/api/v1/vendor/marketplace/listings', '/api/v1/vendor/marketplace/products']) {
     assert.match(feature, new RegExp(endpoint.replaceAll('/', '\\/')))
   }
   assert.match(feature, /\/api\/v1\/vendor\/marketplace\/orders/)
@@ -34,6 +34,20 @@ test('vendor pages use real tenant-scoped APIs and no fabricated later-phase dat
   assert.match(routes, /Route::get\('\/orders', \[MarketplaceVendorController::class, 'orders'\]\)/)
   assert.match(controller, /MarketplaceVendorOrder::where\('tenant_id'/)
   assert.match(controller, /MarketplaceVendorOrderResource::collection\(\$orders\)/)
+})
+
+test('marketplace products use authorized branch-scoped server pagination and lazy stock details', () => {
+  assert.match(feature, /branch_id/)
+  assert.match(feature, /per_page: filters\.per_page/)
+  assert.match(feature, /AbortController/)
+  assert.match(feature, /\/api\/v1\/inventory/)
+  assert.match(feature, /text\.select_current_page/)
+  assert.match(feature, /text\.showing_products/)
+  assert.match(routes, /Route::get\('\/products', \[MarketplaceVendorController::class, 'products'\]\)/)
+  assert.match(controller, /ReportScopeService/)
+  assert.match(controller, /abort_if\(\$requestedBranch !== null && \$storeIds->isEmpty\(\)/)
+  assert.match(controller, /'per_page' => \$products->perPage\(\)/)
+  assert.match(controller, /'summary' =>/)
 })
 
 test('vendor fulfillment uses tenant-scoped order details, shipment creation, and server status transitions', () => {

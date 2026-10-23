@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, FileText, ImagePlus, Package, Printer, RefreshCw, Save, Search, Settings2, ShoppingBag, Star, Store, Upload, X } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { BarChart3, Check, CheckSquare, ChevronLeft, ChevronRight, CircleDollarSign, Eye, EyeOff, FileText, Filter, ImagePlus, Package, Printer, RefreshCw, Save, Search, Settings2, ShoppingBag, Square, Star, Store, Upload, X } from 'lucide-react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DataTable, EmptyState, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
+import { FilterPanel, FilterToggle, PageToolbar } from '../components/toolbar'
 import { api, request } from '../lib/api'
 
 type MarketplaceStore = {
@@ -24,35 +25,30 @@ type MarketplaceStore = {
   product_count?: number
 }
 
-type MarketplaceListing = {
-  id: string
-  product_id?: string | null
-  name?: string | null
-  slug?: string | null
-  status?: string | null
-  price?: string | number | null
-  currency?: string | null
-  image_url?: string | null
-  available_stock?: number | null
-  track_inventory?: boolean
-  category_name?: string | null
-  images?: { id: string; url: string; sort_order?: number }[]
-}
-
-type MarketplaceReview = { id: string; product?: { name?: string | null; image_url?: string | null }; customer?: { name?: string | null }; rating: number; title?: string | null; comment: string; status: string; verified_purchase: boolean; created_at?: string | null; moderation_reason?: string | null }
-type MarketplaceReviewResponse = { data: MarketplaceReview[]; meta: { total: number; current_page: number; last_page: number; summary: { total: number; average_rating: string; pending: number; approved: number; rejected_hidden: number } } }
-
-type Product = {
+type MarketplaceCatalogProduct = {
   id: string
   name?: string | null
+  brand?: string | null
   sku?: string | null
   selling_price?: string | number | null
-  available_stock?: number | null
   status?: string | null
   track_inventory?: boolean
-  category?: { name?: string | null }
-  images?: { storage_path?: string; url?: string; is_primary?: boolean }[]
+  category?: { id?: string; name?: string | null } | null
+  image_url?: string | null
+  available_stock?: number | null
+  stock_status?: string | null
+  variants?: { id: string; sku?: string | null; size?: string | null; selling_price?: string | number | null; available_stock?: number | null; reorder_level?: string | number | null }[]
+  listing?: { id: string; slug?: string | null; status?: string | null; images?: { id: string; url?: string | null }[] } | null
 }
+
+type MarketplaceCatalogMeta = { total: number; per_page: number; current_page: number; last_page: number; summary: { total_products: number; published_products: number; unpublished_products: number; low_stock_products: number } }
+type MarketplaceCatalogPage = { data: MarketplaceCatalogProduct[]; meta: MarketplaceCatalogMeta }
+type MarketplaceCatalogFilters = { search: string; branch_id: string; category_id: string; brand: string; listing_status: string; stock_status: string; sort: string; direction: 'asc' | 'desc'; page: number; per_page: number }
+type MarketplaceBranch = { id: string; name: string; store_code?: string; status?: string }
+type MarketplaceCategory = { id: string; name: string }
+type MarketplaceStockBalance = { location?: { id?: string; name?: string; code?: string }; branch?: { id?: string; name?: string; code?: string } | null; variant?: { id?: string; sku?: string; product?: string; size?: string | null; reorder_level?: string | number }; on_hand_quantity?: string | number; reserved_quantity?: string | number; available_quantity?: string | number }
+type MarketplaceReview = { id: string; product?: { name?: string | null; image_url?: string | null }; customer?: { name?: string | null }; rating: number; title?: string | null; comment: string; status: string; verified_purchase: boolean; created_at?: string | null; moderation_reason?: string | null }
+type MarketplaceReviewResponse = { data: MarketplaceReview[]; meta: { total: number; current_page: number; last_page: number; summary: { total: number; average_rating: string; pending: number; approved: number; rejected_hidden: number } } }
 
 type Overview = {
   store: MarketplaceStore
@@ -238,47 +234,232 @@ export function MarketplaceStorePage() {
 export function MarketplaceProductsPage() {
   const { t } = useTranslation()
   const { requestConfirmation } = useConfirmation()
-  const [products, setProducts] = useState<Product[]>([])
-  const [listings, setListings] = useState<MarketplaceListing[]>([])
-  const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<'all' | 'published' | 'unpublished'>('all')
-  const [selected, setSelected] = useState<string[]>([])
-  const [editing, setEditing] = useState<string | null>(null)
-  const [slug, setSlug] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [page, setPage] = useState<MarketplaceCatalogPage | null>(null)
+  const [branches, setBranches] = useState<MarketplaceBranch[]>([])
+  const [categories, setCategories] = useState<MarketplaceCategory[]>([])
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+  const [busy, setBusy] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
+  const [slug, setSlug] = useState('')
+  const [stockProduct, setStockProduct] = useState<MarketplaceCatalogProduct | null>(null)
+  const [stockRows, setStockRows] = useState<MarketplaceStockBalance[]>([])
+  const [stockLoading, setStockLoading] = useState(false)
+  const [stockError, setStockError] = useState('')
+  const requestSequence = useRef(0)
+  const stockSequence = useRef(0)
+  const controllerRef = useRef<AbortController | null>(null)
+  const filters = useMemo(() => readMarketplaceCatalogFilters(searchParams), [searchParams])
+  const products = page?.data || []
+  const meta = page?.meta || { total: 0, per_page: filters.per_page, current_page: filters.page, last_page: 1, summary: { total_products: 0, published_products: 0, unpublished_products: 0, low_stock_products: 0 } }
+
+  const updateQuery = useCallback((changes: Partial<MarketplaceCatalogFilters>, resetPage = true) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(changes).forEach(([key, value]) => {
+      if (value === undefined || value === '' || (key === 'page' && value === 1)) next.delete(key)
+      else next.set(key, String(value))
+    })
+    if (resetPage && !Object.prototype.hasOwnProperty.call(changes, 'page')) next.delete('page')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const load = useCallback(async () => {
-    setLoading(true); setError('')
-    try { const [productRows, listingRows] = await Promise.all([request<Product[]>({ method: 'get', url: '/api/v1/products', params: { per_page: 100 } }), request<MarketplaceListing[]>({ method: 'get', url: '/api/v1/vendor/marketplace/listings', params: { per_page: 100 } })]); setProducts(Array.isArray(productRows) ? productRows : []); setListings(Array.isArray(listingRows) ? listingRows : []); setSelected([]) }
-    catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_products'))) }
-    finally { setLoading(false) }
-  }, [t])
-  useEffect(() => { void load() }, [load])
-  const listingByProduct = useMemo(() => new Map(listings.map((listing) => [listing.product_id || '', listing])), [listings])
-  const rows = useMemo(() => products.filter((product) => { const listing = listingByProduct.get(product.id); const matchesQuery = !query.trim() || `${product.name || ''} ${product.sku || ''}`.toLowerCase().includes(query.toLowerCase()); const matchesStatus = status === 'all' || (status === 'published' ? listing?.status === 'published' : listing?.status !== 'published'); return matchesQuery && matchesStatus }), [products, listingByProduct, query, status])
-
-  const changeListing = async (product: Product, nextStatus: 'published' | 'draft') => {
-    const listing = listingByProduct.get(product.id); setBusy(product.id); setError(''); setSuccess('')
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    const sequence = ++requestSequence.current
+    setLoading(true)
+    setError('')
     try {
-      if (listing) await request({ method: 'patch', url: `/api/v1/vendor/marketplace/listings/${listing.id}`, data: { status: nextStatus } })
-      else await request({ method: 'post', url: '/api/v1/vendor/marketplace/listings', data: { product_id: product.id, status: nextStatus } })
-      await load(); setSuccess(nextStatus === 'published' ? t('text.product_published') : t('text.product_unpublished'))
-    } catch (err) { return errorMessage(err, t('text.unable_to_update_marketplace_product')) }
-    finally { setBusy('') }
-  }
-  const confirmChange = (product: Product, nextStatus: 'published' | 'draft') => requestConfirmation({ title: nextStatus === 'published' ? t('text.publish_product_question', { name: product.name }) : t('text.unpublish_product_question', { name: product.name }), description: nextStatus === 'published' ? t('text.publish_product_help') : t('text.unpublish_product_help'), confirmLabel: nextStatus === 'published' ? t('text.publish_product') : t('text.unpublish_product'), tone: nextStatus === 'published' ? 'primary' : 'warning' }, async () => changeListing(product, nextStatus))
-  const bulkPublish = () => requestConfirmation({ title: t('text.publish_selected_products_question', { count: selected.length }), description: t('text.publish_selected_products_help'), confirmLabel: t('text.publish_selected'), tone: 'primary' }, async () => { for (const productId of selected) { const product = products.find((item) => item.id === productId); if (product) { const message = await changeListing(product, 'published'); if (message) return message } } })
-  const saveSlug = async (listing: MarketplaceListing) => { if (!slug.trim()) return; setBusy(listing.id); try { await request({ method: 'patch', url: `/api/v1/vendor/marketplace/listings/${listing.id}`, data: { slug: slug.trim() } }); setEditing(null); await load() } catch (err) { setError(errorMessage(err, t('text.unable_to_update_marketplace_product'))) } finally { setBusy('') } }
-  const uploadImages = async (listing: MarketplaceListing, files: FileList | null) => { if (!files?.length) return; const data = new FormData(); Array.from(files).forEach((file) => data.append('images[]', file)); setBusy(listing.id); try { await request({ method: 'post', url: `/api/v1/vendor/marketplace/listings/${listing.id}/images`, data, headers: { 'Content-Type': 'multipart/form-data' } }); await load(); setSuccess(t('text.listing_images_uploaded')) } catch (err) { setError(errorMessage(err, t('text.unable_to_upload_listing_images'))) } finally { setBusy('') } }
+      const response = await api.get<MarketplaceCatalogPage>('/api/v1/vendor/marketplace/products', {
+        params: {
+          search: filters.search || undefined,
+          branch_id: filters.branch_id || undefined,
+          category_id: filters.category_id || undefined,
+          brand: filters.brand || undefined,
+          listing_status: filters.listing_status || undefined,
+          stock_status: filters.stock_status || undefined,
+          sort: filters.sort,
+          direction: filters.direction,
+          page: filters.page,
+          per_page: filters.per_page,
+        },
+        signal: controller.signal,
+      })
+      if (sequence !== requestSequence.current) return
+      if (filters.page > response.data.meta.last_page && response.data.meta.last_page > 0) {
+        updateQuery({ page: response.data.meta.last_page }, false)
+        return
+      }
+      setPage(response.data)
+      setSelected([])
+    } catch (err) {
+      if (!controller.signal.aborted && sequence === requestSequence.current) setError(errorMessage(err, t('text.unable_to_load_marketplace_products')))
+    } finally {
+      if (!controller.signal.aborted && sequence === requestSequence.current) setLoading(false)
+    }
+  }, [filters, t, updateQuery])
 
-  if (loading) return <><PageHeader title={t('text.marketplace_products')} description={t('text.manage_marketplace_product_publishing')} /><LoadingState /></>
+  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const timer = window.setTimeout(() => updateQuery({ search: searchInput.trim() }), 350)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, updateQuery])
+  useEffect(() => {
+    setSearchInput(filters.search)
+  }, [filters.search])
+  useEffect(() => {
+    void Promise.all([
+      api.get<{ data: MarketplaceBranch[] }>('/api/v1/business/stores'),
+      api.get<{ data: MarketplaceCategory[] }>('/api/v1/categories', { params: { per_page: 100, sort: 'name', direction: 'asc' } }),
+    ]).then(([branchResponse, categoryResponse]) => {
+      setBranches(branchResponse.data.data || [])
+      setCategories(categoryResponse.data.data || [])
+    }).catch(() => undefined)
+  }, [])
+
+  const clearFilters = () => {
+    setSearchInput('')
+    setSearchParams(new URLSearchParams(), { replace: true })
+  }
+  const listingFor = (product: MarketplaceCatalogProduct) => product.listing
+  const changeListing = async (product: MarketplaceCatalogProduct, nextStatus: 'published' | 'draft') => {
+    const listing = listingFor(product)
+    setBusy(product.id)
+    setError('')
+    setSuccess('')
+    try {
+      if (listing) await request({ method: 'patch', url: '/api/v1/vendor/marketplace/listings/' + listing.id, data: { status: nextStatus } })
+      else await request({ method: 'post', url: '/api/v1/vendor/marketplace/listings', data: { product_id: product.id, status: nextStatus } })
+      await load()
+      setSuccess(nextStatus === 'published' ? t('text.product_published') : t('text.product_unpublished'))
+    } catch (err) {
+      return errorMessage(err, t('text.unable_to_update_marketplace_product'))
+    } finally {
+      setBusy('')
+    }
+  }
+  const confirmChange = (product: MarketplaceCatalogProduct, nextStatus: 'published' | 'draft') => requestConfirmation({
+    title: nextStatus === 'published' ? t('text.publish_product_question', { name: product.name }) : t('text.unpublish_product_question', { name: product.name }),
+    description: nextStatus === 'published' ? t('text.publish_product_help') : t('text.unpublish_product_help'),
+    confirmLabel: nextStatus === 'published' ? t('text.publish_product') : t('text.unpublish_product'),
+    tone: nextStatus === 'published' ? 'primary' : 'warning',
+  }, async () => changeListing(product, nextStatus))
+  const bulkPublish = () => requestConfirmation({
+    title: t('text.publish_selected_products_question', { count: selected.length }),
+    description: t('text.only_selected_page_products'),
+    confirmLabel: t('text.publish_selected'),
+    tone: 'primary',
+  }, async () => {
+    setBusy('bulk')
+    const failures: string[] = []
+    let published = 0
+    try {
+      for (const id of selected) {
+        const product = products.find((item) => item.id === id)
+        if (!product) continue
+        try {
+          if (product.listing) await request({ method: 'patch', url: '/api/v1/vendor/marketplace/listings/' + product.listing.id, data: { status: 'published' } })
+          else await request({ method: 'post', url: '/api/v1/vendor/marketplace/listings', data: { product_id: product.id, status: 'published' } })
+          published += 1
+        } catch (err) {
+          failures.push((product.name || product.id) + ': ' + errorMessage(err, 'Not eligible'))
+        }
+      }
+      await load()
+      setSelected([])
+      setSuccess(published + ' published' + (failures.length ? '; ' + failures.length + ' failed.' : '.'))
+      return failures.length ? failures.join(' ') : undefined
+    } finally {
+      setBusy('')
+    }
+  })
+  const saveSlug = async (listing: NonNullable<MarketplaceCatalogProduct['listing']>) => {
+    if (!slug.trim()) return
+    setBusy(listing.id)
+    setError('')
+    try {
+      await request({ method: 'patch', url: '/api/v1/vendor/marketplace/listings/' + listing.id, data: { slug: slug.trim() } })
+      setEditing(null)
+      await load()
+    } catch (err) {
+      setError(errorMessage(err, t('text.unable_to_update_marketplace_product')))
+    } finally {
+      setBusy('')
+    }
+  }
+  const uploadImages = async (listing: NonNullable<MarketplaceCatalogProduct['listing']>, files: FileList | null) => {
+    if (!files?.length) return
+    const data = new FormData()
+    Array.from(files).forEach((file) => data.append('images[]', file))
+    setBusy(listing.id)
+    setError('')
+    try {
+      await request({ method: 'post', url: '/api/v1/vendor/marketplace/listings/' + listing.id + '/images', data, headers: { 'Content-Type': 'multipart/form-data' } })
+      await load()
+      setSuccess(t('text.listing_images_uploaded'))
+    } catch (err) {
+      setError(errorMessage(err, t('text.unable_to_upload_listing_images')))
+    } finally {
+      setBusy('')
+    }
+  }
+  const openStock = async (product: MarketplaceCatalogProduct) => {
+    const sequence = ++stockSequence.current
+    setStockProduct(product)
+    setStockRows([])
+    setStockError('')
+    setStockLoading(true)
+    try {
+      const response = await api.get<{ data: { data: MarketplaceStockBalance[] } }>('/api/v1/inventory', { params: { product_id: product.id, store_id: filters.branch_id || undefined, per_page: 100 } })
+      if (sequence === stockSequence.current) setStockRows(response.data.data.data || [])
+    } catch (err) {
+      if (sequence === stockSequence.current) setStockError(errorMessage(err, t('text.stock_load_failed')))
+    } finally {
+      if (sequence === stockSequence.current) setStockLoading(false)
+    }
+  }
+  const firstResult = meta.total === 0 ? 0 : (meta.current_page - 1) * meta.per_page + 1
+  const lastResult = Math.min(meta.total, meta.current_page * meta.per_page)
+  const goToPage = (nextPage: number) => updateQuery({ page: Math.max(1, Math.min(nextPage, meta.last_page)) }, false)
+  const pages = marketplacePageNumbers(meta.current_page, meta.last_page)
+  const selectedAll = products.length > 0 && products.every((product) => selected.includes(product.id))
+  const activeFilterCount = [filters.branch_id, filters.category_id, filters.brand, filters.listing_status, filters.stock_status].filter(Boolean).length
+
   return <>
-    <PageHeader title={t('text.marketplace_products')} description={t('text.manage_marketplace_product_publishing')} action={<div className="flex flex-wrap gap-3"><RefreshButton onClick={load} />{selected.length > 0 && <button type="button" onClick={bulkPublish} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"><Upload size={16} />{t('text.publish_selected')} ({selected.length})</button>}</div>} />
-    {error && <div className="mb-5"><ErrorState message={error} /></div>}{success && <div role="status" className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">{success}</div>}
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><label className="compact-search-shell w-full lg:max-w-md"><Search size={18} className="shrink-0 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('text.search_products_or_sku')} className="compact-search-input" /></label><div className="flex flex-wrap gap-2">{(['all', 'published', 'unpublished'] as const).map((value) => <button key={value} type="button" onClick={() => setStatus(value)} className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${status === value ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300'}`}>{value === 'all' ? t('text.all_products') : value === 'published' ? t('text.published') : t('text.unpublished')}</button>)}</div></div><div className="mt-6 overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="w-12 px-3 py-4"><input type="checkbox" aria-label={t('text.select_all_products')} checked={rows.length > 0 && rows.every((product) => selected.includes(product.id))} onChange={(event) => setSelected(event.target.checked ? rows.map((product) => product.id) : [])} /></th><th className="px-3 py-4">{t('text.product')}</th><th className="px-3 py-4">{t('text.category')}</th><th className="px-3 py-4">{t('text.price')}</th><th className="px-3 py-4">{t('text.available_stock')}</th><th className="px-3 py-4">{t('text.status')}</th><th className="px-3 py-4">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((product) => { const listing = listingByProduct.get(product.id); const published = listing?.status === 'published'; const pending = busy === product.id; return <tr key={product.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/50"><td className="px-3 py-4"><input type="checkbox" aria-label={`${t('text.select')} ${product.name || product.id}`} checked={selected.includes(product.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...new Set([...current, product.id])] : current.filter((id) => id !== product.id))} /></td><td className="px-3 py-4"><p className="font-semibold text-slate-900 dark:text-white">{product.name || '—'}</p><p className="mt-1 text-xs text-slate-500">{product.sku || t('text.no_sku')}</p>{listing && <div className="mt-2 flex items-center gap-2">{editing === listing.id ? <><input value={slug} onChange={(event) => setSlug(event.target.value)} className="compact-field h-8 w-44" /><button type="button" disabled={pending} onClick={() => { void saveSlug(listing) }} className="rounded-lg bg-blue-600 p-1.5 text-white"><Check size={14} /></button><button type="button" onClick={() => setEditing(null)} className="rounded-lg p-1.5 text-slate-400"><X size={14} /></button></> : <><span className="text-xs text-slate-400">/{listing.slug}</span><button type="button" onClick={() => { setEditing(listing.id); setSlug(listing.slug || '') }} className="text-xs font-semibold text-blue-700">{t('text.edit')}</button></>}</div>}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{product.category?.name || t('text.uncategorized')}</td><td className="px-3 py-4 font-semibold text-slate-800 dark:text-slate-200">{product.selling_price ?? '—'}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{product.track_inventory === false ? t('text.not_tracked') : product.available_stock ?? '—'}</td><td className="px-3 py-4">{listing ? <StatusBadge status={listing.status} /> : <LabelBadge tone="neutral">{t('text.not_published')}</LabelBadge>}</td><td className="px-3 py-4"><div className="flex flex-wrap gap-2">{published ? <button type="button" disabled={pending} onClick={() => confirmChange(product, 'draft')} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 px-2.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-60"><EyeOff size={14} />{t('text.unpublish')}</button> : <button type="button" disabled={pending} onClick={() => confirmChange(product, 'published')} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"><Eye size={14} />{t('text.publish')}</button>}{listing && <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300"><ImagePlus size={14} />{t('text.images')}<input type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { void uploadImages(listing, event.target.files); event.currentTarget.value = '' }} /></label>}</div></td></tr>})}</tbody></table>{!rows.length && <EmptyState label={t('text.no_products_match_filters')} />}</div></section>
+    <PageHeader title={t('text.marketplace_products')} description={t('text.marketplace_catalog_scope')} action={<div className="flex flex-wrap gap-3"><RefreshButton onClick={() => { void load() }} />{selected.length > 0 && <button type="button" disabled={busy === 'bulk'} onClick={bulkPublish} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"><Upload size={16} />{t('text.publish_selected')} ({selected.length})</button>}</div>} />
+    {error && <div className="mb-5"><ErrorState message={error} /></div>}
+    {success && <div role="status" className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">{success}</div>}
+    <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4">
+      <StatCard compact label="Total products" value={meta.summary.total_products} detail="Server-side catalog scope" icon={Package} tone="blue" />
+      <StatCard compact label="Published products" value={meta.summary.published_products} detail="Eligible marketplace listings" icon={Eye} tone="emerald" />
+      <StatCard compact label={t('text.unpublished_products')} value={meta.summary.unpublished_products} detail={t('text.draft_archived_not_listed')} icon={EyeOff} tone="violet" />
+      <StatCard compact label={t('text.low_stock_products')} value={meta.summary.low_stock_products} detail={t('text.authorized_branch_stock')} icon={Filter} tone="amber" />
+    </div>
+    <div className="mt-3">
+      <PageToolbar>
+        <label className="compact-search-shell min-w-0 flex-1"><Search size={18} className="shrink-0 text-slate-400" /><span className="sr-only">{t('text.search_products_or_sku')}</span><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t('text.search_products_or_sku')} className="compact-search-input" /></label>
+        <FilterToggle open={filtersOpen} activeCount={activeFilterCount} onClick={() => setFiltersOpen((value) => !value)} />
+        <label className="compact-label ml-auto hidden shrink-0 sm:block"><span>{t('text.rows_per_page')}</span><select aria-label={t('text.rows_per_page')} value={String(filters.per_page)} onChange={(event) => updateQuery({ per_page: Number(event.target.value), page: 1 }, false)} className="compact-field h-9 w-20"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label>
+      </PageToolbar>
+      <FilterPanel open={filtersOpen} title={t('text.filters')} onClose={() => setFiltersOpen(false)} footer={<button type="button" onClick={clearFilters} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300">{t('text.clear_all_filters')}</button>}>
+        <MarketplaceFilterField label={t('text.branch_location')}><select value={filters.branch_id} onChange={(event) => updateQuery({ branch_id: event.target.value })} className="compact-field h-10 w-full min-w-0"><option value="">{t('text.all_accessible_branches')}</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}{branch.store_code ? ' · ' + branch.store_code : ''}</option>)}</select></MarketplaceFilterField>
+        <MarketplaceFilterField label={t('text.category')}><select value={filters.category_id} onChange={(event) => updateQuery({ category_id: event.target.value })} className="compact-field h-10 w-full min-w-0"><option value="">{t('text.all_categories')}</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></MarketplaceFilterField>
+        <MarketplaceFilterField label={t('text.listing_status')}><select value={filters.listing_status} onChange={(event) => updateQuery({ listing_status: event.target.value })} className="compact-field h-10 w-full min-w-0"><option value="">{t('text.all_listing_states')}</option><option value="published">{t('text.published')}</option><option value="draft">{t('text.draft')}</option><option value="archived">{t('text.archived')}</option><option value="not_listed">{t('text.not_listed')}</option></select></MarketplaceFilterField>
+        <MarketplaceFilterField label={t('text.stock')}><select value={filters.stock_status} onChange={(event) => updateQuery({ stock_status: event.target.value })} className="compact-field h-10 w-full min-w-0"><option value="">{t('text.all_stock_states')}</option><option value="in_stock">{t('text.in_stock')}</option><option value="low_stock">{t('text.low_stock')}</option><option value="out_of_stock">{t('text.out_of_stock')}</option></select></MarketplaceFilterField>
+        <MarketplaceFilterField label={t('text.brand')}><input value={filters.brand} onChange={(event) => updateQuery({ brand: event.target.value })} placeholder={t('text.any_brand')} className="compact-field h-10 w-full min-w-0" /></MarketplaceFilterField>
+        <MarketplaceFilterField label={t('text.sort')}><select value={filters.sort + ':' + filters.direction} onChange={(event) => { const [sort, direction] = event.target.value.split(':'); updateQuery({ sort, direction: direction as 'asc' | 'desc' }) }} className="compact-field h-10 w-full min-w-0"><option value="name:asc">{t('text.name_a_to_z')}</option><option value="name:desc">{t('text.name_z_to_a')}</option><option value="created_at:desc">{t('text.newest_first')}</option><option value="created_at:asc">{t('text.oldest_first')}</option><option value="selling_price:asc">{t('text.price_low_to_high')}</option><option value="selling_price:desc">{t('text.price_high_to_low')}</option><option value="available_stock:desc">{t('text.available_stock')}</option></select></MarketplaceFilterField>
+      </FilterPanel>
+    </div>
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500"><button type="button" onClick={() => setSelected(selectedAll ? [] : products.map((product) => product.id))} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 font-semibold dark:border-slate-700">{selectedAll ? <CheckSquare size={14} /> : <Square size={14} />} {t('text.select_current_page')}</button>{selected.length > 0 && <span>{selected.length} · {t('text.current_page_only')}</span>}</div>
+    {loading ? <div className="mt-6"><LoadingState /></div> : !products.length ? <div className="mt-6"><EmptyState label={t('text.no_products_match_filters')} /></div> : <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-800"><tr><th className="w-12 px-3 py-3"><input type="checkbox" aria-label={t('text.select_all_products')} checked={selectedAll} onChange={(event) => setSelected(event.target.checked ? products.map((product) => product.id) : [])} /></th><th className="px-3 py-3">{t('text.product')}</th><th className="px-3 py-3">{t('text.sku')}</th><th className="px-3 py-3">{t('text.category')}</th><th className="px-3 py-3">{t('text.price')}</th><th className="px-3 py-3">{t('text.available_stock')}</th><th className="px-3 py-3">{t('text.marketplace_status')}</th><th className="px-3 py-3">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{products.map((product) => { const listing = listingFor(product); const published = listing?.status === 'published'; const pending = busy === product.id; return <tr key={product.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/60"><td className="px-3 py-4"><input type="checkbox" aria-label={t('text.select') + ' ' + (product.name || product.id)} checked={selected.includes(product.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...new Set([...current, product.id])] : current.filter((id) => id !== product.id))} /></td><td className="px-3 py-4"><div className="flex min-w-[210px] items-center gap-3"><div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-blue-50 dark:bg-blue-950/40">{product.image_url ? <img src={product.image_url} alt="" className="h-full w-full object-cover" /> : <Package className="m-3 text-blue-300" size={20} />}</div><div className="min-w-0"><p className="truncate font-semibold text-slate-900 dark:text-white">{product.name || '—'}</p><p className="truncate text-xs text-slate-500">{product.brand || '—'} · {product.variants?.length || 0} variants</p>{listing && <div className="mt-1 flex items-center gap-2">{editing === listing.id ? <><input value={slug} onChange={(event) => setSlug(event.target.value)} className="compact-field h-8 w-36" /><button type="button" disabled={pending} onClick={() => { void saveSlug(listing) }} className="rounded-lg bg-blue-600 p-1.5 text-white"><Check size={14} /></button><button type="button" onClick={() => setEditing(null)} className="rounded-lg p-1.5 text-slate-400"><X size={14} /></button></> : <><span className="max-w-32 truncate text-xs text-slate-400">/{listing.slug}</span><button type="button" onClick={() => { setEditing(listing.id); setSlug(listing.slug || '') }} className="text-xs font-semibold text-blue-700">{t('text.edit')}</button></>}</div>}</div></div></td><td className="px-3 py-4 text-slate-500">{product.sku || '—'}</td><td className="px-3 py-4 text-slate-600 dark:text-slate-300">{product.category?.name || t('text.uncategorized')}</td><td className="px-3 py-4 font-semibold text-slate-800 dark:text-slate-100">{product.selling_price == null ? '—' : formatMarketplaceMoney(product.selling_price)}</td><td className="px-3 py-4">{product.track_inventory === false ? <span className="text-slate-400">{t('text.not_tracked')}</span> : <span className={product.stock_status === 'low_stock' ? 'font-semibold text-amber-700' : product.stock_status === 'out_of_stock' ? 'font-semibold text-rose-700' : 'text-slate-700 dark:text-slate-300'}>{product.available_stock ?? 0}</span>}</td><td className="px-3 py-4">{listing ? <StatusBadge status={listing.status || 'draft'} /> : <LabelBadge tone="neutral">{t('text.not_listed')}</LabelBadge>}</td><td className="px-3 py-4"><div className="flex min-w-[270px] flex-wrap gap-2"><button type="button" onClick={() => { void openStock(product) }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300"><Eye size={14} />{t('text.view_stock')}</button>{published ? <button type="button" disabled={pending} onClick={() => confirmChange(product, 'draft')} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 px-2.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-60"><EyeOff size={14} />{t('text.unpublish')}</button> : <button type="button" disabled={pending} onClick={() => confirmChange(product, 'published')} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"><Eye size={14} />{t('text.publish')}</button>}{listing && <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-semibold text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300"><ImagePlus size={14} />{t('text.images')}<input type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { void uploadImages(listing, event.target.files); event.currentTarget.value = '' }} /></label>}</div></td></tr>})}</tbody></table></div>}
+    <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>{t('text.showing_products', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: meta.total.toLocaleString() })}</span><span>{t('text.page_of', { current: meta.current_page, total: meta.last_page })}</span></div><div className="flex items-center justify-between gap-1 sm:justify-end"><button type="button" disabled={meta.current_page <= 1} onClick={() => goToPage(1)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.first_page')}</button><button type="button" disabled={meta.current_page <= 1} onClick={() => goToPage(meta.current_page - 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><ChevronLeft size={15} /><span className="hidden sm:inline">{t('text.previous')}</span></button><div className="hidden items-center gap-1 md:flex">{pages.map((item, index) => item === 'ellipsis' ? <span key={'ellipsis-' + index} className="px-1">…</span> : <button type="button" key={item} aria-current={item === meta.current_page ? 'page' : undefined} onClick={() => goToPage(item)} className={item === meta.current_page ? 'min-w-8 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white' : 'min-w-8 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300'}>{item}</button>)}</div><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => goToPage(meta.current_page + 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><span className="hidden sm:inline">{t('text.next')}</span><ChevronRight size={15} /></button><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => goToPage(meta.last_page)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.last_page')}</button></div></div>
+    {stockProduct && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setStockProduct(null) }}><section role="dialog" aria-modal="true" aria-label={t('text.authorized_branch_stock')} className="max-h-[calc(100vh-32px)] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center justify-between gap-3 border-b border-slate-200 p-5 dark:border-slate-700"><div><h2 className="font-bold text-slate-950 dark:text-white">{t('text.branch_stock_title', { name: stockProduct.name })}</h2><p className="mt-1 text-xs text-slate-500">{t('text.authorized_branch_stock_help')}</p></div><button type="button" onClick={() => setStockProduct(null)} aria-label={t('text.close_inventory')} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={18} /></button></div><div className="max-h-[calc(100vh-150px)] overflow-auto p-5">{stockLoading ? <LoadingState /> : stockError ? <ErrorState message={stockError} /> : !stockRows.length ? <EmptyState label={t('text.no_authorized_stock_balances')} /> : <table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-3 py-3">{t('text.branch')}</th><th className="px-3 py-3">{t('text.inventory_location')}</th><th className="px-3 py-3">{t('text.variant_size')}</th><th className="px-3 py-3">{t('text.sku')}</th><th className="px-3 py-3">{t('text.on_hand')}</th><th className="px-3 py-3">{t('text.reserved')}</th><th className="px-3 py-3">{t('text.available')}</th><th className="px-3 py-3">{t('text.reorder_level')}</th><th className="px-3 py-3">{t('text.status')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{stockRows.map((row, index) => { const available = Number(row.available_quantity || 0); const reorder = Number(row.variant?.reorder_level || 0); return <tr key={(row.location?.id || 'location') + '-' + (row.variant?.id || index)}><td className="px-3 py-3">{row.branch?.name || '—'}</td><td className="px-3 py-3">{row.location?.name || '—'}</td><td className="px-3 py-3">{row.variant?.size || '—'}</td><td className="px-3 py-3">{row.variant?.sku || '—'}</td><td className="px-3 py-3">{row.on_hand_quantity ?? 0}</td><td className="px-3 py-3">{row.reserved_quantity ?? 0}</td><td className="px-3 py-3 font-semibold">{row.available_quantity ?? 0}</td><td className="px-3 py-3">{row.variant?.reorder_level ?? 0}</td><td className="px-3 py-3"><StatusBadge status={available <= 0 ? 'out_of_stock' : available <= reorder ? 'low_stock' : 'in_stock'} /></td></tr>})}</tbody></table>}</div></section></div>}
   </>
 }
 
@@ -566,6 +747,25 @@ export function MarketplaceSettingsPage() {
 }
 
 function MediaCard({ title, image, help, onFile, saving }: { title: string; image?: string | null; help: string; onFile: (file: File) => void; saving: boolean }) { const { t } = useTranslation(); return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="flex items-center gap-3"><ImagePlus className="text-blue-600" size={21} /><h2 className="font-bold text-slate-950 dark:text-white">{title}</h2></div><div className="mt-4 flex aspect-[16/8] items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-800">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="text-slate-300" size={32} />}</div><p className="mt-3 text-xs leading-5 text-slate-500">{help}</p><label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:text-slate-200"><Upload size={16} />{t('text.choose_image')}<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={saving} onChange={(event) => { const file = event.target.files?.[0]; if (file) onFile(file); event.currentTarget.value = '' }} /></label></section> }
+function MarketplaceFilterField({ label, children }: { label: string; children: ReactNode }) { return <label className="flex min-w-0 flex-col gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300"><span>{label}</span>{children}</label> }
+function readMarketplaceCatalogFilters(params: URLSearchParams): MarketplaceCatalogFilters {
+  const perPage = Number(params.get('per_page') || 25)
+  const page = Number(params.get('page') || 1)
+  return {
+    search: params.get('search') || '',
+    branch_id: params.get('branch_id') || '',
+    category_id: params.get('category_id') || '',
+    brand: params.get('brand') || '',
+    listing_status: params.get('listing_status') || '',
+    stock_status: params.get('stock_status') || '',
+    sort: params.get('sort') || 'name',
+    direction: params.get('direction') === 'desc' ? 'desc' : 'asc',
+    page: page > 0 ? page : 1,
+    per_page: [10, 25, 50, 100].includes(perPage) ? perPage : 25,
+  }
+}
+function formatMarketplaceMoney(value: string | number): string { return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'MMK', maximumFractionDigits: 2 }).format(Number(value)) }
+function marketplacePageNumbers(current: number, last: number): Array<number | 'ellipsis'> { if (last <= 7) return Array.from({ length: Math.max(last, 1) }, (_, index) => index + 1); const values = new Set([1, last, current, current - 1, current + 1]); const sorted = [...values].filter((value) => value > 0 && value <= last).sort((a, b) => a - b); const output: Array<number | 'ellipsis'> = []; sorted.forEach((value, index) => { if (index && value - sorted[index - 1] > 1) output.push('ellipsis'); output.push(value) }); return output }
 function Field({ label, value, onChange, type = 'text', min, step, required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; min?: string; step?: string; required?: boolean }) { return <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}<input type={type} value={value} min={min} step={step} required={required} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-normal text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label> }
 function ReadOnly({ label, value, badge = false }: { label: string; value?: string | null; badge?: boolean }) { return <div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>{badge && value ? <div className="mt-1"><StatusBadge status={value} /></div> : <p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{value || '—'}</p>}</div> }
 function RefreshButton({ onClick }: { onClick: () => void }) { const { t } = useTranslation(); return <button type="button" onClick={onClick} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><RefreshCw size={16} />{t('text.refresh')}</button> }

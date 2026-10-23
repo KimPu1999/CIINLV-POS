@@ -233,6 +233,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
             Route::get('/overview', [MarketplaceVendorController::class, 'overview']);
+            Route::get('/products', [MarketplaceVendorController::class, 'products']);
             Route::get('/earnings', [MarketplaceVendorController::class, 'earnings']);
             Route::get('/sales-history/export', [MarketplaceVendorController::class, 'salesHistoryExport'])->middleware('throttle:exports');
             Route::get('/sales-history', [MarketplaceVendorController::class, 'salesHistory']);

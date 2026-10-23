@@ -8,9 +8,11 @@ use App\Http\Requests\Marketplace\UpdateMarketplaceStoreRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceListingImagesRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceStoreMediaRequest;
 use App\Http\Resources\MarketplaceListingResource;
+use App\Http\Resources\MarketplaceProductResource;
 use App\Http\Resources\MarketplaceStoreResource;
 use App\Http\Resources\MarketplaceVendorOrderResource;
 use App\Http\Resources\MarketplaceVendorSaleResource;
+use App\Models\InventoryBalance;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceListingImage;
 use App\Models\MarketplaceOrderCommission;
@@ -20,11 +22,13 @@ use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceDocumentService;
 use App\Services\MarketplacePaymentService;
 use App\Services\MarketplaceSettingsService;
+use App\Services\ReportScopeService;
 use App\Services\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -355,6 +359,113 @@ class MarketplaceVendorController
             'success' => true,
             'data' => MarketplaceListingResource::collection($listings),
             'meta' => ['total' => $listings->total(), 'per_page' => $listings->perPage(), 'current_page' => $listings->currentPage(), 'last_page' => $listings->lastPage()],
+        ]);
+    }
+
+    public function products(Request $request, TenantContext $context, ReportScopeService $scope): JsonResponse
+    {
+        $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'category_id' => ['nullable', 'uuid'],
+            'brand' => ['nullable', 'string', 'max:120'],
+            'branch_id' => ['nullable', 'uuid'],
+            'listing_status' => ['nullable', 'in:published,draft,archived,not_listed'],
+            'stock_status' => ['nullable', 'in:in_stock,low_stock,out_of_stock'],
+            'sort' => ['nullable', 'in:name,created_at,selling_price,available_stock'],
+            'direction' => ['nullable', 'in:asc,desc'],
+        ]);
+
+        $tenant = $context->tenant();
+        $requestedBranch = $request->filled('branch_id') ? (string) $request->input('branch_id') : null;
+        $storeIds = $scope->storeIds($request->user(), $tenant, $requestedBranch);
+        abort_if($requestedBranch !== null && $storeIds->isEmpty(), 403, 'The selected branch is not authorized.');
+        $locationIds = $scope->locationIds($request->user(), $tenant, $requestedBranch);
+
+        $query = Product::query()
+            ->where('products.tenant_id', $tenant->id)
+            ->when($requestedBranch !== null, function (Builder $builder) use ($locationIds): void {
+                $builder->where(function (Builder $branchProducts) use ($locationIds): void {
+                    $branchProducts
+                        ->where('products.track_inventory', false)
+                        ->orWhereHas('variants.balances', fn (Builder $balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds));
+                });
+            })
+            ->when($request->filled('search'), function (Builder $builder) use ($request): void {
+                $term = '%'.$request->string('search')->toString().'%';
+                $builder->where(function (Builder $search) use ($term): void {
+                    $search->where('products.name', 'ilike', $term)
+                        ->orWhere('products.brand', 'ilike', $term)
+                        ->orWhereHas('variants', fn (Builder $variant) => $variant->where('product_variants.sku', 'ilike', $term)->orWhere('product_variants.barcode', 'ilike', $term));
+                });
+            })
+            ->when($request->filled('category_id'), fn (Builder $builder) => $builder->whereHas('category', fn (Builder $category) => $category->where('categories.uuid', $request->string('category_id')->toString())))
+            ->when($request->filled('brand'), fn (Builder $builder) => $builder->where('products.brand', 'ilike', '%'.$request->string('brand')->toString().'%'))
+            ->when($request->input('listing_status') === 'published', fn (Builder $builder) => $builder->whereHas('marketplaceListings', fn (Builder $listing) => $listing->where('status', 'published')))
+            ->when($request->input('listing_status') === 'draft', fn (Builder $builder) => $builder->whereHas('marketplaceListings', fn (Builder $listing) => $listing->where('status', 'draft')))
+            ->when($request->input('listing_status') === 'archived', fn (Builder $builder) => $builder->whereHas('marketplaceListings', fn (Builder $listing) => $listing->where('status', 'archived')))
+            ->when($request->input('listing_status') === 'not_listed', fn (Builder $builder) => $builder->whereDoesntHave('marketplaceListings'));
+
+        if ($request->input('stock_status') === 'out_of_stock') {
+            $query->where('products.track_inventory', true)->whereDoesntHave('variants', fn (Builder $variant) => $variant->where('status', 'active')->whereHas('balances', fn (Builder $balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')));
+        } elseif ($request->input('stock_status') === 'low_stock') {
+            $query->where('products.track_inventory', true)->whereHas('variants', fn (Builder $variant) => $variant->where('status', 'active')->whereHas('balances', fn (Builder $balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')));
+        } elseif ($request->input('stock_status') === 'in_stock') {
+            $query->where('products.track_inventory', true)->whereHas('variants', fn (Builder $variant) => $variant->where('status', 'active')->whereHas('balances', fn (Builder $balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds)->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')));
+        }
+
+        $stockSubquery = InventoryBalance::query()
+            ->selectRaw('COALESCE(SUM(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity), 0)')
+            ->join('product_variants', function ($join): void {
+                $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
+            })
+            ->where('inventory_balances.tenant_id', $tenant->id)
+            ->whereIn('inventory_balances.inventory_location_id', $locationIds)
+            ->whereColumn('product_variants.product_id', 'products.id');
+        $sort = $request->input('sort', 'name');
+        $direction = $request->input('direction') === 'desc' ? 'desc' : 'asc';
+
+        if ($sort === 'selling_price') {
+            $query->orderBy(ProductVariant::query()->select('selling_price')->whereColumn('product_variants.product_id', 'products.id')->where('status', 'active')->orderByDesc('is_default')->orderBy('id')->limit(1), $direction);
+        } elseif ($sort === 'available_stock') {
+            $query->orderBy($stockSubquery, $direction);
+        } else {
+            $query->orderBy('products.'.$sort, $direction);
+        }
+
+        $total = (clone $query)->count('products.id');
+        $published = (clone $query)->whereHas('marketplaceListings', fn (Builder $listing) => $listing->where('status', 'published'))->count('products.id');
+        $lowStock = (clone $query)->where('products.track_inventory', true)->whereHas('variants', fn (Builder $variant) => $variant->where('status', 'active')->whereHas('balances', function (Builder $balance) use ($locationIds): void {
+            $balance->whereIn('inventory_balances.inventory_location_id', $locationIds)
+                ->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')
+                ->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level');
+        }))->count('products.id');
+        $products = $query
+            ->with([
+                'category',
+                'images',
+                'marketplaceListings.images',
+                'variants' => fn ($variant) => $variant->where('status', 'active')->with(['balances' => fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locationIds)]),
+            ])
+            ->orderBy('products.id')
+            ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+
+        return response()->json([
+            'success' => true,
+            'data' => MarketplaceProductResource::collection($products),
+            'meta' => [
+                'total' => $total,
+                'per_page' => $products->perPage(),
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'summary' => [
+                    'total_products' => $total,
+                    'published_products' => $published,
+                    'unpublished_products' => max(0, $total - $published),
+                    'low_stock_products' => $lowStock,
+                ],
+            ],
         ]);
     }
 

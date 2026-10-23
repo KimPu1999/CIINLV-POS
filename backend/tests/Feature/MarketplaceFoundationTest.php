@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\CustomerProfile;
+use App\Models\InventoryBalance;
+use App\Models\InventoryLocation;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceStore;
@@ -11,6 +13,7 @@ use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Role;
+use App\Models\Store;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -301,6 +304,64 @@ class MarketplaceFoundationTest extends TestCase
             ->assertJsonPath('data.metrics.pending_orders', 0)
             ->assertJsonPath('data.metrics.marketplace_revenue', '0.00')
             ->assertJsonPath('data.capabilities.orders', true);
+    }
+
+    public function test_vendor_product_catalog_is_paginated_branch_scoped_and_tenant_safe(): void
+    {
+        [$tenantA, $adminA] = $this->businessWithAdmin('MARKETPLACE-CATALOG-A', 'marketplace-catalog-a@example.com');
+        [$tenantB, $adminB] = $this->businessWithAdmin('MARKETPLACE-CATALOG-B', 'marketplace-catalog-b@example.com');
+        $headersA = ['X-Tenant-Id' => $tenantA->uuid];
+
+        $branchA = Store::create(['tenant_id' => $tenantA->id, 'name' => 'Catalog Branch A', 'code' => 'CAT-A', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $adminA->id]);
+        $branchB = Store::create(['tenant_id' => $tenantA->id, 'name' => 'Catalog Branch B', 'code' => 'CAT-B', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $adminA->id]);
+        $locationA = InventoryLocation::create(['tenant_id' => $tenantA->id, 'location_type' => 'store', 'store_id' => $branchA->id, 'name' => 'Branch A Stock', 'code' => 'CAT-A-STOCK', 'status' => 'active']);
+        $locationB = InventoryLocation::create(['tenant_id' => $tenantA->id, 'location_type' => 'store', 'store_id' => $branchB->id, 'name' => 'Branch B Stock', 'code' => 'CAT-B-STOCK', 'status' => 'active']);
+        $category = Category::create(['tenant_id' => $tenantA->id, 'name' => 'Catalog Category', 'slug' => 'catalog-category', 'status' => 'active']);
+        $shared = Product::create(['tenant_id' => $tenantA->id, 'category_id' => $category->id, 'name' => 'Shared Branch Product', 'slug' => 'shared-branch-product', 'status' => 'active', 'track_inventory' => true, 'created_by' => $adminA->id]);
+        $sharedVariant = ProductVariant::create(['tenant_id' => $tenantA->id, 'product_id' => $shared->id, 'sku' => 'CAT-SHARED', 'selling_price' => 100, 'reorder_level' => 5, 'status' => 'active', 'is_default' => true]);
+        InventoryBalance::create(['tenant_id' => $tenantA->id, 'inventory_location_id' => $locationA->id, 'product_variant_id' => $sharedVariant->id, 'on_hand_quantity' => 7, 'reserved_quantity' => 1, 'average_cost' => 50, 'version' => 0]);
+        InventoryBalance::create(['tenant_id' => $tenantA->id, 'inventory_location_id' => $locationB->id, 'product_variant_id' => $sharedVariant->id, 'on_hand_quantity' => 2, 'reserved_quantity' => 0, 'average_cost' => 50, 'version' => 0]);
+
+        $branchBOnly = Product::create(['tenant_id' => $tenantA->id, 'name' => 'Branch B Only Product', 'slug' => 'branch-b-only-product', 'status' => 'active', 'track_inventory' => true, 'created_by' => $adminA->id]);
+        $branchBVariant = ProductVariant::create(['tenant_id' => $tenantA->id, 'product_id' => $branchBOnly->id, 'sku' => 'CAT-B-ONLY', 'selling_price' => 200, 'status' => 'active']);
+        InventoryBalance::create(['tenant_id' => $tenantA->id, 'inventory_location_id' => $locationB->id, 'product_variant_id' => $branchBVariant->id, 'on_hand_quantity' => 10, 'reserved_quantity' => 0, 'average_cost' => 100, 'version' => 0]);
+
+        $marketplaceStore = MarketplaceStore::create(['tenant_id' => $tenantA->id, 'name' => 'Catalog Marketplace', 'slug' => 'catalog-marketplace', 'approval_status' => 'approved', 'is_active' => true]);
+        MarketplaceListing::create(['tenant_id' => $tenantA->id, 'marketplace_store_id' => $marketplaceStore->id, 'product_id' => $shared->id, 'slug' => 'shared-branch-product', 'status' => 'published', 'published_at' => now()]);
+        $otherTenantBranch = Store::create(['tenant_id' => $tenantB->id, 'name' => 'Other Tenant Branch', 'code' => 'OTHER-BRANCH', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $adminB->id]);
+
+        $branchResponse = $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)
+            ->getJson('/api/v1/vendor/marketplace/products?branch_id='.$branchA->uuid.'&per_page=10&page=1&listing_status=published')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.summary.published_products', 1)
+            ->assertJsonPath('data.0.id', $shared->uuid)
+            ->assertJsonPath('data.0.listing.status', 'published');
+        $this->assertEquals(6.0, (float) $branchResponse->json('data.0.available_stock'));
+
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)
+            ->getJson('/api/v1/vendor/marketplace/products?branch_id='.$branchB->uuid.'&per_page=10&page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)
+            ->getJson('/api/v1/vendor/marketplace/products?branch_id='.$branchB->uuid.'&per_page=10&page=1&search=CAT-SHARED')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.sku', 'CAT-SHARED');
+
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)
+            ->getJson('/api/v1/vendor/marketplace/products?branch_id='.$branchB->uuid.'&per_page=0')
+            ->assertUnprocessable();
+
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)
+            ->getJson('/api/v1/vendor/marketplace/products?branch_id='.$otherTenantBranch->uuid)
+            ->assertForbidden();
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)
+            ->getJson('/api/v1/vendor/marketplace/products')
+            ->assertForbidden();
     }
 
     public function test_vendor_can_update_own_store_and_upload_public_branding_media(): void
