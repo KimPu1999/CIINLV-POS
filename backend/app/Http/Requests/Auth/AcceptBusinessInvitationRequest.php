@@ -27,7 +27,7 @@ class AcceptBusinessInvitationRequest extends FormRequest
             'email' => ['required', 'email:rfc', 'max:255'],
             'token' => ['required', 'string', 'min:32'],
             'password' => $passwordRequired
-                ? ['required', 'string', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()]
+                ? ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()->uncompromised()]
                 : ['nullable', 'string'],
             'password_confirmation' => $passwordRequired
                 ? ['required', 'same:password']

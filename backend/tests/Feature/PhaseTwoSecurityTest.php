@@ -102,6 +102,20 @@ class PhaseTwoSecurityTest extends TestCase
             ->assertHeader('Retry-After');
     }
 
+    public function test_login_accepts_an_existing_eight_character_password(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'eight-login@example.com',
+            'password' => Hash::make('Aa1!aaaa'),
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Aa1!aaaa',
+            'client_type' => 'web',
+        ])->assertOk()->assertJsonPath('data.id', $user->id);
+    }
+
     public function test_mobile_login_issues_device_token_and_logout_revokes_it(): void
     {
         $user = User::factory()->create(['email' => 'mobile@example.com', 'password' => Hash::make('CorrectPassword1!')]);
@@ -209,6 +223,38 @@ class PhaseTwoSecurityTest extends TestCase
         $this->assertDatabaseCount('personal_access_tokens', 0);
         $this->app['auth']->forgetGuards();
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+    }
+
+    public function test_password_change_and_reset_accept_eight_character_passwords_but_reject_seven(): void
+    {
+        $user = User::factory()->create(['email' => 'minimum-password@example.com', 'password' => Hash::make('CurrentPassword1!')]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/auth/change-password', [
+            'current_password' => 'CurrentPassword1!',
+            'password' => 'Aa1!aaa',
+            'password_confirmation' => 'Aa1!aaa',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/v1/auth/change-password', [
+            'current_password' => 'CurrentPassword1!',
+            'password' => 'Jr8$kM4!',
+            'password_confirmation' => 'Jr8$kM4!',
+        ])->assertOk();
+
+        $token = Password::broker()->createToken($user->refresh());
+        $this->postJson('/api/v1/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'Bb2@bbb',
+            'password_confirmation' => 'Bb2@bbb',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'Xp6&nR9@',
+            'password_confirmation' => 'Xp6&nR9@',
+        ])->assertOk();
     }
 
     public function test_password_reset_token_is_single_use(): void

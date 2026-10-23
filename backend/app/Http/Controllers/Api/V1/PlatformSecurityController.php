@@ -108,7 +108,7 @@ class PlatformSecurityController
             'policies' => [
                 ['key' => 'email_verification_required', 'label' => 'Email verification before business access', 'value' => (bool) config('auth.require_verified_email', false), 'status' => 'configured'],
                 ['key' => 'session_lifetime_minutes', 'label' => 'Browser session lifetime', 'value' => (int) config('session.lifetime'), 'status' => 'configured'],
-                ['key' => 'password_minimum_length', 'label' => 'Password minimum length', 'value' => 12, 'status' => 'configured_in_validation'],
+                ['key' => 'password_minimum_length', 'label' => 'Password minimum length', 'value' => 8, 'status' => 'configured_in_validation'],
                 ['key' => 'auth_rate_limit', 'label' => 'Authentication rate limit', 'value' => '5 attempts per minute per email and IP', 'status' => 'configured'],
                 ['key' => 'audit_retention', 'label' => 'Audit retention policy', 'value' => null, 'status' => 'unknown'],
                 ['key' => 'mfa', 'label' => 'Multi-factor authentication', 'value' => null, 'status' => 'unavailable'],

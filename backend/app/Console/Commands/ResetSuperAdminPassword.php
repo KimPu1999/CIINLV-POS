@@ -39,7 +39,7 @@ class ResetSuperAdminPassword extends Command
             'password' => $password,
             'confirmation' => $confirmation,
         ], [
-            'password' => ['required', 'same:confirmation', Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()],
+            'password' => ['required', 'same:confirmation', Password::min(8)->mixedCase()->numbers()->symbols()->uncompromised()],
             'confirmation' => ['required'],
         ]);
 

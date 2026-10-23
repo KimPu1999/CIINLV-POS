@@ -389,9 +389,16 @@ class PhaseThreeBusinessManagementTest extends TestCase
         $this->postJson('/api/v1/auth/invitations/accept', [
             'email' => $user->email,
             'token' => $token,
-            'password' => 'short',
-            'password_confirmation' => 'different',
+            'password' => 'Aa1!aaa',
+            'password_confirmation' => 'Aa1!aaa',
         ])->assertUnprocessable()->assertJsonValidationErrors('password');
+
+        $this->postJson('/api/v1/auth/invitations/accept', [
+            'email' => $user->email,
+            'token' => $token,
+            'password' => 'Qz7#vL2!',
+            'password_confirmation' => 'Qz7#vL2!',
+        ])->assertOk();
     }
 
     public function test_revoked_membership_cannot_access_business_resources(): void

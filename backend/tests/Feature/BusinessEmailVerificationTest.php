@@ -112,9 +112,19 @@ class BusinessEmailVerificationTest extends TestCase
     {
         $this->postJson('/api/v1/auth/business-registration', [
             'business_name' => 'Acme Retail', 'business_code' => 'ACME_RETAIL', 'owner_name' => 'Acme Owner',
-            'owner_email' => 'owner@example.test', 'password' => 'short', 'password_confirmation' => 'short',
+            'owner_email' => 'owner@example.test', 'password' => 'Aa1!aaa', 'password_confirmation' => 'Aa1!aaa',
         ])->assertStatus(422)->assertJsonValidationErrors('password');
         $this->assertDatabaseMissing('users', ['email' => 'owner@example.test']);
         $this->assertDatabaseMissing('tenants', ['business_code' => 'ACME_RETAIL']);
+    }
+
+    public function test_registration_accepts_an_eight_character_password(): void
+    {
+        Notification::fake();
+
+        $this->postJson('/api/v1/auth/business-registration', [
+            'business_name' => 'Eight Character Retail', 'business_code' => 'EIGHT_RETAIL', 'owner_name' => 'Owner',
+            'owner_email' => 'eight@example.test', 'password' => 'Aa1!aaaa', 'password_confirmation' => 'Aa1!aaaa',
+        ])->assertCreated();
     }
 }

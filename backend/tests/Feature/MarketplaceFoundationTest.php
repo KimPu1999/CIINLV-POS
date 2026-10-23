@@ -73,6 +73,27 @@ class MarketplaceFoundationTest extends TestCase
         $this->assertDatabaseCount('users', 1);
     }
 
+    public function test_customer_registration_rejects_seven_but_accepts_eight_characters(): void
+    {
+        $basePayload = [
+            'name' => 'Short Password Customer',
+            'phone' => '0912345678',
+            'terms_accepted' => true,
+        ];
+
+        $this->postJson('/api/v1/marketplace/auth/register', $basePayload + [
+            'email' => 'seven@example.com',
+            'password' => 'Aa1!aaa',
+            'password_confirmation' => 'Aa1!aaa',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
+
+        $this->postJson('/api/v1/marketplace/auth/register', $basePayload + [
+            'email' => 'eight@example.com',
+            'password' => 'Aa1!aaaa',
+            'password_confirmation' => 'Aa1!aaaa',
+        ])->assertCreated();
+    }
+
     public function test_customer_registration_does_not_create_business_membership_or_platform_role(): void
     {
         $this->postJson('/api/v1/marketplace/auth/register', [

@@ -228,7 +228,7 @@ php artisan migrate --force
 php artisan config:clear
 ```
 
-Then sign in as a Super Admin in the React app, create a business with the real administrator email, and check the invitation status in the response or Business Admin list. For a local database queue, start `php artisan queue:work --tries=3 --timeout=120` before creating the business. The recipient should open the configured `FRONTEND_URL/accept-invitation/{token}` link, set a password of at least 12 characters, and sign in at `/login`; acceptance activates only the invited membership.
+Then sign in as a Super Admin in the React app, create a business with the real administrator email, and check the invitation status in the response or Business Admin list. For a local database queue, start `php artisan queue:work --tries=3 --timeout=120` before creating the business. The recipient should open the configured `FRONTEND_URL/accept-invitation/{token}` link, set a password with at least 8 characters, and sign in at `/login`; acceptance activates only the invited membership.
 
 The invitation lifecycle is:
 

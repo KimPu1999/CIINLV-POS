@@ -23,7 +23,7 @@ class CreateSuperAdmin extends Command
         $validator = Validator::make(compact('name', 'email', 'password'), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email:rfc', 'max:255'],
-            'password' => [Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()],
+            'password' => [Password::min(8)->mixedCase()->numbers()->symbols()->uncompromised()],
         ]);
 
         if ($validator->fails()) {

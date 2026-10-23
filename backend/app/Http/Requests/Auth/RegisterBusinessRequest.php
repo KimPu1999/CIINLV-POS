@@ -5,6 +5,7 @@ namespace App\Http\Requests\Auth;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
+use Illuminate\Validation\Rules\Password;
 
 class RegisterBusinessRequest extends FormRequest
 {
@@ -45,7 +46,7 @@ class RegisterBusinessRequest extends FormRequest
             'company_certificate_image' => ['nullable', File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5120)],
             'owner_name' => ['required', 'string', 'max:255'],
             'owner_email' => ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'confirmed', 'string', 'min:12'],
+            'password' => ['required', 'confirmed', 'string', Password::min(8)],
         ];
     }
 
