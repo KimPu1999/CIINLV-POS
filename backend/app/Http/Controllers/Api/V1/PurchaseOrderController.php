@@ -25,7 +25,7 @@ class PurchaseOrderController
 {
     public function index(TenantContext $context, Request $request): JsonResponse
     {
-        $orders = PurchaseOrder::query()->where('purchase_orders.tenant_id', $context->tenant()->id)->whereIn('purchase_orders.destination_location_id', $this->accessibleLocationIds($request->user(), $context->tenant()->id))->with(['supplier', 'destination', 'items.variant.product'])->withCount('items')->when($request->filled('search'), fn ($q) => $q->where(fn ($inner) => $inner->where('purchase_orders.purchase_order_number', 'ilike', '%'.$request->string('search').'%')->orWhereHas('supplier', fn ($supplier) => $supplier->where('suppliers.name', 'ilike', '%'.$request->string('search').'%'))))->when($request->filled('status'), fn ($q) => $q->where('purchase_orders.status', $request->string('status')))->latest('purchase_orders.created_at')->paginate(min((int) $request->input('per_page', 25), 100));
+        $orders = $this->filteredOrders($request, $context->tenant()->id)->with(['supplier', 'destination.store', 'items.variant.product'])->withCount('items')->latest('purchase_orders.created_at')->paginate(min((int) $request->input('per_page', 25), 100));
 
         return response()->json(['success' => true, 'data' => PurchaseOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);
     }
@@ -34,7 +34,7 @@ class PurchaseOrderController
     {
         $tenantId = $context->tenant()->id;
         $locations = $this->accessibleLocationIds($request->user(), $tenantId);
-        $orders = PurchaseOrder::query()->where('purchase_orders.tenant_id', $tenantId)->whereIn('purchase_orders.destination_location_id', $locations);
+        $orders = $this->filteredOrders($request, $context->tenant()->id);
         $value = (clone $orders)->whereNotIn('status', ['cancelled'])->join('purchase_order_items', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')->sum(DB::raw('purchase_order_items.ordered_quantity * purchase_order_items.unit_cost'));
         $month = (clone $orders)->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfMonth()])->whereNotIn('status', ['cancelled', 'draft'])->join('purchase_order_items', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')->sum(DB::raw('purchase_order_items.ordered_quantity * purchase_order_items.unit_cost'));
 
@@ -124,6 +124,37 @@ class PurchaseOrderController
         $auditLogger->record('inventory.goods_received', $request->user(), $context->tenant(), $receipt, ['purchase_order_id' => $order->uuid]);
 
         return response()->json(['success' => true, 'data' => $receipt], 201);
+    }
+
+    private function filteredOrders(Request $request, int $tenantId)
+    {
+        $locationIds = $this->accessibleLocationIds($request->user(), $tenantId);
+        $query = PurchaseOrder::query()->where('purchase_orders.tenant_id', $tenantId)->whereIn('purchase_orders.destination_location_id', $locationIds);
+
+        if ($request->filled('branch_id')) {
+            $query->whereHas('destination.store', fn ($store) => $store->where('stores.uuid', $request->string('branch_id')));
+        }
+        if ($request->filled('destination_location_id')) {
+            $query->whereHas('destination', fn ($location) => $location->where('inventory_locations.uuid', $request->string('destination_location_id')));
+        }
+        if ($request->filled('supplier_id')) {
+            $query->whereHas('supplier', fn ($supplier) => $supplier->where('suppliers.uuid', $request->string('supplier_id')));
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('purchase_orders.ordered_at', '>=', $request->date('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('purchase_orders.ordered_at', '<=', $request->date('date_to'));
+        }
+        if ($request->filled('search')) {
+            $term = $request->string('search');
+            $query->where(fn ($inner) => $inner->where('purchase_orders.purchase_order_number', 'ilike', '%'.$term.'%')->orWhereHas('supplier', fn ($supplier) => $supplier->where('suppliers.name', 'ilike', '%'.$term.'%')->orWhere('suppliers.supplier_code', 'ilike', '%'.$term.'%'))->orWhereHas('items.variant', fn ($variant) => $variant->where('sku', 'ilike', '%'.$term.'%')));
+        }
+        if ($request->filled('status')) {
+            $query->where('purchase_orders.status', $request->string('status'));
+        }
+
+        return $query;
     }
 
     private function assertTenant(PurchaseOrder $order, TenantContext $context): void
