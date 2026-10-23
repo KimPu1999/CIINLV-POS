@@ -209,7 +209,7 @@ export function FilterPanel({ open, children, placement = 'fixed', title, onClos
           return
         }
         const panelHeight = panelRef.current?.offsetHeight || 420
-        const panelWidth = Math.min(560, window.innerWidth - 24)
+        const panelWidth = Math.min(panelRef.current?.getBoundingClientRect().width || 560, window.innerWidth - 24)
         const left = Math.max(12, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 12))
         let top = rect.bottom + 8
         if (top + panelHeight > window.innerHeight - 12 && rect.top - panelHeight - 8 >= 12) top = rect.top - panelHeight - 8
