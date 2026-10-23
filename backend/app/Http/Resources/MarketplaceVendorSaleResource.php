@@ -23,6 +23,7 @@ class MarketplaceVendorSaleResource extends JsonResource
             'shipped' => 'shipped',
             default => 'ready',
         };
+        $deliveryPaymentPending = $shipmentStatus === 'delivered' && $payment?->method === 'cod' && $paymentStatus === 'pending';
         $refundTotal = $order?->relationLoaded('refundRequests')
             ? $order->refundRequests->where('status', 'approved')->sum(fn ($refund): float => (float) ($refund->approved_amount ?? 0))
             : 0;
@@ -68,11 +69,13 @@ class MarketplaceVendorSaleResource extends JsonResource
             'payments' => MarketplacePaymentResource::collection($order?->payments ?? collect()),
             'amount_paid' => $paymentStatus === 'paid' ? ($amountReceived ?: $payment?->amount) : '0.00',
             'amount_received' => $amountReceived,
+            'amount_due' => number_format(max((float) $this->total - (float) $amountReceived, 0), 2, '.', ''),
             'transaction_reference' => $payment?->transaction_reference,
             'provider_reference' => $payment?->provider_reference,
             'receipt_number' => $payment?->receipt_number,
             'received_by' => $payment?->receivedBy?->only(['id', 'name', 'email']),
             'shipment_status' => $shipmentStatus,
+            'delivery_status_label' => $deliveryPaymentPending ? 'Delivered — Payment Pending' : ucfirst(str_replace('_', ' ', $shipmentStatus)),
             'delivery_type' => $shipment?->delivery_type,
             'carrier_name' => $shipment?->carrier_name,
             'tracking_number' => $shipment?->tracking_number,

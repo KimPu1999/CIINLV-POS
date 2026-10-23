@@ -117,6 +117,61 @@ class MarketplaceSalesHistoryTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
+    public function test_delivered_pending_cod_is_in_delivery_history_but_not_paid_revenue(): void
+    {
+        [$tenant, , $listing, $variant, $admin] = $this->vendor('SALES-HISTORY-PENDING', 1250, 4);
+        $customer = $this->customer('sales-history-pending@example.com');
+        $order = $this->checkout($customer, $listing, $variant, 'sales-history-pending');
+        $vendorOrder = $order->vendorOrders()->firstOrFail();
+        $url = '/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid;
+        $failedOrder = $this->checkout($customer, $listing, $variant, 'sales-history-failed');
+        $failedVendorOrder = $failedOrder->vendorOrders()->firstOrFail();
+        $failedOrder->update(['payment_status' => 'failed']);
+        $failedOrder->payments()->firstOrFail()->update(['status' => 'failed']);
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/sales-history?search='.$failedVendorOrder->vendor_order_number)
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $shipment = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson($url.'/shipments', ['delivery_type' => 'self_delivery'])
+            ->assertCreated()
+            ->json('data');
+        foreach (['shipped', 'in_transit', 'delivered'] as $status) {
+            $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+                ->patchJson('/api/v1/vendor/marketplace/shipments/'.$shipment['id'].'/status', ['status' => $status])
+                ->assertOk();
+        }
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/delivery-history')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.payment_status', 'pending')
+            ->assertJsonPath('data.0.delivery_status_label', 'Delivered — Payment Pending')
+            ->assertJsonPath('data.0.amount_due', '1250.00')
+            ->assertJsonPath('meta.summary.gross_revenue', '0.00');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/sales-history')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.payment_status', 'pending')
+            ->assertJsonPath('meta.summary.gross_revenue', '0.00');
+
+        $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'sales-history-pending-pay'])
+            ->postJson($url.'/payments/cod/collect', ['amount_received' => 1250])
+            ->assertOk()
+            ->assertJsonPath('data.payment_status', 'paid');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/sales-history')
+            ->assertOk()
+            ->assertJsonPath('data.0.payment_status', 'paid')
+            ->assertJsonPath('data.0.receipt_available', true);
+    }
+
     public function test_sales_history_supports_date_filters_pagination_and_csv_export(): void
     {
         [$tenant, , $listing, $variant, $admin] = $this->vendor('SALES-HISTORY-D', 900, 6);

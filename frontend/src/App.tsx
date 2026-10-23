@@ -58,6 +58,7 @@ const MarketplaceInvoicePage = lazy(() => import('./features/marketplace-vendor'
 const MarketplaceReceiptPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReceiptPage: Page }) => ({ default: Page })))
 const MarketplaceShippingPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceShippingPage: Page }) => ({ default: Page })))
 const MarketplaceSalesHistoryPage = lazy(() => import('./features/marketplace-sales-history').then(({ MarketplaceSalesHistoryPage: Page }) => ({ default: Page })))
+const MarketplaceDeliveryHistoryPage = lazy(() => import('./features/marketplace-sales-history').then(({ MarketplaceDeliveryHistoryPage: Page }) => ({ default: Page })))
 const MarketplaceSalesHistoryDetailPage = lazy(() => import('./features/marketplace-sales-history').then(({ MarketplaceSalesHistoryDetailPage: Page }) => ({ default: Page })))
 const MarketplaceReviewsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReviewsPage: Page }) => ({ default: Page })))
 const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceEarningsPage: Page }) => ({ default: Page })))
@@ -122,6 +123,7 @@ const businessNav: NavItem[] = [
   { label: 'Marketplace orders', path: '/business/marketplace/orders', icon: ShoppingCart, roles: ['business'] },
   { label: 'Shipping & fulfillment', path: '/business/marketplace/shipping', icon: Truck, roles: ['business'] },
   { label: 'Sales history', path: '/business/marketplace/sales-history', icon: History, roles: ['business'] },
+  { label: 'Delivery history', path: '/business/marketplace/delivery-history', icon: History, roles: ['business'] },
   { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'] },
   { label: 'Earnings & commissions', path: '/business/marketplace/earnings', icon: BarChart3, roles: ['business'] },
   { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
@@ -358,6 +360,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="marketplace/orders/:order/receipt" element={<MarketplaceReceiptPage />} />
           <Route path="marketplace/shipping" element={<MarketplaceShippingPage />} />
           <Route path="marketplace/sales-history" element={<MarketplaceSalesHistoryPage />} />
+          <Route path="marketplace/delivery-history" element={<MarketplaceDeliveryHistoryPage />} />
           <Route path="marketplace/sales-history/:order" element={<MarketplaceSalesHistoryDetailPage />} />
           <Route path="marketplace/reviews" element={<MarketplaceReviewsPage />} />
           <Route path="marketplace/earnings" element={<MarketplaceEarningsPage />} />

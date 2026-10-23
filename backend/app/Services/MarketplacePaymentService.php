@@ -115,11 +115,11 @@ class MarketplacePaymentService
 
     private function assertVendorFulfillmentActive(MarketplaceOrder $order, MarketplaceVendorOrder $vendorOrder): void
     {
-        if (! in_array($vendorOrder->fulfillment_status, ['active', 'shipped', 'in_transit'], true)) {
+        if (! in_array($vendorOrder->fulfillment_status, ['active', 'shipped', 'in_transit', 'delivered'], true)) {
             throw new UnprocessableEntityHttpException('Fulfillment must be active before receiving cash payment.');
         }
 
-        if (! in_array($order->status, ['confirmed', 'processing', 'partially_shipped', 'shipped'], true)) {
+        if (! in_array($order->status, ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered'], true)) {
             throw new UnprocessableEntityHttpException('The order must be confirmed before receiving payment.');
         }
     }

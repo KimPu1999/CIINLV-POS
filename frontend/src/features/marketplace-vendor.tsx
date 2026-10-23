@@ -350,8 +350,8 @@ function MarketplacePaymentCard({ order, orderId, onUpdated }: { order: VendorOr
   const paymentStatus = order.payment_status || 'pending'
   const isCod = order.payment_method === 'cod'
   const fulfillmentStatus = order.fulfillment_status || 'pending'
-  const orderConfirmed = ['confirmed', 'processing', 'partially_shipped', 'shipped'].includes(order.order_status || '')
-  const fulfillmentActive = ['active', 'shipped', 'in_transit'].includes(fulfillmentStatus)
+  const orderConfirmed = ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered'].includes(order.order_status || '')
+  const fulfillmentActive = ['active', 'shipped', 'in_transit', 'delivered'].includes(fulfillmentStatus)
   const cashPaymentActive = isCod && orderConfirmed && fulfillmentActive && paymentStatus === 'pending'
   const basePath = `${marketplaceBase}/orders/${encodeURIComponent(orderId || order.id)}`
   const activateFulfillment = async () => {

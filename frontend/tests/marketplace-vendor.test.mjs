@@ -15,6 +15,13 @@ test('Business Admin marketplace navigation exposes all Phase 4 routes', () => {
   }
 })
 
+test('marketplace delivery history preserves delivered pending COD and payment confirmation paths', () => {
+  assert.match(app, /marketplace\/delivery-history/)
+  assert.match(routes, /Route::get\('\/delivery-history', \[MarketplaceVendorController::class, 'deliveryHistory'\]\)/)
+  assert.match(app, /MarketplaceDeliveryHistoryPage/)
+  assert.match(feature, /payments\/cod\/collect/)
+})
+
 test('vendor pages use real tenant-scoped APIs and no fabricated later-phase data', () => {
   for (const endpoint of ['/api/v1/vendor/marketplace/overview', '/api/v1/vendor/marketplace/store', '/api/v1/vendor/marketplace/listings', '/api/v1/products']) {
     assert.match(feature, new RegExp(endpoint.replaceAll('/', '\\/')))

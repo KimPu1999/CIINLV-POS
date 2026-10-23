@@ -209,6 +209,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/earnings', [MarketplaceVendorController::class, 'earnings']);
             Route::get('/sales-history/export', [MarketplaceVendorController::class, 'salesHistoryExport'])->middleware('throttle:exports');
             Route::get('/sales-history', [MarketplaceVendorController::class, 'salesHistory']);
+            Route::get('/delivery-history', [MarketplaceVendorController::class, 'deliveryHistory']);
             Route::get('/sales-history/{order}', [MarketplaceVendorController::class, 'salesHistoryDetail']);
             Route::get('/orders', [MarketplaceVendorController::class, 'orders']);
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);

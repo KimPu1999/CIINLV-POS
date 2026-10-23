@@ -203,6 +203,29 @@ class MarketplaceVendorController
         ]);
     }
 
+    public function deliveryHistory(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        $this->validateSalesHistoryRequest($request);
+        $query = $this->salesHistoryQuery($request, $context);
+        $query->whereHas('shipments', fn (Builder $shipment) => $shipment->whereIn('status', ['delivered', 'completed']));
+        $summary = $this->salesHistorySummary($request, $context, $commissions, true);
+        $deliveries = $query
+            ->with($this->salesHistoryRelations())
+            ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+
+        return response()->json([
+            'success' => true,
+            'data' => MarketplaceVendorSaleResource::collection($deliveries),
+            'meta' => [
+                'total' => $deliveries->total(),
+                'per_page' => $deliveries->perPage(),
+                'current_page' => $deliveries->currentPage(),
+                'last_page' => $deliveries->lastPage(),
+                'summary' => $summary,
+            ],
+        ]);
+    }
+
     public function salesHistoryExport(Request $request, TenantContext $context): StreamedResponse
     {
         $this->validateSalesHistoryRequest($request);
@@ -421,10 +444,17 @@ class MarketplaceVendorController
     {
         $query = MarketplaceVendorOrder::query()
             ->where('marketplace_vendor_orders.tenant_id', $context->tenant()->id)
-            ->whereHas('order', function (Builder $order): void {
-                $order
-                    ->whereIn('status', ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered', 'cancelled', 'partially_refunded', 'refunded'])
-                    ->whereHas('payments', fn (Builder $payment) => $payment->whereIn('status', ['authorized', 'paid', 'refunded']));
+            ->where(function (Builder $history): void {
+                $history->whereHas('order', function (Builder $order): void {
+                    $order
+                        ->whereIn('status', ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered', 'cancelled', 'partially_refunded', 'refunded'])
+                        ->whereHas('payments', fn (Builder $payment) => $payment->whereIn('status', ['authorized', 'paid', 'refunded']));
+                })->orWhere(function (Builder $delivered): void {
+                    $delivered
+                        ->where('marketplace_vendor_orders.status', 'delivered')
+                        ->whereHas('shipments', fn (Builder $shipment) => $shipment->whereIn('status', ['delivered', 'completed']))
+                        ->whereHas('order', fn (Builder $order) => $order->whereIn('status', ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered']));
+                });
             })
             ->when($request->filled('search'), function (Builder $builder) use ($request): void {
                 $term = '%'.$request->string('search')->toString().'%';
@@ -485,12 +515,22 @@ class MarketplaceVendorController
         };
     }
 
-    private function salesHistorySummary(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): array
+    private function salesHistorySummary(Request $request, TenantContext $context, MarketplaceCommissionService $commissions, bool $deliveriesOnly = false): array
     {
         $query = $this->salesHistoryQuery($request, $context, false);
-        $totals = (clone $query)->selectRaw('COUNT(*) AS sales_count, COALESCE(SUM(marketplace_vendor_orders.total), 0) AS gross_revenue, COALESCE(SUM(marketplace_vendor_orders.discount_total), 0) AS discount_total, COALESCE(SUM(marketplace_vendor_orders.tax_total), 0) AS tax_total, COALESCE(SUM(marketplace_vendor_orders.shipping_total), 0) AS shipping_revenue')->first();
-        $orderIds = (clone $query)->select('marketplace_vendor_orders.marketplace_order_id')->distinct()->pluck('marketplace_order_id');
-        $vendorOrderIds = (clone $query)->select('marketplace_vendor_orders.id')->pluck('id');
+        if ($deliveriesOnly) {
+            $query->whereHas('shipments', fn (Builder $shipment) => $shipment->whereIn('status', ['delivered', 'completed']));
+        } else {
+            // Pending COD deliveries are visible in history but must not inflate paid totals.
+            $query->whereHas('order.payments', fn (Builder $payment) => $payment->whereIn('status', ['authorized', 'paid', 'refunded']));
+        }
+        $financialQuery = clone $query;
+        if ($deliveriesOnly) {
+            $financialQuery->whereHas('order.payments', fn (Builder $payment) => $payment->whereIn('status', ['authorized', 'paid', 'refunded']));
+        }
+        $totals = (clone $financialQuery)->selectRaw('COUNT(*) AS sales_count, COALESCE(SUM(marketplace_vendor_orders.total), 0) AS gross_revenue, COALESCE(SUM(marketplace_vendor_orders.discount_total), 0) AS discount_total, COALESCE(SUM(marketplace_vendor_orders.tax_total), 0) AS tax_total, COALESCE(SUM(marketplace_vendor_orders.shipping_total), 0) AS shipping_revenue')->first();
+        $orderIds = (clone $financialQuery)->select('marketplace_vendor_orders.marketplace_order_id')->distinct()->pluck('marketplace_order_id');
+        $vendorOrderIds = (clone $financialQuery)->select('marketplace_vendor_orders.id')->pluck('id');
         $refundTotal = $orderIds->isEmpty() ? 0 : MarketplaceRefundRequest::query()->whereIn('marketplace_order_id', $orderIds)->where('status', 'approved')->sum('approved_amount');
         $commissionConfigured = $commissions->storageAvailable();
         $commissionTotal = $commissionConfigured && $vendorOrderIds->isNotEmpty() ? MarketplaceOrderCommission::query()->whereIn('marketplace_vendor_order_id', $vendorOrderIds)->sum('commission_amount') : 0;
