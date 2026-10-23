@@ -23,6 +23,8 @@ type OrderListResponse = { data: AdminOrder[]; meta: OrderListMeta }
 type AdminShipment = { id: string; vendor_order_number?: string | null; store_name?: string | null; internal_tracking_id?: string | null; tracking_number?: string | null; status: string; delivery_type: string; created_at?: string | null }
 type AdminRequest = { id: string; order_number?: string | null; reason?: string | null; status: string; requested_amount?: string | number | null; currency_code?: string | null; created_at?: string | null }
 type AdminAudit = { id: number; action: string; entity_type?: string | null; entity_id?: string | null; actor?: { name?: string; email?: string } | null; business?: { name?: string; business_code?: string } | null; metadata?: Record<string, unknown>; created_at?: string | null }
+type AuditMeta = { total: number; per_page: number; current_page: number; last_page: number }
+type AuditResponse = { data: AdminAudit[]; meta: AuditMeta }
 type AdminActivity = { id: number; action: string; actor?: string | null; business?: string | null; created_at?: string | null; metadata?: Record<string, unknown> }
 type Dashboard = { metrics: Record<string, number | string | null>; recent_orders: AdminOrder[]; moderation_activity: AdminActivity[]; financial_capabilities: Record<string, Capability> }
 type Report = { summary: { orders: number; gross_sales: string; refund_total: string }; orders_by_status: { status: string; count: number }[]; payments_by_status: { status: string; count: number }[]; vendors: { business_name: string; store_name: string; order_count: number; gross_sales: string }[]; financial_capabilities: Record<string, Capability> }
@@ -75,8 +77,10 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
         setVendorSummary(response.data.meta?.summary || { total: 0, approved: 0, pending: 0, suspended: 0 })
       } else if (tab === 'listings' || tab === 'orders') {
         setRows([])
+      } else if (tab === 'audit') {
+        setRows([])
       } else {
-        const endpoint = tab === 'shipments' ? '/api/v1/admin/marketplace/shipments' : tab === 'cancellations' ? '/api/v1/admin/marketplace/cancellation-requests' : tab === 'returns' ? '/api/v1/admin/marketplace/return-requests' : tab === 'refunds' ? '/api/v1/admin/marketplace/refund-requests' : tab === 'audit' ? '/api/v1/admin/marketplace/audit-logs' : '/api/v1/admin/marketplace/orders'
+        const endpoint = tab === 'shipments' ? '/api/v1/admin/marketplace/shipments' : tab === 'cancellations' ? '/api/v1/admin/marketplace/cancellation-requests' : tab === 'returns' ? '/api/v1/admin/marketplace/return-requests' : tab === 'refunds' ? '/api/v1/admin/marketplace/refund-requests' : '/api/v1/admin/marketplace/orders'
         setRows(extractRows(await request<unknown>({ method: 'get', url: endpoint, params: { per_page: 50, search: search || undefined, status: status || undefined } })))
       }
     } catch (err) {
@@ -118,11 +122,11 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
   if (isOrdersTab) return <MarketplaceOrders t={t} />
 
   return <>
-    {['orders', 'shipments', 'cancellations', 'returns', 'refunds', 'audit'].includes(tab) && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row dark:border-slate-700 dark:bg-slate-900"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('text.search')} className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={t('text.status')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_statuses')}</option>{['pending', 'approved', 'rejected', 'draft', 'published', 'archived', 'processing', 'paid', 'refunded'].map((option) => <option key={option} value={option}>{t(`text.${option}`, { defaultValue: option.replaceAll('_', ' ') })}</option>)}</select><button type="button" onClick={() => void load()} className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">{t('text.apply_filters')}</button></div>}
+    {['orders', 'shipments', 'cancellations', 'returns', 'refunds'].includes(tab) && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row dark:border-slate-700 dark:bg-slate-900"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('text.search')} className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={t('text.status')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_statuses')}</option>{['pending', 'approved', 'rejected', 'draft', 'published', 'archived', 'processing', 'paid', 'refunded'].map((option) => <option key={option} value={option}>{t(`text.${option}`, { defaultValue: option.replaceAll('_', ' ') })}</option>)}</select><button type="button" onClick={() => void load()} className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">{t('text.apply_filters')}</button></div>}
     {tab === 'vendors' && <VendorFilters search={search} status={status} active={vendorActive} business={vendorBusiness} sort={vendorSort} direction={vendorDirection} t={t} onSearch={(value) => { setSearch(value); setVendorPage(1) }} onStatus={(value) => { setStatus(value); setVendorPage(1) }} onActive={(value) => { setVendorActive(value); setVendorPage(1) }} onBusiness={(value) => { setVendorBusiness(value); setVendorPage(1) }} onSort={(value) => { setVendorSort(value); setVendorPage(1) }} onDirection={(value) => { setVendorDirection(value); setVendorPage(1) }} onApply={() => void load()} />}
     {tab === 'reports' && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row dark:border-slate-700 dark:bg-slate-900"><label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold text-slate-500"><span>{t('text.from_date')}</span><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label><label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold text-slate-500"><span>{t('text.to_date')}</span><input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label><button type="button" onClick={() => void load()} className="h-11 self-end rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">{t('text.apply_filters')}</button></div>}
     {error && <div className="mb-6"><ErrorState message={error} /></div>}
-    {loading ? <LoadingState /> : tab === 'overview' ? <Overview dashboard={dashboard} t={t} onOpenOrder={(id) => navigate('/platform/marketplace/orders?order=' + encodeURIComponent(id))} /> : tab === 'vendors' ? <><div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard label={t('text.total_vendors')} value={vendorSummary.total} detail={t('text.all_marketplace_stores')} icon={Store} tone="blue" /><StatCard label={t('text.approved_vendors')} value={vendorSummary.approved} detail={t('text.approved_marketplace_stores')} icon={Check} tone="emerald" /><StatCard label={t('text.pending_vendor_approvals')} value={vendorSummary.pending} detail={t('text.requires_review')} icon={Users} tone="amber" /><StatCard label={t('text.suspended_vendors')} value={vendorSummary.suspended} detail={t('text.inactive_marketplace_stores')} icon={ShieldAlert} tone="violet" /></div><Vendors rows={rows as AdminStore[]} t={t} onApproval={approveStore} onStatus={updateStore} onView={(row) => navigate(`/platform/marketplace/vendors/${encodeURIComponent(row.id)}`)} />{vendorMeta.last_page > 1 && <VendorPagination meta={vendorMeta} t={t} onPrevious={() => setVendorPage((value) => value - 1)} onNext={() => setVendorPage((value) => value + 1)} />}</> : tab === 'listings' ? <Listings rows={rows as AdminListing[]} t={t} onModerate={moderateListing} /> : tab === 'orders' ? <Orders rows={rows as AdminOrder[]} t={t} initialOrderId={searchParams.get('order')} onRefresh={() => void load()} onClose={() => navigate('/platform/marketplace/orders', { replace: true })} /> : tab === 'shipments' ? <Operations rows={rows as AdminShipment[]} tab={tab} t={t} /> : tab === 'cancellations' || tab === 'returns' ? <Operations rows={rows as AdminRequest[]} tab={tab} t={t} onDecision={decideRequest} /> : tab === 'refunds' ? <Refunds rows={rows as AdminRequest[]} t={t} /> : tab === 'reports' ? <Reports report={report} t={t} /> : tab === 'audit' ? <AuditLogs rows={rows as AdminAudit[]} t={t} /> : tab === 'settings' ? <SettingsPanel settings={settings} error={error} sessionMismatch={sessionMismatch} onRetry={() => void load()} onSignOut={() => void logout()} onSaved={() => void load()} t={t} /> : tab === 'finance' ? <AdvancedCommissionPanel settings={settings} /> : <CapabilityPanel tab={tab} settings={settings} t={t} />}
+    {loading ? <LoadingState /> : tab === 'overview' ? <Overview dashboard={dashboard} t={t} onOpenOrder={(id) => navigate('/platform/marketplace/orders?order=' + encodeURIComponent(id))} /> : tab === 'vendors' ? <><div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard label={t('text.total_vendors')} value={vendorSummary.total} detail={t('text.all_marketplace_stores')} icon={Store} tone="blue" /><StatCard label={t('text.approved_vendors')} value={vendorSummary.approved} detail={t('text.approved_marketplace_stores')} icon={Check} tone="emerald" /><StatCard label={t('text.pending_vendor_approvals')} value={vendorSummary.pending} detail={t('text.requires_review')} icon={Users} tone="amber" /><StatCard label={t('text.suspended_vendors')} value={vendorSummary.suspended} detail={t('text.inactive_marketplace_stores')} icon={ShieldAlert} tone="violet" /></div><Vendors rows={rows as AdminStore[]} t={t} onApproval={approveStore} onStatus={updateStore} onView={(row) => navigate(`/platform/marketplace/vendors/${encodeURIComponent(row.id)}`)} />{vendorMeta.last_page > 1 && <VendorPagination meta={vendorMeta} t={t} onPrevious={() => setVendorPage((value) => value - 1)} onNext={() => setVendorPage((value) => value + 1)} />}</> : tab === 'listings' ? <Listings rows={rows as AdminListing[]} t={t} onModerate={moderateListing} /> : tab === 'orders' ? <Orders rows={rows as AdminOrder[]} t={t} initialOrderId={searchParams.get('order')} onRefresh={() => void load()} onClose={() => navigate('/platform/marketplace/orders', { replace: true })} /> : tab === 'shipments' ? <Operations rows={rows as AdminShipment[]} tab={tab} t={t} /> : tab === 'cancellations' || tab === 'returns' ? <Operations rows={rows as AdminRequest[]} tab={tab} t={t} onDecision={decideRequest} /> : tab === 'refunds' ? <Refunds rows={rows as AdminRequest[]} t={t} /> : tab === 'reports' ? <Reports report={report} t={t} /> : tab === 'audit' ? <AuditLogsView t={t} /> : tab === 'settings' ? <SettingsPanel settings={settings} error={error} sessionMismatch={sessionMismatch} onRetry={() => void load()} onSignOut={() => void logout()} onSaved={() => void load()} t={t} /> : tab === 'finance' ? <AdvancedCommissionPanel settings={settings} /> : <CapabilityPanel tab={tab} settings={settings} t={t} />}
   </>
 }
 
@@ -800,7 +804,86 @@ function Reports({ report, t }: { report: Report | null; t: TFunction }) {
 
 function SimpleBreakdown({ rows, t }: { rows: { status: string; count: number }[]; t: TFunction }) { return rows.length ? <div className="space-y-3">{rows.map((row) => <div key={row.status} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/60"><StatusBadge status={row.status} /><span className="font-bold text-slate-900 dark:text-white">{row.count.toLocaleString()}</span></div>)}</div> : <EmptyState label={t('text.no_marketplace_data')} /> }
 
-function AuditLogs({ rows, t }: { rows: AdminAudit[]; t: TFunction }) { if (!rows.length) return <EmptyState label={t('text.no_marketplace_audit_logs')} />; return <Panel title={t('text.marketplace_audit_logs')} icon={Activity}><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-4 py-4">{t('text.action')}</th><th className="px-4 py-4">{t('text.actor')}</th><th className="px-4 py-4">{t('text.business')}</th><th className="px-4 py-4">{t('text.entity')}</th><th className="px-4 py-4">{t('text.date')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => <tr key={row.id}><td className="px-4 py-4 font-semibold text-slate-900 dark:text-white">{row.action}</td><td className="px-4 py-4 text-slate-600 dark:text-slate-300">{row.actor?.name || t('text.system')}</td><td className="px-4 py-4 text-slate-600 dark:text-slate-300">{row.business?.name || '—'}</td><td className="px-4 py-4 text-xs text-slate-500">{row.entity_type ? `${row.entity_type.split('\\\\').pop()}:${row.entity_id || '—'}` : '—'}</td><td className="px-4 py-4 text-slate-500">{formatDate(row.created_at)}</td></tr>)}</tbody></table></div></Panel> }
+function AuditLogsView({ t }: { t: TFunction }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [rows, setRows] = useState<AdminAudit[]>([])
+  const [meta, setMeta] = useState<AuditMeta>({ total: 0, per_page: 25, current_page: 1, last_page: 1 })
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
+  const [actionInput, setActionInput] = useState(searchParams.get('action') || '')
+  const [tenantInput, setTenantInput] = useState(searchParams.get('tenant_id') || '')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const headingRef = useRef<HTMLHeadingElement | null>(null)
+  const page = Math.max(1, Number(searchParams.get('page') || 1))
+  const perPage = [10, 25, 50, 100].includes(Number(searchParams.get('per_page'))) ? Number(searchParams.get('per_page')) : 25
+  const paramsKey = [...searchParams.entries()].map(([key, value]) => `${key}=${value}`).join('&')
+  const inputClass = 'h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
+
+  const updateParams = useCallback((changes: Record<string, string | undefined>, resetPage = true) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(changes).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key))
+    if (resetPage) next.delete('page')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  useEffect(() => {
+    setSearchInput(searchParams.get('search') || '')
+    setActionInput(searchParams.get('action') || '')
+    setTenantInput(searchParams.get('tenant_id') || '')
+  }, [paramsKey, searchParams])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => updateParams({ search: searchInput.trim() || undefined }), 350)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, updateParams])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    let active = true
+    setLoading(true); setError('')
+    const params: Record<string, string | number> = { page, per_page: perPage }
+    for (const key of ['search', 'action', 'tenant_id']) {
+      const value = searchParams.get(key)
+      if (value) params[key] = value
+    }
+    void api.get<AuditResponse>('/api/v1/admin/marketplace/audit-logs', { params, signal: controller.signal })
+      .then((response) => {
+        if (!active) return
+        const responseMeta = response.data.meta
+        if (page > responseMeta.last_page && responseMeta.last_page > 0) {
+          updateParams({ page: String(responseMeta.last_page) }, false)
+          return
+        }
+        setRows(response.data.data || [])
+        setMeta(responseMeta)
+      })
+      .catch((requestError) => { if (active && !controller.signal.aborted) setError(errorMessage(requestError, t('text.unable_to_load_marketplace_audit_logs'))) })
+      .finally(() => { if (active && !controller.signal.aborted) setLoading(false) })
+    return () => { active = false; controller.abort() }
+  }, [page, perPage, paramsKey, searchParams, t, updateParams])
+
+  const goToPage = (nextPage: number) => {
+    const boundedPage = Math.max(1, Math.min(nextPage, meta.last_page))
+    updateParams({ page: String(boundedPage) }, false)
+    window.requestAnimationFrame(() => headingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+  const firstResult = meta.total === 0 ? 0 : (meta.current_page - 1) * meta.per_page + 1
+  const lastResult = Math.min(meta.total, meta.current_page * meta.per_page)
+  const pageNumbers = marketplacePageNumbers(meta.current_page, meta.last_page)
+
+  return <div className="space-y-4">
+    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:grid-cols-3">
+      <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500"><span>{t('text.search')}</span><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} className={inputClass} /></label>
+      <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500"><span>{t('text.action_type')}</span><input value={actionInput} onChange={(event) => { setActionInput(event.target.value); updateParams({ action: event.target.value.trim() || undefined }) }} className={inputClass} /></label>
+      <label className="flex flex-col gap-1 text-xs font-semibold text-slate-500"><span>{t('text.business')}</span><input inputMode="numeric" value={tenantInput} onChange={(event) => { setTenantInput(event.target.value); updateParams({ tenant_id: event.target.value.trim() || undefined }) }} placeholder={t('text.business_id')} className={inputClass} /></label>
+    </div>
+    <Panel title={t('text.marketplace_audit_logs')} icon={Activity}>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3"><div><h2 ref={headingRef} id="marketplace-audit-logs-heading" tabIndex={-1} className="scroll-mt-24 text-base font-bold text-slate-900 outline-none dark:text-white">{t('text.marketplace_audit_logs')}</h2><p className="mt-1 text-xs text-slate-500">{t('text.audit_logs_read_only')}</p></div><label className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="whitespace-nowrap">{t('text.rows_per_page')}</span><select value={String(perPage)} onChange={(event) => updateParams({ per_page: event.target.value })} aria-label={t('text.rows_per_page')} className={inputClass}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>
+      {loading ? <LoadingState /> : error ? <ErrorState message={error} /> : !rows.length ? <EmptyState label={t('text.no_marketplace_audit_logs')} /> : <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-4 py-4">{t('text.action')}</th><th className="px-4 py-4">{t('text.actor')}</th><th className="px-4 py-4">{t('text.business')}</th><th className="px-4 py-4">{t('text.entity')}</th><th className="px-4 py-4">{t('text.date')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => <tr key={row.id}><td className="px-4 py-4 font-semibold text-slate-900 dark:text-white">{row.action}</td><td className="px-4 py-4 text-slate-600 dark:text-slate-300">{row.actor?.name || t('text.system')}</td><td className="px-4 py-4 text-slate-600 dark:text-slate-300">{row.business?.name || '—'}</td><td className="px-4 py-4 text-xs text-slate-500">{row.entity_type ? `${row.entity_type.split('\\\\').pop()}:${row.entity_id || '—'}` : '—'}</td><td className="px-4 py-4 text-slate-500">{formatDate(row.created_at)}</td></tr>)}</tbody></table></div>}
+      <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>{t('text.showing_audit_logs', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: meta.total.toLocaleString() })}</span><span>{t('text.page_of', { current: meta.current_page, total: meta.last_page })}</span></div><div className="flex items-center justify-between gap-1 sm:justify-end"><button type="button" disabled={meta.current_page <= 1} onClick={() => goToPage(1)} className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 dark:border-slate-700 md:inline-flex">{t('text.first_page')}</button><button type="button" disabled={meta.current_page <= 1} onClick={() => goToPage(meta.current_page - 1)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 dark:border-slate-700">{t('text.previous')}</button><span className="whitespace-nowrap px-2 text-xs font-semibold md:hidden">{t('text.page_of', { current: meta.current_page, total: meta.last_page })}</span><div className="hidden items-center gap-1 md:flex">{pageNumbers.map((number, index) => number === 'ellipsis' ? <span key={`ellipsis-${index}`} className="px-1">…</span> : <button key={number} type="button" onClick={() => goToPage(number)} aria-current={number === meta.current_page ? 'page' : undefined} className={`min-w-8 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${number === meta.current_page ? 'bg-blue-600 text-white' : 'border border-slate-200 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700'}`}>{number}</button>)}</div><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => goToPage(meta.current_page + 1)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 dark:border-slate-700">{t('text.next')}</button><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => goToPage(meta.last_page)} className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 dark:border-slate-700 md:inline-flex">{t('text.last_page')}</button></div></div>
+    </Panel>
+  </div>
+}
 
 function SettingsPanel({ settings, error: loadError, sessionMismatch, onRetry, onSignOut, onSaved, t }: { settings: MarketplaceSettingsResponse | null; error: string; sessionMismatch: boolean; onRetry: () => void; onSignOut: () => void; onSaved: () => void; t: TFunction }) {
   const { requestConfirmation } = useConfirmation()
