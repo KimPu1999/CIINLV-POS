@@ -20,25 +20,47 @@ class CustomerManagementController
 {
     public function platformIndex(Request $request): JsonResponse
     {
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'in:active,suspended'],
+            'verification' => ['nullable', 'in:verified,unverified'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'last_login_from' => ['nullable', 'date'],
+            'last_login_to' => ['nullable', 'date'],
+            'per_page' => ['nullable', 'integer', 'in:25,50,100'],
+        ]);
+
         $customers = $this->customerQuery()
             ->when($request->filled('search'), function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(fn (Builder $search) => $search
                     ->where('users.name', 'ilike', $term)
-                    ->orWhere('users.email', 'ilike', $term));
+                    ->orWhere('users.email', 'ilike', $term)
+                    ->orWhereHas('customerProfile', fn (Builder $profile) => $profile->where('phone', 'ilike', $term))
+                    ->when(is_numeric(trim((string) $request->input('search'))), fn (Builder $search) => $search->orWhere('users.id', (int) $request->input('search'))));
             })
             ->when($request->filled('status'), fn (Builder $query) => $query->whereHas('customerProfile', fn (Builder $profile) => $profile->where('status', (string) $request->input('status'))))
+            ->when($request->input('verification') === 'verified', fn (Builder $query) => $query->whereNotNull('users.email_verified_at'))
+            ->when($request->input('verification') === 'unverified', fn (Builder $query) => $query->whereNull('users.email_verified_at'))
             ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('users.created_at', '>=', $request->date('from')))
             ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('users.created_at', '<=', $request->date('to')))
+            ->when($request->filled('last_login_from'), fn (Builder $query) => $query->whereDate('users.last_login_at', '>=', $request->date('last_login_from')))
+            ->when($request->filled('last_login_to'), fn (Builder $query) => $query->whereDate('users.last_login_at', '<=', $request->date('last_login_to')))
             ->withCount('marketplaceOrders')
             ->latest('users.created_at')
             ->paginate($this->perPage($request));
 
-        return response()->json(['success' => true, 'data' => $customers->getCollection()->map(fn (User $customer) => $this->summary($customer))->values(), 'meta' => $this->meta($customers)]);
+        return response()->json(['success' => true, 'data' => $customers->getCollection()->map(fn (User $customer) => $this->summary($customer))->values(), 'meta' => [...$this->meta($customers), 'statistics' => $this->statistics()]]);
     }
 
     public function businessIndex(Request $request, TenantContext $tenantContext): JsonResponse
     {
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'per_page' => ['nullable', 'integer', 'in:25,50,100'],
+        ]);
+
         $tenant = $tenantContext->tenant();
         $customers = $this->customerQuery()
             ->whereHas('marketplaceOrders.vendorOrders', fn (Builder $query) => $query->where('tenant_id', $tenant->id))
@@ -52,7 +74,7 @@ class CustomerManagementController
             ->latest('users.created_at')
             ->paginate($this->perPage($request));
 
-        return response()->json(['success' => true, 'data' => $customers->getCollection()->map(fn (User $customer) => $this->summary($customer, true))->values(), 'meta' => $this->meta($customers)]);
+        return response()->json(['success' => true, 'data' => $customers->getCollection()->map(fn (User $customer) => $this->summary($customer, true))->values(), 'meta' => [...$this->meta($customers), 'statistics' => $this->statistics($tenant)]]);
     }
 
     public function platformShow(User $customer): JsonResponse
@@ -148,6 +170,23 @@ class CustomerManagementController
             ->with('customerProfile');
     }
 
+    private function statistics(?Tenant $tenant = null): array
+    {
+        $base = $this->customerQuery();
+        if ($tenant) {
+            $base->whereHas('marketplaceOrders.vendorOrders', fn (Builder $query) => $query->where('tenant_id', $tenant->id));
+        }
+
+        $monthStart = now()->startOfMonth();
+
+        return [
+            'total' => (clone $base)->count('users.id'),
+            'active' => (clone $base)->whereHas('customerProfile', fn (Builder $query) => $query->where('status', 'active'))->count('users.id'),
+            'suspended' => (clone $base)->whereHas('customerProfile', fn (Builder $query) => $query->where('status', 'suspended'))->count('users.id'),
+            'new_this_month' => (clone $base)->where('users.created_at', '>=', $monthStart)->count('users.id'),
+        ];
+    }
+
     private function platformCustomer(User $customer): User
     {
         if (! $customer->customerProfile || $customer->platform_role !== null) {
@@ -223,7 +262,9 @@ class CustomerManagementController
 
     private function perPage(Request $request): int
     {
-        return min(max((int) $request->input('per_page', 25), 1), 100);
+        $requested = (int) $request->input('per_page', 25);
+
+        return in_array($requested, [25, 50, 100], true) ? $requested : 25;
     }
 
     private function meta($paginator): array

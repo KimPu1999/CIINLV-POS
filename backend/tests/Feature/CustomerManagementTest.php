@@ -12,6 +12,8 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -89,6 +91,72 @@ class CustomerManagementTest extends TestCase
         $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/v1/platform/customers/{$customer->id}/status", ['status' => 'suspended'])
             ->assertForbidden();
+    }
+
+    public function test_platform_listing_returns_filter_metadata_statistics_and_supported_page_sizes(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $verified = User::factory()->create(['name' => 'Verified Buyer', 'email' => 'verified-filter@example.com', 'last_login_at' => now()]);
+        $unverified = User::factory()->unverified()->create(['name' => 'Phone Buyer', 'email' => 'phone-filter@example.com', 'last_login_at' => null]);
+        CustomerProfile::create(['user_id' => $verified->id, 'phone' => '09999999991', 'status' => 'active']);
+        CustomerProfile::create(['user_id' => $unverified->id, 'phone' => '09999999992', 'status' => 'suspended']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/customers?verification=verified&last_login_from='.now()->toDateString().'&per_page=50')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 50)
+            ->assertJsonPath('meta.statistics.total', 2)
+            ->assertJsonPath('meta.statistics.active', 1)
+            ->assertJsonPath('meta.statistics.suspended', 1)
+            ->assertJsonPath('data.0.email', 'verified-filter@example.com');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/customers?search=09999999992')
+            ->assertOk()
+            ->assertJsonPath('data.0.email', 'phone-filter@example.com');
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/customers?per_page=10')
+            ->assertUnprocessable();
+    }
+
+    public function test_platform_listing_scales_with_ten_thousand_customers_without_loading_all_rows(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $timestamp = now();
+        $password = Hash::make('password');
+
+        foreach (array_chunk(range(1, 10000), 500) as $chunk) {
+            $users = array_map(fn (int $number) => [
+                'name' => 'Scale Customer '.$number,
+                'email' => 'scale-customer-'.$number.'@example.com',
+                'email_verified_at' => $timestamp,
+                'password' => $password,
+                'status' => User::STATUS_ACTIVE,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ], $chunk);
+            DB::table('users')->insert($users);
+        }
+
+        $customerIds = DB::table('users')->where('email', 'like', 'scale-customer-%@example.com')->pluck('id');
+        foreach ($customerIds->chunk(500) as $chunk) {
+            $profiles = $chunk->map(fn (int $id) => [
+                'user_id' => $id,
+                'status' => 'active',
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ])->all();
+            DB::table('customer_profiles')->insert($profiles);
+        }
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/customers?page=100&per_page=100')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 10000)
+            ->assertJsonPath('meta.current_page', 100)
+            ->assertJsonPath('meta.last_page', 100)
+            ->assertJsonCount(100, 'data');
     }
 
     private function customerWithOrder(Tenant $tenant): User
