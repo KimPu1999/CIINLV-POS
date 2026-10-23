@@ -11,6 +11,7 @@ const [app, feature, detail, routes, controller, settingsService, settingsReques
   readFile(new URL('../../backend/app/Services/MarketplaceSettingsService.php', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/app/Http/Requests/Marketplace/MarketplaceSettingsUpdateRequest.php', import.meta.url), 'utf8'),
 ])
+const products = await readFile(new URL('../src/features/products.tsx', import.meta.url), 'utf8')
 
 test('Super Admin marketplace control-center routes and navigation are registered', () => {
   for (const path of ['/platform/marketplace', '/platform/marketplace/vendors', '/platform/marketplace/listings', '/platform/marketplace/orders', '/platform/marketplace/refunds', '/platform/marketplace/reports', '/platform/marketplace/audit', '/platform/marketplace/settings']) {
@@ -209,4 +210,17 @@ test('Marketplace Settings Security & Audit has independent server-side paginati
   assert.match(feature, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/)
   assert.match(feature, /SecurityAuditSection t=\{t\}/)
   assert.match(feature, /audit-logs/)
+})
+
+test('Business Products uses URL-backed server pagination, filters, sorting, and stale-request protection', () => {
+  assert.match(products, /useSearchParams\(\)/)
+  assert.match(products, /per_page: filters\.per_page/)
+  for (const value of ['10', '25', '50', '100']) assert.match(products, new RegExp(`<option value="${value}">`))
+  for (const key of ['category_id', 'brand', 'branch_id', 'min_price', 'max_price', 'created_from', 'created_to', 'stock_status', 'sort', 'direction']) assert.match(products, new RegExp(key))
+  for (const key of ['total', 'per_page', 'current_page', 'last_page']) assert.match(products, new RegExp(key))
+  assert.match(products, /setTimeout\(\(\) => updateQuery\(\{ search: searchInput\.trim\(\) \}\), 350\)/)
+  assert.match(products, /new AbortController\(\)/)
+  assert.match(products, /text\.showing_products/)
+  assert.match(products, /pageNumbers\(pageMeta\.current_page, pageMeta\.last_page\)/)
+  assert.match(products, /Product management/)
 })

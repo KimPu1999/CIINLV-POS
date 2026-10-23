@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Archive, Edit3, Eye, Filter, PackagePlus, Plus, RefreshCw, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Archive, ChevronLeft, ChevronRight, Edit3, Eye, Filter, PackagePlus, Plus, RefreshCw, Rows3, X } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatCard, StatusBadge } from '../components/ui'
 import { CollapsibleSearch, FilterPanel, FilterToggle, IconActionButton, PageToolbar } from '../components/toolbar'
 import { ProductImagePicker, type ProductImage, type ProductImageSelection } from '../components/ProductImagePicker'
@@ -9,47 +9,89 @@ import { api, request } from '../lib/api'
 
 type Variant = { id: string; sku?: string; barcode?: string | null; selling_price?: string; purchase_cost?: string | null; reorder_level?: string; available_stock?: number; attributes?: Record<string, string>; size?: string | null; is_default?: boolean; stock_by_location?: Array<{ location_id: number | string; on_hand: string; available: string }> }
 type Product = { id: string; name: string; brand?: string | null; description?: string | null; status?: string; track_inventory?: boolean; has_sizes?: boolean; sku?: string | null; selling_price?: string | null; available_stock?: number; category?: { name?: string } | null; variants?: Variant[]; images?: ProductImage[] }
-type Page = { data?: Product[]; meta?: { total?: number; last_page?: number; current_page?: number } }
+type PageMeta = { total: number; per_page: number; last_page: number; current_page: number }
+type Page = { data?: Product[]; meta?: PageMeta }
+type ProductFilters = { search: string; status: string; stock_status: string; category_id: string; brand: string; branch_id: string; min_price: string; max_price: string; created_from: string; created_to: string; sort: string; direction: 'asc' | 'desc'; page: number; per_page: number }
+type Option = { id: string; name: string; code?: string; location_type?: string }
 type VariantForm = { id?: string; sku: string; barcode: string; size: string; selling_price: string; purchase_cost: string; reorder_level: string; stock_quantity: string; is_default: boolean }
 type Form = { name: string; brand: string; description: string; category_id: string; track_inventory: boolean; has_sizes: boolean; inventory_location_id: string; variants: VariantForm[] }
 
 const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', ...Array.from({ length: 11 }, (_, index) => `EU ${index + 36}`)]
 const emptyVariant = (): VariantForm => ({ sku: '', barcode: '', size: '', selling_price: '', purchase_cost: '', reorder_level: '0', stock_quantity: '', is_default: false })
 const emptyForm: Form = { name: '', brand: '', description: '', category_id: '', track_inventory: true, has_sizes: false, inventory_location_id: '', variants: [emptyVariant()] }
+const allowedPerPage = [10, 25, 50, 100]
+const defaultFilters: ProductFilters = { search: '', status: '', stock_status: '', category_id: '', brand: '', branch_id: '', min_price: '', max_price: '', created_from: '', created_to: '', sort: 'name', direction: 'asc', page: 1, per_page: 25 }
 
 export function ProductManagementPage() {
+  const { t } = useTranslation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState<Page | null>(null)
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('')
-  const [stockStatus, setStockStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [error, setError] = useState('')
-  const [pageNumber, setPageNumber] = useState(1)
   const [editing, setEditing] = useState<Product | null>(null)
   const [detail, setDetail] = useState<Product | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
+  const [categories, setCategories] = useState<Option[]>([])
+  const [locations, setLocations] = useState<Option[]>([])
+  const requestSequence = useRef(0)
+  const filters = useMemo(() => readFilters(searchParams), [searchParams])
   const products = page?.data || []
 
-  const load = async () => {
+  const updateQuery = useCallback((changes: Partial<ProductFilters>, resetPage = true) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(changes).forEach(([key, value]) => {
+      if (value === undefined || value === '' || (key === 'page' && value === 1)) next.delete(key)
+      else next.set(key, String(value))
+    })
+    if (resetPage && !Object.prototype.hasOwnProperty.call(changes, 'page')) next.delete('page')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  const load = useCallback(async () => {
+    const controller = new AbortController()
+    const sequence = ++requestSequence.current
     setLoading(true)
     setError('')
     try {
-      const response = await api.get<{ success: boolean; data: Product[]; meta?: Page['meta'] }>('/api/v1/products', { params: { search: search || undefined, status: status || undefined, stock_status: stockStatus || undefined, page: pageNumber, per_page: 20, sort: 'name' } })
-      setPage({ data: response.data.data, meta: response.data.meta })
+      const response = await api.get<{ success: boolean; data: Product[]; meta: PageMeta }>('/api/v1/products', { params: buildApiParams(filters), signal: controller.signal })
+      if (sequence !== requestSequence.current) return
+      const responseMeta = response.data.meta
+      if (filters.page > responseMeta.last_page && responseMeta.last_page > 0) {
+        updateQuery({ page: responseMeta.last_page }, false)
+        return
+      }
+      setPage({ data: response.data.data, meta: responseMeta })
     } catch (err) {
-      setError(message(err, 'Unable to load products.'))
+      if (!controller.signal.aborted && sequence === requestSequence.current) setError(message(err, 'Unable to load products.'))
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted && sequence === requestSequence.current) setLoading(false)
     }
-  }
+    return () => controller.abort()
+  }, [filters, updateQuery])
 
-  useEffect(() => { void load() }, [search, status, stockStatus, pageNumber, refresh])
+  useEffect(() => { void load() }, [load, refresh])
+  useEffect(() => { setSearchInput(filters.search) }, [filters.search])
+  useEffect(() => {
+    const timer = window.setTimeout(() => updateQuery({ search: searchInput.trim() }), 350)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, updateQuery])
+  useEffect(() => {
+    if (!filtersOpen || categories.length || locations.length) return
+    void Promise.all([
+      api.get<{ data: Option[] }>('/api/v1/categories?per_page=100&sort=name&direction=asc'),
+      api.get<{ data: Option[] }>('/api/v1/stock-transfers/locations'),
+    ]).then(([categoryResponse, locationResponse]) => {
+      setCategories(categoryResponse.data.data || [])
+      setLocations(locationResponse.data.data || [])
+    }).catch(() => undefined)
+  }, [filtersOpen, categories.length, locations.length])
 
   const stats = useMemo(() => ({
-    total: page?.meta?.total ?? products.length,
+    total: page?.meta?.total ?? 0,
     active: products.filter((product) => product.status === 'active').length,
     low: products.filter((product) => Number(product.available_stock || 0) <= Number(product.variants?.[0]?.reorder_level || 0)).length,
     value: products.reduce((sum, product) => sum + Number(product.available_stock || 0) * Number(product.selling_price || 0), 0),
@@ -105,13 +147,20 @@ export function ProductManagementPage() {
     }
   }
 
+  const pageMeta = page?.meta || { total: 0, per_page: filters.per_page, current_page: filters.page, last_page: 1 }
+  const firstResult = pageMeta.total === 0 ? 0 : (pageMeta.current_page - 1) * pageMeta.per_page + 1
+  const lastResult = Math.min(pageMeta.total, pageMeta.current_page * pageMeta.per_page)
+  const goToPage = (nextPage: number) => updateQuery({ page: Math.max(1, Math.min(nextPage, pageMeta.last_page)) }, false)
+  const pages = pageNumbers(pageMeta.current_page, pageMeta.last_page)
+  const activeFilterCount = [filters.status, filters.stock_status, filters.category_id, filters.brand, filters.branch_id, filters.min_price, filters.max_price, filters.created_from, filters.created_to].filter(Boolean).length
+
   return <>
     <PageHeader title="Product management" description="Manage your shared catalog, pricing, variants, and branch inventory." action={<PageToolbar><IconActionButton icon={RefreshCw} label="Refresh products" onClick={() => { void load() }} /><IconActionButton icon={Plus} label="Add product" onClick={() => setEditing({ id: '', name: '', status: 'active' })} /></PageToolbar>} />
-    <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 xl:grid-cols-4"><StatCard compact label="Catalog products" value={stats.total} detail="Tenant-scoped catalog" icon={PackagePlus} tone="blue" /><StatCard compact label="Active on page" value={stats.active} detail="Ready for POS" icon={Eye} tone="emerald" /><StatCard compact label="Low stock" value={stats.low} detail="Needs attention" icon={Filter} tone="amber" /><StatCard compact label="Visible stock value" value={formatMoney(stats.value)} detail="Current page estimate" icon={PackagePlus} tone="violet" /></div>
-    <div className="mt-3"><PageToolbar><CollapsibleSearch value={search} onChange={(value) => { setSearch(value); setPageNumber(1) }} placeholder="Search name, brand, SKU, or barcode" /><FilterToggle open={filtersOpen} activeCount={Number(Boolean(status)) + Number(Boolean(stockStatus))} onClick={() => setFiltersOpen((value) => !value)} /></PageToolbar><FilterPanel open={filtersOpen}><label className="compact-label">Status<select value={status} onChange={(event) => { setStatus(event.target.value); setPageNumber(1) }} className="compact-field w-full"><option value="">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="archived">Archived</option></select></label><label className="compact-label">Stock<select value={stockStatus} onChange={(event) => { setStockStatus(event.target.value); setPageNumber(1) }} className="compact-field w-full"><option value="">All stock</option><option value="low_stock">Low stock</option><option value="out_of_stock">Out of stock</option></select></label></FilterPanel></div>
+    <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 xl:grid-cols-4"><StatCard compact label={t('text.catalog_products')} value={stats.total} detail={t('text.all_authorized_tenant_products')} icon={PackagePlus} tone="blue" /><StatCard compact label={t('text.active_on_page')} value={stats.active} detail={t('text.current_page_only')} icon={Eye} tone="emerald" /><StatCard compact label={t('text.low_stock_on_page')} value={stats.low} detail={t('text.current_page_only')} icon={Filter} tone="amber" /><StatCard compact label={t('text.visible_stock_value')} value={formatMoney(stats.value)} detail={t('text.current_page_estimate')} icon={PackagePlus} tone="violet" /></div>
+    <div className="mt-3"><PageToolbar><CollapsibleSearch value={searchInput} onChange={setSearchInput} placeholder={t('text.search_product_name_brand_sku_barcode')} /><FilterToggle open={filtersOpen} activeCount={activeFilterCount} onClick={() => setFiltersOpen((value) => !value)} /><label className="compact-label ml-auto">{t('text.sort')}<select value={filters.sort + ':' + filters.direction} onChange={(event) => { const [sort, direction] = event.target.value.split(':'); updateQuery({ sort, direction: direction as 'asc' | 'desc' }) }} className="compact-field"><option value="name:asc">{t('text.name_a_to_z')}</option><option value="name:desc">{t('text.name_z_to_a')}</option><option value="created_at:desc">{t('text.newest_first')}</option><option value="created_at:asc">{t('text.oldest_first')}</option><option value="selling_price:asc">{t('text.price_low_to_high')}</option><option value="selling_price:desc">{t('text.price_high_to_low')}</option><option value="available_stock:desc">{t('text.available_stock')}</option></select></label><label className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400" title={t('text.rows_per_page')}><Rows3 size={15} aria-hidden="true" /><span className="sr-only">{t('text.rows_per_page')}</span><select aria-label={t('text.rows_per_page')} value={String(filters.per_page)} onChange={(event) => updateQuery({ per_page: Number(event.target.value), page: 1 }, false)} className="compact-field h-8 py-1 text-xs"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></PageToolbar><FilterPanel open={filtersOpen}><label className="compact-label">{t('text.status')}<select value={filters.status} onChange={(event) => updateQuery({ status: event.target.value })} className="compact-field w-full"><option value="">{t('text.all_statuses')}</option><option value="active">{t('text.active')}</option><option value="inactive">{t('text.inactive')}</option><option value="archived">{t('text.archived')}</option></select></label><label className="compact-label">{t('text.stock')}<select value={filters.stock_status} onChange={(event) => updateQuery({ stock_status: event.target.value })} className="compact-field w-full"><option value="">{t('text.all_stock_states')}</option><option value="in_stock">{t('text.in_stock')}</option><option value="low_stock">{t('text.low_stock')}</option><option value="out_of_stock">{t('text.out_of_stock')}</option></select></label><label className="compact-label">{t('text.category')}<select value={filters.category_id} onChange={(event) => updateQuery({ category_id: event.target.value })} className="compact-field w-full"><option value="">{t('text.all_categories')}</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label className="compact-label">{t('text.brand')}<input value={filters.brand} onChange={(event) => updateQuery({ brand: event.target.value })} className="compact-field w-full" placeholder={t('text.any_brand')} /></label><label className="compact-label">{t('text.branch_location')}<select value={filters.branch_id} onChange={(event) => updateQuery({ branch_id: event.target.value })} className="compact-field w-full"><option value="">{t('text.all_locations')}</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.name}{location.code ? ` · ${location.code}` : ''}</option>)}</select></label><label className="compact-label">{t('text.min_price')}<input type="number" min="0" value={filters.min_price} onChange={(event) => updateQuery({ min_price: event.target.value })} className="compact-field w-full" /></label><label className="compact-label">{t('text.max_price')}<input type="number" min="0" value={filters.max_price} onChange={(event) => updateQuery({ max_price: event.target.value })} className="compact-field w-full" /></label><label className="compact-label">{t('text.created_from')}<input type="date" value={filters.created_from} onChange={(event) => updateQuery({ created_from: event.target.value })} className="compact-field w-full" /></label><label className="compact-label">{t('text.created_to')}<input type="date" value={filters.created_to} onChange={(event) => updateQuery({ created_to: event.target.value })} className="compact-field w-full" /></label><button type="button" onClick={() => { setSearchInput(''); setSearchParams(new URLSearchParams(), { replace: true }) }} className="self-end rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300">{t('text.clear_all_filters')}</button></FilterPanel></div>
     {error && <div className="mt-4"><ErrorState message={error} /></div>}
-    {loading ? <div className="mt-6"><LoadingState /></div> : !products.length ? <div className="mt-6"><EmptyState label="No products match these filters." /></div> : <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>{['Product', 'SKU', 'Category', 'Selling price', 'Available stock', 'Status', 'Actions'].map((heading) => <th key={heading} className="px-5 py-4 font-semibold">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{products.map((product) => <tr key={product.id} className="hover:bg-slate-50/70"><td className="px-5 py-4"><button onClick={() => setDetail(product)} className="flex items-center gap-3 text-left font-semibold text-slate-900 hover:text-blue-700"><CatalogImage src={product.images?.[0]?.url} label={product.name} size="sm" /><span>{product.name}</span></button></td><td className="px-5 py-4 text-slate-500">{product.sku || product.variants?.[0]?.sku || '—'}</td><td className="px-5 py-4 text-slate-500">{product.category?.name || 'Uncategorized'}</td><td className="px-5 py-4 font-semibold text-slate-800">{product.selling_price ? formatMoney(product.selling_price) : '—'}</td><td className="px-5 py-4 text-slate-700">{product.track_inventory ? String(product.available_stock ?? 0) : 'Not tracked'}</td><td className="px-5 py-4"><StatusBadge status={product.status} /></td><td className="px-5 py-4"><div className="flex gap-2"><button title="View" onClick={() => setDetail(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Eye size={16} /></button><button title="Edit" onClick={() => setEditing(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Edit3 size={16} /></button><button title="Activate or deactivate" onClick={() => { void changeStatus(product) }} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-700"><Archive size={16} /></button></div></td></tr>)}</tbody></table></div>}
-    {page?.meta?.last_page && page.meta.last_page > 1 && <div className="mt-4 flex items-center justify-between text-sm text-slate-500"><span>Page {page.meta.current_page || pageNumber} of {page.meta.last_page}</span><div className="flex gap-2"><button disabled={pageNumber <= 1} onClick={() => setPageNumber((value) => value - 1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Previous</button><button disabled={pageNumber >= page.meta.last_page} onClick={() => setPageNumber((value) => value + 1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Next</button></div></div>}
+    {loading ? <div className="mt-6"><LoadingState /></div> : !products.length ? <div className="mt-6"><EmptyState label={filters.search || activeFilterCount ? 'No products match these filters.' : 'No products have been created yet.'} /></div> : <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-800"><tr>{['Product', 'SKU', 'Category', 'Brand', 'Selling price', 'Available stock', 'Status', 'Actions'].map((heading) => <th key={heading} className="px-4 py-3 font-semibold">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{products.map((product) => <tr key={product.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/70"><td className="px-4 py-3"><button type="button" onClick={() => setDetail(product)} className="flex items-center gap-3 text-left font-semibold text-slate-900 hover:text-blue-700 dark:text-white"><CatalogImage src={product.images?.[0]?.url} label={product.name} size="sm" /><span>{product.name}</span></button></td><td className="px-4 py-3 text-slate-500">{product.sku || product.variants?.[0]?.sku || '—'}</td><td className="px-4 py-3 text-slate-500">{product.category?.name || 'Uncategorized'}</td><td className="px-4 py-3 text-slate-500">{product.brand || '—'}</td><td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-100">{product.selling_price ? formatMoney(product.selling_price) : '—'}</td><td className="px-4 py-3 text-slate-700 dark:text-slate-300">{product.track_inventory ? String(product.available_stock ?? 0) : 'Not tracked'}</td><td className="px-4 py-3"><StatusBadge status={product.status} /></td><td className="px-4 py-3"><div className="flex gap-1"><button type="button" title="View" aria-label={`View ${product.name}`} onClick={() => setDetail(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Eye size={16} /></button><button type="button" title="Edit" aria-label={`Edit ${product.name}`} onClick={() => setEditing(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Edit3 size={16} /></button><button type="button" title="Activate or deactivate" aria-label={`Change status for ${product.name}`} onClick={() => { void changeStatus(product) }} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-700"><Archive size={16} /></button></div></td></tr>)}</tbody></table></div>}
+    <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>{t('text.showing_products', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: pageMeta.total.toLocaleString() })}</span><span>{t('text.page_of', { current: pageMeta.current_page, total: pageMeta.last_page })}</span></div><div className="flex items-center justify-between gap-1 sm:justify-end"><button type="button" aria-label={t('text.first_page')} disabled={pageMeta.current_page <= 1} onClick={() => goToPage(1)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.first_page')}</button><button type="button" aria-label={t('text.previous_page')} disabled={pageMeta.current_page <= 1} onClick={() => goToPage(pageMeta.current_page - 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><ChevronLeft size={15} /><span className="hidden sm:inline">{t('text.previous')}</span></button><span className="px-2 text-xs font-semibold md:hidden">{t('text.page')} {pageMeta.current_page}</span><div className="hidden items-center gap-1 md:flex">{pages.map((item, index) => item === 'ellipsis' ? <span key={`ellipsis-${index}`} className="px-1">…</span> : <button type="button" key={item} aria-current={item === pageMeta.current_page ? 'page' : undefined} onClick={() => goToPage(item)} className={`min-w-8 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${item === pageMeta.current_page ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300'}`}>{item}</button>)}</div><button type="button" aria-label={t('text.next_page')} disabled={pageMeta.current_page >= pageMeta.last_page} onClick={() => goToPage(pageMeta.current_page + 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><span className="hidden sm:inline">{t('text.next')}</span><ChevronRight size={15} /></button><button type="button" aria-label={t('text.last_page')} disabled={pageMeta.current_page >= pageMeta.last_page} onClick={() => goToPage(pageMeta.last_page)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.last_page')}</button></div></div>
     {(editing || detail) && (editing ? <ProductForm product={editing.id ? editing : null} saving={saving} uploadProgress={uploadProgress} onClose={() => setEditing(null)} onSave={(form, images) => { void save(form, images) }} /> : <ProductDetail product={detail!} onClose={() => setDetail(null)} />)}
   </>
 }
@@ -168,4 +217,12 @@ const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2
 function CatalogImage({ src, label, size }: { src?: string | null; label: string; size: 'sm' | 'lg' }) { const [failed, setFailed] = useState(!src); useEffect(() => setFailed(!src), [src]); const className = size === 'sm' ? 'h-10 w-10 rounded-lg text-xs' : 'aspect-square w-full rounded-xl text-2xl'; return failed ? <div className={`grid shrink-0 place-items-center bg-blue-50 font-bold text-blue-600 ${className}`}>{label.charAt(0).toUpperCase()}</div> : <img src={src || undefined} alt={label} className={`shrink-0 object-cover ${className}`} onError={() => setFailed(true)} /> }
 function Info({ label, value }: { label: string; value?: string | number | null }) { return <div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 font-semibold text-slate-800">{value || '—'}</p></div> }
 function formatMoney(value: string | number): string { return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'MMK', maximumFractionDigits: 2 }).format(Number(value)) }
+function readFilters(params: URLSearchParams): ProductFilters {
+  const perPage = Number(params.get('per_page'))
+  const page = Number(params.get('page'))
+  const sort = ['name', 'created_at', 'selling_price', 'available_stock'].includes(params.get('sort') || '') ? params.get('sort') as string : defaultFilters.sort
+  return { search: params.get('search') || '', status: params.get('status') || '', stock_status: params.get('stock_status') || '', category_id: params.get('category_id') || '', brand: params.get('brand') || '', branch_id: params.get('branch_id') || '', min_price: params.get('min_price') || '', max_price: params.get('max_price') || '', created_from: params.get('created_from') || '', created_to: params.get('created_to') || '', sort, direction: params.get('direction') === 'desc' ? 'desc' : 'asc', page: page > 0 ? page : 1, per_page: allowedPerPage.includes(perPage) ? perPage : defaultFilters.per_page }
+}
+function buildApiParams(filters: ProductFilters): Record<string, string | number | undefined> { return { search: filters.search || undefined, status: filters.status || undefined, stock_status: filters.stock_status || undefined, category_id: filters.category_id || undefined, brand: filters.brand || undefined, branch_id: filters.branch_id || undefined, min_price: filters.min_price || undefined, max_price: filters.max_price || undefined, created_from: filters.created_from || undefined, created_to: filters.created_to || undefined, sort: filters.sort, direction: filters.direction, page: filters.page, per_page: filters.per_page } }
+function pageNumbers(current: number, last: number): Array<number | 'ellipsis'> { if (last <= 7) return Array.from({ length: Math.max(last, 1) }, (_, index) => index + 1); const values = new Set([1, last, current, current - 1, current + 1]); const sorted = [...values].filter((value) => value > 0 && value <= last).sort((a, b) => a - b); const output: Array<number | 'ellipsis'> = []; sorted.forEach((value, index) => { if (index && value - sorted[index - 1] > 1) output.push('ellipsis'); output.push(value) }); return output }
 function message(error: unknown, fallback: string): string { const value = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }; return value?.response?.data?.message || Object.values(value?.response?.data?.errors || {})[0]?.[0] || fallback }

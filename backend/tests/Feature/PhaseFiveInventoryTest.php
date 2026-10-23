@@ -80,6 +80,27 @@ class PhaseFiveInventoryTest extends TestCase
             ->assertOk()->assertJsonPath('data.0.sku', 'LIST-001')->assertJsonPath('data.0.available_stock', 10);
     }
 
+    public function test_product_listing_supports_bounded_pagination_filters_and_sorting(): void
+    {
+        [$tenant, $admin] = $this->business('BUS-PAGE', 'products-page@example.com', 'business_admin');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        for ($index = 1; $index <= 35; $index++) {
+            $product = Product::create(['tenant_id' => $tenant->id, 'name' => sprintf('Paged Product %02d', $index), 'slug' => sprintf('paged-product-%02d', $index), 'brand' => $index % 2 === 0 ? 'Even Brand' : 'Odd Brand', 'status' => $index === 35 ? 'inactive' : 'active', 'track_inventory' => true, 'created_by' => $admin->id]);
+            $product->variants()->create(['tenant_id' => $tenant->id, 'sku' => sprintf('PAGE-%03d', $index), 'barcode' => sprintf('890000%03d', $index), 'selling_price' => $index, 'purchase_cost' => 1, 'status' => 'active']);
+        }
+
+        foreach ([10, 25, 50, 100] as $perPage) {
+            $response = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/products?per_page='.$perPage.'&page=1&sort=name&direction=asc')->assertOk();
+            $response->assertJsonPath('meta.per_page', $perPage)->assertJsonPath('meta.total', 35)->assertJsonPath('meta.current_page', 1);
+            $this->assertLessThanOrEqual($perPage, count($response->json('data')));
+        }
+
+        $page = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/products?per_page=10&page=4&sort=selling_price&direction=desc')->assertOk();
+        $page->assertJsonPath('meta.current_page', 4)->assertJsonPath('meta.last_page', 4);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/products?per_page=10&search=PAGE-003&sort=selling_price&direction=desc')->assertOk()->assertJsonPath('data.0.sku', 'PAGE-003');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/products?per_page=10&page=99')->assertOk()->assertJsonCount(0, 'data');
+    }
+
     public function test_purchase_receiving_partial_receipts_and_stock_transfer_update_balances_once(): void
     {
         [$tenant, $admin] = $this->business('BUS-A', 'admin-a@example.com', 'business_admin');

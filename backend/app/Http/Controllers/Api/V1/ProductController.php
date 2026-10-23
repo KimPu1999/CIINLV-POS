@@ -11,6 +11,7 @@ use App\Http\Resources\ProductVariantResource;
 use App\Models\InventoryLocation;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\ProductVariant;
 use App\Services\AuditLogger;
 use App\Services\ProductService;
 use App\Services\ReportScopeService;
@@ -26,6 +27,22 @@ class ProductController
 {
     public function index(Request $request, TenantContext $context, ReportScopeService $scope): JsonResponse
     {
+        $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'in:active,inactive,archived'],
+            'stock_status' => ['nullable', 'in:in_stock,low_stock,out_of_stock'],
+            'category_id' => ['nullable', 'string', 'max:36'],
+            'brand' => ['nullable', 'string', 'max:120'],
+            'branch_id' => ['nullable', 'string', 'max:36'],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => ['nullable', 'numeric', 'min:0'],
+            'created_from' => ['nullable', 'date'],
+            'created_to' => ['nullable', 'date'],
+            'sort' => ['nullable', 'in:name,created_at,status,selling_price,available_stock'],
+            'direction' => ['nullable', 'in:asc,desc'],
+        ]);
         $tenant = $context->tenant();
         $query = Product::query()->where('products.tenant_id', $tenant->id);
         $locations = null;
@@ -46,22 +63,33 @@ class ProductController
             'category', 'images', 'variants',
             'variants.balances' => fn ($balance) => $locations === null ? $balance->where('inventory_balances.tenant_id', $tenant->id) : $balance->whereIn('inventory_balances.inventory_location_id', $locations),
         ])
-            ->when($request->filled('search'), fn ($q) => $q->where(fn ($q) => $q->where('products.name', 'ilike', '%'.$request->string('search').'%')->orWhere('products.brand', 'ilike', '%'.$request->string('search').'%')->orWhereHas('variants', fn ($v) => $v->where('product_variants.sku', 'ilike', '%'.$request->string('search').'%')->orWhere('product_variants.barcode', $request->string('search')))))
+            ->when($request->filled('search'), fn ($q) => $q->where(fn ($q) => $q->where('products.name', 'ilike', '%'.$request->string('search').'%')->orWhere('products.brand', 'ilike', '%'.$request->string('search').'%')->orWhereHas('variants', fn ($v) => $v->where('product_variants.sku', 'ilike', '%'.$request->string('search').'%')->orWhere('product_variants.barcode', 'ilike', '%'.$request->string('search').'%'))))
             ->when($request->filled('category_id'), fn ($q) => $q->whereHas('category', fn ($c) => $c->where('categories.uuid', $request->string('category_id'))))
-            ->when($request->filled('brand'), fn ($q) => $q->where('products.brand', $request->string('brand')))
+            ->when($request->filled('brand'), fn ($q) => $q->where('products.brand', 'ilike', '%'.$request->string('brand').'%'))
             ->when($request->filled('status'), fn ($q) => $q->where('products.status', $request->string('status')))
             ->when($request->filled('min_price'), fn ($q) => $q->whereHas('variants', fn ($v) => $v->where('product_variants.selling_price', '>=', $request->input('min_price'))))
-            ->when($request->filled('max_price'), fn ($q) => $q->whereHas('variants', fn ($v) => $v->where('product_variants.selling_price', '<=', $request->input('max_price'))));
+            ->when($request->filled('max_price'), fn ($q) => $q->whereHas('variants', fn ($v) => $v->where('product_variants.selling_price', '<=', $request->input('max_price'))))
+            ->when($request->filled('created_from'), fn ($q) => $q->whereDate('products.created_at', '>=', $request->input('created_from')))
+            ->when($request->filled('created_to'), fn ($q) => $q->whereDate('products.created_at', '<=', $request->input('created_to')));
 
         if ($request->input('stock_status') === 'out_of_stock') {
             $query->whereDoesntHave('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations ?? InventoryLocation::where('tenant_id', $tenant->id)->pluck('id'))->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0'));
         } elseif ($request->input('stock_status') === 'low_stock') {
             $query->whereHas('variants', fn ($variant) => $variant->whereHas('balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations ?? InventoryLocation::where('tenant_id', $tenant->id)->pluck('id'))->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')));
+        } elseif ($request->input('stock_status') === 'in_stock') {
+            $query->whereHas('variants.balances', fn ($balance) => $balance->whereIn('inventory_balances.inventory_location_id', $locations ?? InventoryLocation::where('tenant_id', $tenant->id)->pluck('id'))->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0'));
         }
 
-        $sort = in_array($request->input('sort'), ['name', 'created_at', 'status'], true) ? $request->input('sort') : 'name';
+        $sort = in_array($request->input('sort'), ['name', 'created_at', 'status', 'selling_price', 'available_stock'], true) ? $request->input('sort') : 'name';
         $direction = $request->input('direction') === 'desc' ? 'desc' : 'asc';
-        $products = $query->orderBy('products.'.$sort, $direction)->paginate(min((int) $request->input('per_page', 25), 100));
+        if ($sort === 'selling_price') {
+            $query->orderBy(ProductVariant::query()->select('selling_price')->whereColumn('product_variants.product_id', 'products.id')->orderByDesc('is_default')->orderBy('id')->limit(1), $direction);
+        } elseif ($sort === 'available_stock') {
+            $query->orderBy(ProductVariant::query()->selectRaw('coalesce(sum(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity), 0)')->join('inventory_balances', 'inventory_balances.product_variant_id', '=', 'product_variants.id')->whereColumn('product_variants.product_id', 'products.id')->when($locations !== null, fn ($stock) => $stock->whereIn('inventory_balances.inventory_location_id', $locations), fn ($stock) => $stock->where('inventory_balances.tenant_id', $tenant->id)), $direction);
+        } else {
+            $query->orderBy('products.'.$sort, $direction);
+        }
+        $products = $query->orderBy('products.id')->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
 
         return response()->json(['success' => true, 'data' => ProductResource::collection($products), 'meta' => [
             'total' => $products->total(), 'per_page' => $products->perPage(), 'current_page' => $products->currentPage(), 'last_page' => $products->lastPage(),
