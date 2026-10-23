@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Resources\SaleResource;
 use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Sale;
@@ -154,21 +155,22 @@ class PlatformPosMonitoringController
 
     private function salePayload(Sale $sale, bool $detail = false): array
     {
+        $canonical = (new SaleResource($sale))->toArray(request());
         $payload = [
-            'id' => $sale->uuid, 'sale_number' => $sale->sale_number, 'created_at' => $sale->created_at?->toIso8601String(), 'completed_at' => $sale->completed_at?->toIso8601String(),
+            'id' => $canonical['id'], 'sale_number' => $canonical['sale_number'], 'created_at' => $sale->created_at?->toIso8601String(), 'completed_at' => $canonical['completed_at']?->toIso8601String(),
             'business' => $sale->tenant ? ['id' => $sale->tenant->uuid, 'name' => $sale->tenant->name, 'code' => $sale->tenant->business_code] : null,
             'branch' => $sale->store ? ['id' => $sale->store->uuid, 'name' => $sale->store->name, 'code' => $sale->store->code] : null,
             'register' => $sale->register ? ['id' => $sale->register->uuid, 'name' => $sale->register->name, 'code' => $sale->register->code] : null,
             'cashier' => $sale->cashier ? ['id' => $sale->cashier->id, 'name' => $sale->cashier->name, 'email' => $this->maskEmail($sale->cashier->email)] : null,
             'customer' => $sale->customer ? ['name' => $this->maskName($sale->customer->name), 'email' => $this->maskEmail($sale->customer->email)] : null,
-            'status' => $sale->status, 'payment_status' => $sale->payment_status, 'currency_code' => $sale->currency_code,
-            'subtotal' => $sale->subtotal, 'discount_total' => $sale->discount_total, 'tax_total' => $sale->tax_total, 'grand_total' => $sale->grand_total,
-            'paid_total' => $sale->paid_total, 'balance_due' => $sale->balance_due, 'refunded_total' => $sale->refunded_total,
-            'payment_methods' => $sale->payments?->pluck('method')->unique()->values() ?? [], 'receipt' => $sale->receipt ? ['number' => $sale->receipt->receipt_number, 'generated_at' => $sale->receipt->generated_at?->toIso8601String()] : null,
+            'status' => $canonical['status'], 'payment_status' => $canonical['payment_status'], 'currency_code' => $canonical['currency_code'],
+            'subtotal' => $canonical['subtotal'], 'discount_total' => $canonical['discount_total'], 'taxable_amount' => $canonical['taxable_amount'], 'tax_total' => $canonical['tax_total'], 'service_charge_total' => $canonical['service_charge_total'], 'fee_total' => $canonical['fee_total'], 'rounding_adjustment' => $canonical['rounding_adjustment'], 'grand_total' => $canonical['grand_total'],
+            'paid_total' => $canonical['paid_total'], 'balance_due' => $canonical['balance_due'], 'refunded_total' => $canonical['refunded_total'],
+            'payment_methods' => collect($canonical['payments'] ?? [])->pluck('method')->unique()->values(), 'receipt' => $canonical['receipt_number'] ? ['number' => $canonical['receipt_number'], 'generated_at' => $sale->receipt?->generated_at?->toIso8601String()] : null,
         ];
         if ($detail) {
             $payload['products'] = $sale->items->map(fn ($item): array => ['name' => $item->product_name_snapshot, 'sku' => $item->sku_snapshot, 'quantity' => $item->quantity, 'unit_price' => $item->unit_price, 'line_total' => $item->line_total])->values();
-            $payload['payments'] = $sale->payments->map(fn ($payment): array => ['id' => $payment->uuid, 'method' => $payment->method, 'amount' => $payment->amount, 'status' => $payment->status, 'verified_at' => $payment->verified_at?->toIso8601String(), 'provider' => $payment->provider])->values();
+            $payload['payments'] = $canonical['payments'] ?? [];
         }
 
         return $payload;

@@ -4,9 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Payment;
 use App\Models\PosRegister;
+use App\Models\Product;
+use App\Models\Receipt;
+use App\Models\Role;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\Store;
 use App\Models\Tenant;
+use App\Models\TenantMembership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -54,6 +59,32 @@ class PlatformPosMonitoringTest extends TestCase
         $response->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
         $this->assertStringContainsString($sale->sale_number, $response->streamedContent());
         $this->assertDatabaseHas('audit_logs', ['action' => 'platform.pos_monitoring_exported', 'actor_user_id' => $admin->id]);
+    }
+
+    public function test_business_and_platform_views_serialize_the_same_authoritative_sale(): void
+    {
+        $platformAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        [$tenant, $sale] = $this->saleFixture('Parity Business', 'MON-PAR', 'completed', 'paid', 125, 10, 125);
+        $businessAdmin = User::factory()->create();
+        $role = Role::create(['tenant_id' => $tenant->id, 'name' => 'business_admin']);
+        TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $businessAdmin->id, 'role_id' => $role->id, 'status' => 'active', 'joined_at' => now()]);
+        Receipt::create(['tenant_id' => $tenant->id, 'store_id' => $sale->store_id, 'sale_id' => $sale->id, 'receipt_number' => 'RCP-PAR-001', 'format' => '80mm', 'generated_at' => now()]);
+        $product = Product::create(['tenant_id' => $tenant->id, 'name' => 'Parity Product', 'slug' => 'parity-product', 'status' => 'active', 'track_inventory' => false, 'tax_exempt' => false]);
+        $variant = $product->variants()->create(['tenant_id' => $tenant->id, 'sku' => 'PAR-001', 'selling_price' => 125, 'status' => 'active']);
+        SaleItem::create(['tenant_id' => $tenant->id, 'sale_id' => $sale->id, 'product_variant_id' => $variant->id, 'product_name_snapshot' => 'Parity Product', 'sku_snapshot' => 'PAR-001', 'quantity' => 1, 'unit_price' => 125, 'discount_amount' => 0, 'tax_amount' => 0, 'line_total' => 125]);
+        Payment::create(['tenant_id' => $tenant->id, 'store_id' => $sale->store_id, 'sale_id' => $sale->id, 'method' => 'cash', 'amount' => 125, 'currency_code' => 'MMK', 'status' => 'verified', 'verified_at' => now(), 'idempotency_key' => 'monitor-parity-cash']);
+
+        $business = $this->actingAs($businessAdmin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->getJson('/api/v1/pos/sales?from='.now()->format('Y-m-d').'&to='.now()->format('Y-m-d'))->assertOk();
+        $platform = $this->actingAs($platformAdmin, 'sanctum')->getJson('/api/v1/platform/pos-monitoring/transactions?business='.$tenant->uuid.'&from='.now()->format('Y-m-d').'&to='.now()->format('Y-m-d'))->assertOk();
+
+        $businessSale = $business->json('data.0');
+        $platformSale = $platform->json('data.0');
+        $this->assertSame($businessSale['id'], $platformSale['id']);
+        $this->assertSame($businessSale['grand_total'], $platformSale['grand_total']);
+        $this->assertSame($businessSale['payment_status'], $platformSale['payment_status']);
+        $this->assertSame($businessSale['receipt_number'], $platformSale['receipt']['number']);
+        $this->assertSame($sale->uuid, $platformSale['id']);
+        $this->actingAs($platformAdmin, 'sanctum')->getJson('/api/v1/platform/pos-monitoring/transactions/'.$sale->uuid)->assertOk()->assertJsonPath('data.products.0.name', 'Parity Product');
     }
 
     private function saleFixture(string $name, string $code, string $status, string $paymentStatus, int $total, int $refund, int $paid): array
