@@ -1366,5 +1366,13 @@
     ,"bulk_deactivate": "ပိတ်ရန်"
     ,"bulk_export": "တင်ပို့ရန်"
     ,"clear_selection": "ရွေးချယ်မှုရှင်းရန်"
+    ,"unassigned_unknown_branch": "မသတ်မှတ်ရသေးသော / မသိရသေးသော ဆိုင်ခွဲ"
+    ,"branch_revenue_allocation_note": "ဆိုင်ခွဲဝင်ငွေကို line တန်ဖိုးခွဲဝေမှုဖြင့် တွက်ထားသည်။"
+    ,"branch_fulfillment_attribution": "ဆိုင်ခွဲ / ဖြည့်ဆည်းပေးမှု သတ်မှတ်ချက်"
+    ,"reservation_record": "Reservation မှတ်တမ်း"
+    ,"attribution_unavailable": "သတ်မှတ်ချက် မရရှိနိုင်ပါ"
+    ,"no_historical_fulfillment_branch": "ဤအော်ဒါအတွက် သမိုင်းမှတ်တမ်းရှိ ဖြည့်ဆည်းဆိုင်ခွဲ မရှိပါ။"
+    ,"marketplace_sales_pagination": "Marketplace အရောင်းမှတ်တမ်းစာမျက်နှာပြောင်းရန်"
+    ,"partially_refunded": "တစ်စိတ်တစ်ပိုင်း ပြန်အမ်းပြီး"
   }
 }

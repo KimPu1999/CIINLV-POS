@@ -27,6 +27,20 @@ class MarketplaceVendorSaleResource extends JsonResource
         $refundTotal = $order?->relationLoaded('refundRequests')
             ? $order->refundRequests->where('status', 'approved')->sum(fn ($refund): float => (float) ($refund->approved_amount ?? 0))
             : 0;
+        $attribution = $this->branchAttributionData();
+        $authorizedBranchIds = $request->attributes->get('marketplace_sales_history_authorized_branch_ids');
+        $canViewUnassigned = (bool) $request->attributes->get('marketplace_sales_history_can_view_unassigned', false);
+        $visibleBranches = collect($attribution['branches'])
+            ->filter(fn (array $branch): bool => ! is_array($authorizedBranchIds) || in_array($branch['key'], $authorizedBranchIds, true))
+            ->map(fn (array $branch): array => collect($branch)->except('key')->all())
+            ->values();
+        $visibleLocations = collect($attribution['locations'])
+            ->filter(fn (array $location): bool => $location['branch_key'] === null ? $canViewUnassigned : (! is_array($authorizedBranchIds) || in_array($location['branch_key'], $authorizedBranchIds, true)))
+            ->map(fn (array $location): array => collect($location)->except('branch_key')->all())
+            ->values();
+        $branchLabel = $attribution['branch_count'] > 1
+            ? 'Multiple Branches'
+            : ($visibleBranches->first()['name'] ?? $attribution['label']);
 
         return [
             'id' => $this->uuid,
@@ -42,6 +56,11 @@ class MarketplaceVendorSaleResource extends JsonResource
                 'name' => $this->store?->name,
                 'logo_url' => $this->store?->logo_path ? Storage::disk('public')->url($this->store->logo_path) : null,
             ],
+            'branch' => $visibleBranches->count() === 1 ? $visibleBranches->first() : null,
+            'branches' => $visibleBranches,
+            'branch_label' => $branchLabel,
+            'fulfillment_locations' => $visibleLocations,
+            'branch_attribution' => 'reservation_location',
             'customer' => [
                 'name' => $order?->customer?->name,
                 'email' => $order?->customer?->email,

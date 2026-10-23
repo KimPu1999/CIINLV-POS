@@ -1367,5 +1367,13 @@
     ,"payment_amount_exceeds_balance": "The received amount cannot exceed the outstanding COD balance."
     ,"cod_payment_unavailable": "This COD payment is not available for collection."
     ,"payment_history": "Payment history"
+    ,"unassigned_unknown_branch": "Unassigned / Unknown Branch"
+    ,"branch_revenue_allocation_note": "Branch revenue uses line-value allocation."
+    ,"branch_fulfillment_attribution": "Branch / fulfillment attribution"
+    ,"reservation_record": "Reservation record"
+    ,"attribution_unavailable": "Attribution unavailable"
+    ,"no_historical_fulfillment_branch": "No historical fulfillment branch was recorded for this order."
+    ,"marketplace_sales_pagination": "Marketplace sales pagination"
+    ,"partially_refunded": "Partially refunded"
   }
 }

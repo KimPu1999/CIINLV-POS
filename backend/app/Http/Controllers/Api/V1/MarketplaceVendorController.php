@@ -28,6 +28,7 @@ use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceDocumentService;
 use App\Services\MarketplacePaymentService;
 use App\Services\MarketplaceSettingsService;
+use App\Services\PosAccessService;
 use App\Services\ReportScopeService;
 use App\Services\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
@@ -188,6 +189,7 @@ class MarketplaceVendorController
     public function salesHistory(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
     {
         $this->validateSalesHistoryRequest($request);
+        $branchScope = $this->salesHistoryBranchScope($request, $context);
         $query = $this->salesHistoryQuery($request, $context);
         $summary = $this->salesHistorySummary($request, $context, $commissions);
         $sales = $query
@@ -203,6 +205,7 @@ class MarketplaceVendorController
                 'current_page' => $sales->currentPage(),
                 'last_page' => $sales->lastPage(),
                 'summary' => $summary,
+                'can_view_unassigned' => $branchScope['include_unassigned'],
             ],
         ]);
     }
@@ -210,6 +213,7 @@ class MarketplaceVendorController
     public function deliveryHistory(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
     {
         $this->validateSalesHistoryRequest($request);
+        $branchScope = $this->salesHistoryBranchScope($request, $context);
         $query = $this->salesHistoryQuery($request, $context);
         $query->whereHas('shipments', fn (Builder $shipment) => $shipment->whereIn('status', ['delivered', 'completed']));
         $summary = $this->salesHistorySummary($request, $context, $commissions, true);
@@ -226,6 +230,7 @@ class MarketplaceVendorController
                 'current_page' => $deliveries->currentPage(),
                 'last_page' => $deliveries->lastPage(),
                 'summary' => $summary,
+                'can_view_unassigned' => $branchScope['include_unassigned'],
             ],
         ]);
     }
@@ -238,12 +243,12 @@ class MarketplaceVendorController
 
         return response()->streamDownload(function () use ($query, $relations): void {
             $handle = fopen('php://output', 'wb');
-            fputcsv($handle, ['Sale Date', 'Vendor Order No.', 'Marketplace Order No.', 'Customer', 'Items', 'Subtotal', 'Discount', 'Tax', 'Shipping', 'Grand Total', 'Currency', 'Payment Method', 'Payment Status', 'Order Status', 'Shipment Status', 'Tracking ID', 'Invoice No.', 'Receipt No.']);
+            fputcsv($handle, ['Sale Date', 'Vendor Order No.', 'Marketplace Order No.', 'Customer', 'Branch', 'Fulfillment Locations', 'Items', 'Subtotal', 'Discount', 'Tax', 'Shipping', 'Grand Total', 'Currency', 'Payment Method', 'Payment Status', 'Order Status', 'Shipment Status', 'Tracking ID', 'Invoice No.', 'Receipt No.']);
             $query->with($relations)->chunkById(250, function ($sales) use ($handle): void {
                 foreach ($sales as $sale) {
-                    fputcsv($handle, $this->salesHistoryCsvRow($sale));
+                    fputcsv($handle, array_map(fn ($value) => $this->csvSafe($value), $this->salesHistoryCsvRow($sale)));
                 }
-            }, 'marketplace_vendor_orders.id');
+            }, 'marketplace_vendor_orders.id', 'id');
             fclose($handle);
         }, 'marketplace-sales-history-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
@@ -551,6 +556,185 @@ class MarketplaceVendorController
         return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
     }
 
+    private function salesHistoryBranchScope(Request $request, TenantContext $context): array
+    {
+        $cached = $request->attributes->get('marketplace_sales_history_branch_scope');
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $tenant = $context->tenant();
+        $requested = $request->filled('branch_id') ? (string) $request->input('branch_id') : null;
+        $reportScope = app(ReportScopeService::class);
+        $authorizedStoreIds = $reportScope->storeIds($request->user(), $tenant);
+        $role = app(PosAccessService::class)->role($request->user(), (int) $tenant->id);
+        $platformScoped = $request->user()->isSuperAdmin() && $context->allowsPlatformAccessTo($tenant);
+        $canViewUnassigned = $role === 'business_admin' || $platformScoped;
+
+        if ($requested === 'unassigned') {
+            abort_unless($canViewUnassigned, 403, 'Unassigned marketplace sales are not available for this user.');
+            $selectedStoreIds = collect();
+        } elseif ($requested !== null) {
+            abort_unless(Str::isUuid($requested), 422, 'The selected branch is invalid.');
+            $selectedStoreIds = $reportScope->storeIds($request->user(), $tenant, $requested);
+            abort_if($selectedStoreIds->isEmpty(), 403, 'The selected branch is not authorized.');
+        } else {
+            $selectedStoreIds = $authorizedStoreIds;
+        }
+
+        $scope = [
+            'requested' => $requested,
+            'store_ids' => $selectedStoreIds,
+            'authorized_store_ids' => $authorizedStoreIds,
+            'selected_store_id' => $requested !== null && $requested !== 'unassigned' ? (int) $selectedStoreIds->first() : null,
+            'include_unassigned' => $requested === 'unassigned' || ($requested === null && $canViewUnassigned),
+        ];
+        $request->attributes->set('marketplace_sales_history_branch_scope', $scope);
+        $request->attributes->set('marketplace_sales_history_authorized_branch_ids', $authorizedStoreIds->all());
+        $request->attributes->set('marketplace_sales_history_can_view_unassigned', $canViewUnassigned);
+
+        return $scope;
+    }
+
+    private function applySalesHistoryBranchScope(Builder $query, Request $request, TenantContext $context): void
+    {
+        $scope = $this->salesHistoryBranchScope($request, $context);
+        $locationRelation = 'items.reservations.balance.location';
+
+        if ($scope['requested'] === 'unassigned') {
+            $query->whereDoesntHave($locationRelation, fn (Builder $location) => $location->whereNotNull('inventory_locations.store_id'));
+
+            return;
+        }
+
+        if ($scope['requested'] !== null) {
+            $query->whereHas($locationRelation, fn (Builder $location) => $location->whereIn('inventory_locations.store_id', $scope['store_ids']->all()));
+
+            return;
+        }
+
+        if ($scope['store_ids']->isEmpty() && ! $scope['include_unassigned']) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->where(function (Builder $branch) use ($scope, $locationRelation): void {
+            if ($scope['store_ids']->isNotEmpty()) {
+                $branch->whereHas($locationRelation, fn (Builder $location) => $location->whereIn('inventory_locations.store_id', $scope['store_ids']->all()));
+            }
+            if ($scope['include_unassigned']) {
+                $branch->orWhereDoesntHave($locationRelation, fn (Builder $location) => $location->whereNotNull('inventory_locations.store_id'));
+            }
+        });
+    }
+
+    private function branchAllocatedSalesHistorySummary(Builder $query, array $scope, MarketplaceCommissionService $commissions): array
+    {
+        $selectedKey = $scope['requested'] === 'unassigned' ? 'unassigned' : (string) $scope['selected_store_id'];
+        $commissionConfigured = $commissions->storageAvailable();
+        $totals = [
+            'sales_count' => 0,
+            'gross_revenue' => 0.0,
+            'discount_total' => 0.0,
+            'tax_total' => 0.0,
+            'shipping_revenue' => 0.0,
+            'paid_orders' => 0,
+            'delivered_orders' => 0,
+            'refunded_amount' => 0.0,
+            'marketplace_commission' => 0.0,
+            'vendor_earnings' => 0.0,
+        ];
+
+        $query
+            ->with([
+                'items.reservations.balance.location.store',
+                'order.payments',
+                'order.refundRequests',
+                'shipments',
+                'commission',
+            ])
+            ->chunkById(250, function ($sales) use (&$totals, $selectedKey, $commissionConfigured): void {
+                foreach ($sales as $sale) {
+                    $totals['sales_count']++;
+                    $weight = $this->salesHistoryAttributionWeights($sale)[$selectedKey] ?? 0.0;
+                    $totals['gross_revenue'] += (float) $sale->total * $weight;
+                    $totals['discount_total'] += (float) $sale->discount_total * $weight;
+                    $totals['tax_total'] += (float) $sale->tax_total * $weight;
+                    $totals['shipping_revenue'] += (float) $sale->shipping_total * $weight;
+
+                    if ($sale->order?->payments?->contains(fn (MarketplacePayment $payment): bool => $payment->status === 'paid')) {
+                        $totals['paid_orders']++;
+                    }
+                    if ($sale->status === 'delivered') {
+                        $totals['delivered_orders']++;
+                    }
+
+                    $totals['refunded_amount'] += (float) ($sale->order?->refundRequests?->where('status', 'approved')->sum('approved_amount') ?? 0) * $weight;
+                    if ($commissionConfigured && $sale->commission) {
+                        $totals['marketplace_commission'] += (float) $sale->commission->commission_amount * $weight;
+                        $totals['vendor_earnings'] += (float) $sale->commission->seller_net_amount * $weight;
+                    }
+                }
+            }, 'marketplace_vendor_orders.id', 'id');
+
+        return [
+            'sales_count' => $totals['sales_count'],
+            'gross_revenue' => $this->money((string) $totals['gross_revenue']),
+            'total_revenue' => $this->money((string) $totals['gross_revenue']),
+            'discount_total' => $this->money((string) $totals['discount_total']),
+            'tax_total' => $this->money((string) $totals['tax_total']),
+            'shipping_revenue' => $this->money((string) $totals['shipping_revenue']),
+            'paid_orders' => $totals['paid_orders'],
+            'delivered_orders' => $totals['delivered_orders'],
+            'refunded_amount' => $this->money((string) $totals['refunded_amount']),
+            'net_revenue' => $this->money((string) ($totals['gross_revenue'] - $totals['refunded_amount'])),
+            'commission_configured' => $commissionConfigured,
+            'marketplace_commission' => $this->money((string) $totals['marketplace_commission']),
+            'vendor_earnings' => $this->money((string) $totals['vendor_earnings']),
+            'allocation_method' => 'line_value_prorated_by_fulfillment_reservation',
+        ];
+    }
+
+    private function salesHistoryAttributionWeights(MarketplaceVendorOrder $sale): array
+    {
+        $values = [];
+        foreach ($sale->items ?? collect() as $item) {
+            $lineTotal = max((float) $item->line_total, 0);
+            $quantity = max((float) $item->quantity, 0);
+            $branchQuantities = [];
+
+            foreach ($item->reservations ?? collect() as $reservation) {
+                $key = $reservation->balance?->location?->store_id === null
+                    ? 'unassigned'
+                    : (string) $reservation->balance->location->store_id;
+                $branchQuantities[$key] = ($branchQuantities[$key] ?? 0) + max((float) $reservation->quantity, 0);
+            }
+
+            if ($lineTotal <= 0 || $quantity <= 0 || $branchQuantities === []) {
+                $values['unassigned'] = ($values['unassigned'] ?? 0) + $lineTotal;
+
+                continue;
+            }
+
+            $coveredQuantity = array_sum($branchQuantities);
+            $denominator = max($coveredQuantity, $quantity);
+            foreach ($branchQuantities as $key => $branchQuantity) {
+                $values[$key] = ($values[$key] ?? 0) + ($lineTotal * $branchQuantity / $denominator);
+            }
+            if ($coveredQuantity < $quantity) {
+                $values['unassigned'] = ($values['unassigned'] ?? 0) + ($lineTotal * ($quantity - $coveredQuantity) / $quantity);
+            }
+        }
+
+        $total = array_sum($values);
+        if ($total <= 0) {
+            return ['unassigned' => 1.0];
+        }
+
+        return array_map(static fn (float $value): float => $value / $total, $values);
+    }
+
     private function salesHistoryQuery(Request $request, TenantContext $context, bool $sort = true): Builder
     {
         $query = MarketplaceVendorOrder::query()
@@ -609,6 +793,8 @@ class MarketplaceVendorController
             ->when($request->filled('min_amount'), fn (Builder $builder) => $builder->where('marketplace_vendor_orders.total', '>=', $request->input('min_amount')))
             ->when($request->filled('max_amount'), fn (Builder $builder) => $builder->where('marketplace_vendor_orders.total', '<=', $request->input('max_amount')));
 
+        $this->applySalesHistoryBranchScope($query, $request, $context);
+
         if (! $sort) {
             return $query;
         }
@@ -628,6 +814,7 @@ class MarketplaceVendorController
 
     private function salesHistorySummary(Request $request, TenantContext $context, MarketplaceCommissionService $commissions, bool $deliveriesOnly = false): array
     {
+        $branchScope = $this->salesHistoryBranchScope($request, $context);
         $query = $this->salesHistoryQuery($request, $context, false);
         if ($deliveriesOnly) {
             $query->whereHas('shipments', fn (Builder $shipment) => $shipment->whereIn('status', ['delivered', 'completed']));
@@ -638,6 +825,9 @@ class MarketplaceVendorController
         $financialQuery = clone $query;
         if ($deliveriesOnly) {
             $financialQuery->whereHas('order.payments', fn (Builder $payment) => $payment->whereIn('status', ['authorized', 'paid', 'refunded']));
+        }
+        if ($branchScope['requested'] !== null) {
+            return $this->branchAllocatedSalesHistorySummary($financialQuery, $branchScope, $commissions);
         }
         $totals = (clone $financialQuery)->selectRaw('COUNT(*) AS sales_count, COALESCE(SUM(marketplace_vendor_orders.total), 0) AS gross_revenue, COALESCE(SUM(marketplace_vendor_orders.discount_total), 0) AS discount_total, COALESCE(SUM(marketplace_vendor_orders.tax_total), 0) AS tax_total, COALESCE(SUM(marketplace_vendor_orders.shipping_total), 0) AS shipping_revenue')->first();
         $orderIds = (clone $financialQuery)->select('marketplace_vendor_orders.marketplace_order_id')->distinct()->pluck('marketplace_order_id');
@@ -672,6 +862,7 @@ class MarketplaceVendorController
             'store',
             'tenant',
             'items.variant',
+            'items.reservations.balance.location.store',
             'order.customer.customerProfile',
             'order.payments.receivedBy',
             'order.events',
@@ -687,12 +878,15 @@ class MarketplaceVendorController
         $payment = $order?->payments?->sortByDesc('id')->first();
         $shipment = $sale->shipments?->sortByDesc('id')->first();
         $shipmentStatus = $shipment?->status ?: ($sale->status === 'delivered' ? 'delivered' : 'ready');
+        $attribution = $sale->branchAttributionData();
 
         return [
             $sale->created_at?->toIso8601String(),
             $sale->vendor_order_number,
             $order?->order_number,
             $order?->customer?->name,
+            $attribution['label'],
+            collect($attribution['locations'])->pluck('name')->implode(' | '),
             $sale->items?->sum('quantity') ?? 0,
             $sale->subtotal,
             $sale->discount_total,
@@ -714,6 +908,7 @@ class MarketplaceVendorController
     {
         $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
+            'branch_id' => ['nullable', 'string', 'max:36'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'payment_method' => ['nullable', 'string', 'in:cod,online,card,qr,bank_transfer'],
@@ -731,6 +926,13 @@ class MarketplaceVendorController
     private function money(string $value): string
     {
         return number_format((float) $value, 2, '.', '');
+    }
+
+    private function csvSafe(mixed $value): mixed
+    {
+        $value = is_scalar($value) || $value === null ? (string) $value : json_encode($value);
+
+        return preg_match('/^[=+\-@\t\r]/', $value) === 1 ? "'".$value : $value;
     }
 
     private function getOrCreateStore(TenantContext $context): MarketplaceStore

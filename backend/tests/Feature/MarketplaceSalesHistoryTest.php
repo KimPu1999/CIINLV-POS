@@ -13,6 +13,7 @@ use App\Models\MarketplaceStore;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Role;
+use App\Models\Store;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -210,6 +211,51 @@ class MarketplaceSalesHistoryTest extends TestCase
             ->get('/api/v1/vendor/marketplace/sales-history/export?search='.$secondVendor->vendor_order_number)
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+    }
+
+    public function test_branch_filter_uses_reserved_inventory_location_and_rejects_another_tenant_branch(): void
+    {
+        [$tenant, , $listing, $variant, $admin] = $this->vendor('SALES-HISTORY-BRANCH', 1400, 4);
+        $branch = Store::create(['tenant_id' => $tenant->id, 'name' => 'Downtown Branch', 'code' => 'DOWNTOWN', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $admin->id]);
+        InventoryLocation::query()->where('tenant_id', $tenant->id)->where('location_type', 'warehouse')->update(['store_id' => $branch->id, 'location_type' => 'store']);
+        $customer = $this->customer('sales-history-branch@example.com');
+        $order = $this->checkout($customer, $listing, $variant, 'sales-history-branch');
+        $vendorOrder = $order->vendorOrders()->firstOrFail();
+        $url = '/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid;
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson($url.'/shipments', ['delivery_type' => 'self_delivery'])
+            ->assertCreated();
+
+        $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'sales-history-branch-pay'])
+            ->postJson($url.'/payments/cod/collect', ['amount_received' => $order->grand_total])
+            ->assertOk();
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/sales-history?branch_id='.$branch->uuid)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.summary.sales_count', 1)
+            ->assertJsonPath('data.0.branch.id', $branch->uuid)
+            ->assertJsonPath('data.0.branch_label', 'Downtown Branch');
+
+        foreach ([10, 25, 50, 100] as $perPage) {
+            $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+                ->getJson('/api/v1/vendor/marketplace/sales-history?branch_id='.$branch->uuid.'&per_page='.$perPage)
+                ->assertOk()
+                ->assertJsonPath('meta.per_page', $perPage);
+        }
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/sales-history?branch_id='.$branch->uuid.'&per_page=0')
+            ->assertStatus(422);
+
+        [$otherTenant, , , , $otherAdmin] = $this->vendor('SALES-HISTORY-OTHER-BRANCH', 1400, 2);
+        $otherBranch = Store::create(['tenant_id' => $otherTenant->id, 'name' => 'Other Tenant Branch', 'code' => 'OTHER', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $otherAdmin->id]);
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/sales-history?branch_id='.$otherBranch->uuid)
+            ->assertForbidden();
     }
 
     private function checkout(User $customer, MarketplaceListing $listing, ProductVariant $variant, string $key): MarketplaceOrder
