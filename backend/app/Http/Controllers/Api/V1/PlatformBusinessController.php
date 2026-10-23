@@ -206,6 +206,7 @@ class PlatformBusinessController
                 $query->where(function (Builder $nested) use ($search): void {
                     $nested->where('tenants.name', 'ilike', $search)
                         ->orWhere('tenants.business_code', 'ilike', $search)
+                        ->orWhere('tenants.uuid', 'ilike', $search)
                         ->orWhere('tenants.email', 'ilike', $search)
                         ->orWhereHas('memberships', fn (Builder $membership) => $membership->whereHas('role', fn (Builder $role) => $role->where('name', 'business_admin'))->whereHas('user', fn (Builder $user) => $user->where('name', 'ilike', $search)->orWhere('email', 'ilike', $search)));
                 });

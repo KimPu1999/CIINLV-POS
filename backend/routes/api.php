@@ -129,6 +129,7 @@ Route::prefix('v1')->group(function (): void {
             });
             Route::prefix('business-products')->group(function (): void {
                 Route::get('/export', [PlatformBusinessProductController::class, 'export'])->middleware('throttle:exports');
+                Route::get('/branches', [PlatformBusinessProductController::class, 'branches']);
                 Route::get('/', [PlatformBusinessProductController::class, 'index']);
                 Route::get('/{product}', [PlatformBusinessProductController::class, 'show']);
             });

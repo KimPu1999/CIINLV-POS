@@ -10,6 +10,8 @@ use App\Models\Store;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PlatformBusinessProductsTest extends TestCase
@@ -47,6 +49,63 @@ class PlatformBusinessProductsTest extends TestCase
         $response->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
         $this->assertStringContainsString($product->name, $response->streamedContent());
         $this->assertDatabaseHas('audit_logs', ['action' => 'platform.business_products_exported', 'actor_user_id' => $admin->id]);
+    }
+
+    public function test_product_monitoring_supports_stock_price_search_and_business_scoped_branch_filters(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        [$tenant, $product] = $this->productFixture('Filter Products', 'FILTER', 'Filter Widget', 'FILTER-001');
+        $variant = $product->variants()->firstOrFail();
+        $variant->update(['barcode' => '890-FILTER', 'reorder_level' => 9]);
+        $branch = Store::where('tenant_id', $tenant->id)->firstOrFail();
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/business-products/branches?business='.$tenant->uuid.'&search=Filter')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $branch->uuid)
+            ->assertJsonPath('data.0.business_id', $tenant->uuid);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/business-products?search=890-FILTER&branch='.$branch->uuid.'&stock=low_stock&min_price=100&max_price=130&per_page=10')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 25)
+            ->assertJsonPath('data.0.id', $product->uuid)
+            ->assertJsonPath('data.0.stock_summary.low_stock', true);
+
+        $outOfStock = $this->productFixture('Out Products', 'OUT', 'Out Widget', 'OUT-001')[1];
+        InventoryBalance::where('product_variant_id', $outOfStock->variants()->firstOrFail()->id)->update(['on_hand_quantity' => 0, 'reserved_quantity' => 0]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/business-products?stock=out_of_stock')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $outOfStock->uuid);
+    }
+
+    public function test_large_catalog_pagination_never_loads_more_than_requested_rows(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $tenant = Tenant::create(['name' => 'Large Catalog', 'slug' => 'large-catalog', 'business_code' => 'LARGE', 'status' => 'active', 'subscription_status' => 'active']);
+        $now = now();
+        $rows = [];
+        for ($index = 1; $index <= 10000; $index++) {
+            $rows[] = [
+                'uuid' => (string) Str::uuid(),
+                'tenant_id' => $tenant->id,
+                'name' => 'Catalog Product '.$index,
+                'slug' => 'catalog-product-'.$index,
+                'brand' => 'CIINLV',
+                'status' => 'active',
+                'track_inventory' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('products')->insert($chunk);
+        }
+
+        $response = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/platform/business-products?per_page=100&page=37')->assertOk();
+        $response->assertJsonCount(100, 'data')->assertJsonPath('meta.total', 10000)->assertJsonPath('meta.per_page', 100)->assertJsonPath('meta.current_page', 37);
     }
 
     private function productFixture(string $name, string $code, string $productName, string $sku): array
