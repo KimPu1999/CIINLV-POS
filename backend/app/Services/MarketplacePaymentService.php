@@ -21,6 +21,9 @@ class MarketplacePaymentService
     {
         $result = DB::transaction(function () use ($order, $actor, $data, $vendorOrder): array {
             $lockedOrder = MarketplaceOrder::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            if ($lockedOrder->admin_hold) {
+                throw new ConflictHttpException('This order is on administrative hold and cannot receive payment.');
+            }
             $payment = $lockedOrder->payments()->where('method', 'cod')->lockForUpdate()->firstOrFail();
             $metadata = (array) $payment->metadata;
             $idempotencyKey = trim((string) ($data['idempotency_key'] ?? ''));

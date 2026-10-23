@@ -183,10 +183,15 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/return-requests', [MarketplaceAdminController::class, 'returnRequests']);
             Route::patch('/return-requests/{return}/decision', [MarketplaceAdminController::class, 'decideReturn']);
             Route::get('/refund-requests', [MarketplaceAdminController::class, 'refundRequests']);
+            Route::get('/orders/{order}', [MarketplaceAdminController::class, 'orderDetail']);
+            Route::post('/orders/{order}/investigation-notes', [MarketplaceAdminController::class, 'investigationNote']);
+            Route::patch('/orders/{order}/hold', [MarketplaceAdminController::class, 'hold']);
+            Route::patch('/orders/{order}/status-correction', [MarketplaceAdminController::class, 'correctOrderStatus']);
             Route::get('/orders/{order}/invoice', [MarketplaceAdminController::class, 'invoice']);
             Route::get('/orders/{order}/receipt', [MarketplaceAdminController::class, 'receipt']);
             Route::patch('/reviews/{review}/moderation', [MarketplaceReviewController::class, 'moderate']);
             Route::post('/orders/{order}/cod/collect', [MarketplaceAdminController::class, 'collectCod']);
+            Route::patch('/shipments/{shipment}/status-correction', [MarketplaceAdminController::class, 'correctShipmentStatus']);
             Route::get('/reports', [MarketplaceAdminController::class, 'reports']);
             Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
             Route::get('/settings', [MarketplaceAdminController::class, 'settings']);

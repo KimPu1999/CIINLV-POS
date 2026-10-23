@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\MarketplaceListing;
+use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceStore;
+use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Role;
@@ -136,6 +138,26 @@ class MarketplaceAdminControlCenterTest extends TestCase
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/reports')->assertOk()->assertJsonPath('data.summary.orders', 0);
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/audit-logs')->assertOk()->assertJsonStructure(['data', 'meta']);
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/settings')->assertOk()->assertJsonPath('data.configured', true);
+    }
+
+    public function test_super_admin_interventions_are_reasoned_audited_and_business_scoped(): void
+    {
+        [$tenant, $businessAdmin] = $this->businessWithAdmin('CONTROL-INTERVENTION', 'intervention-business@example.com');
+        $customer = User::factory()->create(['email' => 'intervention-customer@example.com']);
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Intervention Store', 'slug' => 'intervention-store', 'approval_status' => 'approved', 'is_active' => true]);
+        $order = MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'INT-001', 'currency_code' => 'MMK', 'status' => 'confirmed', 'payment_status' => 'pending', 'grand_total' => 1500, 'delivery_address' => [], 'idempotency_key' => 'int-001', 'request_hash' => hash('sha256', 'int-001')]);
+        MarketplaceVendorOrder::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'vendor_order_number' => 'V-INT-001', 'status' => 'processing', 'total' => 1500, 'currency_code' => 'MMK']);
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/orders/'.$order->uuid)->assertForbidden();
+        $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/orders/'.$order->uuid)->assertOk()->assertJsonPath('data.customer.email', $customer->email);
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/orders/'.$order->uuid.'/hold', ['action' => 'hold', 'reason' => 'Disputed delivery address'])->assertOk()->assertJsonPath('data.admin_hold', true);
+        $this->assertDatabaseHas('marketplace_audit_logs', ['action' => 'marketplace.order_hold_updated', 'tenant_id' => $tenant->id, 'actor_user_id' => $superAdmin->id]);
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/orders/'.$order->uuid.'/status-correction', ['status' => 'delivered', 'reason' => 'Invalid skipped transition'])->assertConflict();
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/orders/'.$order->uuid.'/status-correction', ['status' => 'processing', 'reason' => 'Validated fulfillment correction'])->assertOk()->assertJsonPath('data.status', 'processing');
+        $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/admin/marketplace/orders/'.$order->uuid.'/investigation-notes', ['note' => 'Customer dispute reviewed'])->assertOk();
+        $this->assertDatabaseHas('marketplace_audit_logs', ['action' => 'marketplace.order_investigation_note_added', 'tenant_id' => $tenant->id]);
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/orders/'.$order->uuid.'/hold', ['action' => 'release', 'reason' => 'Dispute evidence verified'])->assertOk()->assertJsonPath('data.admin_hold', false);
     }
 
     private function businessWithAdmin(string $code, string $email): array

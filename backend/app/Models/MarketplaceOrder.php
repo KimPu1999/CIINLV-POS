@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class MarketplaceOrder extends Model
 {
-    protected $fillable = ['customer_user_id', 'order_number', 'invoice_number', 'promotion_code', 'currency_code', 'status', 'payment_status', 'subtotal', 'discount_total', 'shipping_total', 'tax_total', 'grand_total', 'delivery_address', 'idempotency_key', 'request_hash'];
+    protected $fillable = ['customer_user_id', 'order_number', 'invoice_number', 'promotion_code', 'currency_code', 'status', 'payment_status', 'subtotal', 'discount_total', 'shipping_total', 'tax_total', 'grand_total', 'delivery_address', 'idempotency_key', 'request_hash', 'admin_hold', 'admin_hold_reason', 'admin_hold_by', 'admin_hold_at'];
 
     protected static function booted(): void
     {
@@ -23,7 +23,7 @@ class MarketplaceOrder extends Model
 
     protected function casts(): array
     {
-        return ['subtotal' => 'decimal:2', 'discount_total' => 'decimal:2', 'shipping_total' => 'decimal:2', 'tax_total' => 'decimal:2', 'grand_total' => 'decimal:2', 'delivery_address' => 'array'];
+        return ['subtotal' => 'decimal:2', 'discount_total' => 'decimal:2', 'shipping_total' => 'decimal:2', 'tax_total' => 'decimal:2', 'grand_total' => 'decimal:2', 'delivery_address' => 'array', 'admin_hold' => 'boolean', 'admin_hold_at' => 'datetime'];
     }
 
     public function getRouteKeyName(): string
@@ -34,6 +34,11 @@ class MarketplaceOrder extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_user_id');
+    }
+
+    public function adminHoldUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_hold_by');
     }
 
     public function vendorOrders(): HasMany

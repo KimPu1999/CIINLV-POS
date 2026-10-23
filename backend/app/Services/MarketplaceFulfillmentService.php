@@ -23,6 +23,10 @@ class MarketplaceFulfillmentService
             $lockedOrder = MarketplaceVendorOrder::query()->whereKey($vendorOrder->id)->lockForUpdate()->firstOrFail();
             $lockedOrder->load(['order.payments', 'store', 'items']);
 
+            if ($lockedOrder->order?->admin_hold) {
+                throw new ConflictHttpException('This order is on administrative hold and cannot enter fulfillment.');
+            }
+
             if ($lockedOrder->shipments()->exists()) {
                 throw new ConflictHttpException('A shipment already exists for this vendor order.');
             }
@@ -67,6 +71,9 @@ class MarketplaceFulfillmentService
         return DB::transaction(function () use ($shipment, $actor, $nextStatus, $description): MarketplaceShipment {
             $lockedShipment = MarketplaceShipment::query()->whereKey($shipment->id)->lockForUpdate()->firstOrFail();
             $lockedShipment->load(['vendorOrder.order.payments', 'vendorOrder.store']);
+            if ($lockedShipment->vendorOrder->order?->admin_hold) {
+                throw new ConflictHttpException('This order is on administrative hold and shipment status cannot change.');
+            }
             $current = $lockedShipment->status;
             $allowed = [
                 'ready' => ['shipped', 'cancelled'],
@@ -120,6 +127,11 @@ class MarketplaceFulfillmentService
 
             return $lockedShipment->refresh()->load(['vendorOrder.store', 'events.actor']);
         });
+    }
+
+    public function correctShipmentStatus(MarketplaceShipment $shipment, User $actor, string $nextStatus, string $reason): MarketplaceShipment
+    {
+        return $this->transitionShipment($shipment, $actor, $nextStatus, $reason);
     }
 
     public function syncMasterStatus(MarketplaceOrder $order, User $actor): MarketplaceOrder

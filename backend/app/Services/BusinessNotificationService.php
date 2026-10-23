@@ -89,6 +89,23 @@ class BusinessNotificationService
         );
     }
 
+    public function administrativeIntervention(MarketplaceOrder $order, string $action, string $reason): void
+    {
+        $order->loadMissing(['vendorOrders.store']);
+        foreach ($order->vendorOrders as $vendorOrder) {
+            $this->notifyTenant(
+                (int) $vendorOrder->tenant_id,
+                (int) $vendorOrder->marketplace_store_id,
+                'marketplace_administrative_intervention',
+                'Marketplace order intervention',
+                sprintf('Platform administration updated order %s: %s.', $vendorOrder->vendor_order_number, $action),
+                ['order_id' => $order->uuid, 'vendor_order_id' => $vendorOrder->uuid, 'tenant_id' => (int) $vendorOrder->tenant_id, 'reason' => $reason, 'related_url' => '/business/marketplace/orders/'.$vendorOrder->uuid],
+                'high',
+                'marketplace_administrative_intervention:'.$order->uuid.':'.$action.':'.sha1($reason),
+            );
+        }
+    }
+
     public function inventoryAlert(StockAlert $alert): void
     {
         $alert->loadMissing(['location.store', 'variant.product']);

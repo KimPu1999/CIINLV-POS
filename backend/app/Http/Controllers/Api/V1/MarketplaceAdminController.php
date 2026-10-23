@@ -30,9 +30,11 @@ use App\Models\MarketplaceReturnRequest;
 use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
 use App\Models\Tenant;
+use App\Services\BusinessNotificationService;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceDocumentService;
+use App\Services\MarketplaceFulfillmentService;
 use App\Services\MarketplaceOrderRequestService;
 use App\Services\MarketplacePaymentService;
 use App\Services\MarketplacePayoutService;
@@ -195,6 +197,84 @@ class MarketplaceAdminController
         }
 
         return response()->json(['success' => true, 'idempotent_replay' => $result['replayed'], 'data' => new MarketplaceOrderResource($model->load(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items', 'vendorOrders.shipments.events']))]);
+    }
+
+    public function orderDetail(string $order): JsonResponse
+    {
+        $model = MarketplaceOrder::query()->where('uuid', $order)->with(['customer:id,name,email', 'payments', 'vendorOrders.store.tenant', 'vendorOrders.items', 'vendorOrders.shipments.events.actor', 'events', 'adminHoldUser:id,name,email', 'cancellationRequests', 'returnRequests', 'refundRequests'])->firstOrFail();
+        $audits = MarketplaceAuditLog::query()->with(['actor:id,name,email', 'tenant:id,name,business_code'])->where('entity_type', MarketplaceOrder::class)->where('entity_id', (string) $model->id)->latest('created_at')->limit(100)->get();
+
+        return response()->json(['success' => true, 'data' => ['order' => new MarketplaceOrderResource($model), 'customer' => $model->customer?->only(['id', 'name', 'email']), 'audit' => $audits->map(fn (MarketplaceAuditLog $audit): array => ['id' => $audit->id, 'action' => $audit->action, 'actor' => $audit->actor?->only(['id', 'name', 'email']), 'business' => $audit->tenant?->only(['id', 'name', 'business_code']), 'metadata' => $audit->metadata, 'created_at' => $audit->created_at?->toIso8601String()])->values()]]);
+    }
+
+    public function investigationNote(Request $request, string $order, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $data = $request->validate(['note' => ['required', 'string', 'min:3', 'max:2000']]);
+        $model = MarketplaceOrder::query()->where('uuid', $order)->with('vendorOrders')->firstOrFail();
+        $this->recordOrderIntervention($audit, 'marketplace.order_investigation_note_added', $request->user(), $model, ['note' => trim(strip_tags($data['note']))]);
+
+        return response()->json(['success' => true, 'message' => 'Investigation note recorded.']);
+    }
+
+    public function hold(Request $request, string $order, MarketplaceAuditLogger $audit, BusinessNotificationService $notifications): JsonResponse
+    {
+        $data = $request->validate(['action' => ['required', 'in:hold,release'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $model = DB::transaction(function () use ($data, $order, $request, $audit): MarketplaceOrder {
+            $locked = MarketplaceOrder::query()->where('uuid', $order)->lockForUpdate()->firstOrFail();
+            $holding = $data['action'] === 'hold';
+            if ($holding === (bool) $locked->admin_hold) {
+                throw new ConflictHttpException($holding ? 'This order is already on hold.' : 'This order is not on hold.');
+            }
+            $reason = trim(strip_tags($data['reason']));
+            $previous = (bool) $locked->admin_hold;
+            $locked->update(['admin_hold' => $holding, 'admin_hold_reason' => $reason, 'admin_hold_by' => $holding ? $request->user()->id : null, 'admin_hold_at' => $holding ? now() : null]);
+            $locked->load('vendorOrders');
+            $this->recordOrderIntervention($audit, 'marketplace.order_hold_updated', $request->user(), $locked, ['previous_hold' => $previous, 'new_hold' => $holding, 'reason' => $reason]);
+
+            return $locked;
+        });
+        $notifications->administrativeIntervention($model, $data['action'] === 'hold' ? 'placed on hold' : 'released from hold', trim(strip_tags($data['reason'])));
+
+        return response()->json(['success' => true, 'data' => new MarketplaceOrderResource($model->fresh()->load(['payments', 'vendorOrders.store', 'vendorOrders.shipments.events', 'adminHoldUser']))]);
+    }
+
+    public function correctOrderStatus(Request $request, string $order, MarketplaceAuditLogger $audit, BusinessNotificationService $notifications): JsonResponse
+    {
+        $data = $request->validate(['status' => ['required', 'in:pending,confirmed,processing,partially_shipped,shipped,delivered,cancelled'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $model = DB::transaction(function () use ($data, $order, $request, $audit): MarketplaceOrder {
+            $locked = MarketplaceOrder::query()->where('uuid', $order)->lockForUpdate()->firstOrFail();
+            $allowed = ['pending' => ['confirmed', 'cancelled'], 'confirmed' => ['processing', 'cancelled'], 'processing' => ['partially_shipped', 'cancelled'], 'partially_shipped' => ['shipped', 'delivered'], 'shipped' => ['partially_shipped', 'delivered'], 'delivered' => [], 'cancelled' => []];
+            if (! in_array($data['status'], $allowed[$locked->status] ?? [], true)) {
+                throw new ConflictHttpException(sprintf('Order status cannot be corrected from %s to %s.', $locked->status, $data['status']));
+            }
+            $locked->load('vendorOrders');
+            if (! $this->isOrderStatusConsistent($locked, $data['status'])) {
+                throw new ConflictHttpException('The requested order status does not match its vendor fulfillment states. Correct the vendor or shipment state first.');
+            }
+            $previous = $locked->status;
+            $reason = trim(strip_tags($data['reason']));
+            $locked->update(['status' => $data['status']]);
+            $locked->events()->create(['actor_user_id' => $request->user()->id, 'event' => 'admin_order_status_corrected', 'from_status' => $previous, 'to_status' => $data['status'], 'metadata' => ['reason' => $reason]]);
+            $this->recordOrderIntervention($audit, 'marketplace.order_status_corrected', $request->user(), $locked, ['previous_status' => $previous, 'new_status' => $data['status'], 'reason' => $reason]);
+
+            return $locked;
+        });
+        $notifications->administrativeIntervention($model, 'status corrected to '.$data['status'], trim(strip_tags($data['reason'])));
+
+        return response()->json(['success' => true, 'data' => new MarketplaceOrderResource($model->fresh()->load(['payments', 'vendorOrders.store', 'vendorOrders.shipments.events', 'adminHoldUser']))]);
+    }
+
+    public function correctShipmentStatus(Request $request, string $shipment, MarketplaceFulfillmentService $fulfillment, MarketplaceAuditLogger $audit, BusinessNotificationService $notifications): JsonResponse
+    {
+        $data = $request->validate(['status' => ['required', 'in:ready,shipped,in_transit,delivered,delivery_failed,returned,cancelled'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $model = MarketplaceShipment::query()->where('uuid', $shipment)->firstOrFail();
+        $previous = $model->status;
+        $updated = $fulfillment->correctShipmentStatus($model, $request->user(), $data['status'], trim(strip_tags($data['reason'])));
+        $updated->load(['vendorOrder.order', 'tenant']);
+        $audit->record('marketplace.shipment_status_corrected', $request->user(), $updated->tenant, $updated, ['previous_status' => $previous, 'new_status' => $data['status'], 'reason' => trim(strip_tags($data['reason']))]);
+        $notifications->administrativeIntervention($updated->vendorOrder->order, 'shipment status corrected to '.$data['status'], trim(strip_tags($data['reason'])));
+
+        return response()->json(['success' => true, 'data' => new MarketplaceShipmentResource($updated)]);
     }
 
     public function invoice(string $order, MarketplaceDocumentService $documents): JsonResponse
@@ -773,6 +853,32 @@ class MarketplaceAdminController
         }
 
         return [$from, $to];
+    }
+
+    private function recordOrderIntervention(MarketplaceAuditLogger $audit, string $action, mixed $actor, MarketplaceOrder $order, array $metadata): void
+    {
+        foreach ($order->vendorOrders->pluck('tenant_id')->unique() as $tenantId) {
+            $audit->record($action, $actor, Tenant::find($tenantId), $order, $metadata + ['affected_business_id' => (int) $tenantId]);
+        }
+    }
+
+    private function isOrderStatusConsistent(MarketplaceOrder $order, string $status): bool
+    {
+        $statuses = $order->vendorOrders->pluck('status');
+        if ($statuses->isEmpty()) {
+            return false;
+        }
+
+        return match ($status) {
+            'cancelled' => $statuses->every(fn (string $value): bool => $value === 'cancelled'),
+            'delivered' => $statuses->every(fn (string $value): bool => $value === 'delivered'),
+            'shipped' => $statuses->every(fn (string $value): bool => $value === 'shipped'),
+            'partially_shipped' => $statuses->contains(fn (string $value): bool => in_array($value, ['shipped', 'delivered'], true)) && ! $statuses->every(fn (string $value): bool => in_array($value, ['shipped', 'delivered'], true)),
+            'processing' => $statuses->contains(fn (string $value): bool => $value === 'processing') && ! $statuses->contains(fn (string $value): bool => in_array($value, ['shipped', 'delivered'], true)),
+            'confirmed' => ! $statuses->contains(fn (string $value): bool => in_array($value, ['processing', 'shipped', 'delivered'], true)),
+            'pending' => $statuses->every(fn (string $value): bool => $value === 'pending'),
+            default => false,
+        };
     }
 
     private function money(mixed $value): string
