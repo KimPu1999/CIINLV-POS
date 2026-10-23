@@ -6,6 +6,7 @@ use App\Http\Requests\Platform\CreateBusinessRequest;
 use App\Http\Requests\Platform\UpdateBusinessRequest;
 use App\Http\Resources\BusinessInvitationResource;
 use App\Http\Resources\TenantResource;
+use App\Models\AuditLog;
 use App\Models\Tenant;
 use App\Services\AuditLogger;
 use App\Services\BusinessProvisioningService;
@@ -100,6 +101,39 @@ class PlatformBusinessController
                 'settings' => $business->businessSetting,
             ],
         )]);
+    }
+
+    public function verification(Tenant $business, Request $request, AuditLogger $auditLogger): JsonResponse
+    {
+        Gate::authorize('manage', $business);
+        $business->load(['businessSetting', 'memberships' => fn ($query) => $query->whereHas('role', fn ($role) => $role->where('name', 'business_admin'))->with('user:id,name,email,email_verified_at')]);
+        $owner = $business->memberships->sortByDesc(fn ($membership): int => $membership->status === 'active' ? 1 : 0)->first()?->user;
+        $auditLogger->record('platform.business_verification_viewed', $request->user(), $business, $business);
+
+        $documents = collect([
+            'id_front_image' => $business->id_front_image_path,
+            'id_back_image' => $business->id_back_image_path,
+            'company_certificate_image' => $business->company_certificate_image_path,
+        ])->map(fn (?string $path, string $document): array => [
+            'name' => $document,
+            'available' => (bool) ($path && Storage::disk('private')->exists($path)),
+            'url' => $path ? route('platform.businesses.verification', [$business->uuid, $document]) : null,
+        ])->values()->all();
+
+        $history = AuditLog::query()->with('actor:id,name,email')->where('tenant_id', $business->getKey())
+            ->whereIn('action', ['business.registration_approved', 'business.verification_document_updated', 'business.verification_document_removed', 'platform.business_verification_viewed'])
+            ->latest('created_at')->limit(50)->get()->map(fn (AuditLog $log): array => [
+                'id' => $log->id, 'action' => $log->action, 'actor' => $log->actor?->only(['name', 'email']),
+                'metadata' => $log->metadata, 'created_at' => $log->created_at,
+            ])->values()->all();
+
+        return response()->json(['success' => true, 'data' => [
+            'business' => (new TenantResource($business))->resolve(),
+            'applicant' => $owner ? ['name' => $owner->name, 'email' => $owner->email, 'email_verified_at' => $owner->email_verified_at] : null,
+            'verification' => ['status' => $business->verification_status, 'approval_status' => $business->approval_status, 'submitted_at' => $business->created_at, 'approved_at' => $business->approved_at],
+            'documents' => $documents,
+            'history' => $history,
+        ]]);
     }
 
     public function verificationDocument(Tenant $business, string $document)

@@ -23,6 +23,7 @@ const BusinessRegistrationScreen = lazy(() => import('./features/registration-wi
 const PublicBusinessRegistrationPage = lazy(() => import('./features/registration-wizards').then(({ PublicBusinessRegistrationWizard: Page }) => ({ default: Page })))
 const BusinessSettingsPage = lazy(() => import('./features/business-settings').then(({ BusinessSettingsPage: Page }) => ({ default: Page })))
 const BusinessVerificationPage = lazy(() => import('./features/business-verification').then(({ BusinessVerificationPage: Page }) => ({ default: Page })))
+const PlatformBusinessVerificationPage = lazy(() => import('./features/platform-business-verification').then(({ PlatformBusinessVerificationPage: Page }) => ({ default: Page })))
 const BusinessDashboardPage = lazy(() => import('./features/business-dashboard').then(({ BusinessDashboardPage: Page }) => ({ default: Page })))
 const PlatformOverviewPage = lazy(() => import('./features/platform-overview').then(({ PlatformOverviewPage: Page }) => ({ default: Page })))
 const PlatformMonitoringPage = lazy(() => import('./features/platform-monitoring').then(({ PlatformMonitoringPage: Page }) => ({ default: Page })))
@@ -316,6 +317,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="customers" element={<CustomerManagementPage platform />} />
           <Route path="businesses/new" element={<BusinessRegistrationScreen />} />
           <Route path="businesses/:id/edit" element={<BusinessEditPage />} />
+          <Route path="businesses/:id/verification" element={<PlatformBusinessVerificationPage />} />
           <Route path="businesses/:id/admins" element={<BusinessAdminsPage />} />
           <Route path="businesses/:id" element={<BusinessControlCenterPage />} />
           <Route path="audit" element={<ResourcePage title="Audit & security" description="Review platform audit records from the backend." endpoint="/api/v1/platform/businesses" columns={['name', 'status', 'created_at']} />} />

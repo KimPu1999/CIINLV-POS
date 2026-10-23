@@ -142,6 +142,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/businesses', [PlatformBusinessController::class, 'index']);
             Route::post('/businesses', [PlatformBusinessController::class, 'store']);
             Route::get('/businesses/{business}', [PlatformBusinessController::class, 'show']);
+            Route::get('/businesses/{business}/verification', [PlatformBusinessController::class, 'verification']);
             Route::get('/businesses/{business}/verification/{document}', [PlatformBusinessController::class, 'verificationDocument'])->name('platform.businesses.verification');
             Route::get('/businesses/{business}/control-center', [PlatformBusinessControlController::class, 'show']);
             Route::patch('/businesses/{business}', [PlatformBusinessController::class, 'update']);

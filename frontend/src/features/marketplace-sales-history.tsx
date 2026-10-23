@@ -164,7 +164,12 @@ export function MarketplaceSalesHistoryPage({ deliveryHistory = false }: { deliv
     }
   }
 
-  useEffect(() => { void load() }, [params])
+  useEffect(() => {
+    void load()
+    const refresh = () => { void load() }
+    window.addEventListener('ciinlv:marketplace-payment-updated', refresh)
+    return () => window.removeEventListener('ciinlv:marketplace-payment-updated', refresh)
+  }, [params])
 
   const update = (setter: (value: string) => void, value: string) => { setPage(1); setter(value) }
   const applyQuickRange = (range: string) => {

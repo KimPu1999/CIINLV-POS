@@ -38,3 +38,15 @@ test('control center preserves explicit blockers for unconfigured marketplace fi
   assert.match(controller, /No verified refund provider is configured/)
   assert.doesNotMatch(routes, /admin\/marketplace.*payouts.*POST/)
 })
+
+test('COD investigation reflects server balance, prevents paid duplicates, and uses retry-safe partial-payment keys', () => {
+  assert.match(feature, /payment_status === 'pending'/)
+  assert.match(feature, /amount_due/)
+  assert.match(feature, /payment_received/)
+  assert.match(feature, /payment_already_received/)
+  assert.match(feature, /payment_amount_exceeds_balance/)
+  assert.match(feature, /admin_hold_reason/)
+  assert.match(feature, /crypto\.randomUUID\(\)/)
+  assert.match(feature, /ciinlv:marketplace-payment-updated/)
+  assert.match(feature, /payments\?\.map/)
+})
