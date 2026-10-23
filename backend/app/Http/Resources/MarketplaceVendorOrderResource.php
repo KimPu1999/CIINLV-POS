@@ -14,6 +14,7 @@ class MarketplaceVendorOrderResource extends JsonResource
 
         return [
             'id' => $this->uuid,
+            'order_id' => $this->order?->uuid,
             'vendor_order_number' => $this->vendor_order_number,
             'order_number' => $this->order?->order_number,
             'invoice_number' => $this->order?->invoice_number,

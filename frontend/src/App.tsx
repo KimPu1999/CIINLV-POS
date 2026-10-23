@@ -31,6 +31,7 @@ const PlatformPosMonitoringPage = lazy(() => import('./features/platform-pos-mon
 const PlatformBusinessProductsPage = lazy(() => import('./features/platform-business-products').then(({ PlatformBusinessProductsPage: Page }) => ({ default: Page })))
 const AuditSecurityPage = lazy(() => import('./features/audit-security').then(({ AuditSecurityPage: Page }) => ({ default: Page })))
 const MarketplaceAdminPage = lazy(() => import('./features/marketplace-admin').then(({ MarketplaceAdminPage: Page }) => ({ default: Page })))
+const MarketplaceVendorDetailPage = lazy(() => import('./features/marketplace-vendor-detail').then(({ MarketplaceVendorDetailPage: Page }) => ({ default: Page })))
 const ProductManagementPage = lazy(() => import('./features/products').then(({ ProductManagementPage: Page }) => ({ default: Page })))
 const CategoryManagementPage = lazy(() => import('./features/categories').then(({ CategoryManagementPage: Page }) => ({ default: Page })))
 const BarcodeSearchPage = lazy(() => import('./features/barcode-search').then(({ BarcodeSearchPage: Page }) => ({ default: Page })))
@@ -327,6 +328,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="audit" element={<ResourcePage title="Audit & security" description="Review platform audit records from the backend." endpoint="/api/v1/platform/businesses" columns={['name', 'status', 'created_at']} />} />
           <Route path="marketplace" element={<MarketplaceAdminPage tab="overview" />} />
           <Route path="marketplace/vendors" element={<MarketplaceAdminPage tab="vendors" />} />
+          <Route path="marketplace/vendors/:vendorId" element={<MarketplaceVendorDetailPage />} />
           <Route path="marketplace/listings" element={<MarketplaceAdminPage tab="listings" />} />
           <Route path="marketplace/orders" element={<MarketplaceAdminPage tab="orders" />} />
           <Route path="marketplace/shipments" element={<MarketplaceAdminPage tab="shipments" />} />

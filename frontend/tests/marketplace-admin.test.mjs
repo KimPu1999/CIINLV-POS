@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const [app, feature, routes, controller, settingsService, settingsRequest] = await Promise.all([
+const [app, feature, detail, routes, controller, settingsService, settingsRequest] = await Promise.all([
   readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/features/marketplace-admin.tsx', import.meta.url), 'utf8'),
+  readFile(new URL('../src/features/marketplace-vendor-detail.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/routes/api.php', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/app/Http/Controllers/Api/V1/MarketplaceAdminController.php', import.meta.url), 'utf8'),
   readFile(new URL('../../backend/app/Services/MarketplaceSettingsService.php', import.meta.url), 'utf8'),
@@ -32,6 +33,22 @@ test('control center uses real APIs and server-enforced moderation actions', () 
   assert.match(controller, /marketplace\.store_status_updated/)
   assert.match(feature, /cancellation-requests/)
   assert.match(feature, /return-requests/)
+})
+
+test('vendor management provides a protected detail route, real vendor tabs, and paginated monitoring APIs', () => {
+  assert.match(app, /marketplace\/vendors\/:vendorId/)
+  assert.match(app, /MarketplaceVendorDetailPage/)
+  assert.match(feature, /vendorPage/)
+  assert.match(feature, /business_id: vendorBusiness/)
+  assert.match(feature, /vendor_orders_count/)
+  assert.match(feature, /rejection_reason_placeholder/)
+  assert.match(feature, /suspension_reason_placeholder/)
+  assert.match(detail, /stores\/\$\{encodeURIComponent\(vendorId\)\}\/detail/)
+  for (const key of ['text.store_profile', 'text.vendor_products', 'text.vendor_orders', 'text.fulfillment', 'text.performance', 'text.financial_summary', 'text.audit_history']) assert.match(detail, new RegExp(key.replace('.', '\\.')))
+  assert.match(detail, /order_id && onOpen\(row\.order_id\)/)
+  assert.match(routes, /Route::get\('\/stores\/\{store\}\/detail'/)
+  assert.match(controller, /public function vendorDetail/)
+  assert.match(controller, /Marketplace settlement records are not available/)
 })
 
 test('control center preserves explicit blockers for unconfigured marketplace finance', () => {

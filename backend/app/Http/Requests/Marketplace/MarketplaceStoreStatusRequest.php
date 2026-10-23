@@ -15,7 +15,7 @@ class MarketplaceStoreStatusRequest extends FormRequest
     {
         return [
             'is_active' => ['required', 'boolean'],
-            'reason' => ['nullable', 'string', 'max:500'],
+            'reason' => ['required_if:is_active,false', 'nullable', 'string', 'max:500'],
         ];
     }
 }

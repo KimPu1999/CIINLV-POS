@@ -51,6 +51,11 @@ class MarketplaceStore extends Model
         return $this->hasMany(MarketplaceListing::class);
     }
 
+    public function vendorOrders(): HasMany
+    {
+        return $this->hasMany(MarketplaceVendorOrder::class, 'marketplace_store_id');
+    }
+
     public function scopePublic(Builder $query): Builder
     {
         return $query

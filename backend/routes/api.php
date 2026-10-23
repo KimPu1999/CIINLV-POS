@@ -188,6 +188,7 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('admin/marketplace')->middleware('platform.admin')->group(function (): void {
             Route::get('/dashboard', [MarketplaceAdminController::class, 'dashboard']);
             Route::get('/stores', [MarketplaceAdminController::class, 'stores']);
+            Route::get('/stores/{store}/detail', [MarketplaceAdminController::class, 'vendorDetail']);
             Route::patch('/stores/{store}/approval', [MarketplaceAdminController::class, 'approval']);
             Route::patch('/stores/{store}/status', [MarketplaceAdminController::class, 'storeStatus']);
             Route::get('/listings', [MarketplaceAdminController::class, 'listings']);

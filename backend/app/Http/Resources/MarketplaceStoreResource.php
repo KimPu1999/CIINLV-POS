@@ -26,7 +26,12 @@ class MarketplaceStoreResource extends JsonResource
             'fulfillment_preferences' => $this->fulfillment_preferences ?: [],
             'business_name' => $this->tenant?->name,
             'business_status' => $this->tenant?->status,
+            'business_verification_status' => $this->tenant?->verification_status,
+            'business_id' => $this->tenant?->business_code,
+            'business_email' => $this->tenant?->email,
+            'business_phone' => $this->tenant?->phone,
             'product_count' => $this->when(isset($this->listings_count), (int) $this->listings_count),
+            'order_count' => $this->when(isset($this->vendor_orders_count), (int) $this->vendor_orders_count),
             'listings' => $this->whenLoaded('listings', fn () => MarketplaceListingResource::collection($this->listings)),
             'created_at' => $this->created_at,
         ];

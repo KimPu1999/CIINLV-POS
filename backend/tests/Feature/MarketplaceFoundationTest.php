@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\CustomerProfile;
 use App\Models\MarketplaceListing;
+use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceStore;
+use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Role;
@@ -185,6 +187,26 @@ class MarketplaceFoundationTest extends TestCase
         $this->getJson('/api/v1/marketplace/products')->assertOk()->assertJsonCount(0, 'data');
         $tenant->update(['status' => 'archived']);
         $this->getJson('/api/v1/marketplace/products')->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_platform_vendor_management_is_paginated_tenant_safe_and_reports_real_operations(): void
+    {
+        [$tenant, $businessAdmin] = $this->businessWithAdmin('MARKETPLACE-VENDOR-MONITOR', 'vendor-monitor@example.com');
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Vendor Monitor Store', 'slug' => 'vendor-monitor-store', 'approval_status' => 'pending', 'is_active' => true]);
+        $product = $this->publicProduct($tenant, 'Vendor Monitor Product');
+        $listing = MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $product->id, 'slug' => 'vendor-monitor-product', 'status' => 'draft']);
+        $customer = User::factory()->create(['email' => 'vendor-monitor-customer@example.com']);
+        $order = MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'ORD-VENDOR-MONITOR', 'currency_code' => 'MMK', 'status' => 'delivered', 'payment_status' => 'paid', 'subtotal' => 1500, 'discount_total' => 0, 'shipping_total' => 0, 'tax_total' => 0, 'grand_total' => 1500, 'delivery_address' => ['city' => 'Yangon'], 'idempotency_key' => 'vendor-monitor-order', 'request_hash' => hash('sha256', 'vendor-monitor-order')]);
+        MarketplaceVendorOrder::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'vendor_order_number' => 'VND-VENDOR-MONITOR', 'status' => 'delivered', 'fulfillment_status' => 'delivered', 'subtotal' => 1500, 'discount_total' => 0, 'shipping_total' => 0, 'tax_total' => 0, 'total' => 1500, 'currency_code' => 'MMK']);
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/stores/'.$store->uuid.'/detail')->assertForbidden();
+        $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/stores?approval_status=pending&per_page=1')->assertOk()->assertJsonPath('data.0.id', $store->uuid)->assertJsonPath('data.0.order_count', 1)->assertJsonPath('meta.summary.pending', 1);
+        $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/stores/'.$store->uuid.'/detail?from=2026-01-01&to=2026-12-31')->assertOk()->assertJsonPath('data.store.id', $store->uuid)->assertJsonPath('data.summary.total_orders', 1)->assertJsonPath('data.summary.delivered_orders', 1)->assertJsonPath('data.summary.gross_sales', '1500.00')->assertJsonPath('data.products.0.id', $listing->uuid)->assertJsonPath('data.orders.0.vendor_order_number', 'VND-VENDOR-MONITOR');
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/stores/'.$store->uuid.'/approval', ['approval_status' => 'rejected'])->assertUnprocessable()->assertJsonValidationErrors('reason');
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/stores/'.$store->uuid.'/status', ['is_active' => false])->assertUnprocessable()->assertJsonValidationErrors('reason');
+        $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/stores/'.$store->uuid.'/approval', ['approval_status' => 'rejected', 'reason' => 'Eligibility review incomplete'])->assertOk();
+        $this->assertDatabaseHas('marketplace_audit_logs', ['action' => 'marketplace.store_approval_updated', 'tenant_id' => $tenant->id]);
     }
 
     public function test_vendor_cannot_read_or_update_another_business_listing(): void

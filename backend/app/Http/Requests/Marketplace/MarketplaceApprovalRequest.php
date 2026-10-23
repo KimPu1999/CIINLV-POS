@@ -14,6 +14,9 @@ class MarketplaceApprovalRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['approval_status' => ['required', Rule::in(['pending', 'approved', 'rejected'])]];
+        return [
+            'approval_status' => ['required', Rule::in(['pending', 'approved', 'rejected'])],
+            'reason' => ['required_if:approval_status,rejected', 'nullable', 'string', 'max:500'],
+        ];
     }
 }

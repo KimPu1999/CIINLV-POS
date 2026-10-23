@@ -16,6 +16,7 @@ use App\Http\Resources\MarketplaceRefundRequestResource;
 use App\Http\Resources\MarketplaceReturnRequestResource;
 use App\Http\Resources\MarketplaceShipmentResource;
 use App\Http\Resources\MarketplaceStoreResource;
+use App\Http\Resources\MarketplaceVendorOrderResource;
 use App\Models\Category;
 use App\Models\MarketplaceAuditLog;
 use App\Models\MarketplaceCancellationRequest;
@@ -100,31 +101,111 @@ class MarketplaceAdminController
     {
         $stores = MarketplaceStore::query()
             ->with('tenant')
-            ->withCount('listings')
+            ->withCount(['listings', 'vendorOrders'])
             ->when($request->filled('approval_status'), fn (Builder $query) => $query->where('approval_status', $request->string('approval_status')))
+            ->when($request->has('active') && in_array($request->input('active'), ['0', '1', 0, 1, false, true], true), fn (Builder $query) => $query->where('is_active', $request->boolean('active')))
+            ->when($request->filled('business_id'), fn (Builder $query) => $query->whereHas('tenant', function (Builder $tenant) use ($request): void {
+                $value = $request->string('business_id')->toString();
+                $tenant->where('uuid', $value)->orWhere('business_code', $value)->orWhere('name', 'ilike', '%'.$value.'%');
+            }))
             ->when($request->filled('search'), fn (Builder $query) => $query->where(function (Builder $search) use ($request): void {
                 $term = '%'.$request->string('search').'%';
-                $search->where('marketplace_stores.name', 'ilike', $term)->orWhereHas('tenant', fn (Builder $tenant) => $tenant->where('tenants.name', 'ilike', $term));
+                $search->where('marketplace_stores.name', 'ilike', $term)
+                    ->orWhereHas('tenant', fn (Builder $tenant) => $tenant->where('tenants.name', 'ilike', $term)->orWhere('tenants.business_code', 'ilike', $term));
             }))
-            ->orderByDesc('marketplace_stores.created_at')
+            ->when(in_array($request->input('sort'), ['name', 'created_at', 'listings_count', 'vendor_orders_count'], true), fn (Builder $query) => $query->orderBy($request->input('sort'), $request->input('direction') === 'asc' ? 'asc' : 'desc'))
+            ->when(! in_array($request->input('sort'), ['name', 'created_at', 'listings_count', 'vendor_orders_count'], true), fn (Builder $query) => $query->orderByDesc('marketplace_stores.created_at'))
             ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+
+        $summary = [
+            'total' => MarketplaceStore::query()->count(),
+            'approved' => MarketplaceStore::query()->where('approval_status', 'approved')->count(),
+            'pending' => MarketplaceStore::query()->where('approval_status', 'pending')->count(),
+            'suspended' => MarketplaceStore::query()->where('is_active', false)->count(),
+        ];
 
         return response()->json([
             'success' => true,
             'data' => MarketplaceStoreResource::collection($stores),
-            'meta' => ['total' => $stores->total(), 'per_page' => $stores->perPage(), 'current_page' => $stores->currentPage(), 'last_page' => $stores->lastPage()],
+            'meta' => ['total' => $stores->total(), 'per_page' => $stores->perPage(), 'current_page' => $stores->currentPage(), 'last_page' => $stores->lastPage(), 'summary' => $summary],
         ]);
+    }
+
+    public function vendorDetail(Request $request, MarketplaceStore $store, MarketplaceCommissionService $commissions): JsonResponse
+    {
+        $range = $this->dateRange($request);
+        $store->load('tenant');
+        $listingPage = $store->listings()
+            ->with($this->listingRelations())
+            ->when($request->filled('listing_status'), fn (Builder $query) => $query->where('status', $request->string('listing_status')))
+            ->latest('marketplace_listings.created_at')
+            ->paginate(min(max((int) $request->input('listing_per_page', 12), 1), 50), ['*'], 'listing_page');
+        $orderPage = $store->vendorOrders()
+            ->with(['store', 'tenant', 'items', 'shipments.events', 'order.customer:id,name,email', 'order.payments'])
+            ->when($request->filled('order_status'), fn (Builder $query) => $query->where('status', $request->string('order_status')))
+            ->latest('marketplace_vendor_orders.created_at')
+            ->paginate(min(max((int) $request->input('order_per_page', 12), 1), 50), ['*'], 'order_page');
+        $rangeOrders = $store->vendorOrders()->whereBetween('created_at', $range);
+        $paidRangeOrders = (clone $rangeOrders)->whereHas('order', fn (Builder $order) => $order->whereIn('payment_status', ['paid', 'authorized']));
+        $delivered = (clone $rangeOrders)->where(function (Builder $query): void {
+            $query->where('status', 'delivered')->orWhere('fulfillment_status', 'delivered');
+        })->count();
+        $cancelled = (clone $rangeOrders)->where('status', 'cancelled')->count();
+        $totalOrders = (clone $rangeOrders)->count();
+        $lowStock = $store->listings()->whereHas('product', function (Builder $product): void {
+            $product->where('track_inventory', true)->whereHas('variants', fn (Builder $variant) => $variant->whereRaw('EXISTS (SELECT 1 FROM inventory_balances WHERE inventory_balances.product_variant_id = product_variants.id AND (inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level)'));
+        })->count();
+        $returnRequests = MarketplaceReturnRequest::query()->whereHas('order.vendorOrders', fn (Builder $vendor) => $vendor->where('marketplace_store_id', $store->id))->whereBetween('created_at', $range)->count();
+        $financialSummary = $commissions->businessSummaries([$store->tenant_id])[$store->tenant_id] ?? null;
+        $earnings = $commissions->tenantEarnings($store->tenant_id, $store->tenant?->currency_code);
+        $audits = MarketplaceAuditLog::query()->with(['actor:id,name,email', 'tenant:id,name,business_code'])
+            ->where('tenant_id', $store->tenant_id)
+            ->where(function (Builder $query) use ($store): void {
+                $query->where(function (Builder $entity) use ($store): void {
+                    $entity->where('entity_type', MarketplaceStore::class)->where('entity_id', (string) $store->id);
+                })->orWhereIn('action', ['marketplace.listing_moderated', 'marketplace.order_investigation_note_added', 'marketplace.order_hold_updated', 'marketplace.order_status_corrected']);
+            })->latest('created_at')->limit(100)->get();
+        $suspensionAudit = $audits->first(fn (MarketplaceAuditLog $audit): bool => $audit->action === 'marketplace.store_status_updated' && data_get($audit->metadata, 'to_active') === false);
+
+        return response()->json(['success' => true, 'data' => [
+            'store' => new MarketplaceStoreResource($store->loadCount(['listings', 'vendorOrders'])),
+            'suspension' => $suspensionAudit ? ['reason' => data_get($suspensionAudit->metadata, 'reason'), 'actor' => $suspensionAudit->actor?->only(['id', 'name', 'email']), 'at' => $suspensionAudit->created_at?->toIso8601String()] : null,
+            'summary' => [
+                'range' => ['from' => $range[0]->toIso8601String(), 'to' => $range[1]->toIso8601String()],
+                'total_orders' => $totalOrders,
+                'delivered_orders' => $delivered,
+                'cancelled_orders' => $cancelled,
+                'fulfillment_completion_rate' => $totalOrders ? $this->percentage($delivered, $totalOrders) : '0.00',
+                'cancellation_rate' => $totalOrders ? $this->percentage($cancelled, $totalOrders) : '0.00',
+                'gross_sales' => $this->money($paidRangeOrders->sum('total')),
+                'return_requests' => $returnRequests,
+                'low_stock_listings' => $lowStock,
+            ],
+            'products' => MarketplaceListingResource::collection($listingPage),
+            'orders' => MarketplaceVendorOrderResource::collection($orderPage),
+            'financial' => $financialSummary ? ['available' => true, ...$financialSummary, 'payout_status' => $earnings['configured'] ? ($earnings['reserved'] !== '0.00' ? 'reserved' : ($earnings['available'] !== '0.00' ? 'available' : 'pending')) : 'unavailable'] : ['available' => false, 'reason' => 'Marketplace settlement records are not available for this business.'],
+            'audit' => $audits->map(fn (MarketplaceAuditLog $log): array => ['id' => $log->id, 'action' => $log->action, 'actor' => $log->actor?->only(['id', 'name', 'email']), 'business' => $log->tenant?->only(['id', 'name', 'business_code']), 'metadata' => $log->metadata ?: [], 'created_at' => $log->created_at?->toIso8601String()])->values(),
+            'pagination' => ['products' => ['total' => $listingPage->total(), 'current_page' => $listingPage->currentPage(), 'last_page' => $listingPage->lastPage()], 'orders' => ['total' => $orderPage->total(), 'current_page' => $orderPage->currentPage(), 'last_page' => $orderPage->lastPage()]],
+        ]]);
     }
 
     public function storeStatus(MarketplaceStoreStatusRequest $request, MarketplaceStore $store, MarketplaceAuditLogger $audit): JsonResponse
     {
         $wasActive = (bool) $store->is_active;
         $isActive = $request->boolean('is_active');
+
+        $store->load('tenant');
+        if ($isActive && ($store->approval_status !== 'approved' || $store->tenant?->status !== 'active')) {
+            throw ValidationException::withMessages([
+                'is_active' => ['Only approved stores belonging to active businesses can be restored.'],
+            ]);
+        }
+
         $store->forceFill(['is_active' => $isActive])->save();
         $audit->record('marketplace.store_status_updated', $request->user(), $store->tenant, $store, [
             'from_active' => $wasActive,
             'to_active' => $isActive,
-            'reason' => $request->input('reason'),
+            'reason' => $request->input('reason') ? trim(strip_tags($request->input('reason'))) : null,
         ]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
@@ -179,7 +260,7 @@ class MarketplaceAdminController
             'approved_at' => $status === 'approved' ? now() : null,
             'approved_by' => $status === 'approved' ? $request->user()->id : null,
         ])->save();
-        $audit->record('marketplace.store_approval_updated', $request->user(), $store->tenant, $store, ['approval_status' => $status]);
+        $audit->record('marketplace.store_approval_updated', $request->user(), $store->tenant, $store, ['approval_status' => $status, 'reason' => $request->input('reason') ? trim(strip_tags($request->input('reason'))) : null]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
     }
@@ -884,6 +965,11 @@ class MarketplaceAdminController
     private function money(mixed $value): string
     {
         return number_format((float) ($value ?? 0), 2, '.', '');
+    }
+
+    private function percentage(int $numerator, int $denominator): string
+    {
+        return number_format($denominator > 0 ? ($numerator / $denominator) * 100 : 0, 2, '.', '');
     }
 
     private function financialCapabilities(?MarketplaceSettingsService $settings = null, ?MarketplaceCommissionService $commissions = null): array
