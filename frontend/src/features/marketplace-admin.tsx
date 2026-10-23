@@ -470,10 +470,11 @@ function ProductModeration({ t }: { t: TFunction }) {
   const [businessOptions, setBusinessOptions] = useState<ListingSelectorOption[]>([])
   const [storeOpen, setStoreOpen] = useState(false)
   const [businessOpen, setBusinessOpen] = useState(false)
+  const listingTableHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const paramsKey = searchParams.toString()
   const listingId = searchParams.get('listing')
   const page = Math.max(1, Number(searchParams.get('page') || 1))
-  const perPage = Number(searchParams.get('per_page') || 25)
+  const perPage = [10, 25, 50, 100].includes(Number(searchParams.get('per_page'))) ? Number(searchParams.get('per_page')) : 25
   const inputClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
 
   const updateParams = useCallback((changes: Record<string, string | undefined>, resetPage = true) => {
@@ -504,6 +505,8 @@ function ProductModeration({ t }: { t: TFunction }) {
     setLoading(true)
     setError('')
     const params = Object.fromEntries([...searchParams.entries()].filter(([key]) => key !== 'listing'))
+    params.page = String(page)
+    params.per_page = String(perPage)
     void api.get<{ data: AdminListing[]; meta?: ListingMeta }>('/api/v1/admin/marketplace/listings', { params, signal: controller.signal })
       .then((response) => {
         const responseMeta = response.data.meta || { total: 0, per_page: perPage, current_page: page, last_page: 1 }
@@ -622,11 +625,18 @@ function ProductModeration({ t }: { t: TFunction }) {
     setSearchInput('')
     setStoreQuery('')
     setBusinessQuery('')
-    setSearchParams(new URLSearchParams(), { replace: true })
+    setSearchParams(new URLSearchParams({ per_page: String(perPage) }), { replace: true })
   }
-  const firstPage = Math.max(1, Math.min(page - 3, meta.last_page - 6))
-  const lastPage = Math.min(meta.last_page, firstPage + 6)
-  const pageNumbers = Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, index) => firstPage + index)
+  const currentPage = Math.max(1, meta.current_page || page)
+  const effectivePerPage = Math.max(1, meta.per_page || perPage)
+  const firstResult = meta.total === 0 ? 0 : ((currentPage - 1) * effectivePerPage) + 1
+  const lastResult = meta.total === 0 ? 0 : Math.min(meta.total, currentPage * effectivePerPage)
+  const pageNumbers = marketplacePageNumbers(currentPage, meta.last_page)
+  const goToPage = (nextPage: number) => {
+    const boundedPage = Math.max(1, Math.min(nextPage, meta.last_page))
+    updateParams({ page: String(boundedPage) }, false)
+    window.requestAnimationFrame(() => listingTableHeadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   return <div className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -636,7 +646,7 @@ function ProductModeration({ t }: { t: TFunction }) {
       <StatCard label={t('text.archived_listings')} value={summary.archived} detail={t('text.listings_hidden_from_marketplace')} icon={ShieldAlert} tone="violet" />
     </div>
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-base font-bold text-slate-900 dark:text-white">{t('text.product_moderation')}</h2><p className="mt-1 text-xs text-slate-500">{t('text.product_moderation_description')}</p></div><span className="text-xs font-semibold text-slate-500">{meta.total.toLocaleString()} {t('text.listings')}</span></div>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3"><div><h2 ref={listingTableHeadingRef} id="marketplace-product-moderation-heading" tabIndex={-1} className="scroll-mt-24 text-base font-bold text-slate-900 outline-none dark:text-white">{t('text.product_moderation')}</h2><p className="mt-1 text-xs text-slate-500">{t('text.product_moderation_description')}</p></div><div className="flex items-center gap-3"><span className="text-xs font-semibold text-slate-500">{meta.total.toLocaleString()} {t('text.listings')}</span><label className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="whitespace-nowrap">{t('text.rows_per_page')}</span><select value={String(perPage)} onChange={(event) => updateParams({ per_page: event.target.value, page: undefined })} aria-label={t('text.rows_per_page')} className={inputClass + ' h-9 py-1.5'}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div></div>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         <label className="relative flex items-center xl:col-span-2"><Search size={16} className="pointer-events-none absolute left-3 text-slate-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t('text.search_marketplace_listings')} aria-label={t('text.search_marketplace_listings')} className={inputClass + ' w-full pl-9'} /></label>
         <select value={searchParams.get('status') || ''} onChange={(event) => updateParams({ status: event.target.value })} aria-label={t('text.listing_status')} className={inputClass}><option value="">{t('text.all_listing_statuses')}</option><option value="draft">{t('text.draft')}</option><option value="published">{t('text.published')}</option><option value="archived">{t('text.archived')}</option></select>
@@ -650,13 +660,22 @@ function ProductModeration({ t }: { t: TFunction }) {
         <input type="date" value={searchParams.get('created_from') || ''} onChange={(event) => updateParams({ created_from: event.target.value })} aria-label={t('text.created_from')} className={inputClass} />
         <input type="date" value={searchParams.get('created_to') || ''} onChange={(event) => updateParams({ created_to: event.target.value })} aria-label={t('text.created_to')} className={inputClass} />
         <select value={(searchParams.get('sort') || 'created_at') + ':' + (searchParams.get('direction') || 'desc')} onChange={(event) => { const [sort, direction] = event.target.value.split(':'); updateParams({ sort, direction }) }} aria-label={t('text.sort_listings')} className={inputClass}><option value="created_at:desc">{t('text.newest_first')}</option><option value="created_at:asc">{t('text.oldest_first')}</option><option value="name:asc">{t('text.name_a_to_z')}</option><option value="name:desc">{t('text.name_z_to_a')}</option><option value="price:asc">{t('text.price_low_to_high')}</option><option value="price:desc">{t('text.price_high_to_low')}</option><option value="status:asc">{t('text.status_a_to_z')}</option></select>
-        <select value={String(perPage)} onChange={(event) => updateParams({ per_page: event.target.value, page: undefined })} aria-label={t('text.rows_per_page')} className={inputClass}><option value="25">25 {t('text.per_page')}</option><option value="50">50 {t('text.per_page')}</option><option value="100">100 {t('text.per_page')}</option></select>
         <button type="button" onClick={clearFilters} className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:border-blue-400 dark:border-slate-700 dark:text-slate-200">{t('text.clear_filters')}</button>
       </div>
     </section>
     {error && <div><ErrorState message={error} /><button type="button" onClick={refresh} className="mt-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-700">{t('text.retry')}</button></div>}
     {loading ? <LoadingState /> : rows.length === 0 ? <EmptyState label={t('text.no_marketplace_listings')} /> : <Panel title={t('text.listing_directory')} icon={Package}><div className="overflow-x-auto"><table className="w-full min-w-[1250px] text-left text-sm"><thead className="sticky top-0 border-b border-slate-200 bg-white text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900"><tr><th className="px-3 py-2.5">{t('text.product')}</th><th className="px-3 py-2.5">{t('text.sku')}</th><th className="px-3 py-2.5">{t('text.store')}</th><th className="px-3 py-2.5">{t('text.business')}</th><th className="px-3 py-2.5">{t('text.branches')}</th><th className="px-3 py-2.5">{t('text.category')}</th><th className="px-3 py-2.5">{t('text.brand')}</th><th className="px-3 py-2.5">{t('text.price')}</th><th className="px-3 py-2.5">{t('text.stock')}</th><th className="px-3 py-2.5">{t('text.status')}</th><th className="px-3 py-2.5">{t('text.created_at')}</th><th className="px-3 py-2.5 text-right">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">{row.image_url ? <img src={row.image_url} alt="" className="h-full w-full object-cover" /> : <Package size={17} className="m-2 text-slate-400" />}</div><div className="min-w-0"><p className="max-w-[180px] truncate font-semibold text-slate-900 dark:text-white" title={row.name || ''}>{row.name || row.id}</p><p className="max-w-[180px] truncate text-xs text-slate-500">{row.barcode || '—'}</p></div></div></td><td className="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-300">{row.sku || '—'}</td><td className="px-3 py-2.5">{row.store_name || '—'}</td><td className="px-3 py-2.5">{row.business_name || '—'}</td><td className="max-w-[150px] px-3 py-2.5 text-xs">{row.branches?.map((branch) => branch.name || branch.code).filter(Boolean).join(', ') || '—'}</td><td className="px-3 py-2.5">{row.category_name || '—'}</td><td className="px-3 py-2.5">{row.brand || '—'}</td><td className="px-3 py-2.5 font-semibold">{row.price ?? '—'} {row.currency || ''}</td><td className="px-3 py-2.5">{row.available_stock === null || row.available_stock === undefined ? t('text.not_tracked') : row.available_stock}</td><td className="px-3 py-2.5"><StatusBadge status={row.status} /></td><td className="px-3 py-2.5 text-xs text-slate-500">{formatDate(row.created_at)}</td><td className="px-3 py-2.5"><div className="flex justify-end gap-1.5"><button type="button" onClick={() => openDetail(row.id)} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-300"><Eye size={14} />{t('text.review_listing')}</button>{row.status === 'published' ? <button type="button" disabled={moderatingId === row.id} onClick={() => moderate(row, 'archived')} className="rounded-lg border border-amber-200 px-2.5 py-1.5 text-xs font-semibold text-amber-700 disabled:opacity-50 dark:border-amber-900/60 dark:text-amber-300">{t('text.hide')}</button> : <button type="button" disabled={moderatingId === row.id} onClick={() => moderate(row, 'published')} className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{t('text.publish')}</button>}</div></td></tr>)}</tbody></table></div></Panel>}
-    {meta.last_page > 1 && <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500"><span>{meta.total.toLocaleString()} {t('text.listings')} · {t('text.page')} {meta.current_page} {t('text.of')} {meta.last_page}</span><div className="flex items-center gap-1"><button type="button" disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.previous')}><ChevronLeft size={15} /></button>{pageNumbers.map((number) => <button type="button" key={number} onClick={() => updateParams({ page: String(number) }, false)} className={'min-w-8 rounded-lg border px-2 py-1.5 text-xs font-semibold ' + (number === page ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 dark:border-slate-700')}>{number}</button>)}<button type="button" disabled={page >= meta.last_page} onClick={() => updateParams({ page: String(page + 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.next')}><ChevronRight size={15} /></button></div></div>}
+    <div className="flex flex-col gap-3 border-t border-slate-200 pt-3 text-sm text-slate-500 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>{t('text.showing_products', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: meta.total.toLocaleString() })}</span><span>{t('text.page_of', { current: currentPage, total: meta.last_page })}</span></div>
+      <div className="flex items-center justify-between gap-1 md:justify-end">
+        <button type="button" disabled={currentPage <= 1} onClick={() => goToPage(1)} className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300 md:inline-flex" aria-label={t('text.first_page')}>{t('text.first_page')}</button>
+        <button type="button" disabled={currentPage <= 1} onClick={() => goToPage(currentPage - 1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300" aria-label={t('text.previous')}><ChevronLeft size={15} />{t('text.previous')}</button>
+        <div className="hidden items-center gap-1 md:flex">{pageNumbers.map((item, index) => item === 'ellipsis' ? <span key={`listing-ellipsis-${index}`} className="px-1" aria-hidden="true">…</span> : <button type="button" key={item} aria-current={item === currentPage ? 'page' : undefined} onClick={() => goToPage(item)} className={'min-w-8 rounded-lg border px-2 py-1.5 text-xs font-semibold ' + (item === currentPage ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300')}>{item}</button>)}</div>
+        <span className="whitespace-nowrap text-xs font-semibold md:hidden">{t('text.page_of', { current: currentPage, total: meta.last_page })}</span>
+        <button type="button" disabled={currentPage >= meta.last_page} onClick={() => goToPage(currentPage + 1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300" aria-label={t('text.next')}>{t('text.next')}<ChevronRight size={15} /></button>
+        <button type="button" disabled={currentPage >= meta.last_page} onClick={() => goToPage(meta.last_page)} className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300 md:inline-flex" aria-label={t('text.last_page')}>{t('text.last_page')}</button>
+      </div>
+    </div>
   </div>
 }
 

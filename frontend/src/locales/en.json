@@ -932,6 +932,7 @@
     ,"lowest_stock_first": "Lowest stock first"
     ,"rows_per_page": "Rows per page"
     ,"showing_orders": "Showing {{from}}–{{to}} of {{total}} orders"
+    ,"showing_products": "Showing {{from}}–{{to}} of {{total}} products"
     ,"first_page": "First"
     ,"last_page": "Last"
     ,"variants": "Variants"

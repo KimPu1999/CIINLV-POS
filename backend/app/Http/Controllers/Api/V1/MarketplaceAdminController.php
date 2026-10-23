@@ -230,7 +230,7 @@ class MarketplaceAdminController
             'created_to' => ['nullable', 'date', 'after_or_equal:created_from'],
             'sort' => ['nullable', 'in:created_at,name,price,status'],
             'direction' => ['nullable', 'in:asc,desc'],
-            'per_page' => ['nullable', 'integer', 'in:25,50,100'],
+            'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
         ]);
 
         $listings = MarketplaceListing::query()
