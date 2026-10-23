@@ -28,3 +28,19 @@ test('monitoring UI has localized English and Burmese resources', () => {
     assert.equal(typeof my.text[key], 'string', `missing Burmese key ${key}`)
   }
 })
+
+test('queue monitoring is read-only, filtered, refreshable, and does not fabricate unavailable metrics', () => {
+  assert.match(page, /queueFilter/)
+  assert.match(page, /statusFilter/)
+  assert.match(page, /from/)
+  assert.match(page, /to/)
+  assert.match(page, /params: \{ queue:/)
+  assert.match(page, /setInterval/)
+  assert.match(page, /visibilitychange/)
+  assert.match(page, /pending_jobs/)
+  assert.match(page, /completed_jobs_last_24h/)
+  assert.match(page, /queue_activity/)
+  assert.match(page, /recent_job_history/)
+  assert.match(page, /text\.unavailable/)
+  assert.doesNotMatch(page, /retry.*failed|delete.*failed/i)
+})

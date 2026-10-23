@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\PlatformHealthHeartbeat;
+use App\Models\PlatformJobTelemetry;
 use App\Models\User;
 use App\Services\PlatformHealthHeartbeatService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,6 +69,63 @@ class PlatformMonitoringTest extends TestCase
             ->assertJsonPath('data.health.scheduler.status', 'stale');
 
         $this->assertIsString($response->json('data.health.scheduler.last_success_at'));
+    }
+
+    public function test_monitoring_reports_completed_telemetry_without_job_payloads(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        PlatformJobTelemetry::create([
+            'job_reference' => hash('sha256', 'monitoring-job'),
+            'job_type' => 'SendStockAlert',
+            'connection' => 'database',
+            'queue' => 'default',
+            'status' => 'completed',
+            'attempts' => 1,
+            'queued_at' => now()->subMinutes(3),
+            'started_at' => now()->subMinutes(2),
+            'finished_at' => now()->subMinute(),
+            'duration_ms' => 60000,
+        ]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring?queue=default')
+            ->assertOk()
+            ->assertJsonPath('data.queue.completed_jobs_last_24h', 1)
+            ->assertJsonPath('data.queue.average_processing_duration_ms', 60000)
+            ->assertJsonPath('data.queue.history.0.job_type', 'SendStockAlert')
+            ->assertJsonMissingPath('data.queue.history.0.payload');
+    }
+
+    public function test_sync_queue_reports_database_queue_metrics_as_unavailable(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring')
+            ->assertOk()
+            ->assertJsonPath('data.queue.driver', 'sync')
+            ->assertJsonPath('data.queue.pending_jobs', null)
+            ->assertJsonPath('data.queue.processing_jobs', null);
+    }
+
+    public function test_incomplete_telemetry_does_not_fabricate_duration(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        PlatformJobTelemetry::create([
+            'job_reference' => hash('sha256', 'incomplete-monitoring-job'),
+            'job_type' => 'RefreshReportingCache',
+            'connection' => 'database',
+            'queue' => 'default',
+            'status' => 'processing',
+            'attempts' => 1,
+            'started_at' => null,
+        ]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring')
+            ->assertOk()
+            ->assertJsonPath('data.queue.average_processing_duration_ms', null)
+            ->assertJsonPath('data.queue.history.0.status', 'processing');
     }
 
     public function test_public_health_endpoint_does_not_expose_diagnostics(): void

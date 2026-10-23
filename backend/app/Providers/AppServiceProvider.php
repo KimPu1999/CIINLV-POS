@@ -35,11 +35,15 @@ use App\Policies\StorePolicy;
 use App\Policies\TenantPolicy;
 use App\Services\ConfiguredTranslationProvider;
 use App\Services\PlatformHealthHeartbeatService;
+use App\Services\PlatformJobTelemetryService;
 use App\Services\TenantContext;
 use App\Services\TenantContextService;
 use App\Services\TranslationService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
@@ -75,6 +79,18 @@ class AppServiceProvider extends ServiceProvider
                     'process_id' => getmypid(),
                 ],
             );
+        });
+
+        Queue::before(function (JobProcessing $event): void {
+            app(PlatformJobTelemetryService::class)->recordProcessing($event->job);
+        });
+
+        Queue::after(function (JobProcessed $event): void {
+            app(PlatformJobTelemetryService::class)->recordProcessed($event->job);
+        });
+
+        Queue::failing(function (JobFailed $event): void {
+            app(PlatformJobTelemetryService::class)->recordFailed($event->job, $event->exception);
         });
 
         Gate::policy(Tenant::class, TenantPolicy::class);

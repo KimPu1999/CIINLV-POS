@@ -16,6 +16,7 @@ class PlatformMonitoringService
         private readonly SecurityAuditService $securityAudit,
         private readonly InventoryReconciliationService $inventory,
         private readonly PlatformHealthHeartbeatService $heartbeats,
+        private readonly PlatformJobTelemetryService $jobTelemetry,
     ) {}
 
     /**
@@ -24,10 +25,12 @@ class PlatformMonitoringService
      * exposes payloads, exception traces, credentials, or filesystem paths. The
      * storage probe only creates and removes a unique temporary health object.
      */
-    public function overview(): array
+    public function overview(array $filters = []): array
     {
         $systemHealth = $this->systemHealth();
         $postgresql = $systemHealth['checks']['postgresql'] ?? ['status' => 'unavailable', 'checks' => []];
+
+        $queueMetrics = $this->jobTelemetry->summary($filters);
 
         return [
             'checked_at' => now()->toIso8601String(),
@@ -45,7 +48,7 @@ class PlatformMonitoringService
                 'scheduler' => $systemHealth['checks']['scheduler'] ?? ['status' => 'unknown'],
                 'storage' => $systemHealth['checks']['storage'] ?? ['status' => 'unknown'],
             ],
-            'queue' => $systemHealth['checks']['queue_worker'] ?? ['status' => 'unknown'],
+            'queue' => array_merge($systemHealth['checks']['queue_worker'] ?? ['status' => 'unknown'], $queueMetrics),
             'storage' => $systemHealth['checks']['storage'] ?? ['status' => 'unknown'],
             'backups' => $this->backupStatus(),
             'inventory' => $this->inventoryStatus(),

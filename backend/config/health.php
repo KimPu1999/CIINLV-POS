@@ -9,6 +9,9 @@ return [
     // Prevent an idle worker loop from writing a row on every poll.
     'heartbeat_write_interval_seconds' => (int) env('HEALTH_HEARTBEAT_WRITE_INTERVAL_SECONDS', 30),
 
+    // Keep lifecycle telemetry bounded without retaining job payloads.
+    'job_telemetry_retention_days' => (int) env('HEALTH_JOB_TELEMETRY_RETENTION_DAYS', 7),
+
     // Defaults to the application's configured disk; production can opt into
     // a comma-separated list such as "private,public,s3".
     'storage_disks' => array_values(array_filter(array_map(
