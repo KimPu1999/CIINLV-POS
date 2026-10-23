@@ -45,6 +45,12 @@ export function PlatformPosMonitoringPage() {
     return () => { active = false }
   }, [filters, page, reload, tab, t])
 
+  useEffect(() => {
+    const refreshAfterSaleUpdate = () => setReload((value) => value + 1)
+    window.addEventListener('pos-sale-updated', refreshAfterSaleUpdate)
+    return () => window.removeEventListener('pos-sale-updated', refreshAfterSaleUpdate)
+  }, [])
+
   const updateFilter = (key: keyof Filters, value: string) => { setLoading(true); setFilters((current) => ({ ...current, [key]: value })); setPage(1) }
   const openDetail = async (id: string) => {
     try { setDetail((await api.get<{ data: Row }>(`/api/v1/platform/pos-monitoring/transactions/${encodeURIComponent(id)}`)).data.data) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_pos_transaction'))) }
