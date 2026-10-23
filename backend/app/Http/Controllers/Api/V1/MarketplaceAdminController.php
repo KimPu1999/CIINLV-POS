@@ -11,6 +11,7 @@ use App\Http\Requests\Marketplace\MarketplaceSettingsUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceStoreStatusRequest;
 use App\Http\Resources\MarketplaceCancellationRequestResource;
 use App\Http\Resources\MarketplaceListingResource;
+use App\Http\Resources\MarketplaceOrderListResource;
 use App\Http\Resources\MarketplaceOrderResource;
 use App\Http\Resources\MarketplaceRefundRequestResource;
 use App\Http\Resources\MarketplaceReturnRequestResource;
@@ -374,10 +375,10 @@ class MarketplaceAdminController
 
     public function orderDetail(string $order): JsonResponse
     {
-        $model = MarketplaceOrder::query()->where('uuid', $order)->with(['customer:id,name,email', 'payments', 'vendorOrders.store.tenant', 'vendorOrders.items', 'vendorOrders.shipments.events.actor', 'events', 'adminHoldUser:id,name,email', 'cancellationRequests', 'returnRequests', 'refundRequests'])->firstOrFail();
+        $model = MarketplaceOrder::query()->where('uuid', $order)->with(['customer:id,name,email', 'customer.customerProfile:id,user_id,phone', 'payments.receivedBy:id,name,email', 'vendorOrders.store.tenant', 'vendorOrders.items.variant', 'vendorOrders.shipments.events.actor', 'events', 'adminHoldUser:id,name,email', 'cancellationRequests', 'returnRequests', 'refundRequests'])->firstOrFail();
         $audits = MarketplaceAuditLog::query()->with(['actor:id,name,email', 'tenant:id,name,business_code'])->where('entity_type', MarketplaceOrder::class)->where('entity_id', (string) $model->id)->latest('created_at')->limit(100)->get();
 
-        return response()->json(['success' => true, 'data' => ['order' => new MarketplaceOrderResource($model), 'customer' => $model->customer?->only(['id', 'name', 'email']), 'audit' => $audits->map(fn (MarketplaceAuditLog $audit): array => ['id' => $audit->id, 'action' => $audit->action, 'actor' => $audit->actor?->only(['id', 'name', 'email']), 'business' => $audit->tenant?->only(['id', 'name', 'business_code']), 'metadata' => $audit->metadata, 'created_at' => $audit->created_at?->toIso8601String()])->values()]]);
+        return response()->json(['success' => true, 'data' => ['order' => new MarketplaceOrderResource($model), 'customer' => $model->customer ? ['id' => $model->customer->id, 'name' => $model->customer->name, 'email' => $model->customer->email, 'phone' => $model->customer->customerProfile?->phone] : null, 'audit' => $audits->map(fn (MarketplaceAuditLog $audit): array => ['id' => $audit->id, 'action' => $audit->action, 'actor' => $audit->actor?->only(['id', 'name', 'email']), 'business' => $audit->tenant?->only(['id', 'name', 'business_code']), 'metadata' => $audit->metadata, 'created_at' => $audit->created_at?->toIso8601String()])->values()]]);
     }
 
     public function investigationNote(Request $request, string $order, MarketplaceAuditLogger $audit): JsonResponse
@@ -466,17 +467,69 @@ class MarketplaceAdminController
 
     public function orders(Request $request): JsonResponse
     {
-        $orders = MarketplaceOrder::query()
-            ->with(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items', 'vendorOrders.shipments.events'])
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')))
-            ->when($request->filled('payment_status'), fn (Builder $query) => $query->where('payment_status', $request->string('payment_status')))
-            ->when($request->filled('search'), fn (Builder $query) => $query->where('order_number', 'ilike', '%'.$request->string('search').'%'))
-            ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('created_at', '>=', $request->date('from')))
-            ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('created_at', '<=', $request->date('to')))
-            ->latest()
-            ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'in:pending_payment,confirmed,processing,partially_shipped,shipped,delivered,cancelled,partially_refunded,refunded'],
+            'payment_status' => ['nullable', 'in:pending,authorized,paid,failed,cancelled,refunded'],
+            'fulfillment_status' => ['nullable', 'in:pending,active,shipped,in_transit,delivered,delivery_failed,returned,cancelled'],
+            'shipment_status' => ['nullable', 'in:ready,shipped,in_transit,delivered,delivery_failed,returned,cancelled'],
+            'store_id' => ['nullable', 'string', 'max:100'],
+            'business_id' => ['nullable', 'string', 'max:100'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'sort' => ['nullable', 'in:created_at,order_number,total'],
+            'direction' => ['nullable', 'in:asc,desc'],
+            'per_page' => ['nullable', 'integer', 'in:25,50,100'],
+        ]);
 
-        return response()->json(['success' => true, 'data' => MarketplaceOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);
+        $orders = MarketplaceOrder::query()
+            ->with([
+                'customer:id,name,email',
+                'customer.customerProfile:id,user_id,phone',
+                'vendorOrders' => fn ($vendor) => $vendor
+                    ->select(['id', 'uuid', 'marketplace_order_id', 'marketplace_store_id', 'vendor_order_number', 'status', 'fulfillment_status'])
+                    ->with(['store:id,uuid,name', 'shipments:id,marketplace_vendor_order_id,status,tracking_number']),
+            ])
+            ->withCount('vendorOrders')
+            ->when(! empty($validated['status']), fn (Builder $query) => $query->where('marketplace_orders.status', $validated['status']))
+            ->when(! empty($validated['payment_status']), fn (Builder $query) => $query->where('marketplace_orders.payment_status', $validated['payment_status']))
+            ->when(! empty($validated['fulfillment_status']), fn (Builder $query) => $query->whereHas('vendorOrders', fn (Builder $vendor) => $vendor->where('fulfillment_status', $validated['fulfillment_status'])))
+            ->when(! empty($validated['shipment_status']), fn (Builder $query) => $query->whereHas('vendorOrders.shipments', fn (Builder $shipment) => $shipment->where('status', $validated['shipment_status'])))
+            ->when(! empty($validated['store_id']), fn (Builder $query) => $query->whereHas('vendorOrders.store', function (Builder $store) use ($validated): void {
+                $value = $validated['store_id'];
+                $store->where(fn (Builder $match) => $match->where('uuid', $value)->orWhere('id', is_numeric($value) ? (int) $value : -1));
+            }))
+            ->when(! empty($validated['business_id']), fn (Builder $query) => $query->whereHas('vendorOrders.tenant', function (Builder $tenant) use ($validated): void {
+                $value = $validated['business_id'];
+                $tenant->where(fn (Builder $match) => $match->where('uuid', $value)->orWhere('business_code', $value)->orWhere('name', 'ilike', '%'.$value.'%'));
+            }))
+            ->when(! empty($validated['search']), function (Builder $query) use ($validated): void {
+                $term = '%'.$validated['search'].'%';
+                $query->where(function (Builder $search) use ($term): void {
+                    $search->where('marketplace_orders.order_number', 'ilike', $term)
+                        ->orWhereHas('vendorOrders', fn (Builder $vendor) => $vendor->where('vendor_order_number', 'ilike', $term))
+                        ->orWhereHas('vendorOrders.store', fn (Builder $store) => $store->where('name', 'ilike', $term))
+                        ->orWhereHas('vendorOrders.shipments', fn (Builder $shipment) => $shipment->where('tracking_number', 'ilike', $term)->orWhere('internal_tracking_id', 'ilike', $term))
+                        ->orWhereHas('customer', fn (Builder $customer) => $customer->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)->orWhereHas('customerProfile', fn (Builder $profile) => $profile->where('phone', 'ilike', $term)));
+                });
+            })
+            ->when(! empty($validated['from']), fn (Builder $query) => $query->whereDate('marketplace_orders.created_at', '>=', $validated['from']))
+            ->when(! empty($validated['to']), fn (Builder $query) => $query->whereDate('marketplace_orders.created_at', '<=', $validated['to']))
+            ->when(($validated['sort'] ?? null) === 'order_number', fn (Builder $query) => $query->orderBy('marketplace_orders.order_number', $validated['direction'] ?? 'asc'))
+            ->when(($validated['sort'] ?? null) === 'total', fn (Builder $query) => $query->orderBy('marketplace_orders.grand_total', $validated['direction'] ?? 'desc'))
+            ->when(($validated['sort'] ?? null) === 'created_at' || empty($validated['sort']), fn (Builder $query) => $query->orderBy('marketplace_orders.created_at', $validated['direction'] ?? 'desc'))
+            ->orderBy('marketplace_orders.id', 'desc')
+            ->paginate((int) ($validated['per_page'] ?? 25));
+
+        $summary = MarketplaceOrder::query()->selectRaw("COUNT(*) AS total_orders, COALESCE(SUM(CASE WHEN status = 'pending_payment' THEN 1 ELSE 0 END), 0) AS pending_orders, COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0) AS processing_orders, COALESCE(SUM(CASE WHEN status IN ('partially_shipped', 'shipped') THEN 1 ELSE 0 END), 0) AS shipped_orders, COALESCE(SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END), 0) AS delivered_orders, COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) AS cancelled_orders, COALESCE(SUM(CASE WHEN payment_status = 'pending' THEN 1 ELSE 0 END), 0) AS payment_pending_orders")->first();
+
+        return response()->json(['success' => true, 'data' => MarketplaceOrderListResource::collection($orders), 'meta' => [
+            'total' => $orders->total(),
+            'per_page' => $orders->perPage(),
+            'current_page' => $orders->currentPage(),
+            'last_page' => $orders->lastPage(),
+            'summary' => collect($summary?->toArray() ?: [])->mapWithKeys(fn ($value, $key): array => [$key => (int) $value])->all(),
+        ]]);
     }
 
     public function shipments(Request $request): JsonResponse

@@ -15,8 +15,11 @@ type AdminListingImage = { id: string; url: string; sort_order?: number; is_prim
 type AdminListingAudit = { id: number; previous_status?: string | null; new_status?: string | null; reason?: string | null; actor?: { name?: string; email?: string } | null; created_at?: string | null }
 type AdminListing = { id: string; name?: string | null; description?: string | null; slug?: string | null; sku?: string | null; barcode?: string | null; store_name?: string | null; store_id?: string | null; business_id?: string | null; business_name?: string | null; business_status?: string | null; branches?: { id?: string; name?: string | null; code?: string | null }[]; category_name?: string | null; brand?: string | null; status: string; product_status?: string | null; store_approval_status?: string | null; store_active?: boolean; price?: string | number | null; available_stock?: number | null; image_url?: string | null; images?: AdminListingImage[]; variants?: AdminListingVariant[]; currency?: string | null; created_at?: string | null; published_at?: string | null; track_inventory?: boolean; publishing_eligibility?: { eligible: boolean; reasons: string[] }; moderation_history?: AdminListingAudit[] }
 type ListingMeta = { total: number; per_page: number; current_page: number; last_page: number; summary?: { total: number; published: number; draft: number; archived: number } }
-type AdminOrder = { id: string; order_number: string; status: string; payment_status?: string | null; grand_total?: string | number | null; currency_code?: string | null; vendor_count?: number; vendor_orders?: { vendor_order_number?: string; status?: string; store_name?: string; fulfillment_status?: string; total?: string; items?: { product_name_snapshot?: string; quantity?: string; line_total?: string }[]; shipments?: { id: string; status: string; tracking_number?: string | null; delivered_at?: string | null }[] }[]; created_at?: string | null; admin_hold?: boolean; admin_hold_reason?: string | null }
-type AdminOrderDetail = { order: AdminOrder & { amount_due?: string | null; amount_received?: string | null; customer?: { name?: string; email?: string; phone?: string | null }; payments?: { method?: string; status?: string; amount?: string; amount_received?: string | null; transaction_reference?: string | null; receipt_number?: string | null; received_at?: string | null; received_by?: { name?: string; email?: string } | null }[]; vendor_orders?: { vendor_order_number?: string; store_name?: string; tenant_id?: string; status?: string; fulfillment_status?: string; total?: string; items?: { product_name_snapshot?: string; quantity?: string; line_total?: string }[]; shipments?: { id: string; status: string; tracking_number?: string | null; delivered_at?: string | null }[] }[]; events?: { event?: string; from_status?: string | null; to_status?: string | null; created_at?: string | null }[]; admin_hold?: boolean; admin_hold_reason?: string | null }; customer?: { name?: string; email?: string; phone?: string | null }; audit: { id: number; action: string; actor?: { name?: string; email?: string }; business?: { name?: string; business_code?: string }; metadata?: Record<string, unknown>; created_at?: string | null }[] }
+type AdminOrderVendor = { vendor_order_number?: string; store_name?: string; tenant_id?: string; status?: string; fulfillment_status?: string; total?: string; shipment_statuses?: string[]; tracking_numbers?: string[]; items?: { product_name_snapshot?: string; name?: string; quantity?: string; line_total?: string }[]; shipments?: { id: string; status: string; tracking_number?: string | null; delivered_at?: string | null; carrier_name?: string | null; internal_tracking_id?: string | null; events?: { id: number; status?: string; description?: string | null; event_time?: string | null; actor_name?: string | null }[] }[] }
+type AdminOrder = { id: string; order_number: string; status: string; payment_status?: string | null; grand_total?: string | number | null; currency_code?: string | null; vendor_count?: number; customer?: { name?: string; email?: string; phone?: string | null }; vendor_orders?: AdminOrderVendor[]; fulfillment_summary?: Record<string, number>; shipment_summary?: Record<string, number>; created_at?: string | null; admin_hold?: boolean; admin_hold_reason?: string | null }
+type AdminOrderDetail = { order: AdminOrder & { amount_due?: string | null; amount_received?: string | null; customer?: { name?: string; email?: string; phone?: string | null }; payments?: { method?: string; status?: string; amount?: string; amount_received?: string | null; transaction_reference?: string | null; receipt_number?: string | null; received_at?: string | null; paid_at?: string | null; received_by?: { name?: string; email?: string } | null }[]; vendor_orders?: AdminOrderVendor[]; events?: { event?: string; from_status?: string | null; to_status?: string | null; created_at?: string | null }[]; admin_hold?: boolean; admin_hold_reason?: string | null }; customer?: { name?: string; email?: string; phone?: string | null }; audit: { id: number; action: string; actor?: { name?: string; email?: string }; business?: { name?: string; business_code?: string }; metadata?: Record<string, unknown>; created_at?: string | null }[] }
+type OrderListMeta = { total: number; per_page: number; current_page: number; last_page: number; summary?: { total_orders: number; pending_orders: number; processing_orders: number; shipped_orders: number; delivered_orders: number; cancelled_orders: number; payment_pending_orders: number } }
+type OrderListResponse = { data: AdminOrder[]; meta: OrderListMeta }
 type AdminShipment = { id: string; vendor_order_number?: string | null; store_name?: string | null; internal_tracking_id?: string | null; tracking_number?: string | null; status: string; delivery_type: string; created_at?: string | null }
 type AdminRequest = { id: string; order_number?: string | null; reason?: string | null; status: string; requested_amount?: string | number | null; currency_code?: string | null; created_at?: string | null }
 type AdminAudit = { id: number; action: string; entity_type?: string | null; entity_id?: string | null; actor?: { name?: string; email?: string } | null; business?: { name?: string; business_code?: string } | null; metadata?: Record<string, unknown>; created_at?: string | null }
@@ -70,7 +73,7 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
         setRows(response.data.data)
         setVendorMeta({ total: Number(response.data.meta?.total || 0), current_page: Number(response.data.meta?.current_page || vendorPage), last_page: Number(response.data.meta?.last_page || 1) })
         setVendorSummary(response.data.meta?.summary || { total: 0, approved: 0, pending: 0, suspended: 0 })
-      } else if (tab === 'listings') {
+      } else if (tab === 'listings' || tab === 'orders') {
         setRows([])
       } else {
         const endpoint = tab === 'shipments' ? '/api/v1/admin/marketplace/shipments' : tab === 'cancellations' ? '/api/v1/admin/marketplace/cancellation-requests' : tab === 'returns' ? '/api/v1/admin/marketplace/return-requests' : tab === 'refunds' ? '/api/v1/admin/marketplace/refund-requests' : tab === 'audit' ? '/api/v1/admin/marketplace/audit-logs' : '/api/v1/admin/marketplace/orders'
@@ -111,6 +114,9 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
     try { await request({ method: 'patch', url: `/api/v1/admin/marketplace/${type === 'cancellation' ? 'cancellation-requests' : 'return-requests'}/${encodeURIComponent(row.id)}/decision`, data: { decision } }); await load() } catch (err) { return errorMessage(err, t('text.unable_to_update_marketplace_request')) }
   })
 
+  const isOrdersTab = String(tab) === 'orders'
+  if (isOrdersTab) return <MarketplaceOrders t={t} />
+
   return <>
     {['orders', 'shipments', 'cancellations', 'returns', 'refunds', 'audit'].includes(tab) && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row dark:border-slate-700 dark:bg-slate-900"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('text.search')} className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={t('text.status')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_statuses')}</option>{['pending', 'approved', 'rejected', 'draft', 'published', 'archived', 'processing', 'paid', 'refunded'].map((option) => <option key={option} value={option}>{t(`text.${option}`, { defaultValue: option.replaceAll('_', ' ') })}</option>)}</select><button type="button" onClick={() => void load()} className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">{t('text.apply_filters')}</button></div>}
     {tab === 'vendors' && <VendorFilters search={search} status={status} active={vendorActive} business={vendorBusiness} sort={vendorSort} direction={vendorDirection} t={t} onSearch={(value) => { setSearch(value); setVendorPage(1) }} onStatus={(value) => { setStatus(value); setVendorPage(1) }} onActive={(value) => { setVendorActive(value); setVendorPage(1) }} onBusiness={(value) => { setVendorBusiness(value); setVendorPage(1) }} onSort={(value) => { setVendorSort(value); setVendorPage(1) }} onDirection={(value) => { setVendorDirection(value); setVendorPage(1) }} onApply={() => void load()} />}
@@ -147,6 +153,270 @@ function Vendors({ rows, t, onApproval, onStatus, onView }: { rows: AdminStore[]
 }
 
 type ListingSelectorOption = { id: string; name: string; business_name?: string | null; business_code?: string | null }
+
+function MarketplaceOrders({ t }: { t: TFunction }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { requestConfirmation } = useConfirmation()
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
+  const [storeQuery, setStoreQuery] = useState(searchParams.get('store') || '')
+  const [storeOptions, setStoreOptions] = useState<ListingSelectorOption[]>([])
+  const [storeOpen, setStoreOpen] = useState(false)
+  const [rows, setRows] = useState<AdminOrder[]>([])
+  const [meta, setMeta] = useState<OrderListMeta>({ total: 0, per_page: 25, current_page: 1, last_page: 1 })
+  const [summary, setSummary] = useState<OrderListMeta['summary']>({ total_orders: 0, pending_orders: 0, processing_orders: 0, shipped_orders: 0, delivered_orders: 0, cancelled_orders: 0, payment_pending_orders: 0 })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [detail, setDetail] = useState<AdminOrderDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const [listReload, setListReload] = useState(0)
+  const [detailReload, setDetailReload] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [reason, setReason] = useState('')
+  const [statusCorrection, setStatusCorrection] = useState('')
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const investigationHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const requestSequence = useRef(0)
+  const idempotencyKeys = useRef(new Map<string, string>())
+  const selectedOrderId = searchParams.get('order')
+  const page = Math.max(1, Number(searchParams.get('page') || 1))
+  const perPage = [25, 50, 100].includes(Number(searchParams.get('per_page'))) ? Number(searchParams.get('per_page')) : 25
+  const listParamsKey = [...searchParams.entries()].filter(([key]) => key !== 'order').map(([key, value]) => `${key}=${value}`).join('&')
+  const inputClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
+
+  const updateParams = useCallback((changes: Record<string, string | undefined>, resetPage = true) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(changes).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key))
+    if (resetPage) next.delete('page')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  useEffect(() => {
+    setSearchInput(searchParams.get('search') || '')
+    setStoreQuery(searchParams.get('store') || '')
+  }, [listParamsKey, searchParams])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const current = searchParams.get('search') || ''
+      const nextValue = searchInput.trim()
+      if (current === nextValue) return
+      const next = new URLSearchParams(searchParams)
+      if (nextValue) next.set('search', nextValue)
+      else next.delete('search')
+      next.delete('page')
+      setSearchParams(next, { replace: true })
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, searchParams, setSearchParams])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    const params = Object.fromEntries(new URLSearchParams(listParamsKey).entries())
+    if (!params.per_page) params.per_page = String(perPage)
+    if (!params.page) params.page = String(page)
+    void api.get<OrderListResponse>('/api/v1/admin/marketplace/orders', { params, signal: controller.signal })
+      .then((response) => {
+        const responseMeta = response.data.meta
+        if (responseMeta.current_page > responseMeta.last_page && responseMeta.last_page > 0) {
+          updateParams({ page: String(responseMeta.last_page) }, false)
+          return
+        }
+        setRows(response.data.data || [])
+        setMeta(responseMeta)
+        setSummary(responseMeta.summary || { total_orders: 0, pending_orders: 0, processing_orders: 0, shipped_orders: 0, delivered_orders: 0, cancelled_orders: 0, payment_pending_orders: 0 })
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted) setError(errorMessage(requestError, t('text.unable_to_load_marketplace_orders')))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [listParamsKey, listReload, page, perPage, t, updateParams])
+
+  useEffect(() => {
+    if (!selectedOrderId) {
+      setDetail(null)
+      setDetailError('')
+      setDetailLoading(false)
+      return
+    }
+    const sequence = ++requestSequence.current
+    const controller = new AbortController()
+    setDetail(null)
+    setDetailError('')
+    setDetailLoading(true)
+    setReason('')
+    setStatusCorrection('')
+    void request<AdminOrderDetail>({ method: 'get', url: `/api/v1/admin/marketplace/orders/${encodeURIComponent(selectedOrderId)}`, signal: controller.signal })
+      .then((loaded) => {
+        if (sequence !== requestSequence.current) return
+        setDetail(loaded)
+        const due = Number(loaded.order.amount_due || 0)
+        setPaymentAmount(loaded.order.payment_status === 'pending' && due > 0 ? due.toFixed(2) : '')
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted && sequence === requestSequence.current) setDetailError(errorMessage(requestError, t('text.unable_to_load_marketplace_order')))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted && sequence === requestSequence.current) setDetailLoading(false)
+      })
+    return () => controller.abort()
+  }, [detailReload, selectedOrderId, t])
+
+  useEffect(() => {
+    if (!selectedOrderId) return
+    const frame = window.requestAnimationFrame(() => {
+      investigationHeadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      investigationHeadingRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [detailError, detailLoading, selectedOrderId])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void api.get<{ data: ListingSelectorOption[] }>('/api/v1/admin/marketplace/stores', { params: { search: storeQuery || undefined, per_page: 25, page: 1 }, signal: controller.signal })
+        .then((response) => setStoreOptions(response.data.data || []))
+        .catch(() => {
+          if (!controller.signal.aborted) setStoreOptions([])
+        })
+    }, 250)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [storeQuery])
+
+  const openOrder = (id: string) => updateParams({ order: id }, false)
+  const closeOrder = () => updateParams({ order: undefined }, false)
+  const retryList = () => setListReload((value) => value + 1)
+  const retryDetail = () => setDetailReload((value) => value + 1)
+  const selectStore = (option: ListingSelectorOption) => {
+    setStoreQuery(option.name)
+    setStoreOpen(false)
+    updateParams({ store_id: option.id, store: option.name })
+  }
+  const clearFilters = () => {
+    const next = new URLSearchParams()
+    if (selectedOrderId) next.set('order', selectedOrderId)
+    setSearchInput('')
+    setStoreQuery('')
+    setSearchParams(next, { replace: true })
+  }
+  const runIntervention = (title: string, action: () => Promise<void>) => {
+    if (!reason.trim()) {
+      setDetailError(t('text.intervention_reason_required'))
+      return
+    }
+    void requestConfirmation({ title, description: t('text.intervention_confirmation'), confirmLabel: t('text.confirm'), tone: 'warning', successMessage: t('text.marketplace_intervention_saved') }, async () => {
+      setBusy(true)
+      setDetailError('')
+      try {
+        await action()
+        setReason('')
+        setDetailReload((value) => value + 1)
+        setListReload((value) => value + 1)
+      } catch (requestError) {
+        return errorMessage(requestError, t('text.unable_to_save_marketplace_intervention'))
+      } finally {
+        setBusy(false)
+      }
+    })
+  }
+  const hold = () => {
+    if (!detail) return
+    const action = detail.order.admin_hold ? 'release' : 'hold'
+    runIntervention(action === 'hold' ? t('text.place_order_on_hold') : t('text.release_order_hold'), async () => {
+      await request({ method: 'patch', url: `/api/v1/admin/marketplace/orders/${encodeURIComponent(detail.order.id)}/hold`, data: { action, reason } })
+    })
+  }
+  const correctStatus = () => {
+    if (!detail || !statusCorrection) return
+    runIntervention(t('text.correct_order_status'), async () => {
+      await request({ method: 'patch', url: `/api/v1/admin/marketplace/orders/${encodeURIComponent(detail.order.id)}/status-correction`, data: { status: statusCorrection, reason } })
+    })
+  }
+  const addNote = () => {
+    if (!detail) return
+    runIntervention(t('text.record_investigation_note'), async () => {
+      await request({ method: 'post', url: `/api/v1/admin/marketplace/orders/${encodeURIComponent(detail.order.id)}/investigation-notes`, data: { note: reason } })
+    })
+  }
+  const collectCod = () => {
+    if (!detail) return
+    const due = Number(detail.order.amount_due || 0)
+    const amount = Number(paymentAmount)
+    const payment = detail.order.payments?.find((item) => item.method === 'cod') || detail.order.payments?.[0]
+    if (detail.order.admin_hold) { setDetailError(detail.order.admin_hold_reason || t('text.payment_collection_blocked_hold')); return }
+    if (detail.order.payment_status !== 'pending' || due <= 0 || payment?.status === 'paid') { setDetailError(t('text.payment_already_received')); return }
+    if (!paymentAmount || !Number.isFinite(amount) || amount <= 0) { setDetailError(t('text.payment_amount_required')); return }
+    if (amount > due) { setDetailError(t('text.payment_amount_exceeds_balance')); return }
+    const keyScope = `${detail.order.id}:${amount.toFixed(2)}`
+    const idempotencyKey = idempotencyKeys.current.get(keyScope) || `admin-cod-${detail.order.id}-${crypto.randomUUID()}`
+    idempotencyKeys.current.set(keyScope, idempotencyKey)
+    void requestConfirmation({ title: t('text.confirm_cod_payment'), description: t('text.cod_payment_confirmation_help'), confirmLabel: t('text.confirm'), tone: 'warning', successMessage: t('text.marketplace_intervention_saved') }, async () => {
+      setBusy(true)
+      setDetailError('')
+      try {
+        await request({ method: 'post', url: `/api/v1/admin/marketplace/orders/${encodeURIComponent(detail.order.id)}/cod/collect`, data: { amount_received: amount.toFixed(2) }, headers: { 'Idempotency-Key': idempotencyKey } })
+        idempotencyKeys.current.delete(keyScope)
+        setPaymentAmount('')
+        setDetailReload((value) => value + 1)
+        setListReload((value) => value + 1)
+        window.dispatchEvent(new Event('ciinlv:marketplace-payment-updated'))
+      } catch (requestError) {
+        return errorMessage(requestError, t('text.unable_to_save_marketplace_intervention'))
+      } finally {
+        setBusy(false)
+      }
+    })
+  }
+
+  const firstPage = Math.max(1, Math.min(page - 3, meta.last_page - 6))
+  const lastPage = Math.min(meta.last_page, firstPage + 6)
+  const pageNumbers = Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, index) => firstPage + index)
+  const summaryValues = summary || { total_orders: 0, pending_orders: 0, processing_orders: 0, shipped_orders: 0, delivered_orders: 0, cancelled_orders: 0, payment_pending_orders: 0 }
+
+  return <div className="space-y-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
+      <StatCard label={t('text.total_orders')} value={summaryValues.total_orders} detail={t('text.all_marketplace_orders')} icon={ClipboardList} tone="blue" />
+      <StatCard label={t('text.pending_orders')} value={summaryValues.pending_orders} detail={t('text.pending_payment_orders')} icon={CircleDollarSign} tone="amber" />
+      <StatCard label={t('text.processing_orders')} value={summaryValues.processing_orders} detail={t('text.orders_being_fulfilled')} icon={Package} tone="blue" />
+      <StatCard label={t('text.shipped_orders')} value={summaryValues.shipped_orders} detail={t('text.shipped_or_partially_shipped')} icon={Truck} tone="violet" />
+      <StatCard label={t('text.delivered_orders')} value={summaryValues.delivered_orders} detail={t('text.completed_deliveries')} icon={Check} tone="emerald" />
+      <StatCard label={t('text.cancelled_orders')} value={summaryValues.cancelled_orders} detail={t('text.cancelled_marketplace_orders')} icon={ShieldAlert} tone="amber" />
+      <StatCard label={t('text.payment_pending_orders')} value={summaryValues.payment_pending_orders} detail={t('text.payment_requires_review')} icon={CircleDollarSign} tone="amber" />
+    </div>
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-base font-bold text-slate-900 dark:text-white">{t('text.marketplace_orders')}</h2><p className="mt-1 text-xs text-slate-500">{t('text.marketplace_orders_description')}</p></div><span className="text-xs font-semibold text-slate-500">{meta.total.toLocaleString()} {t('text.orders')}</span></div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+        <label className="relative flex items-center xl:col-span-2"><Search size={16} className="pointer-events-none absolute left-3 text-slate-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t('text.search_marketplace_orders')} aria-label={t('text.search_marketplace_orders')} className={inputClass + ' w-full pl-9'} /></label>
+        <select value={searchParams.get('status') || ''} onChange={(event) => updateParams({ status: event.target.value })} aria-label={t('text.order_status')} className={inputClass}><option value="">{t('text.all_order_statuses')}</option>{['pending_payment', 'confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered', 'cancelled', 'partially_refunded', 'refunded'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}</select>
+        <select value={searchParams.get('payment_status') || ''} onChange={(event) => updateParams({ payment_status: event.target.value })} aria-label={t('text.payment_status')} className={inputClass}><option value="">{t('text.all_payment_statuses')}</option>{['pending', 'authorized', 'paid', 'failed', 'cancelled', 'refunded'].map((value) => <option key={value} value={value}>{value}</option>)}</select>
+        <select value={searchParams.get('fulfillment_status') || ''} onChange={(event) => updateParams({ fulfillment_status: event.target.value })} aria-label={t('text.fulfillment_status')} className={inputClass}><option value="">{t('text.all_fulfillment_statuses')}</option>{['pending', 'active', 'shipped', 'in_transit', 'delivered', 'delivery_failed', 'returned', 'cancelled'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}</select>
+        <select value={searchParams.get('shipment_status') || ''} onChange={(event) => updateParams({ shipment_status: event.target.value })} aria-label={t('text.shipment_status')} className={inputClass}><option value="">{t('text.all_shipment_statuses')}</option>{['ready', 'shipped', 'in_transit', 'delivered', 'delivery_failed', 'returned', 'cancelled'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}</select>
+        <div className="relative"><input value={storeQuery} onFocus={() => setStoreOpen(true)} onBlur={() => window.setTimeout(() => setStoreOpen(false), 150)} onChange={(event) => { setStoreQuery(event.target.value); if (searchParams.get('store_id')) updateParams({ store_id: undefined, store: undefined }) }} placeholder={t('text.marketplace_store_filter')} aria-label={t('text.marketplace_store_filter')} className={inputClass + ' w-full'} />{storeOpen && storeOptions.length > 0 && <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">{storeOptions.map((option) => <button type="button" key={option.id} onMouseDown={(event) => event.preventDefault()} onClick={() => selectStore(option)} className="block w-full rounded-md px-2 py-2 text-left text-xs hover:bg-blue-50 dark:hover:bg-slate-700">{option.name}<span className="ml-1 text-slate-500">{option.business_name ? '· ' + option.business_name : ''}</span></button>)}</div>}</div>
+        <label className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">{t('text.from_date')}</span><input type="date" value={searchParams.get('from') || ''} onChange={(event) => updateParams({ from: event.target.value })} aria-label={t('text.from_date')} className={inputClass + ' min-w-0 flex-1'} /></label>
+        <label className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">{t('text.to_date')}</span><input type="date" value={searchParams.get('to') || ''} onChange={(event) => updateParams({ to: event.target.value })} aria-label={t('text.to_date')} className={inputClass + ' min-w-0 flex-1'} /></label>
+        <select value={(searchParams.get('sort') || 'created_at') + ':' + (searchParams.get('direction') || 'desc')} onChange={(event) => { const [sort, direction] = event.target.value.split(':'); updateParams({ sort, direction }) }} aria-label={t('text.sort_orders')} className={inputClass}><option value="created_at:desc">{t('text.newest_first')}</option><option value="created_at:asc">{t('text.oldest_first')}</option><option value="order_number:asc">{t('text.order_number_a_to_z')}</option><option value="total:desc">{t('text.total_high_to_low')}</option><option value="total:asc">{t('text.total_low_to_high')}</option></select>
+        <select value={String(perPage)} onChange={(event) => updateParams({ per_page: event.target.value, page: undefined })} aria-label={t('text.rows_per_page')} className={inputClass}><option value="25">25 {t('text.per_page')}</option><option value="50">50 {t('text.per_page')}</option><option value="100">100 {t('text.per_page')}</option></select>
+        <button type="button" onClick={clearFilters} className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:border-blue-400 dark:border-slate-700 dark:text-slate-200">{t('text.clear_filters')}</button>
+      </div>
+    </section>
+    {error && <div><ErrorState message={error} /><button type="button" onClick={retryList} className="mt-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-700">{t('text.retry')}</button></div>}
+    {loading ? <LoadingState /> : rows.length === 0 ? <EmptyState label={t('text.no_marketplace_orders')} /> : <Panel title={t('text.order_directory')} icon={ClipboardList}><MarketplaceOrderTable rows={rows} t={t} onOpen={openOrder} /></Panel>}
+    {meta.last_page > 1 && <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500"><span>{meta.total.toLocaleString()} {t('text.orders')} · {t('text.page')} {meta.current_page} {t('text.of')} {meta.last_page}</span><div className="flex items-center gap-1"><button type="button" disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.previous')}><ChevronLeft size={15} /></button>{pageNumbers.map((number) => <button type="button" key={number} onClick={() => updateParams({ page: String(number) }, false)} className={'min-w-8 rounded-lg border px-2 py-1.5 text-xs font-semibold ' + (number === page ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 dark:border-slate-700')}>{number}</button>)}<button type="button" disabled={page >= meta.last_page} onClick={() => updateParams({ page: String(page + 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.next')}><ChevronRight size={15} /></button></div></div>}
+    {selectedOrderId && <MarketplaceOrderInvestigation detail={detail} loading={detailLoading} error={detailError} headingRef={investigationHeadingRef} t={t} busy={busy} reason={reason} status={statusCorrection} paymentAmount={paymentAmount} onRetry={retryDetail} onClose={closeOrder} onReason={setReason} onStatus={setStatusCorrection} onPaymentAmount={setPaymentAmount} onHold={hold} onCorrectStatus={correctStatus} onAddNote={addNote} onCollectCod={collectCod} />}
+  </div>
+}
+
+function MarketplaceOrderTable({ rows, t, onOpen }: { rows: AdminOrder[]; t: TFunction; onOpen: (id: string) => void }) {
+  return <div className="overflow-x-auto"><table className="w-full min-w-[1260px] text-left text-sm"><thead className="sticky top-0 border-b border-slate-200 bg-white text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900"><tr><th className="px-3 py-2.5">{t('text.order_number')}</th><th className="px-3 py-2.5">{t('text.date')}</th><th className="px-3 py-2.5">{t('text.customer')}</th><th className="px-3 py-2.5">{t('text.vendor_store')}</th><th className="px-3 py-2.5">{t('text.vendor_orders')}</th><th className="px-3 py-2.5">{t('text.order_total')}</th><th className="px-3 py-2.5">{t('text.order_status')}</th><th className="px-3 py-2.5">{t('text.payment_status')}</th><th className="px-3 py-2.5">{t('text.fulfillment_summary')}</th><th className="px-3 py-2.5">{t('text.shipment_summary')}</th><th className="px-3 py-2.5 text-right">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => { const stores = row.vendor_orders?.map((vendor) => vendor.store_name).filter(Boolean).join(', ') || '—'; const fulfillment = row.fulfillment_summary; const shipment = row.shipment_summary; return <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50"><td className="px-3 py-2.5"><p className="font-semibold text-slate-900 dark:text-white">{row.order_number}</p>{row.admin_hold && <p className="mt-1 text-xs font-semibold text-amber-700">{t('text.on_hold')}</p>}</td><td className="px-3 py-2.5 text-xs text-slate-500">{formatDate(row.created_at)}</td><td className="px-3 py-2.5"><p className="font-semibold">{row.customer?.name || '—'}</p><p className="text-xs text-slate-500">{row.customer?.email || row.customer?.phone || '—'}</p></td><td className="max-w-[190px] truncate px-3 py-2.5" title={stores}>{stores}</td><td className="px-3 py-2.5">{row.vendor_count ?? row.vendor_orders?.length ?? 0}</td><td className="px-3 py-2.5 font-semibold">{row.grand_total ?? '—'} {row.currency_code || ''}</td><td className="px-3 py-2.5"><StatusBadge status={row.status} /></td><td className="px-3 py-2.5"><StatusBadge status={row.payment_status} /></td><td className="px-3 py-2.5 text-xs">{fulfillment ? `${fulfillment.delivered || 0}/${row.vendor_count || row.vendor_orders?.length || 0} ${t('text.delivered')}` : '—'}</td><td className="px-3 py-2.5 text-xs">{shipment ? `${shipment.delivered || 0}/${shipment.total || 0} ${t('text.delivered')}` : '—'}</td><td className="px-3 py-2.5 text-right"><button type="button" onClick={() => onOpen(row.id)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"><Eye size={14} />{t('text.investigate')}</button></td></tr> })}</tbody></table></div>
+}
 
 function ProductModeration({ t }: { t: TFunction }) {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -374,6 +644,18 @@ function Operations({ rows, tab, t, onDecision }: { rows: AdminShipment[] | Admi
   if (!rows.length) return <EmptyState label={tab === 'shipments' ? t('text.no_shipments') : t('text.no_marketplace_requests')} />
   if (tab === 'shipments') return <Panel title={t('text.shipping_fulfillment')} icon={Truck}><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-4 py-4">{t('text.order_number')}</th><th className="px-4 py-4">{t('text.status')}</th><th className="px-4 py-4">{t('text.store')}</th><th className="px-4 py-4">{t('text.tracking_number')}</th><th className="px-4 py-4">{t('text.date')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{(rows as AdminShipment[]).map((row) => <tr key={row.id}><td className="px-4 py-4 font-semibold text-slate-900 dark:text-white">{row.vendor_order_number || '—'}</td><td className="px-4 py-4"><StatusBadge status={row.status} /></td><td className="px-4 py-4 text-slate-600 dark:text-slate-300">{row.store_name || '—'}</td><td className="px-4 py-4 text-slate-600 dark:text-slate-300">{row.internal_tracking_id || row.tracking_number || '—'}</td><td className="px-4 py-4 text-slate-500">{formatDate(row.created_at)}</td></tr>)}</tbody></table></div></Panel>
   return <Panel title={tab === 'cancellations' ? t('text.cancellation_requests') : t('text.return_requests')} icon={ClipboardList}><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-4 py-4">{t('text.order_number')}</th><th className="px-4 py-4">{t('text.status')}</th><th className="px-4 py-4">{t('text.reason')}</th><th className="px-4 py-4 text-right">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{(rows as AdminRequest[]).map((row) => <tr key={row.id}><td className="px-4 py-4 font-semibold text-slate-900 dark:text-white">{row.order_number || '—'}</td><td className="px-4 py-4"><StatusBadge status={row.status} /></td><td className="max-w-md px-4 py-4 text-slate-600 dark:text-slate-300">{row.reason || '—'}</td><td className="px-4 py-4 text-right">{row.status === 'pending' && onDecision ? <div className="flex justify-end gap-2"><button type="button" onClick={() => onDecision(tab === 'cancellations' ? 'cancellation' : 'return', row, 'approved')} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">{t('text.approve')}</button><button type="button" onClick={() => onDecision(tab === 'cancellations' ? 'cancellation' : 'return', row, 'rejected')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-red-300 dark:border-slate-700 dark:text-slate-200">{t('text.reject')}</button></div> : <span className="text-xs font-semibold text-slate-500">{t('text.reviewed')}</span>}</td></tr>)}</tbody></table></div></Panel>
+}
+
+function MarketplaceOrderInvestigation({ detail, loading, error, headingRef, t, busy, reason, status, paymentAmount, onRetry, onClose, onReason, onStatus, onPaymentAmount, onHold, onCorrectStatus, onAddNote, onCollectCod }: { detail: AdminOrderDetail | null; loading: boolean; error: string; headingRef: { current: HTMLHeadingElement | null }; t: TFunction; busy: boolean; reason: string; status: string; paymentAmount: string; onRetry: () => void; onClose: () => void; onReason: (value: string) => void; onStatus: (value: string) => void; onPaymentAmount: (value: string) => void; onHold: () => void; onCorrectStatus: () => void; onAddNote: () => void; onCollectCod: () => void }) {
+  const order = detail?.order
+  const payment = order?.payments?.find((item) => item.method === 'cod') || order?.payments?.[0]
+  const amountDue = Number(order?.amount_due || 0)
+  const amountReceived = Number(order?.amount_received || payment?.amount_received || 0)
+  const paymentReceived = order?.payment_status === 'paid' || payment?.status === 'paid'
+  const collectionBlocked = Boolean(order?.admin_hold || !payment || order?.payment_status !== 'pending' || amountDue <= 0)
+  const collectionReason = order?.admin_hold ? order.admin_hold_reason || t('text.payment_collection_blocked_hold') : paymentReceived || amountDue <= 0 ? t('text.payment_already_received') : !payment ? t('text.cod_payment_unavailable') : order?.payment_status !== 'pending' ? t('text.cod_payment_unavailable') : ''
+
+  return <section id="marketplace-order-investigation" className="scroll-mt-24 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm dark:border-blue-900/60 dark:bg-slate-900 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600">{t('text.order_investigation')}</p><h2 ref={headingRef} tabIndex={-1} className="mt-1 text-xl font-bold text-slate-900 outline-none dark:text-white">{order?.order_number || t('text.loading')}</h2></div><button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('text.close')}><X size={18} /></button></div>{loading ? <LoadingState /> : error && !detail ? <div><ErrorState message={error} /><button type="button" onClick={onRetry} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">{t('text.retry')}</button></div> : detail && order ? <><div className="mt-5 grid gap-4 md:grid-cols-4"><div><p className="text-xs text-slate-500">{t('text.customer')}</p><p className="font-semibold">{detail.customer?.name || '—'}</p><p className="text-sm text-slate-500">{detail.customer?.email || detail.customer?.phone || '—'}</p></div><div><p className="text-xs text-slate-500">{t('text.order_status')}</p><StatusBadge status={order.status} />{order.admin_hold && <p className="mt-2 text-xs font-semibold text-amber-700">{t('text.order_on_hold')}: {order.admin_hold_reason}</p>}</div><div><p className="text-xs text-slate-500">{t('text.payment_status')}</p><StatusBadge status={order.payment_status} /><p className="mt-1 text-sm">{t('text.amount_due')}: {amountDue.toFixed(2)} {order.currency_code}</p><p className="mt-1 text-sm text-slate-500">{t('text.amount_collected')}: {amountReceived.toFixed(2)} {order.currency_code}</p></div><div><p className="text-xs text-slate-500">{t('text.order_total')}</p><p className="font-semibold">{order.grand_total || '—'} {order.currency_code}</p><p className="mt-1 text-xs text-slate-500">{formatDate(order.created_at)}</p></div></div><div className="mt-5 grid gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700"><label className="text-sm font-semibold"><span>{t('text.intervention_reason')}</span><textarea value={reason} onChange={(event) => onReason(event.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-700 dark:bg-slate-800" placeholder={t('text.intervention_reason_placeholder')} /></label><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={onHold} className="inline-flex items-center gap-2 rounded-lg border border-amber-300 px-3 py-2 text-sm font-semibold text-amber-800 disabled:opacity-50 dark:border-amber-800 dark:text-amber-200">{order.admin_hold ? <PlayCircle size={16} /> : <PauseCircle size={16} />}{order.admin_hold ? t('text.release_order_hold') : t('text.place_order_on_hold')}</button><button type="button" disabled={busy} onClick={onAddNote} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50 dark:border-slate-600"><FileText size={16} />{t('text.record_investigation_note')}</button><select value={status} onChange={(event) => onStatus(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"><option value="">{t('text.correct_order_status')}</option>{['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered', 'cancelled'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}</select><button type="button" disabled={busy || !status} onClick={onCorrectStatus} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{t('text.save_correction')}</button></div><div className="flex flex-wrap items-end gap-2 border-t border-slate-200 pt-3">{paymentReceived ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"><p>{t('text.payment_received')}</p><p className="mt-1 text-xs font-normal">{t('text.amount_collected')}: {amountReceived.toFixed(2)} {order.currency_code}</p></div> : <><label className="text-sm font-semibold"><span>{t('text.cod_amount_received')}</span><input inputMode="decimal" value={paymentAmount} onChange={(event) => onPaymentAmount(event.target.value)} disabled={collectionBlocked || busy} className="mt-2 block h-10 w-48 rounded-lg border border-slate-300 px-3 text-sm disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:disabled:bg-slate-800" /></label><button type="button" disabled={busy || collectionBlocked} onClick={onCollectCod} className="h-10 rounded-lg bg-emerald-600 px-3 text-sm font-semibold text-white disabled:opacity-50">{t('text.confirm_cod_payment')}</button></>}{collectionBlocked && <p className="w-full text-sm font-semibold text-amber-700">{collectionReason}</p>}{error && <p className="w-full text-sm font-semibold text-red-600">{error}</p>}</div></div><div className="mt-5 grid gap-5 xl:grid-cols-2"><div><h3 className="font-bold">{t('text.order_items_and_vendors')}</h3><div className="mt-3 space-y-3">{order.vendor_orders?.map((vendor) => <div key={vendor.vendor_order_number} className="rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{vendor.store_name || '—'} · {vendor.vendor_order_number || '—'}</p><span className="text-xs text-slate-500">{vendor.status || '—'} · {vendor.fulfillment_status || 'pending'} · {vendor.total || '—'} {order.currency_code}</span></div>{vendor.items?.length ? <div className="mt-3 space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-slate-800">{vendor.items.map((item, index) => <div key={`${item.product_name_snapshot || item.name}-${index}`} className="flex justify-between gap-3"><span>{item.product_name_snapshot || item.name || '—'} × {item.quantity || '—'}</span><span>{item.line_total || '—'} {order.currency_code}</span></div>)}</div> : <p className="mt-2 text-xs text-slate-500">{t('text.no_order_items')}</p>}{vendor.shipments?.map((shipment) => <div key={shipment.id} className="mt-3 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-800/60"><p className="font-semibold">{shipment.status} · {shipment.carrier_name || t('text.shipment')}</p><p className="mt-1">{t('text.tracking_number')}: {shipment.tracking_number || '—'} · {t('text.internal_tracking_id')}: {shipment.internal_tracking_id || '—'}</p>{shipment.events?.map((event) => <p key={event.id} className="mt-1 text-slate-500">{event.status} · {formatDate(event.event_time)} · {event.description || '—'}</p>)}</div>)}</div>)}</div></div><div className="space-y-5"><div><h3 className="font-bold">{t('text.payment_history')}</h3><div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{order.payments?.length ? order.payments.map((item, index) => <div key={`${item.transaction_reference || item.method}-${index}`} className="rounded-xl bg-slate-50 p-3 text-xs dark:bg-slate-800/60"><p className="font-semibold">{item.method || '—'} · {item.status || '—'} · {item.amount_received || item.amount || '0.00'} {order.currency_code}</p><p className="mt-1 text-slate-500">{item.received_by?.name || '—'} · {item.received_at || item.paid_at || '—'}{item.receipt_number ? ` · ${item.receipt_number}` : ''}</p></div>) : <EmptyState label={t('text.no_payment_history')} />}</div></div><div><h3 className="font-bold">{t('text.order_timeline')}</h3><div className="mt-3 space-y-2">{order.events?.length ? order.events.map((event, index) => <div key={`${event.event}-${index}`} className="rounded-lg border border-slate-200 px-3 py-2 text-xs dark:border-slate-700"><p className="font-semibold">{event.event || '—'} {event.from_status ? `· ${event.from_status} → ${event.to_status || '—'}` : ''}</p><p className="mt-1 text-slate-500">{formatDate(event.created_at)}</p></div>) : <EmptyState label={t('text.no_order_timeline')} />}</div></div></div></div><Panel title={t('text.audit_history')} icon={FileText}>{detail.audit.length ? <div className="space-y-2">{detail.audit.map((audit) => <div key={audit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700"><div><p className="font-semibold">{audit.action}</p><p className="text-xs text-slate-500">{audit.actor?.name || t('text.system')} · {formatDate(audit.created_at)}</p></div><span className="max-w-md text-xs text-slate-500">{String(audit.metadata?.reason || audit.metadata?.note || '—')}</span></div>)}</div> : <EmptyState label={t('text.no_marketplace_audit_logs')} />}</Panel></> : null}</section>
 }
 
 function Orders({ rows, t, initialOrderId, onRefresh, onClose }: { rows: AdminOrder[]; t: TFunction; initialOrderId: string | null; onRefresh: () => void; onClose: () => void }) {

@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceOrder;
+use App\Models\MarketplacePayment;
+use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
@@ -207,6 +209,64 @@ class MarketplaceAdminControlCenterTest extends TestCase
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/reports')->assertOk()->assertJsonPath('data.summary.orders', 0);
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/audit-logs')->assertOk()->assertJsonStructure(['data', 'meta']);
         $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/settings')->assertOk()->assertJsonPath('data.configured', true);
+    }
+
+    public function test_order_monitoring_supports_authorized_filters_summaries_and_lightweight_rows(): void
+    {
+        [$tenant] = $this->businessWithAdmin('CONTROL-ORDERS', 'control-orders@example.com');
+        $customer = User::factory()->create(['name' => 'Order Customer', 'email' => 'order-customer@example.com']);
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Order Store', 'slug' => 'order-store', 'approval_status' => 'approved', 'is_active' => true]);
+        $order = MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'MON-001', 'currency_code' => 'MMK', 'status' => 'processing', 'payment_status' => 'pending', 'grand_total' => 1500, 'delivery_address' => [], 'idempotency_key' => 'mon-001', 'request_hash' => hash('sha256', 'mon-001')]);
+        $vendor = MarketplaceVendorOrder::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'vendor_order_number' => 'V-MON-001', 'status' => 'processing', 'fulfillment_status' => 'active', 'total' => 1500, 'currency_code' => 'MMK']);
+        MarketplacePayment::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_vendor_order_id' => $vendor->id, 'marketplace_store_id' => $store->id, 'method' => 'cod', 'status' => 'pending', 'amount' => 1500, 'currency_code' => 'MMK', 'idempotency_key' => 'mon-payment-001']);
+        MarketplaceShipment::create(['marketplace_vendor_order_id' => $vendor->id, 'tenant_id' => $tenant->id, 'delivery_type' => 'external_courier', 'carrier_name' => 'Control Courier', 'tracking_number' => 'TRACK-MON-001', 'internal_tracking_id' => 'INT-MON-001', 'status' => 'in_transit']);
+        MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'MON-002', 'currency_code' => 'MMK', 'status' => 'delivered', 'payment_status' => 'paid', 'grand_total' => 2200, 'delivery_address' => [], 'idempotency_key' => 'mon-002', 'request_hash' => hash('sha256', 'mon-002')]);
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/orders?search=TRACK-MON-001&fulfillment_status=active&shipment_status=in_transit&per_page=25&sort=total&direction=desc')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.summary.total_orders', 2)
+            ->assertJsonPath('meta.summary.processing_orders', 1)
+            ->assertJsonPath('meta.summary.payment_pending_orders', 1)
+            ->assertJsonPath('data.0.id', $order->uuid)
+            ->assertJsonPath('data.0.customer.email', $customer->email)
+            ->assertJsonPath('data.0.vendor_count', 1)
+            ->assertJsonPath('data.0.vendor_orders.0.vendor_order_number', $vendor->vendor_order_number)
+            ->assertJsonPath('data.0.shipment_summary.in_transit', 1);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/orders?store_id='.$store->uuid.'&per_page=25')
+            ->assertOk()->assertJsonPath('meta.total', 1);
+
+        [, $businessAdmin] = $this->businessWithAdmin('CONTROL-ORDERS-ADMIN', 'control-orders-admin@example.com');
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/orders')->assertForbidden();
+    }
+
+    public function test_order_monitoring_paginates_a_large_catalog_without_deep_row_payloads(): void
+    {
+        [$tenant] = $this->businessWithAdmin('CONTROL-ORDERS-LARGE', 'control-orders-large@example.com');
+        $customer = User::factory()->create(['email' => 'control-orders-large-customer@example.com']);
+        $now = now();
+        $orders = [];
+        for ($index = 1; $index <= 10000; $index++) {
+            $key = 'control-orders-large-'.$index;
+            $orders[] = ['uuid' => (string) Str::uuid(), 'customer_user_id' => $customer->id, 'order_number' => 'LARGE-MON-'.str_pad((string) $index, 5, '0', STR_PAD_LEFT), 'currency_code' => 'MMK', 'status' => 'confirmed', 'payment_status' => 'pending', 'subtotal' => 100, 'discount_total' => 0, 'shipping_total' => 0, 'tax_total' => 0, 'grand_total' => 100, 'delivery_address' => json_encode([]), 'idempotency_key' => $key, 'request_hash' => hash('sha256', $key), 'created_at' => $now, 'updated_at' => $now];
+        }
+        foreach (array_chunk($orders, 1000) as $chunk) {
+            DB::table('marketplace_orders')->insert($chunk);
+        }
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/orders?per_page=100&page=100&sort=order_number&direction=asc')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 10000)
+            ->assertJsonPath('meta.per_page', 100)
+            ->assertJsonPath('meta.current_page', 100)
+            ->assertJsonPath('meta.last_page', 100)
+            ->assertJsonCount(100, 'data');
     }
 
     public function test_super_admin_interventions_are_reasoned_audited_and_business_scoped(): void
