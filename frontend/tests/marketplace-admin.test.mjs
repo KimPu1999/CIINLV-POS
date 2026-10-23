@@ -195,3 +195,18 @@ test('Marketplace Settings is organized, revision-protected, localized, and expl
   assert.match(controller, /changed_fields/)
   assert.match(controller, /updated_by/)
 })
+
+test('Marketplace Settings Security & Audit has independent server-side pagination and filters', () => {
+  assert.match(feature, /function SecurityAuditSection/)
+  assert.match(feature, /marketplace-settings-security-audit-heading/)
+  for (const value of ['10', '25', '50', '100']) assert.match(feature, new RegExp(`option value="${value}"`))
+  for (const key of ['settings_audit_page', 'settings_audit_per_page', 'settings_audit_search', 'settings_audit_action', 'settings_audit_tenant_id']) assert.match(feature, new RegExp(key))
+  for (const key of ['meta\.total', 'meta\.per_page', 'meta\.current_page', 'meta\.last_page']) assert.match(feature, new RegExp(key))
+  assert.match(feature, /marketplacePageNumbers\(meta\.current_page, meta\.last_page\)/)
+  assert.match(feature, /new AbortController\(\)/)
+  assert.match(feature, /settings_audit_per_page: event\.target\.value/)
+  assert.match(feature, /settings_audit_page: String\(responseMeta\.last_page\)/)
+  assert.match(feature, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/)
+  assert.match(feature, /SecurityAuditSection t=\{t\}/)
+  assert.match(feature, /audit-logs/)
+})

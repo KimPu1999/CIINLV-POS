@@ -967,6 +967,8 @@
     ,"settings_payments_unavailable": "Payment method switches are controlled by verified provider configuration. No payment credential or UI-only enablement is exposed here."
     ,"settings_shipping_unavailable": "Delivery methods and tracking requirements are validated by the existing shipment workflow and are not global settings-backed controls."
     ,"settings_notifications_unavailable": "Marketplace notification channels are not globally configured. Existing server-side notifications continue to use their current services."
+    ,"settings_audit_table": "Marketplace settings audit records"
+    ,"settings_audit_log_description": "Read-only settings and marketplace audit history."
     ,"clear_search": "Clear search"
     ,"search_businesses": "Search businesses"
     ,"search_branches": "Search branches"

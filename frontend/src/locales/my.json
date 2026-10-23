@@ -1316,5 +1316,7 @@
     ,"settings_payments_unavailable": "ငွေပေးချေမှုနည်းလမ်းများကို အတည်ပြုထားသော provider configuration က ထိန်းချုပ်သည်။ ငွေပေးချေမှုအချက်အလက် သို့မဟုတ် UI-only ဖွင့်ခြင်းကို မပြပါ။"
     ,"settings_shipping_unavailable": "ပို့ဆောင်မှုနည်းလမ်းနှင့် tracking လိုအပ်ချက်များကို လက်ရှိ shipment workflow က စစ်ဆေးပြီး global setting အဖြစ် မထောက်ပံ့ပါ။"
     ,"settings_notifications_unavailable": "Marketplace notification channel များကို global အဖြစ် မပြင်ဆင်ထားပါ။ ရှိပြီးသား server-side notification များသည် လက်ရှိ service များကို ဆက်သုံးမည်။"
+    ,"settings_audit_table": "Marketplace ဆက်တင် စာရင်းစစ်မှတ်တမ်းများ"
+    ,"settings_audit_log_description": "ဖတ်ရှုရန်သာရှိသော ဆက်တင်နှင့် Marketplace စာရင်းစစ်မှတ်တမ်းများ။"
   }
 }
