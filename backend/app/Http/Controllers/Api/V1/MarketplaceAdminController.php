@@ -30,6 +30,8 @@ use App\Models\MarketplaceRefundRequest;
 use App\Models\MarketplaceReturnRequest;
 use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Tenant;
 use App\Services\BusinessNotificationService;
 use App\Services\MarketplaceAuditLogger;
@@ -213,36 +215,126 @@ class MarketplaceAdminController
 
     public function listings(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'in:draft,published,archived'],
+            'store_id' => ['nullable', 'string', 'max:100'],
+            'business_id' => ['nullable', 'string', 'max:100'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'brand' => ['nullable', 'string', 'max:100'],
+            'stock' => ['nullable', 'in:in_stock,low_stock,out_of_stock'],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => ['nullable', 'numeric', 'min:0', 'gte:min_price'],
+            'created_from' => ['nullable', 'date'],
+            'created_to' => ['nullable', 'date', 'after_or_equal:created_from'],
+            'sort' => ['nullable', 'in:created_at,name,price,status'],
+            'direction' => ['nullable', 'in:asc,desc'],
+            'per_page' => ['nullable', 'integer', 'in:25,50,100'],
+        ]);
+
         $listings = MarketplaceListing::query()
-            ->with(['store.tenant', 'tenant', 'product.category', 'product.images', 'product.variants.balances', 'images'])
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')))
-            ->when($request->filled('search'), fn (Builder $query) => $query->where(function (Builder $search) use ($request): void {
-                $term = '%'.$request->string('search').'%';
-                $search->where('marketplace_listings.slug', 'ilike', $term)
-                    ->orWhereHas('product', fn (Builder $product) => $product->where('name', 'ilike', $term))
-                    ->orWhereHas('store', fn (Builder $store) => $store->where('name', 'ilike', $term));
+            ->with($this->listingRelations())
+            ->when(! empty($validated['status']), fn (Builder $query) => $query->where('marketplace_listings.status', $validated['status']))
+            ->when(! empty($validated['store_id']), fn (Builder $query) => $query->whereHas('store', function (Builder $store) use ($validated): void {
+                $value = $validated['store_id'];
+                $store->where(fn (Builder $match) => $match->where('uuid', $value)->orWhere('id', is_numeric($value) ? (int) $value : -1));
             }))
-            ->latest('marketplace_listings.created_at')
-            ->paginate(min(max((int) $request->input('per_page', 25), 1), 100));
+            ->when(! empty($validated['business_id']), fn (Builder $query) => $query->whereHas('tenant', function (Builder $tenant) use ($validated): void {
+                $value = $validated['business_id'];
+                $tenant->where(fn (Builder $match) => $match->where('uuid', $value)->orWhere('business_code', $value)->orWhere('name', 'ilike', '%'.$value.'%'));
+            }))
+            ->when(! empty($validated['search']), fn (Builder $query) => $query->where(function (Builder $search) use ($validated): void {
+                $term = '%'.$validated['search'].'%';
+                $search->where('marketplace_listings.slug', 'ilike', $term)
+                    ->orWhereHas('product', fn (Builder $product) => $product->where(fn (Builder $match) => $match->where('name', 'ilike', $term)->orWhere('brand', 'ilike', $term)))
+                    ->orWhereHas('product.variants', fn (Builder $variant) => $variant->where('sku', 'ilike', $term)->orWhere('barcode', 'ilike', $term))
+                    ->orWhereHas('store', fn (Builder $store) => $store->where('name', 'ilike', $term))
+                    ->orWhereHas('tenant', fn (Builder $tenant) => $tenant->where('name', 'ilike', $term)->orWhere('business_code', 'ilike', $term));
+            }))
+            ->when(! empty($validated['category']), fn (Builder $query) => $query->whereHas('product.category', fn (Builder $category) => $category->where('name', 'ilike', '%'.$validated['category'].'%')))
+            ->when(! empty($validated['brand']), fn (Builder $query) => $query->whereHas('product', fn (Builder $product) => $product->where('brand', 'ilike', '%'.$validated['brand'].'%')))
+            ->when(! empty($validated['min_price']) || ! empty($validated['max_price']), function (Builder $query) use ($validated): void {
+                $query->whereHas('product.variants', function (Builder $variant) use ($validated): void {
+                    $variant->where('status', 'active')
+                        ->when(isset($validated['min_price']), fn (Builder $price) => $price->where('selling_price', '>=', $validated['min_price']))
+                        ->when(isset($validated['max_price']), fn (Builder $price) => $price->where('selling_price', '<=', $validated['max_price']));
+                });
+            })
+            ->when(! empty($validated['created_from']), fn (Builder $query) => $query->whereDate('marketplace_listings.created_at', '>=', $validated['created_from']))
+            ->when(! empty($validated['created_to']), fn (Builder $query) => $query->whereDate('marketplace_listings.created_at', '<=', $validated['created_to']))
+            ->when(! empty($validated['stock']), function (Builder $query) use ($validated): void {
+                $query->whereHas('product', function (Builder $product) use ($validated): void {
+                    $stock = $validated['stock'];
+                    if ($stock === 'in_stock') {
+                        $product->where(function (Builder $available): void {
+                            $available->where('track_inventory', false)->orWhereHas('variants', fn (Builder $variant) => $variant->where('status', 'active')->whereHas('balances', fn (Builder $balance) => $balance->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')));
+                        });
+                    } elseif ($stock === 'low_stock') {
+                        $product->where('track_inventory', true)->whereHas('variants', fn (Builder $variant) => $variant->where('status', 'active')->whereHas('balances', fn (Builder $balance) => $balance->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) <= product_variants.reorder_level')));
+                    } else {
+                        $product->where('track_inventory', true)->whereDoesntHave('variants', fn (Builder $variant) => $variant->where('status', 'active')->whereHas('balances', fn (Builder $balance) => $balance->whereRaw('(inventory_balances.on_hand_quantity - inventory_balances.reserved_quantity) > 0')));
+                    }
+                });
+            })
+            ->when(in_array($validated['sort'] ?? null, ['created_at', 'status'], true), fn (Builder $query) => $query->orderBy('marketplace_listings.'.($validated['sort'] ?? 'created_at'), $validated['direction'] ?? 'desc'))
+            ->when(($validated['sort'] ?? null) === 'name', fn (Builder $query) => $query->orderBy(Product::select('name')->whereColumn('products.id', 'marketplace_listings.product_id'), $validated['direction'] ?? 'asc'))
+            ->when(($validated['sort'] ?? null) === 'price', fn (Builder $query) => $query->orderBy(ProductVariant::select('selling_price')->whereColumn('product_id', 'marketplace_listings.product_id')->where('status', 'active')->orderByDesc('is_default')->limit(1), $validated['direction'] ?? 'asc'))
+            ->when(! in_array($validated['sort'] ?? null, ['created_at', 'name', 'price', 'status'], true), fn (Builder $query) => $query->orderByDesc('marketplace_listings.created_at'))
+            ->orderBy('marketplace_listings.id');
+
+        $paginated = $listings->paginate((int) ($validated['per_page'] ?? 25));
+        $summary = [
+            'total' => MarketplaceListing::query()->count(),
+            'published' => MarketplaceListing::query()->where('status', 'published')->count(),
+            'draft' => MarketplaceListing::query()->where('status', 'draft')->count(),
+            'archived' => MarketplaceListing::query()->where('status', 'archived')->count(),
+        ];
 
         return response()->json([
             'success' => true,
-            'data' => MarketplaceListingResource::collection($listings),
-            'meta' => ['total' => $listings->total(), 'per_page' => $listings->perPage(), 'current_page' => $listings->currentPage(), 'last_page' => $listings->lastPage()],
+            'data' => MarketplaceListingResource::collection($paginated),
+            'meta' => ['total' => $paginated->total(), 'per_page' => $paginated->perPage(), 'current_page' => $paginated->currentPage(), 'last_page' => $paginated->lastPage(), 'summary' => $summary],
         ]);
+    }
+
+    public function listingDetail(MarketplaceListing $listing): JsonResponse
+    {
+        $listing->load($this->listingRelations());
+        $audits = MarketplaceAuditLog::query()
+            ->with(['actor:id,name,email'])
+            ->where('entity_type', MarketplaceListing::class)
+            ->where('entity_id', (string) $listing->id)
+            ->latest('created_at')
+            ->limit(100)
+            ->get();
+        $eligibility = $this->listingEligibility($listing);
+
+        return response()->json(['success' => true, 'data' => [
+            ...(new MarketplaceListingResource($listing))->resolve(request()),
+            'publishing_eligibility' => $eligibility,
+            'moderation_history' => $audits->map(fn (MarketplaceAuditLog $audit): array => [
+                'id' => $audit->id,
+                'previous_status' => data_get($audit->metadata, 'from_status'),
+                'new_status' => data_get($audit->metadata, 'to_status'),
+                'reason' => data_get($audit->metadata, 'reason'),
+                'actor' => $audit->actor?->only(['name', 'email']),
+                'created_at' => $audit->created_at?->toIso8601String(),
+            ])->values(),
+        ]]);
     }
 
     public function moderateListing(MarketplaceListingModerationRequest $request, MarketplaceListing $listing, MarketplaceAuditLogger $audit): JsonResponse
     {
         $listing->load(['store.tenant', 'product']);
         $status = $request->string('status')->toString();
-        if ($status === 'published' && ($listing->store?->approval_status !== 'approved' || ! $listing->store?->is_active || $listing->store?->tenant?->status !== 'active' || $listing->product?->status !== 'active' || ! $listing->product?->variants()->where('status', 'active')->exists())) {
-            throw ValidationException::withMessages(['status' => ['Only products belonging to an approved active store with an active product variant can be published.']]);
+        $eligibility = $this->listingEligibility($listing);
+        if ($status === 'published' && ! $eligibility['eligible']) {
+            throw ValidationException::withMessages(['status' => [$eligibility['reasons'][0] ?? 'Only products belonging to an approved active store with an active product variant can be published.']]);
         }
 
         $previous = $listing->status;
         $listing->forceFill(['status' => $status, 'published_at' => $status === 'published' ? ($listing->published_at ?? now()) : null])->save();
-        $audit->record('marketplace.listing_moderated', $request->user(), $listing->tenant, $listing, ['from_status' => $previous, 'to_status' => $status, 'reason' => $request->input('reason')]);
+        $audit->record('marketplace.listing_moderated', $request->user(), $listing->tenant, $listing, ['from_status' => $previous, 'to_status' => $status, 'reason' => $request->input('reason') ? trim(strip_tags($request->input('reason'))) : null]);
 
         return response()->json(['success' => true, 'data' => new MarketplaceListingResource($listing->refresh()->load($this->listingRelations()))]);
     }
@@ -994,8 +1086,32 @@ class MarketplaceAdminController
         return MarketplaceAuditLog::query()->with(['actor:id,name', 'tenant:id,name'])->whereIn('action', ['marketplace.store_approval_updated', 'marketplace.store_status_updated', 'marketplace.listing_moderated'])->latest('created_at')->limit(8)->get()->map(fn (MarketplaceAuditLog $log): array => ['id' => $log->id, 'action' => $log->action, 'actor' => $log->actor?->name, 'business' => $log->tenant?->name, 'created_at' => $log->created_at?->toIso8601String(), 'metadata' => $log->metadata ?: []])->values()->all();
     }
 
+    private function listingEligibility(MarketplaceListing $listing): array
+    {
+        $listing->loadMissing(['store.tenant', 'product']);
+        $reasons = [];
+
+        if ($listing->store?->approval_status !== 'approved') {
+            $reasons[] = 'The marketplace store is not approved.';
+        }
+        if (! $listing->store?->is_active) {
+            $reasons[] = 'The marketplace store is inactive.';
+        }
+        if ($listing->store?->tenant?->status !== 'active') {
+            $reasons[] = 'The linked business is not active.';
+        }
+        if ($listing->product?->status !== 'active') {
+            $reasons[] = 'The POS product is not active.';
+        }
+        if (! $listing->product?->variants()->where('status', 'active')->exists()) {
+            $reasons[] = 'The product has no active variant.';
+        }
+
+        return ['eligible' => $reasons === [], 'reasons' => $reasons];
+    }
+
     private function listingRelations(): array
     {
-        return ['store.tenant', 'tenant', 'product.category', 'product.images', 'product.variants.balances', 'images'];
+        return ['store.tenant', 'tenant', 'product.category', 'product.images', 'product.variants.balances.location', 'images'];
     }
 }

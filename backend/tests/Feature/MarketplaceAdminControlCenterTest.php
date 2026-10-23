@@ -14,7 +14,9 @@ use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MarketplaceAdminControlCenterTest extends TestCase
@@ -127,6 +129,73 @@ class MarketplaceAdminControlCenterTest extends TestCase
         $this->actingAs($superAdmin, 'sanctum')
             ->patchJson('/api/v1/admin/marketplace/listings/'.$listing->uuid.'/moderation', ['status' => 'published'])
             ->assertUnprocessable()->assertJsonValidationErrors('status');
+    }
+
+    public function test_listing_monitoring_supports_authorized_filters_pagination_and_detail(): void
+    {
+        [$tenant] = $this->businessWithAdmin('CONTROL-LIST', 'control-list@example.com');
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Listing Store', 'slug' => 'listing-store', 'approval_status' => 'approved', 'is_active' => true]);
+        $product = $this->publicProduct($tenant, 'Searchable Marketplace Product');
+        $listing = MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $product->id, 'slug' => 'searchable-marketplace-product', 'status' => 'draft']);
+        $otherTenant = Tenant::create(['name' => 'CONTROL-LIST-OTHER', 'slug' => 'control-list-other', 'business_code' => 'CONTROL-LIST-OTHER', 'status' => 'active', 'subscription_status' => 'active']);
+        $otherStore = MarketplaceStore::create(['tenant_id' => $otherTenant->id, 'name' => 'Other Listing Store', 'slug' => 'other-listing-store', 'approval_status' => 'approved', 'is_active' => true]);
+        $otherProduct = $this->publicProduct($otherTenant, 'Other Marketplace Product');
+        MarketplaceListing::create(['tenant_id' => $otherTenant->id, 'marketplace_store_id' => $otherStore->id, 'product_id' => $otherProduct->id, 'slug' => 'other-marketplace-product', 'status' => 'published']);
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/listings?search=CONTROL-LIST-SKU&status=draft&per_page=25&sort=name&direction=asc')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.summary.total', 2)
+            ->assertJsonPath('data.0.id', $listing->uuid)
+            ->assertJsonPath('data.0.sku', 'CONTROL-LIST-SKU')
+            ->assertJsonPath('data.0.business_name', $tenant->name);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/listings/'.$listing->uuid)
+            ->assertOk()
+            ->assertJsonPath('data.id', $listing->uuid)
+            ->assertJsonPath('data.publishing_eligibility.eligible', true)
+            ->assertJsonStructure(['data' => ['variants', 'branches', 'publishing_eligibility', 'moderation_history']]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/listings?business_id='.$tenant->uuid.'&per_page=25')
+            ->assertOk()->assertJsonPath('meta.total', 1);
+
+        [, $businessAdmin] = $this->businessWithAdmin('CONTROL-LIST-ADMIN', 'control-list-admin@example.com');
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/listings')->assertForbidden();
+        $this->actingAs($businessAdmin, 'sanctum')->getJson('/api/v1/admin/marketplace/listings/'.$listing->uuid)->assertForbidden();
+    }
+
+    public function test_listing_monitoring_returns_authoritative_metadata_for_a_large_catalog(): void
+    {
+        [$tenant] = $this->businessWithAdmin('CONTROL-LARGE', 'control-large@example.com');
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Large Listing Store', 'slug' => 'large-listing-store', 'approval_status' => 'approved', 'is_active' => true]);
+        $now = now();
+        $products = [];
+        for ($index = 1; $index <= 1000; $index++) {
+            $slug = 'large-product-'.$index;
+            $products[] = ['uuid' => (string) Str::uuid(), 'tenant_id' => $tenant->id, 'name' => 'Large Product '.$index, 'slug' => $slug, 'status' => 'active', 'track_inventory' => false, 'created_at' => $now, 'updated_at' => $now];
+        }
+        DB::table('products')->insert($products);
+        $productIds = DB::table('products')->where('tenant_id', $tenant->id)->whereIn('slug', array_column($products, 'slug'))->pluck('id', 'slug');
+        $listings = [];
+        foreach ($productIds as $slug => $productId) {
+            $listings[] = ['uuid' => (string) Str::uuid(), 'tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $productId, 'slug' => 'large-listing-'.$slug, 'status' => 'draft', 'created_at' => $now, 'updated_at' => $now];
+        }
+        DB::table('marketplace_listings')->insert($listings);
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/listings?per_page=100&page=10&sort=name&direction=asc')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1000)
+            ->assertJsonPath('meta.per_page', 100)
+            ->assertJsonPath('meta.current_page', 10)
+            ->assertJsonPath('meta.last_page', 10)
+            ->assertJsonCount(100, 'data');
     }
 
     public function test_reports_and_audit_logs_use_real_marketplace_records(): void

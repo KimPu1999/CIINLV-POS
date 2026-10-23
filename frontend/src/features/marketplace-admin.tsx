@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Activity, BarChart3, Check, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Eye, FileText, LockKeyhole, Package, PauseCircle, PlayCircle, Save, ShieldAlert, Store, Truck, Users, X } from 'lucide-react'
+import { Activity, ArrowLeft, BarChart3, Check, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Eye, FileText, LockKeyhole, Package, PauseCircle, PlayCircle, Save, Search, ShieldAlert, Store, Truck, Users, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -10,7 +10,11 @@ import { useAuth } from '../lib/useAuth'
 export type MarketplaceAdminTab = 'overview' | 'vendors' | 'listings' | 'orders' | 'shipments' | 'cancellations' | 'returns' | 'refunds' | 'finance' | 'disputes' | 'reports' | 'audit' | 'settings'
 
 type AdminStore = { id: string; name: string; business_name?: string | null; business_id?: string | null; business_email?: string | null; business_phone?: string | null; logo_url?: string | null; approval_status: string; is_active: boolean; business_status?: string | null; product_count?: number | null; order_count?: number | null; created_at?: string | null }
-type AdminListing = { id: string; name?: string | null; store_name?: string | null; status: string; price?: string | number | null; available_stock?: number | null; image_url?: string | null; currency?: string | null }
+type AdminListingVariant = { id: string; sku?: string | null; barcode?: string | null; unit?: string | null; attributes?: Record<string, unknown> | null; size?: string | null; is_default?: boolean; selling_price?: string | number | null; available_stock?: number | null; stock_by_location?: { location_id?: number; location_name?: string | null; on_hand?: string | number; reserved?: string | number; available?: string | number }[]; status?: string | null }
+type AdminListingImage = { id: string; url: string; sort_order?: number; is_primary?: boolean }
+type AdminListingAudit = { id: number; previous_status?: string | null; new_status?: string | null; reason?: string | null; actor?: { name?: string; email?: string } | null; created_at?: string | null }
+type AdminListing = { id: string; name?: string | null; description?: string | null; slug?: string | null; sku?: string | null; barcode?: string | null; store_name?: string | null; store_id?: string | null; business_id?: string | null; business_name?: string | null; business_status?: string | null; branches?: { id?: string; name?: string | null; code?: string | null }[]; category_name?: string | null; brand?: string | null; status: string; product_status?: string | null; store_approval_status?: string | null; store_active?: boolean; price?: string | number | null; available_stock?: number | null; image_url?: string | null; images?: AdminListingImage[]; variants?: AdminListingVariant[]; currency?: string | null; created_at?: string | null; published_at?: string | null; track_inventory?: boolean; publishing_eligibility?: { eligible: boolean; reasons: string[] }; moderation_history?: AdminListingAudit[] }
+type ListingMeta = { total: number; per_page: number; current_page: number; last_page: number; summary?: { total: number; published: number; draft: number; archived: number } }
 type AdminOrder = { id: string; order_number: string; status: string; payment_status?: string | null; grand_total?: string | number | null; currency_code?: string | null; vendor_count?: number; vendor_orders?: { vendor_order_number?: string; status?: string; store_name?: string; fulfillment_status?: string; total?: string; items?: { product_name_snapshot?: string; quantity?: string; line_total?: string }[]; shipments?: { id: string; status: string; tracking_number?: string | null; delivered_at?: string | null }[] }[]; created_at?: string | null; admin_hold?: boolean; admin_hold_reason?: string | null }
 type AdminOrderDetail = { order: AdminOrder & { amount_due?: string | null; amount_received?: string | null; customer?: { name?: string; email?: string; phone?: string | null }; payments?: { method?: string; status?: string; amount?: string; amount_received?: string | null; transaction_reference?: string | null; receipt_number?: string | null; received_at?: string | null; received_by?: { name?: string; email?: string } | null }[]; vendor_orders?: { vendor_order_number?: string; store_name?: string; tenant_id?: string; status?: string; fulfillment_status?: string; total?: string; items?: { product_name_snapshot?: string; quantity?: string; line_total?: string }[]; shipments?: { id: string; status: string; tracking_number?: string | null; delivered_at?: string | null }[] }[]; events?: { event?: string; from_status?: string | null; to_status?: string | null; created_at?: string | null }[]; admin_hold?: boolean; admin_hold_reason?: string | null }; customer?: { name?: string; email?: string; phone?: string | null }; audit: { id: number; action: string; actor?: { name?: string; email?: string }; business?: { name?: string; business_code?: string }; metadata?: Record<string, unknown>; created_at?: string | null }[] }
 type AdminShipment = { id: string; vendor_order_number?: string | null; store_name?: string | null; internal_tracking_id?: string | null; tracking_number?: string | null; status: string; delivery_type: string; created_at?: string | null }
@@ -66,8 +70,10 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
         setRows(response.data.data)
         setVendorMeta({ total: Number(response.data.meta?.total || 0), current_page: Number(response.data.meta?.current_page || vendorPage), last_page: Number(response.data.meta?.last_page || 1) })
         setVendorSummary(response.data.meta?.summary || { total: 0, approved: 0, pending: 0, suspended: 0 })
+      } else if (tab === 'listings') {
+        setRows([])
       } else {
-        const endpoint = tab === 'listings' ? '/api/v1/admin/marketplace/listings' : tab === 'shipments' ? '/api/v1/admin/marketplace/shipments' : tab === 'cancellations' ? '/api/v1/admin/marketplace/cancellation-requests' : tab === 'returns' ? '/api/v1/admin/marketplace/return-requests' : tab === 'refunds' ? '/api/v1/admin/marketplace/refund-requests' : tab === 'audit' ? '/api/v1/admin/marketplace/audit-logs' : '/api/v1/admin/marketplace/orders'
+        const endpoint = tab === 'shipments' ? '/api/v1/admin/marketplace/shipments' : tab === 'cancellations' ? '/api/v1/admin/marketplace/cancellation-requests' : tab === 'returns' ? '/api/v1/admin/marketplace/return-requests' : tab === 'refunds' ? '/api/v1/admin/marketplace/refund-requests' : tab === 'audit' ? '/api/v1/admin/marketplace/audit-logs' : '/api/v1/admin/marketplace/orders'
         setRows(extractRows(await request<unknown>({ method: 'get', url: endpoint, params: { per_page: 50, search: search || undefined, status: status || undefined } })))
       }
     } catch (err) {
@@ -106,7 +112,7 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
   })
 
   return <>
-    {['listings', 'orders', 'shipments', 'cancellations', 'returns', 'refunds', 'audit'].includes(tab) && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row dark:border-slate-700 dark:bg-slate-900"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('text.search')} className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={t('text.status')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_statuses')}</option>{['pending', 'approved', 'rejected', 'draft', 'published', 'archived', 'processing', 'paid', 'refunded'].map((option) => <option key={option} value={option}>{t(`text.${option}`, { defaultValue: option.replaceAll('_', ' ') })}</option>)}</select><button type="button" onClick={() => void load()} className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">{t('text.apply_filters')}</button></div>}
+    {['orders', 'shipments', 'cancellations', 'returns', 'refunds', 'audit'].includes(tab) && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row dark:border-slate-700 dark:bg-slate-900"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('text.search')} className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={t('text.status')} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_statuses')}</option>{['pending', 'approved', 'rejected', 'draft', 'published', 'archived', 'processing', 'paid', 'refunded'].map((option) => <option key={option} value={option}>{t(`text.${option}`, { defaultValue: option.replaceAll('_', ' ') })}</option>)}</select><button type="button" onClick={() => void load()} className="h-11 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">{t('text.apply_filters')}</button></div>}
     {tab === 'vendors' && <VendorFilters search={search} status={status} active={vendorActive} business={vendorBusiness} sort={vendorSort} direction={vendorDirection} t={t} onSearch={(value) => { setSearch(value); setVendorPage(1) }} onStatus={(value) => { setStatus(value); setVendorPage(1) }} onActive={(value) => { setVendorActive(value); setVendorPage(1) }} onBusiness={(value) => { setVendorBusiness(value); setVendorPage(1) }} onSort={(value) => { setVendorSort(value); setVendorPage(1) }} onDirection={(value) => { setVendorDirection(value); setVendorPage(1) }} onApply={() => void load()} />}
     {tab === 'reports' && <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row dark:border-slate-700 dark:bg-slate-900"><label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold text-slate-500"><span>{t('text.from_date')}</span><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label><label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold text-slate-500"><span>{t('text.to_date')}</span><input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label><button type="button" onClick={() => void load()} className="h-11 self-end rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">{t('text.apply_filters')}</button></div>}
     {error && <div className="mb-6"><ErrorState message={error} /></div>}
@@ -140,10 +146,229 @@ function Vendors({ rows, t, onApproval, onStatus, onView }: { rows: AdminStore[]
   return <Panel title={t('text.vendor_directory')} icon={Store}><div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-4 py-3">{t('text.store')}</th><th className="px-4 py-3">{t('text.business')}</th><th className="px-4 py-3">{t('text.business_status')}</th><th className="px-4 py-3">{t('text.approval_status')}</th><th className="px-4 py-3">{t('text.listings')}</th><th className="px-4 py-3">{t('text.orders')}</th><th className="px-4 py-3">{t('text.registration_date')}</th><th className="px-4 py-3 text-right">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => <tr key={row.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"><td className="px-4 py-3"><div className="flex items-center gap-3">{row.logo_url ? <img src={row.logo_url} alt="" className="h-9 w-9 rounded-lg object-cover" /> : <div className="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/30 dark:text-blue-300"><Store size={16} /></div>}<div><p className="font-semibold text-slate-900 dark:text-white">{row.name}</p><p className="text-xs text-slate-500">{row.business_id || '—'}</p></div></div></td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.business_name || '—'}</td><td className="px-4 py-3"><StatusBadge status={row.business_status} /></td><td className="px-4 py-3"><StatusBadge status={row.approval_status} /><p className="mt-1 text-xs text-slate-500">{row.is_active ? t('text.active') : t('text.suspended')}</p></td><td className="px-4 py-3 text-slate-700 dark:text-slate-300">{row.product_count ?? '—'}</td><td className="px-4 py-3 text-slate-700 dark:text-slate-300">{row.order_count ?? '—'}</td><td className="px-4 py-3 text-slate-500">{formatDate(row.created_at)}</td><td className="px-4 py-3"><div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => onView(row)} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-300"><Eye size={14} />{t('text.view_details')}</button>{row.approval_status === 'pending' && <><button type="button" onClick={() => onApproval(row, 'approved')} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"><Check size={14} />{t('text.approve')}</button><button type="button" onClick={() => onApproval(row, 'rejected')} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-red-300 dark:border-slate-700 dark:text-slate-200"><X size={14} />{t('text.reject')}</button></>}{row.is_active ? <button type="button" onClick={() => onStatus(row, false)} className="rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300">{t('text.suspend')}</button> : <button type="button" onClick={() => onStatus(row, true)} className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900/60 dark:text-emerald-300">{t('text.restore')}</button>}</div></td></tr>)}</tbody></table></div></Panel>
 }
 
-function Listings({ rows, t, onModerate }: { rows: AdminListing[]; t: TFunction; onModerate: (row: AdminListing, status: 'draft' | 'published' | 'archived') => void }) {
-  if (!rows.length) return <EmptyState label={t('text.no_marketplace_listings')} />
-  return <Panel title={t('text.product_moderation')} icon={Package}><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700"><tr><th className="px-4 py-4">{t('text.product')}</th><th className="px-4 py-4">{t('text.store')}</th><th className="px-4 py-4">{t('text.price')}</th><th className="px-4 py-4">{t('text.status')}</th><th className="px-4 py-4 text-right">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => <tr key={row.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"><td className="px-4 py-4"><div className="flex items-center gap-3">{row.image_url ? <img src={row.image_url} alt="" className="h-10 w-10 rounded-lg object-cover" /> : <div className="rounded-lg bg-slate-100 p-2 text-slate-400 dark:bg-slate-800"><Package size={18} /></div>}<span className="font-semibold text-slate-900 dark:text-white">{row.name || row.id}</span></div></td><td className="px-4 py-4 text-slate-600 dark:text-slate-300">{row.store_name || '—'}</td><td className="px-4 py-4 text-slate-700 dark:text-slate-300">{row.price ?? '—'} {row.currency || ''}</td><td className="px-4 py-4"><StatusBadge status={row.status} /><p className="mt-1 text-xs text-slate-500">{t('text.stock')}: {row.available_stock ?? t('text.not_tracked')}</p></td><td className="px-4 py-4 text-right">{row.status === 'published' ? <button type="button" onClick={() => onModerate(row, 'archived')} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:border-amber-900/60 dark:text-amber-300"><Eye size={14} />{t('text.hide')}</button> : <button type="button" onClick={() => onModerate(row, 'published')} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200"><Check size={14} />{t('text.publish')}</button>}</td></tr>)}</tbody></table></div></Panel>
+type ListingSelectorOption = { id: string; name: string; business_name?: string | null; business_code?: string | null }
+
+function ProductModeration({ t }: { t: TFunction }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { requestConfirmation } = useConfirmation()
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
+  const [rows, setRows] = useState<AdminListing[]>([])
+  const [meta, setMeta] = useState<ListingMeta>({ total: 0, per_page: 25, current_page: 1, last_page: 1 })
+  const [detail, setDetail] = useState<AdminListing | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [detailError, setDetailError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [moderatingId, setModeratingId] = useState<string | null>(null)
+  const [storeQuery, setStoreQuery] = useState(searchParams.get('store_id') || '')
+  const [businessQuery, setBusinessQuery] = useState(searchParams.get('business_id') || '')
+  const [storeOptions, setStoreOptions] = useState<ListingSelectorOption[]>([])
+  const [businessOptions, setBusinessOptions] = useState<ListingSelectorOption[]>([])
+  const [storeOpen, setStoreOpen] = useState(false)
+  const [businessOpen, setBusinessOpen] = useState(false)
+  const paramsKey = searchParams.toString()
+  const listingId = searchParams.get('listing')
+  const page = Math.max(1, Number(searchParams.get('page') || 1))
+  const perPage = Number(searchParams.get('per_page') || 25)
+  const inputClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
+
+  const updateParams = useCallback((changes: Record<string, string | undefined>, resetPage = true) => {
+    const next = new URLSearchParams(searchParams)
+    Object.entries(changes).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key))
+    if (resetPage) next.delete('page')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  useEffect(() => {
+    setSearchInput(searchParams.get('search') || '')
+    setStoreQuery(searchParams.get('store_id') || '')
+    setBusinessQuery(searchParams.get('business_id') || '')
+  }, [paramsKey, searchParams])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const current = searchParams.get('search') || ''
+      const nextValue = searchInput.trim()
+      if (current !== nextValue) updateParams({ search: nextValue || undefined })
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, searchParams, updateParams])
+
+  useEffect(() => {
+    if (listingId) return
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    const params = Object.fromEntries([...searchParams.entries()].filter(([key]) => key !== 'listing'))
+    void api.get<{ data: AdminListing[]; meta?: ListingMeta }>('/api/v1/admin/marketplace/listings', { params, signal: controller.signal })
+      .then((response) => {
+        const responseMeta = response.data.meta || { total: 0, per_page: perPage, current_page: page, last_page: 1 }
+        if (responseMeta.current_page > responseMeta.last_page && responseMeta.last_page > 0) {
+          updateParams({ page: String(responseMeta.last_page) }, false)
+          return
+        }
+        setRows(response.data.data || [])
+        setMeta(responseMeta)
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted) setError(errorMessage(requestError, t('text.unable_to_load_marketplace_listings')))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [listingId, paramsKey, perPage, page, reloadKey, searchParams, t, updateParams])
+
+  useEffect(() => {
+    if (!listingId) {
+      setDetail(null)
+      return
+    }
+    const controller = new AbortController()
+    setDetailLoading(true)
+    setDetailError('')
+    void api.get<{ data: AdminListing }>('/api/v1/admin/marketplace/listings/' + encodeURIComponent(listingId), { signal: controller.signal })
+      .then((response) => setDetail(response.data.data))
+      .catch((requestError) => {
+        if (!controller.signal.aborted) {
+          setDetail(null)
+          setDetailError(errorMessage(requestError, t('text.unable_to_load_listing_detail')))
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDetailLoading(false)
+      })
+    return () => controller.abort()
+  }, [listingId, reloadKey, t])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void api.get<{ data: ListingSelectorOption[] }>('/api/v1/admin/marketplace/stores', { params: { search: storeQuery || undefined, per_page: 25, page: 1 }, signal: controller.signal })
+        .then((response) => setStoreOptions(response.data.data || []))
+        .catch(() => {
+          if (!controller.signal.aborted) setStoreOptions([])
+        })
+    }, 250)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [storeQuery])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void api.get<{ data: ListingSelectorOption[] }>('/api/v1/platform/businesses', { params: { search: businessQuery || undefined, per_page: 25, page: 1 }, signal: controller.signal })
+        .then((response) => setBusinessOptions(response.data.data || []))
+        .catch(() => {
+          if (!controller.signal.aborted) setBusinessOptions([])
+        })
+    }, 250)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [businessQuery])
+
+  const openDetail = (id: string) => updateParams({ listing: id }, false)
+  const closeDetail = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('listing')
+    setSearchParams(next, { replace: true })
+  }
+  const refresh = () => setReloadKey((value) => value + 1)
+  const moderate = (listing: AdminListing, nextStatus: 'draft' | 'published' | 'archived') => {
+    void requestConfirmation({
+      title: nextStatus === 'published' ? t('text.publish_marketplace_listing') : t('text.hide_marketplace_listing'),
+      description: nextStatus === 'published' ? t('text.publish_marketplace_listing_help') : t('text.hide_marketplace_listing_help'),
+      confirmLabel: nextStatus === 'published' ? t('text.publish') : t('text.hide'),
+      tone: nextStatus === 'published' ? 'primary' : 'warning',
+      successMessage: t('text.marketplace_listing_updated'),
+      input: { label: t('text.moderation_reason'), placeholder: t('text.moderation_reason_placeholder'), required: false },
+    }, async (reason) => {
+      setModeratingId(listing.id)
+      try {
+        await request({ method: 'patch', url: '/api/v1/admin/marketplace/listings/' + encodeURIComponent(listing.id) + '/moderation', data: { status: nextStatus, reason: reason || undefined } })
+        refresh()
+      } catch (requestError) {
+        return errorMessage(requestError, t('text.unable_to_update_marketplace_listing'))
+      } finally {
+        setModeratingId(null)
+      }
+    })
+  }
+  const summary = meta.summary || { total: 0, published: 0, draft: 0, archived: 0 }
+
+  if (listingId) {
+    return <ListingModerationDetail detail={detail} loading={detailLoading} error={detailError} t={t} onRetry={refresh} onBack={closeDetail} onModerate={moderate} moderatingId={moderatingId} />
+  }
+
+  const selectStore = (option: ListingSelectorOption) => {
+    setStoreQuery(option.name)
+    setStoreOpen(false)
+    updateParams({ store_id: option.id })
+  }
+  const selectBusiness = (option: ListingSelectorOption) => {
+    setBusinessQuery(option.name)
+    setBusinessOpen(false)
+    updateParams({ business_id: option.id })
+  }
+  const clearFilters = () => {
+    setSearchInput('')
+    setStoreQuery('')
+    setBusinessQuery('')
+    setSearchParams(new URLSearchParams(), { replace: true })
+  }
+  const firstPage = Math.max(1, Math.min(page - 3, meta.last_page - 6))
+  const lastPage = Math.min(meta.last_page, firstPage + 6)
+  const pageNumbers = Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, index) => firstPage + index)
+
+  return <div className="space-y-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCard label={t('text.total_marketplace_listings')} value={summary.total} detail={t('text.all_marketplace_listings')} icon={Package} tone="blue" />
+      <StatCard label={t('text.published_listings')} value={summary.published} detail={t('text.public_marketplace_listings')} icon={Check} tone="emerald" />
+      <StatCard label={t('text.draft_listings')} value={summary.draft} detail={t('text.listings_not_published')} icon={FileText} tone="amber" />
+      <StatCard label={t('text.archived_listings')} value={summary.archived} detail={t('text.listings_hidden_from_marketplace')} icon={ShieldAlert} tone="violet" />
+    </div>
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-base font-bold text-slate-900 dark:text-white">{t('text.product_moderation')}</h2><p className="mt-1 text-xs text-slate-500">{t('text.product_moderation_description')}</p></div><span className="text-xs font-semibold text-slate-500">{meta.total.toLocaleString()} {t('text.listings')}</span></div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+        <label className="relative flex items-center xl:col-span-2"><Search size={16} className="pointer-events-none absolute left-3 text-slate-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t('text.search_marketplace_listings')} aria-label={t('text.search_marketplace_listings')} className={inputClass + ' w-full pl-9'} /></label>
+        <select value={searchParams.get('status') || ''} onChange={(event) => updateParams({ status: event.target.value })} aria-label={t('text.listing_status')} className={inputClass}><option value="">{t('text.all_listing_statuses')}</option><option value="draft">{t('text.draft')}</option><option value="published">{t('text.published')}</option><option value="archived">{t('text.archived')}</option></select>
+        <div className="relative"><input value={storeQuery} onFocus={() => setStoreOpen(true)} onBlur={() => window.setTimeout(() => setStoreOpen(false), 150)} onChange={(event) => { setStoreQuery(event.target.value); if (searchParams.get('store_id')) updateParams({ store_id: undefined }) }} placeholder={t('text.marketplace_store_filter')} aria-label={t('text.marketplace_store_filter')} className={inputClass + ' w-full'} />{storeOpen && storeOptions.length > 0 && <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">{storeOptions.map((option) => <button type="button" key={option.id} onMouseDown={(event) => event.preventDefault()} onClick={() => selectStore(option)} className="block w-full rounded-md px-2 py-2 text-left text-xs hover:bg-blue-50 dark:hover:bg-slate-700">{option.name}<span className="ml-1 text-slate-500">{option.business_name ? '· ' + option.business_name : ''}</span></button>)}</div>}</div>
+        <div className="relative"><input value={businessQuery} onFocus={() => setBusinessOpen(true)} onBlur={() => window.setTimeout(() => setBusinessOpen(false), 150)} onChange={(event) => { setBusinessQuery(event.target.value); if (searchParams.get('business_id')) updateParams({ business_id: undefined }) }} placeholder={t('text.business_filter')} aria-label={t('text.business_filter')} className={inputClass + ' w-full'} />{businessOpen && businessOptions.length > 0 && <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">{businessOptions.map((option) => <button type="button" key={option.id} onMouseDown={(event) => event.preventDefault()} onClick={() => selectBusiness(option)} className="block w-full rounded-md px-2 py-2 text-left text-xs hover:bg-blue-50 dark:hover:bg-slate-700">{option.name}<span className="ml-1 text-slate-500">{option.business_code ? '· ' + option.business_code : ''}</span></button>)}</div>}</div>
+        <input value={searchParams.get('category') || ''} onChange={(event) => updateParams({ category: event.target.value })} placeholder={t('text.category')} aria-label={t('text.category')} className={inputClass} />
+        <input value={searchParams.get('brand') || ''} onChange={(event) => updateParams({ brand: event.target.value })} placeholder={t('text.brand')} aria-label={t('text.brand')} className={inputClass} />
+        <select value={searchParams.get('stock') || ''} onChange={(event) => updateParams({ stock: event.target.value })} aria-label={t('text.stock_availability')} className={inputClass}><option value="">{t('text.all_stock_statuses')}</option><option value="in_stock">{t('text.in_stock')}</option><option value="low_stock">{t('text.low_stock')}</option><option value="out_of_stock">{t('text.out_of_stock')}</option></select>
+        <input type="number" min="0" value={searchParams.get('min_price') || ''} onChange={(event) => updateParams({ min_price: event.target.value })} placeholder={t('text.minimum_price')} aria-label={t('text.minimum_price')} className={inputClass} />
+        <input type="number" min="0" value={searchParams.get('max_price') || ''} onChange={(event) => updateParams({ max_price: event.target.value })} placeholder={t('text.maximum_price')} aria-label={t('text.maximum_price')} className={inputClass} />
+        <input type="date" value={searchParams.get('created_from') || ''} onChange={(event) => updateParams({ created_from: event.target.value })} aria-label={t('text.created_from')} className={inputClass} />
+        <input type="date" value={searchParams.get('created_to') || ''} onChange={(event) => updateParams({ created_to: event.target.value })} aria-label={t('text.created_to')} className={inputClass} />
+        <select value={(searchParams.get('sort') || 'created_at') + ':' + (searchParams.get('direction') || 'desc')} onChange={(event) => { const [sort, direction] = event.target.value.split(':'); updateParams({ sort, direction }) }} aria-label={t('text.sort_listings')} className={inputClass}><option value="created_at:desc">{t('text.newest_first')}</option><option value="created_at:asc">{t('text.oldest_first')}</option><option value="name:asc">{t('text.name_a_to_z')}</option><option value="name:desc">{t('text.name_z_to_a')}</option><option value="price:asc">{t('text.price_low_to_high')}</option><option value="price:desc">{t('text.price_high_to_low')}</option><option value="status:asc">{t('text.status_a_to_z')}</option></select>
+        <select value={String(perPage)} onChange={(event) => updateParams({ per_page: event.target.value, page: undefined })} aria-label={t('text.rows_per_page')} className={inputClass}><option value="25">25 {t('text.per_page')}</option><option value="50">50 {t('text.per_page')}</option><option value="100">100 {t('text.per_page')}</option></select>
+        <button type="button" onClick={clearFilters} className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:border-blue-400 dark:border-slate-700 dark:text-slate-200">{t('text.clear_filters')}</button>
+      </div>
+    </section>
+    {error && <div><ErrorState message={error} /><button type="button" onClick={refresh} className="mt-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-700">{t('text.retry')}</button></div>}
+    {loading ? <LoadingState /> : rows.length === 0 ? <EmptyState label={t('text.no_marketplace_listings')} /> : <Panel title={t('text.listing_directory')} icon={Package}><div className="overflow-x-auto"><table className="w-full min-w-[1250px] text-left text-sm"><thead className="sticky top-0 border-b border-slate-200 bg-white text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900"><tr><th className="px-3 py-2.5">{t('text.product')}</th><th className="px-3 py-2.5">{t('text.sku')}</th><th className="px-3 py-2.5">{t('text.store')}</th><th className="px-3 py-2.5">{t('text.business')}</th><th className="px-3 py-2.5">{t('text.branches')}</th><th className="px-3 py-2.5">{t('text.category')}</th><th className="px-3 py-2.5">{t('text.brand')}</th><th className="px-3 py-2.5">{t('text.price')}</th><th className="px-3 py-2.5">{t('text.stock')}</th><th className="px-3 py-2.5">{t('text.status')}</th><th className="px-3 py-2.5">{t('text.created_at')}</th><th className="px-3 py-2.5 text-right">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50"><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">{row.image_url ? <img src={row.image_url} alt="" className="h-full w-full object-cover" /> : <Package size={17} className="m-2 text-slate-400" />}</div><div className="min-w-0"><p className="max-w-[180px] truncate font-semibold text-slate-900 dark:text-white" title={row.name || ''}>{row.name || row.id}</p><p className="max-w-[180px] truncate text-xs text-slate-500">{row.barcode || '—'}</p></div></div></td><td className="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-300">{row.sku || '—'}</td><td className="px-3 py-2.5">{row.store_name || '—'}</td><td className="px-3 py-2.5">{row.business_name || '—'}</td><td className="max-w-[150px] px-3 py-2.5 text-xs">{row.branches?.map((branch) => branch.name || branch.code).filter(Boolean).join(', ') || '—'}</td><td className="px-3 py-2.5">{row.category_name || '—'}</td><td className="px-3 py-2.5">{row.brand || '—'}</td><td className="px-3 py-2.5 font-semibold">{row.price ?? '—'} {row.currency || ''}</td><td className="px-3 py-2.5">{row.available_stock === null || row.available_stock === undefined ? t('text.not_tracked') : row.available_stock}</td><td className="px-3 py-2.5"><StatusBadge status={row.status} /></td><td className="px-3 py-2.5 text-xs text-slate-500">{formatDate(row.created_at)}</td><td className="px-3 py-2.5"><div className="flex justify-end gap-1.5"><button type="button" onClick={() => openDetail(row.id)} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-900/60 dark:text-blue-300"><Eye size={14} />{t('text.review_listing')}</button>{row.status === 'published' ? <button type="button" disabled={moderatingId === row.id} onClick={() => moderate(row, 'archived')} className="rounded-lg border border-amber-200 px-2.5 py-1.5 text-xs font-semibold text-amber-700 disabled:opacity-50 dark:border-amber-900/60 dark:text-amber-300">{t('text.hide')}</button> : <button type="button" disabled={moderatingId === row.id} onClick={() => moderate(row, 'published')} className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{t('text.publish')}</button>}</div></td></tr>)}</tbody></table></div></Panel>}
+    {meta.last_page > 1 && <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500"><span>{meta.total.toLocaleString()} {t('text.listings')} · {t('text.page')} {meta.current_page} {t('text.of')} {meta.last_page}</span><div className="flex items-center gap-1"><button type="button" disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.previous')}><ChevronLeft size={15} /></button>{pageNumbers.map((number) => <button type="button" key={number} onClick={() => updateParams({ page: String(number) }, false)} className={'min-w-8 rounded-lg border px-2 py-1.5 text-xs font-semibold ' + (number === page ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 dark:border-slate-700')}>{number}</button>)}<button type="button" disabled={page >= meta.last_page} onClick={() => updateParams({ page: String(page + 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.next')}><ChevronRight size={15} /></button></div></div>}
+  </div>
 }
+
+function ListingModerationDetail({ detail, loading, error, t, onRetry, onBack, onModerate, moderatingId }: { detail: AdminListing | null; loading: boolean; error: string; t: TFunction; onRetry: () => void; onBack: () => void; onModerate: (listing: AdminListing, status: 'draft' | 'published' | 'archived') => void; moderatingId: string | null }) {
+  if (loading) return <div className="space-y-4"><button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300"><ArrowLeft size={16} />{t('text.back_to_listings')}</button><LoadingState /></div>
+  if (error || !detail) return <div className="space-y-4"><button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300"><ArrowLeft size={16} />{t('text.back_to_listings')}</button><ErrorState message={error || t('text.listing_not_found')} /><button type="button" onClick={onRetry} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-700">{t('text.retry')}</button></div>
+  const eligibility = detail.publishing_eligibility
+  return <div className="space-y-4"><button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300"><ArrowLeft size={16} />{t('text.back_to_listings')}</button><Panel title={t('text.product_moderation_details')} icon={Package}><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">{detail.image_url ? <img src={detail.image_url} alt="" className="h-full w-full object-cover" /> : <Package size={25} className="m-5 text-slate-400" />}</div><div className="min-w-0"><h2 className="truncate text-lg font-bold text-slate-900 dark:text-white">{detail.name || detail.id}</h2><p className="text-sm text-slate-500">{detail.store_name || '—'} · {detail.business_name || '—'}</p></div></div><div className="flex items-center gap-2"><StatusBadge status={detail.status} />{detail.status === 'published' ? <button type="button" disabled={moderatingId === detail.id} onClick={() => onModerate(detail, 'archived')} className="rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 disabled:opacity-50 dark:border-amber-900/60 dark:text-amber-300">{t('text.hide')}</button> : <button type="button" disabled={moderatingId === detail.id} onClick={() => onModerate(detail, 'published')} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{t('text.publish')}</button>}</div></div><div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4"><DetailValue label={t('text.sku')} value={detail.sku} /><DetailValue label={t('text.barcode')} value={detail.barcode} /><DetailValue label={t('text.category')} value={detail.category_name} /><DetailValue label={t('text.brand')} value={detail.brand} /><DetailValue label={t('text.price')} value={detail.price === null || detail.price === undefined ? null : String(detail.price) + ' ' + (detail.currency || '')} /><DetailValue label={t('text.product_status')} value={detail.product_status} /><DetailValue label={t('text.store_approval_status')} value={detail.store_approval_status} /><DetailValue label={t('text.created_at')} value={formatDate(detail.created_at)} /></div>{detail.description && <div className="mt-4 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200"><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('text.description')}</p>{detail.description}</div>}<div className={'mt-4 rounded-lg border p-3 text-sm ' + (eligibility?.eligible ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100')}><p className="font-semibold">{eligibility?.eligible ? t('text.publishing_eligible') : t('text.publishing_not_eligible')}</p>{!eligibility?.eligible && <ul className="mt-1 list-disc pl-5">{eligibility?.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div></Panel><div className="grid gap-4 xl:grid-cols-2"><Panel title={t('text.product_images')} icon={Package}>{detail.images?.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">{detail.images.map((image) => <img key={image.id} src={image.url} alt={detail.name || ''} className="aspect-square w-full rounded-lg object-cover" />)}</div> : <EmptyState label={t('text.no_product_images')} />}</Panel><Panel title={t('text.variants_and_inventory')} icon={Package}>{detail.variants?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-700"><tr><th className="px-2 py-2">{t('text.sku')}</th><th className="px-2 py-2">{t('text.size')}</th><th className="px-2 py-2">{t('text.price')}</th><th className="px-2 py-2">{t('text.stock')}</th><th className="px-2 py-2">{t('text.branches')}</th><th className="px-2 py-2">{t('text.status')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{detail.variants.map((variant) => <tr key={variant.id}><td className="px-2 py-2">{variant.sku || '—'}{variant.barcode && <p className="text-xs text-slate-500">{variant.barcode}</p>}</td><td className="px-2 py-2">{variant.size || '—'}</td><td className="px-2 py-2">{variant.selling_price ?? '—'}</td><td className="px-2 py-2">{variant.available_stock ?? t('text.unavailable')}</td><td className="max-w-[220px] px-2 py-2 text-xs">{variant.stock_by_location?.map((location) => (location.location_name || '—') + ': ' + (location.available ?? '—')).join(', ') || t('text.unavailable')}</td><td className="px-2 py-2"><StatusBadge status={variant.status} /></td></tr>)}</tbody></table></div> : <EmptyState label={t('text.no_product_variants')} />}</Panel></div><Panel title={t('text.moderation_history')} icon={FileText}>{detail.moderation_history?.length ? <div className="space-y-2">{detail.moderation_history.map((audit) => <div key={audit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700"><div><p className="font-semibold">{audit.previous_status || '—'} → {audit.new_status || '—'}</p><p className="text-xs text-slate-500">{audit.actor?.name || t('text.system')} · {formatDate(audit.created_at)}</p></div><span className="max-w-md text-xs text-slate-500">{audit.reason || t('text.no_reason_recorded')}</span></div>)}</div> : <EmptyState label={t('text.no_moderation_history')} />}</Panel></div>
+}
+
+function DetailValue({ label, value }: { label: string; value?: string | null }) {
+  return <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 truncate font-semibold text-slate-800 dark:text-slate-100" title={value || ''}>{value || '—'}</p></div>
+}
+
+function Listings({ t }: { rows?: AdminListing[]; t: TFunction; onModerate?: (row: AdminListing, status: 'draft' | 'published' | 'archived') => void }) { return <ProductModeration t={t} /> }
 
 function Operations({ rows, tab, t, onDecision }: { rows: AdminShipment[] | AdminRequest[]; tab: 'shipments' | 'cancellations' | 'returns'; t: TFunction; onDecision?: (type: 'cancellation' | 'return', row: AdminRequest, decision: 'approved' | 'rejected') => void }) {
   if (!rows.length) return <EmptyState label={tab === 'shipments' ? t('text.no_shipments') : t('text.no_marketplace_requests')} />

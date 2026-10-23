@@ -193,6 +193,7 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/stores/{store}/approval', [MarketplaceAdminController::class, 'approval']);
             Route::patch('/stores/{store}/status', [MarketplaceAdminController::class, 'storeStatus']);
             Route::get('/listings', [MarketplaceAdminController::class, 'listings']);
+            Route::get('/listings/{listing}', [MarketplaceAdminController::class, 'listingDetail']);
             Route::patch('/listings/{listing}/moderation', [MarketplaceAdminController::class, 'moderateListing']);
             Route::get('/orders', [MarketplaceAdminController::class, 'orders']);
             Route::get('/shipments', [MarketplaceAdminController::class, 'shipments']);

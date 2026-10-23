@@ -22,6 +22,10 @@ class MarketplaceListingResource extends JsonResource
         $availableStock = $variants->sum(fn ($variant): float => $variant->relationLoaded('balances')
             ? $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity)
             : 0);
+        $locations = $variants->flatMap(fn ($variant) => $variant->relationLoaded('balances') ? $variant->balances : collect())
+            ->filter(fn ($balance) => $balance->relationLoaded('location') && $balance->location)
+            ->map(fn ($balance): array => ['id' => $balance->location->uuid, 'name' => $balance->location->name, 'code' => $balance->location->code])
+            ->unique('id')->values()->all();
         $imageUrls = $images->map(fn ($image): array => [
             'id' => $image->uuid,
             'url' => PublicMediaUrl::make($image->storage_path),
@@ -44,12 +48,23 @@ class MarketplaceListingResource extends JsonResource
             'slug' => $this->slug,
             'description' => $product ? $translations->localizedValue($product, 'description', $locale) : null,
             'brand' => $product ? $translations->localizedValue($product, 'brand', $locale) : null,
+            'sku' => $defaultVariant?->sku,
+            'barcode' => $defaultVariant?->barcode,
             'price' => $defaultVariant?->selling_price,
             'currency' => $this->tenant?->currency_code ?: 'MMK',
             'status' => $this->status,
+            'product_status' => $product?->status,
+            'store_approval_status' => $this->store?->approval_status,
+            'store_active' => (bool) ($this->store?->is_active ?? false),
+            'business_id' => $this->tenant?->uuid,
+            'business_name' => $this->tenant?->name,
+            'business_status' => $this->tenant?->status,
+            'created_at' => $this->created_at?->toIso8601String(),
+            'published_at' => $this->published_at?->toIso8601String(),
             'track_inventory' => (bool) ($product?->track_inventory ?? true),
             'has_sizes' => (bool) ($product?->has_sizes ?? false),
             'available_stock' => $product?->track_inventory ? $availableStock : null,
+            'branches' => $locations,
             'store_id' => $this->store?->uuid,
             'store_name' => $this->store?->name,
             'store_slug' => $this->store?->slug,
@@ -69,6 +84,13 @@ class MarketplaceListingResource extends JsonResource
                 'available_stock' => $variant->relationLoaded('balances')
                     ? $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity)
                     : null,
+                'stock_by_location' => $variant->relationLoaded('balances') ? $variant->balances->map(fn ($balance): array => [
+                    'location_id' => $balance->inventory_location_id,
+                    'location_name' => $balance->relationLoaded('location') ? $balance->location?->name : null,
+                    'on_hand' => $balance->on_hand_quantity,
+                    'reserved' => $balance->reserved_quantity,
+                    'available' => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity,
+                ])->values()->all() : [],
                 'status' => $variant->status,
             ])->values()->all(),
             'locale' => $locale,
