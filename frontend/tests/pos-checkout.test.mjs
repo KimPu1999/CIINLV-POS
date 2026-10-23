@@ -46,11 +46,14 @@ test('POS checkout does not pretend unverified split payments completed', () => 
   assert.match(source, /method !== 'cash'/)
 })
 
-test('cash received keeps an editable digit-only string and calculates overpayment safely', () => {
-  assert.match(source, /function sanitizePaymentAmount\(value: string\)/)
-  assert.match(source, /value\.replace\(\/\[\^\\d\]\/g, ''\)/)
-  assert.match(source, /type="text" inputMode="numeric" pattern="\[0-9\]\*"/)
+test('cash received preserves editable decimal input, normalizes digits, and calculates overpayment safely', () => {
+  assert.match(source, /function sanitizePaymentAmount\(value: string, precision = 2\)/)
+  assert.match(source, /value\.replace\(\/\[\\u1040-\\u1049\]\//)
+  assert.match(source, /slice\(0, precision\)/)
+  assert.match(source, /type="text" inputMode="decimal" pattern="\[0-9\]\*\[\.\]\?\[0-9\]\*"/)
   assert.match(source, /onChange=\{\(event\) => onChange\(sanitizePaymentAmount\(event\.target\.value\)\)\}/)
+  assert.match(source, /const amountForMethod = paymentMethod === 'cash' \? cashAmount : paymentMethod === 'card' \? cardAmount : qrAmount/)
+  assert.match(source, /setPaymentMethod\(method\.id\)/)
   assert.match(source, /const totalPaid = decimalToMinor\(cashAmount\)/)
   assert.match(source, /const balance = total > totalPaid \? total - totalPaid : 0n/)
   assert.match(source, /const change = totalPaid > total \? totalPaid - total : 0n/)
