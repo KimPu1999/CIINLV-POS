@@ -35,6 +35,7 @@ class MarketplaceListingResource extends JsonResource
         ])->values()->all();
         $allImages = [...$listingImageUrls, ...$imageUrls];
         $category = $product?->category;
+        $reviews = $this->relationLoaded('approvedReviews') ? $this->approvedReviews : collect();
 
         return [
             'id' => $this->uuid,
@@ -71,6 +72,12 @@ class MarketplaceListingResource extends JsonResource
                 'status' => $variant->status,
             ])->values()->all(),
             'locale' => $locale,
+            'reviews' => MarketplaceReviewResource::collection($reviews),
+            'rating_summary' => [
+                'average_rating' => number_format((float) ($reviews->avg('rating') ?? 0), 2, '.', ''),
+                'total_reviews' => $reviews->count(),
+                'distribution' => collect(range(1, 5))->mapWithKeys(fn (int $rating): array => [$rating => $reviews->where('rating', $rating)->count()]),
+            ],
         ];
     }
 }

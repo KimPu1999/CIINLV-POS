@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerCheckoutController;
 use App\Http\Controllers\Api\V1\MarketplacePaymentWebhookController;
 use App\Http\Controllers\Api\V1\MarketplacePublicController;
+use App\Http\Controllers\Api\V1\MarketplaceReviewController;
 use App\Http\Controllers\Api\V1\MarketplaceVendorController;
 use App\Http\Controllers\Api\V1\MarketplaceVendorFulfillmentController;
 use App\Http\Controllers\Api\V1\PasswordController;
@@ -76,6 +77,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/stores/{store:slug}', [MarketplacePublicController::class, 'store']);
         Route::get('/products', [MarketplacePublicController::class, 'products']);
         Route::get('/products/{product:slug}', [MarketplacePublicController::class, 'product']);
+        Route::get('/products/{listing:slug}/reviews', [MarketplaceReviewController::class, 'publicIndex']);
         Route::get('/categories', [MarketplacePublicController::class, 'categories']);
         Route::get('/search', [MarketplacePublicController::class, 'search']);
         Route::post('/payments/webhook/{provider}', MarketplacePaymentWebhookController::class)->middleware('throttle:payments');
@@ -183,6 +185,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/refund-requests', [MarketplaceAdminController::class, 'refundRequests']);
             Route::get('/orders/{order}/invoice', [MarketplaceAdminController::class, 'invoice']);
             Route::get('/orders/{order}/receipt', [MarketplaceAdminController::class, 'receipt']);
+            Route::patch('/reviews/{review}/moderation', [MarketplaceReviewController::class, 'moderate']);
             Route::post('/orders/{order}/cod/collect', [MarketplaceAdminController::class, 'collectCod']);
             Route::get('/reports', [MarketplaceAdminController::class, 'reports']);
             Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
@@ -219,6 +222,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/orders/{order}/shipments', [MarketplaceVendorFulfillmentController::class, 'createShipment']);
             Route::patch('/shipments/{shipment}/status', [MarketplaceVendorFulfillmentController::class, 'updateShipment']);
             Route::get('/store', [MarketplaceVendorController::class, 'store']);
+            Route::get('/reviews', [MarketplaceReviewController::class, 'businessIndex']);
+            Route::get('/reviews/{review}', [MarketplaceReviewController::class, 'businessShow']);
             Route::patch('/store', [MarketplaceVendorController::class, 'updateStore']);
             Route::post('/store/media', [MarketplaceVendorController::class, 'uploadStoreMedia']);
             Route::get('/listings', [MarketplaceVendorController::class, 'listings']);
@@ -241,6 +246,10 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::prefix('marketplace')->middleware('customer.account')->group(function (): void {
+            Route::get('/reviews/eligible', [MarketplaceReviewController::class, 'eligible']);
+            Route::get('/reviews', [MarketplaceReviewController::class, 'customerIndex']);
+            Route::post('/reviews', [MarketplaceReviewController::class, 'store'])->middleware('throttle:api');
+            Route::post('/reviews/{review}/reports', [MarketplaceReviewController::class, 'report'])->middleware('throttle:api');
             Route::get('/cart', [MarketplaceCustomerCheckoutController::class, 'cart']);
             Route::post('/cart/items', [MarketplaceCustomerCheckoutController::class, 'addCartItem'])->middleware('throttle:api');
             Route::patch('/cart/items/{item}', [MarketplaceCustomerCheckoutController::class, 'updateCartItem'])->middleware('throttle:api');

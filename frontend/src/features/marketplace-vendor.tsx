@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, FileText, ImagePlus, Package, Printer, RefreshCw, Save, Search, Settings2, ShoppingBag, Store, Upload, Users, X } from 'lucide-react'
+import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, FileText, ImagePlus, Package, Printer, RefreshCw, Save, Search, Settings2, ShoppingBag, Star, Store, Upload, X } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { DataTable, EmptyState, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
-import { request } from '../lib/api'
+import { api, request } from '../lib/api'
 
 type MarketplaceStore = {
   id: string
@@ -38,6 +38,9 @@ type MarketplaceListing = {
   category_name?: string | null
   images?: { id: string; url: string; sort_order?: number }[]
 }
+
+type MarketplaceReview = { id: string; product?: { name?: string | null; image_url?: string | null }; customer?: { name?: string | null }; rating: number; title?: string | null; comment: string; status: string; verified_purchase: boolean; created_at?: string | null; moderation_reason?: string | null }
+type MarketplaceReviewResponse = { data: MarketplaceReview[]; meta: { total: number; current_page: number; last_page: number; summary: { total: number; average_rating: string; pending: number; approved: number; rejected_hidden: number } } }
 
 type Product = {
   id: string
@@ -503,7 +506,31 @@ function statusLabel(status: string, t: (key: string) => string): string {
 function formatVendorAddress(address?: Record<string, unknown> | null): string {
   return [address?.recipient_name, address?.address_line_1, address?.address_line_2, address?.city, address?.region, address?.postal_code, address?.country].filter(Boolean).map(String).join(', ') || '—'
 }
-export function MarketplaceReviewsPage() { return <CapabilityPage icon={Users} title="text.customer_reviews" description="text.customer_reviews_description" capability="reviews" /> }
+export function MarketplaceReviewsPage() {
+  const { t } = useTranslation()
+  const [reviews, setReviews] = useState<MarketplaceReview[]>([])
+  const [summary, setSummary] = useState<MarketplaceReviewResponse['meta']['summary']>({ total: 0, average_rating: '0.00', pending: 0, approved: 0, rejected_hidden: 0 })
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [rating, setRating] = useState('')
+  const [page, setPage] = useState(1)
+  const [lastPage, setLastPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try {
+      const response = await api.get<MarketplaceReviewResponse>('/api/v1/vendor/marketplace/reviews', { params: { search: search || undefined, status: status || undefined, rating: rating || undefined, page, per_page: 20 } })
+      setReviews(response.data.data); setSummary(response.data.meta.summary); setLastPage(response.data.meta.last_page)
+    } catch (err) { setError(errorMessage(err, t('text.unable_to_load_customer_reviews'))) }
+    finally { setLoading(false) }
+  }, [page, rating, search, status, t])
+
+  useEffect(() => { void load() }, [load])
+  const statusText = (value: string) => ({ pending: t('text.review_pending'), approved: t('text.review_approved'), rejected: t('text.review_rejected'), hidden: t('text.review_hidden') }[value] || value)
+  return <><PageHeader title={t('text.customer_reviews')} description={t('text.customer_reviews_description')} /><div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{[[t('text.total_reviews'), summary.total], [t('text.average_rating'), summary.average_rating], [t('text.pending_reviews'), summary.pending], [t('text.approved_reviews'), summary.approved], [t('text.rejected_hidden_reviews'), summary.rejected_hidden]].map(([label, value]) => <StatCard key={String(label)} label={String(label)} value={String(value)} icon={Star} tone="blue" />)}</div><section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"><div className="flex flex-col gap-3 md:flex-row"><label className="flex-1"><span className="sr-only">{t('text.search_reviews')}</span><input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value) }} placeholder={t('text.search_reviews')} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label><select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value) }} aria-label={t('text.review_status')} className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_statuses')}</option>{['pending', 'approved', 'rejected', 'hidden'].map((value) => <option key={value} value={value}>{statusText(value)}</option>)}</select><select value={rating} onChange={(event) => { setPage(1); setRating(event.target.value) }} aria-label={t('text.rating')} className="h-11 rounded-xl border border-slate-200 px-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_ratings')}</option>{[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} {t('text.stars')}</option>)}</select></div>{error && <div className="mt-4"><ErrorState message={error} /></div>}{loading ? <div className="py-10"><LoadingState /></div> : !reviews.length ? <div className="py-10"><EmptyState label={t('text.no_customer_reviews')} /></div> : <div className="mt-4 space-y-3">{reviews.map((review) => <article key={review.id} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="flex gap-3"><div className="h-12 w-12 overflow-hidden rounded-lg bg-blue-50 dark:bg-blue-950/40">{review.product?.image_url && <img src={review.product.image_url} alt="" className="h-full w-full object-cover" />}</div><div><h3 className="font-semibold text-slate-900 dark:text-white">{review.product?.name || t('text.unknown_product')}</h3><p className="text-xs text-slate-500">{review.customer?.name || t('text.customer')} · {review.created_at ? new Date(review.created_at).toLocaleDateString() : '—'}</p><div className="mt-1 flex items-center gap-1 text-amber-500" aria-label={`${review.rating} ${t('text.stars')}`}>{[1, 2, 3, 4, 5].map((value) => <Star key={value} size={14} fill={value <= review.rating ? 'currentColor' : 'none'} />)}</div></div></div><StatusBadge status={statusText(review.status)} /></div>{review.title && <p className="mt-3 font-semibold text-slate-800 dark:text-slate-100">{review.title}</p>}<p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.comment}</p>{review.verified_purchase && <LabelBadge tone="success" className="mt-3">{t('text.verified_purchase')}</LabelBadge>}{review.moderation_reason && <p className="mt-2 text-xs text-slate-500">{t('text.moderation_reason')}: {review.moderation_reason}</p>}</article>)}</div>}{lastPage > 1 && <div className="mt-5 flex items-center justify-between"><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50">{t('text.previous')}</button><span className="text-sm text-slate-500">{page} / {lastPage}</span><button type="button" disabled={page >= lastPage} onClick={() => setPage((value) => value + 1)} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50">{t('text.next')}</button></div>}</section></>
+}
 export function MarketplaceEarningsPage() {
   const { t } = useTranslation()
   const [earnings, setEarnings] = useState<{ configured: boolean; pending: string; available: string; reserved: string; paid: string; commission?: { rate: string; source: string; rule_type: string; base: string }; transactions?: { data?: { id: number; entry_type: string; direction: string; amount: string; currency_code: string; status: string; created_at?: string }[] } }>({ configured: false, pending: '0.00', available: '0.00', reserved: '0.00', paid: '0.00' })
@@ -521,12 +548,6 @@ export function MarketplaceEarningsPage() {
 
   if (loading) return <><PageHeader title={t('text.earnings_commissions')} description={t('text.earnings_commissions_description')} /><LoadingState /></>
   return <><PageHeader title={t('text.earnings_commissions')} description={t('text.earnings_commissions_description')} action={<RefreshButton onClick={load} />} />{error && <div className="mb-5"><ErrorState message={error} /></div>}{!earnings.configured && <div className="mb-5"><ErrorState message="Earnings storage is not available until the reviewed marketplace migration is applied." /></div>}{earnings.commission && <section className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/60 p-5 dark:border-blue-900/60 dark:bg-blue-950/20 sm:p-6"><h2 className="font-bold text-slate-950 dark:text-white">Effective marketplace commission</h2><div className="mt-4 grid gap-4 sm:grid-cols-3"><div><p className="text-xs uppercase tracking-wide text-slate-500">Rate</p><p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{earnings.commission.rate}%</p></div><div><p className="text-xs uppercase tracking-wide text-slate-500">Rule source</p><p className="mt-1 font-semibold capitalize text-slate-950 dark:text-white">{earnings.commission.source}</p></div><div><p className="text-xs uppercase tracking-wide text-slate-500">Commission base</p><p className="mt-1 font-semibold text-slate-950 dark:text-white">{earnings.commission.base.replaceAll('_', ' ')}</p></div></div><p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">This rate is read-only for Business Admins. Finalized order snapshots keep the rate that applied when each order was recorded.</p></section>}<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[['Pending', earnings.pending], ['Available', earnings.available], ['Reserved', earnings.reserved], ['Paid', earnings.paid]].map(([label, value]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="text-sm font-semibold text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{value}</p></div>)}</div><section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex items-center gap-3"><BarChart3 className="text-blue-600" size={20} /><h2 className="font-bold text-slate-950 dark:text-white">Earnings ledger</h2></div>{earnings.transactions?.data?.length ? <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700"><tr><th className="px-3 py-3">Type</th><th className="px-3 py-3">Direction</th><th className="px-3 py-3">Amount</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Date</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{earnings.transactions.data.map((entry) => <tr key={entry.id}><td className="px-3 py-3">{entry.entry_type}</td><td className="px-3 py-3">{entry.direction}</td><td className="px-3 py-3 font-semibold">{entry.amount} {entry.currency_code}</td><td className="px-3 py-3"><StatusBadge status={entry.status} /></td><td className="px-3 py-3 text-slate-500">{entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div> : <EmptyState label="No marketplace earnings have been recorded yet." />}</section></>
-}
-
-function CapabilityPage({ icon: Icon, title, description, capability }: { icon: typeof Store; title: string; description: string; capability: 'orders' | 'shipping' | 'reviews' | 'earnings' }) {
-  const { t } = useTranslation()
-  const details = { orders: 'text.marketplace_orders_not_available', shipping: 'text.shipping_not_available', reviews: 'text.reviews_not_available', earnings: 'text.earnings_not_available' }[capability]
-  return <><PageHeader title={t(title)} description={t(description)} /><section className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-12"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40"><Icon size={28} /></div><h2 className="mt-6 text-xl font-bold text-slate-950 dark:text-white">{t('text.feature_not_available_yet')}</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">{t(details)}</p><LabelBadge tone="neutral" className="mt-5">{t('text.phase_5_dependency')}</LabelBadge></section></>
 }
 
 export function MarketplaceSettingsPage() {

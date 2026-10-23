@@ -47,6 +47,16 @@ class MarketplaceListing extends Model
         return $this->hasMany(MarketplaceListingImage::class)->orderBy('sort_order');
     }
 
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(MarketplaceReview::class, 'marketplace_listing_id');
+    }
+
+    public function approvedReviews(): HasMany
+    {
+        return $this->reviews()->approved()->latest();
+    }
+
     public function scopePublic(Builder $query): Builder
     {
         return $query

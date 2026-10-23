@@ -36,6 +36,11 @@ class MarketplaceOrderItem extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function listing(): BelongsTo
+    {
+        return $this->belongsTo(MarketplaceListing::class, 'marketplace_listing_id');
+    }
+
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
@@ -44,5 +49,10 @@ class MarketplaceOrderItem extends Model
     public function reservations(): HasMany
     {
         return $this->hasMany(MarketplaceInventoryReservation::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(MarketplaceReview::class, 'marketplace_order_item_id');
     }
 }

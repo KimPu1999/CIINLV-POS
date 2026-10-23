@@ -147,6 +147,7 @@ class MarketplacePublicController
             'product.images',
             'product.variants' => fn ($query) => $query->where('product_variants.status', 'active')->orderByDesc('is_default')->orderBy('id')->with('balances'),
             'images',
+            'approvedReviews.customer',
         ];
     }
 

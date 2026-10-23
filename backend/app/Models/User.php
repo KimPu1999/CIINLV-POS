@@ -69,6 +69,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(MarketplaceOrder::class, 'customer_user_id');
     }
 
+    public function marketplaceReviews(): HasMany
+    {
+        return $this->hasMany(MarketplaceReview::class, 'customer_user_id');
+    }
+
     public function getIsSuperAdminAttribute(): bool
     {
         return $this->platform_role === self::PLATFORM_ROLE_SUPER_ADMIN;
