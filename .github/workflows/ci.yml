@@ -17,12 +17,12 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_DB: ciinlv_test
-          POSTGRES_USER: ciinlv
-          POSTGRES_PASSWORD: ciinlv
+          POSTGRES_USER: ciinlv_ci_admin
+          POSTGRES_PASSWORD: ciinlv_ci_admin_password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U ciinlv -d ciinlv_test"
+          --health-cmd="pg_isready -U ciinlv_ci_admin -d ciinlv_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -37,8 +37,8 @@ jobs:
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_DATABASE: ciinlv_test
-      DB_USERNAME: ciinlv
-      DB_PASSWORD: ciinlv
+      DB_USERNAME: ciinlv_runtime
+      DB_PASSWORD: ciinlv_runtime_password
       DB_SSLMODE: prefer
       CACHE_STORE: array
       QUEUE_CONNECTION: sync
@@ -46,6 +46,24 @@ jobs:
       MAIL_MAILER: array
     steps:
       - uses: actions/checkout@v4
+      - name: Create restricted PostgreSQL runtime role
+        env:
+          PGPASSWORD: ciinlv_ci_admin_password
+        run: |
+          psql \
+            --host="$DB_HOST" \
+            --port="$DB_PORT" \
+            --username=ciinlv_ci_admin \
+            --dbname="$DB_DATABASE" \
+            --set=ON_ERROR_STOP=1 \
+            --set=runtime_password="$DB_PASSWORD" <<'SQL'
+          CREATE ROLE ciinlv_runtime LOGIN PASSWORD :'runtime_password' NOSUPERUSER NOBYPASSRLS NOCREATEROLE;
+          ALTER ROLE ciinlv_runtime LOGIN PASSWORD :'runtime_password' NOSUPERUSER NOBYPASSRLS NOCREATEROLE;
+          REVOKE ALL PRIVILEGES ON DATABASE ciinlv_test FROM PUBLIC;
+          GRANT CONNECT, TEMPORARY ON DATABASE ciinlv_test TO ciinlv_runtime;
+          REVOKE ALL PRIVILEGES ON SCHEMA public FROM PUBLIC;
+          GRANT USAGE, CREATE ON SCHEMA public TO ciinlv_runtime;
+          SQL
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
