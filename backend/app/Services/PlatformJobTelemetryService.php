@@ -135,7 +135,7 @@ class PlatformJobTelemetryService
                     'queued_at' => $row?->queued_at ?: $this->queuedAt($job, $now),
                     'started_at' => $startedAt ?: $now,
                     'finished_at' => $now,
-                    'duration_ms' => $startedAt ? max(0, $startedAt->diffInMilliseconds($now)) : null,
+                    'duration_ms' => $startedAt ? max(0, (int) round($startedAt->diffInMilliseconds($now))) : null,
                     'last_error' => $message !== '' ? Str::limit(trim((string) preg_replace('/\s+/', ' ', $message)), 1000, '…') : null,
                 ],
             );

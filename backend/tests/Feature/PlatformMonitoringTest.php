@@ -6,12 +6,14 @@ use App\Models\PlatformHealthHeartbeat;
 use App\Models\PlatformJobTelemetry;
 use App\Models\User;
 use App\Services\PlatformHealthHeartbeatService;
+use App\Services\PlatformJobTelemetryService;
 use App\Services\PlatformSchedulerTelemetryService;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskSkipped;
 use Illuminate\Console\Events\ScheduledTaskStarting;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -132,6 +134,33 @@ class PlatformMonitoringTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.queue.average_processing_duration_ms', null)
             ->assertJsonPath('data.queue.history.0.status', 'processing');
+    }
+
+    public function test_queue_telemetry_duration_is_persisted_as_integer_milliseconds(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        PlatformJobTelemetry::create([
+            'job_reference' => hash_hmac('sha256', 'sync|default|fractional-duration-job', (string) config('app.key')),
+            'job_type' => 'SendStockAlert',
+            'connection' => 'sync',
+            'queue' => 'default',
+            'status' => 'processing',
+            'attempts' => 1,
+            'started_at' => now()->subMilliseconds(557),
+        ]);
+
+        $job = \Mockery::mock(Job::class);
+        $job->shouldReceive('getJobId')->andReturn('fractional-duration-job');
+        $job->shouldReceive('payload')->andReturn([]);
+        $job->shouldReceive('getConnectionName')->andReturn('sync');
+        $job->shouldReceive('getQueue')->andReturn('default');
+        $job->shouldReceive('attempts')->andReturn(1);
+        $job->shouldReceive('resolveName')->andReturn('SendStockAlert');
+
+        app(PlatformJobTelemetryService::class)->recordProcessed($job);
+
+        $this->assertIsInt(PlatformJobTelemetry::query()->where('job_reference', hash_hmac('sha256', 'sync|default|fractional-duration-job', (string) config('app.key')))->value('duration_ms'));
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/platform/monitoring')->assertOk();
     }
 
     public function test_public_health_endpoint_does_not_expose_diagnostics(): void
