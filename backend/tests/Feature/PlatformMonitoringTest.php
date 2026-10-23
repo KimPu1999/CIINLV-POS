@@ -6,6 +6,12 @@ use App\Models\PlatformHealthHeartbeat;
 use App\Models\PlatformJobTelemetry;
 use App\Models\User;
 use App\Services\PlatformHealthHeartbeatService;
+use App\Services\PlatformSchedulerTelemetryService;
+use Illuminate\Console\Events\ScheduledTaskFailed;
+use Illuminate\Console\Events\ScheduledTaskFinished;
+use Illuminate\Console\Events\ScheduledTaskSkipped;
+use Illuminate\Console\Events\ScheduledTaskStarting;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -136,5 +142,69 @@ class PlatformMonitoringTest extends TestCase
             ->assertJsonStructure(['success', 'application', 'status', 'version'])
             ->assertJsonMissingPath('checks')
             ->assertJsonMissingPath('database');
+    }
+
+    public function test_scheduler_monitoring_lists_registered_tasks_without_fabricating_execution_success(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring')
+            ->assertOk()
+            ->assertJsonPath('data.scheduler_monitoring.storage_available', true)
+            ->assertJsonPath('data.scheduler_monitoring.registered_task_count', 4)
+            ->assertJsonPath('data.scheduler_monitoring.successful_executions_last_24h', 0)
+            ->assertJsonPath('data.scheduler_monitoring.tasks.0.current_status', 'unknown');
+    }
+
+    public function test_scheduler_lifecycle_events_record_duration_and_success(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $schedule = app(Schedule::class);
+        $event = collect($schedule->events())->first(fn ($task): bool => str_contains((string) $task->command, 'ciinlv:backup-health'));
+        $this->assertNotNull($event);
+
+        $telemetry = app(PlatformSchedulerTelemetryService::class);
+        $telemetry->recordStarting(new ScheduledTaskStarting($event));
+        $telemetry->recordFinished(new ScheduledTaskFinished($event, 1.25));
+
+        $this->assertDatabaseHas('platform_scheduler_telemetry', [
+            'command_identifier' => 'ciinlv:backup-health',
+            'status' => 'completed',
+            'duration_ms' => 1250,
+        ]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring?task=backup-health')
+            ->assertOk()
+            ->assertJsonPath('data.scheduler_monitoring.successful_executions_last_24h', 1)
+            ->assertJsonPath('data.scheduler_monitoring.tasks.0.status', 'healthy')
+            ->assertJsonPath('data.scheduler_monitoring.history.0.duration_ms', 1250);
+        $this->assertIsString($response->json('data.scheduler_monitoring.tasks.0.next_due_at'));
+    }
+
+    public function test_scheduler_failed_and_skipped_runs_are_visible_without_raw_exceptions(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $service = app(PlatformSchedulerTelemetryService::class);
+        $tasks = $service->registeredTasks();
+        $failedTask = collect($tasks)->firstWhere('command_identifier', 'ciinlv:inventory-reconcile');
+        $skippedTask = collect($tasks)->firstWhere('command_identifier', 'marketplace:release-expired-reservations');
+        $failedEvent = collect(app(Schedule::class)->events())->first(fn ($task): bool => str_contains((string) $task->command, 'ciinlv:inventory-reconcile'));
+        $skippedEvent = collect(app(Schedule::class)->events())->first(fn ($task): bool => str_contains((string) $task->command, 'marketplace:release-expired-reservations'));
+
+        $this->assertNotNull($failedTask);
+        $this->assertNotNull($skippedTask);
+        $this->assertNotNull($failedEvent);
+        $this->assertNotNull($skippedEvent);
+        $service->recordFailed(new ScheduledTaskFailed($failedEvent, new \RuntimeException('Inventory command failed safely.'), 0.5));
+        $service->recordSkipped(new ScheduledTaskSkipped($skippedEvent));
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring')
+            ->assertOk()
+            ->assertJsonPath('data.scheduler_monitoring.failed_executions_last_24h', 1)
+            ->assertJsonPath('data.scheduler_monitoring.last_errors.0.error_summary', 'Inventory command failed safely.')
+            ->assertJsonMissingPath('data.scheduler_monitoring.last_errors.0.exception');
     }
 }

@@ -12,6 +12,12 @@ return [
     // Keep lifecycle telemetry bounded without retaining job payloads.
     'job_telemetry_retention_days' => (int) env('HEALTH_JOB_TELEMETRY_RETENTION_DAYS', 7),
 
+    // Keep scheduler execution history bounded and safe for operations review.
+    'scheduler_telemetry_retention_days' => (int) env('HEALTH_SCHEDULER_TELEMETRY_RETENTION_DAYS', 30),
+
+    // Allow for scheduler startup and command completion before marking a run missed.
+    'scheduler_missed_grace_seconds' => (int) env('HEALTH_SCHEDULER_MISSED_GRACE_SECONDS', 120),
+
     // Defaults to the application's configured disk; production can opt into
     // a comma-separated list such as "private,public,s3".
     'storage_disks' => array_values(array_filter(array_map(

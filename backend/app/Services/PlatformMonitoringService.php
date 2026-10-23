@@ -17,6 +17,7 @@ class PlatformMonitoringService
         private readonly InventoryReconciliationService $inventory,
         private readonly PlatformHealthHeartbeatService $heartbeats,
         private readonly PlatformJobTelemetryService $jobTelemetry,
+        private readonly PlatformSchedulerTelemetryService $schedulerTelemetry,
     ) {}
 
     /**
@@ -31,6 +32,7 @@ class PlatformMonitoringService
         $postgresql = $systemHealth['checks']['postgresql'] ?? ['status' => 'unavailable', 'checks' => []];
 
         $queueMetrics = $this->jobTelemetry->summary($filters);
+        $schedulerHeartbeat = $systemHealth['checks']['scheduler'] ?? ['status' => 'unknown'];
 
         return [
             'checked_at' => now()->toIso8601String(),
@@ -49,6 +51,7 @@ class PlatformMonitoringService
                 'storage' => $systemHealth['checks']['storage'] ?? ['status' => 'unknown'],
             ],
             'queue' => array_merge($systemHealth['checks']['queue_worker'] ?? ['status' => 'unknown'], $queueMetrics),
+            'scheduler_monitoring' => $this->schedulerTelemetry->summary($filters, $schedulerHeartbeat),
             'storage' => $systemHealth['checks']['storage'] ?? ['status' => 'unknown'],
             'backups' => $this->backupStatus(),
             'inventory' => $this->inventoryStatus(),

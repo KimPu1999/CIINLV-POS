@@ -23,6 +23,9 @@ test('monitoring UI has localized English and Burmese resources', () => {
     'backup_status',
     'payment_health',
     'security_posture',
+    'registered_tasks',
+    'scheduler_execution_history',
+    'scheduler_errors',
   ]) {
     assert.equal(typeof en.text[key], 'string', `missing English key ${key}`)
     assert.equal(typeof my.text[key], 'string', `missing Burmese key ${key}`)
@@ -43,4 +46,16 @@ test('queue monitoring is read-only, filtered, refreshable, and does not fabrica
   assert.match(page, /recent_job_history/)
   assert.match(page, /text\.unavailable/)
   assert.doesNotMatch(page, /retry.*failed|delete.*failed/i)
+})
+
+test('scheduler monitoring exposes real task telemetry filters and remains read-only', () => {
+  assert.match(page, /schedulerTaskFilter/)
+  assert.match(page, /schedulerStatusFilter/)
+  assert.match(page, /scheduler_monitoring/)
+  assert.match(page, /scheduled_tasks/)
+  assert.match(page, /scheduler_execution_history/)
+  assert.match(page, /next_due/)
+  assert.match(page, /missed_overdue_runs/)
+  assert.match(page, /scheduler_status/)
+  assert.doesNotMatch(page, /run now|retry scheduler|delete scheduler/i)
 })

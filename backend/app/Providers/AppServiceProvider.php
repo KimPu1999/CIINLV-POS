@@ -36,14 +36,20 @@ use App\Policies\TenantPolicy;
 use App\Services\ConfiguredTranslationProvider;
 use App\Services\PlatformHealthHeartbeatService;
 use App\Services\PlatformJobTelemetryService;
+use App\Services\PlatformSchedulerTelemetryService;
 use App\Services\TenantContext;
 use App\Services\TenantContextService;
 use App\Services\TranslationService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Events\ScheduledTaskFailed;
+use Illuminate\Console\Events\ScheduledTaskFinished;
+use Illuminate\Console\Events\ScheduledTaskSkipped;
+use Illuminate\Console\Events\ScheduledTaskStarting;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
@@ -60,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TenantContext::class, fn ($app) => $app->make(TenantContextService::class));
         $this->app->singleton(TranslationProvider::class, ConfiguredTranslationProvider::class);
         $this->app->singleton(TranslationService::class);
+        $this->app->singleton(PlatformSchedulerTelemetryService::class);
     }
 
     /**
@@ -91,6 +98,22 @@ class AppServiceProvider extends ServiceProvider
 
         Queue::failing(function (JobFailed $event): void {
             app(PlatformJobTelemetryService::class)->recordFailed($event->job, $event->exception);
+        });
+
+        Event::listen(ScheduledTaskStarting::class, function (ScheduledTaskStarting $event): void {
+            app(PlatformSchedulerTelemetryService::class)->recordStarting($event);
+        });
+
+        Event::listen(ScheduledTaskFinished::class, function (ScheduledTaskFinished $event): void {
+            app(PlatformSchedulerTelemetryService::class)->recordFinished($event);
+        });
+
+        Event::listen(ScheduledTaskFailed::class, function (ScheduledTaskFailed $event): void {
+            app(PlatformSchedulerTelemetryService::class)->recordFailed($event);
+        });
+
+        Event::listen(ScheduledTaskSkipped::class, function (ScheduledTaskSkipped $event): void {
+            app(PlatformSchedulerTelemetryService::class)->recordSkipped($event);
         });
 
         Gate::policy(Tenant::class, TenantPolicy::class);

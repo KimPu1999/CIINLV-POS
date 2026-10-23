@@ -9,10 +9,14 @@ type Check = { status: string; reason?: string; last_success_at?: string | null;
 type JobHistory = { reference: string; job_type: string; connection?: string; queue: string; status: string; attempts?: number | null; created_at?: string | null; started_at?: string | null; finished_at?: string | null; duration_ms?: number | null }
 type QueueActivity = { bucket: string; completed: number; failed: number }
 type QueueMetrics = { connection?: string; driver?: string; queue?: string; queue_storage_available?: boolean; failed_storage_available?: boolean; telemetry_available?: boolean; pending_jobs?: number | null; processing_jobs?: number | null; completed_jobs_last_24h?: number | null; failed_jobs_last_24h?: number | null; oldest_waiting_job_age_seconds?: number | null; average_processing_duration_ms?: number | null; history?: JobHistory[]; activity?: QueueActivity[]; reason?: string }
+type SchedulerTask = { task_name: string; command_identifier: string; schedule_frequency: string; schedule_expression: string; timezone?: string | null; last_started_at?: string | null; last_finished_at?: string | null; last_success_at?: string | null; last_failure_at?: string | null; next_due_at?: string | null; execution_duration_ms?: number | null; current_status: string; status: string; error_summary?: string | null; without_overlapping?: boolean; maintenance_mode_allowed?: boolean }
+type SchedulerHistory = { reference: string; task_name: string; command_identifier: string; schedule_frequency: string; status: string; started_at?: string | null; finished_at?: string | null; duration_ms?: number | null; error_summary?: string | null }
+type SchedulerMetrics = { storage_available?: boolean; registered_task_count?: number | null; running_task_count?: number | null; successful_executions_last_24h?: number | null; failed_executions_last_24h?: number | null; missed_or_overdue_count?: number | null; tasks?: SchedulerTask[]; history?: SchedulerHistory[]; last_errors?: Array<{ task_name: string; command_identifier: string; failed_at?: string | null; error_summary?: string | null }>; reason?: string }
 type Monitoring = {
   checked_at: string
   health: { api: Check; database: Check; queue_worker?: Check; scheduler?: Check; storage?: Check }
   queue: Check & QueueMetrics & { recent_failures?: Array<{ reference: string; queue: string; failed_at: string }> }
+  scheduler_monitoring: SchedulerMetrics
   storage: Check
   backups: Check & { file_count?: number; latest_at?: string | null }
   inventory: Check & { checked?: number; discrepancy_count?: number | null; report_only?: boolean; sample?: Array<Record<string, string | number>> }
@@ -30,12 +34,16 @@ export function PlatformMonitoringPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [schedulerTaskFilter, setSchedulerTaskFilter] = useState('')
+  const [schedulerStatusFilter, setSchedulerStatusFilter] = useState('')
+  const [schedulerFrom, setSchedulerFrom] = useState('')
+  const [schedulerTo, setSchedulerTo] = useState('')
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError('')
-    request<Monitoring>({ method: 'get', url: '/api/v1/platform/monitoring', params: { queue: queueFilter || undefined, status: statusFilter || undefined, from: from || undefined, to: to || undefined } })
+    request<Monitoring>({ method: 'get', url: '/api/v1/platform/monitoring', params: { queue: queueFilter || undefined, status: statusFilter || undefined, from: from || undefined, to: to || undefined, task: schedulerTaskFilter || undefined, scheduler_status: schedulerStatusFilter || undefined, scheduler_from: schedulerFrom || undefined, scheduler_to: schedulerTo || undefined } })
       .then((value) => { if (!cancelled) setData(value) })
       .catch((err) => { if (!cancelled) setError(errorMessage(err, t('text.unable_to_load_platform_monitoring'))) })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -53,7 +61,7 @@ export function PlatformMonitoringPage() {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.clearInterval(interval)
     }
-  }, [from, queueFilter, refresh, statusFilter, t, to])
+  }, [from, queueFilter, refresh, schedulerFrom, schedulerStatusFilter, schedulerTaskFilter, schedulerTo, statusFilter, t, to])
 
   const reload = () => setRefresh((value) => value + 1)
   const applyFilters = () => setRefresh((value) => value + 1)
@@ -101,10 +109,32 @@ export function PlatformMonitoringPage() {
       </MonitoringPanel>
       </div>
 
-      <MonitoringPanel title={t('text.scheduler_monitoring')} icon={RefreshCw} status={data.health.scheduler?.status || 'unknown'}>
-        <HeartbeatSummary check={data.health.scheduler} t={t} />
-        <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{data.health.scheduler?.reason || t('text.unknown')}</p>
-      </MonitoringPanel>
+      <div className="xl:col-span-2">
+        <MonitoringPanel title={t('text.scheduler_monitoring')} icon={RefreshCw} status={data.health.scheduler?.status || 'unknown'}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-600 dark:text-slate-300">{data.scheduler_monitoring.reason || t('text.unknown')}</p>
+            <StatusBadge status={data.scheduler_monitoring.storage_available === false ? 'unavailable' : (data.health.scheduler?.status || 'unknown')} />
+          </div>
+          <HeartbeatSummary check={data.health.scheduler} t={t} />
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Info label={t('text.registered_tasks')} value={metric(t, data.scheduler_monitoring.registered_task_count)} />
+            <Info label={t('text.running_tasks')} value={metric(t, data.scheduler_monitoring.running_task_count)} />
+            <Info label={t('text.scheduler_successes_24h')} value={metric(t, data.scheduler_monitoring.successful_executions_last_24h)} />
+            <Info label={t('text.scheduler_failures_24h')} value={metric(t, data.scheduler_monitoring.failed_executions_last_24h)} />
+            <Info label={t('text.missed_overdue_runs')} value={metric(t, data.scheduler_monitoring.missed_or_overdue_count)} />
+          </div>
+          <div className="mt-5 grid gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs font-semibold text-slate-500"><span>{t('text.scheduler_task')}</span><input value={schedulerTaskFilter} onChange={(event) => setSchedulerTaskFilter(event.target.value)} placeholder={t('text.all_scheduler_tasks')} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label>
+            <label className="text-xs font-semibold text-slate-500"><span>{t('text.status')}</span><select value={schedulerStatusFilter} onChange={(event) => setSchedulerStatusFilter(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-white"><option value="">{t('text.all_statuses')}</option>{['healthy', 'running', 'failed', 'stale', 'missed', 'unknown', 'not_configured'].map((value) => <option key={value} value={value}>{statusLabel(t, value)}</option>)}</select></label>
+            <label className="text-xs font-semibold text-slate-500"><span>{t('text.from_date')}</span><input type="date" value={schedulerFrom} onChange={(event) => setSchedulerFrom(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 dark:border-slate-700 dark:text-white" /></label>
+            <label className="text-xs font-semibold text-slate-500"><span>{t('text.to_date')}</span><input type="date" value={schedulerTo} onChange={(event) => setSchedulerTo(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-800 dark:border-slate-700 dark:text-white" /></label>
+            <button type="button" onClick={applyFilters} className="h-10 self-end rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 sm:col-span-2 lg:col-span-4">{t('text.apply_filters')}</button>
+          </div>
+          <SchedulerTaskTable tasks={data.scheduler_monitoring.tasks || []} t={t} />
+          <SchedulerHistoryTable history={data.scheduler_monitoring.history || []} t={t} />
+          <SchedulerErrors errors={data.scheduler_monitoring.last_errors || []} t={t} />
+        </MonitoringPanel>
+      </div>
 
       <MonitoringPanel title={t('text.inventory_consistency')} icon={ShieldCheck} status={data.inventory.status}>
         <div className="grid gap-3 sm:grid-cols-3"><Info label={t('text.balances_checked')} value={data.inventory.checked?.toLocaleString() ?? t('text.unavailable')} /><Info label={t('text.discrepancies')} value={discrepancies?.toLocaleString() ?? t('text.unavailable')} /><Info label={t('text.mode')} value={data.inventory.report_only ? t('text.report_only') : t('text.unavailable')} /></div>
@@ -158,6 +188,18 @@ function QueueActivityChart({ activity, t }: { activity: QueueActivity[]; t: (ke
 
 function JobHistoryTable({ history, t }: { history: JobHistory[]; t: (key: string, options?: Record<string, unknown>) => string }) {
   return <div className="mt-5 rounded-xl border border-slate-200 dark:border-slate-700"><div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700"><h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('text.recent_job_history')}</h3></div>{history.length ? <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="border-b border-slate-100 text-xs uppercase tracking-wider text-slate-400 dark:border-slate-800"><tr><th className="px-4 py-3">{t('text.reference')}</th><th className="px-4 py-3">{t('text.job_type')}</th><th className="px-4 py-3">{t('text.queue')}</th><th className="px-4 py-3">{t('text.status')}</th><th className="px-4 py-3">{t('text.attempts')}</th><th className="px-4 py-3">{t('text.created_at')}</th><th className="px-4 py-3">{t('text.started_at')}</th><th className="px-4 py-3">{t('text.finished_at')}</th><th className="px-4 py-3">{t('text.duration')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{history.map((job) => <tr key={job.reference}><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{job.reference.slice(0, 16)}</td><td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{job.job_type}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{job.queue}</td><td className="px-4 py-3"><StatusBadge status={job.status} /></td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{job.attempts ?? t('text.unavailable')}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(job.created_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(job.started_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(job.finished_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDuration(t, job.duration_ms)}</td></tr>)}</tbody></table></div> : <p className="px-4 py-5 text-sm text-slate-500">{t('text.no_job_history')}</p>}</div>
+}
+
+function SchedulerTaskTable({ tasks, t }: { tasks: SchedulerTask[]; t: (key: string, options?: Record<string, unknown>) => string }) {
+  return <div className="mt-5 rounded-xl border border-slate-200 dark:border-slate-700"><div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700"><h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('text.scheduled_tasks')}</h3></div>{tasks.length ? <div className="overflow-x-auto"><table className="w-full min-w-[1450px] text-left text-sm"><thead className="border-b border-slate-100 text-xs uppercase tracking-wider text-slate-400 dark:border-slate-800"><tr><th className="px-4 py-3">{t('text.scheduler_task')}</th><th className="px-4 py-3">{t('text.command_identifier')}</th><th className="px-4 py-3">{t('text.schedule_frequency')}</th><th className="px-4 py-3">{t('text.last_started')}</th><th className="px-4 py-3">{t('text.last_finished')}</th><th className="px-4 py-3">{t('text.last_success')}</th><th className="px-4 py-3">{t('text.last_failure')}</th><th className="px-4 py-3">{t('text.next_due')}</th><th className="px-4 py-3">{t('text.duration')}</th><th className="px-4 py-3">{t('text.status')}</th><th className="px-4 py-3">{t('text.last_error')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{tasks.map((task) => <tr key={task.command_identifier + task.schedule_expression}><td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{task.task_name}</td><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{task.command_identifier}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{task.schedule_frequency}<span className="block text-[10px] text-slate-400">{task.timezone || t('text.unknown')}</span></td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(task.last_started_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(task.last_finished_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(task.last_success_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(task.last_failure_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(task.next_due_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDuration(t, task.execution_duration_ms)}</td><td className="px-4 py-3"><StatusBadge status={task.status} /></td><td className="max-w-[260px] truncate px-4 py-3 text-xs text-red-600 dark:text-red-300" title={task.error_summary || ''}>{task.error_summary || '—'}</td></tr>)}</tbody></table></div> : <p className="px-4 py-5 text-sm text-slate-500">{t('text.no_scheduler_tasks')}</p>}</div>
+}
+
+function SchedulerHistoryTable({ history, t }: { history: SchedulerHistory[]; t: (key: string, options?: Record<string, unknown>) => string }) {
+  return <div className="mt-5 rounded-xl border border-slate-200 dark:border-slate-700"><div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700"><h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('text.scheduler_execution_history')}</h3></div>{history.length ? <div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-sm"><thead className="border-b border-slate-100 text-xs uppercase tracking-wider text-slate-400 dark:border-slate-800"><tr><th className="px-4 py-3">{t('text.reference')}</th><th className="px-4 py-3">{t('text.scheduler_task')}</th><th className="px-4 py-3">{t('text.status')}</th><th className="px-4 py-3">{t('text.started_at')}</th><th className="px-4 py-3">{t('text.finished_at')}</th><th className="px-4 py-3">{t('text.duration')}</th><th className="px-4 py-3">{t('text.last_error')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{history.map((item) => <tr key={item.reference}><td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{item.reference.slice(0, 16)}</td><td className="px-4 py-3 text-slate-700 dark:text-slate-200">{item.task_name}</td><td className="px-4 py-3"><StatusBadge status={item.status} /></td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(item.started_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDate(item.finished_at)}</td><td className="px-4 py-3 text-xs text-slate-500">{formatDuration(t, item.duration_ms)}</td><td className="max-w-[280px] truncate px-4 py-3 text-xs text-red-600 dark:text-red-300" title={item.error_summary || ''}>{item.error_summary || '—'}</td></tr>)}</tbody></table></div> : <p className="px-4 py-5 text-sm text-slate-500">{t('text.no_scheduler_history')}</p>}</div>
+}
+
+function SchedulerErrors({ errors, t }: { errors: Array<{ task_name: string; command_identifier: string; failed_at?: string | null; error_summary?: string | null }>; t: (key: string, options?: Record<string, unknown>) => string }) {
+  return <div className="mt-5 rounded-xl border border-slate-200 dark:border-slate-700"><div className="border-b border-slate-200 px-4 py-3 dark:border-slate-700"><h3 className="text-sm font-bold text-slate-900 dark:text-white">{t('text.scheduler_errors')}</h3></div>{errors.length ? <div className="divide-y divide-slate-100 dark:divide-slate-800">{errors.map((error, index) => <div key={error.command_identifier + String(index)} className="px-4 py-3"><div className="flex flex-wrap justify-between gap-2 text-sm"><span className="font-medium text-slate-800 dark:text-slate-100">{error.task_name}</span><span className="text-xs text-slate-500">{formatDate(error.failed_at)}</span></div><p className="mt-1 text-xs text-slate-500">{error.error_summary || t('text.unknown')}</p></div>)}</div> : <p className="px-4 py-5 text-sm text-slate-500">{t('text.no_scheduler_errors')}</p>}</div>
 }
 
 function metric(t: (key: string, options?: Record<string, unknown>) => string, value?: number | null): string { return value === null || value === undefined ? t('text.unavailable') : value.toLocaleString() }
