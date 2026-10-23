@@ -479,7 +479,7 @@ class MarketplaceAdminController
             'to' => ['nullable', 'date', 'after_or_equal:from'],
             'sort' => ['nullable', 'in:created_at,order_number,total'],
             'direction' => ['nullable', 'in:asc,desc'],
-            'per_page' => ['nullable', 'integer', 'in:25,50,100'],
+            'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
         ]);
 
         $orders = MarketplaceOrder::query()

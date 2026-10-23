@@ -176,11 +176,12 @@ function MarketplaceOrders({ t }: { t: TFunction }) {
   const [statusCorrection, setStatusCorrection] = useState('')
   const [paymentAmount, setPaymentAmount] = useState('')
   const investigationHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const ordersTableHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const requestSequence = useRef(0)
   const idempotencyKeys = useRef(new Map<string, string>())
   const selectedOrderId = searchParams.get('order')
   const page = Math.max(1, Number(searchParams.get('page') || 1))
-  const perPage = [25, 50, 100].includes(Number(searchParams.get('per_page'))) ? Number(searchParams.get('per_page')) : 25
+  const perPage = [10, 25, 50, 100].includes(Number(searchParams.get('per_page'))) ? Number(searchParams.get('per_page')) : 25
   const listParamsKey = [...searchParams.entries()].filter(([key]) => key !== 'order').map(([key, value]) => `${key}=${value}`).join('&')
   const inputClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
 
@@ -303,6 +304,7 @@ function MarketplaceOrders({ t }: { t: TFunction }) {
   const clearFilters = () => {
     const next = new URLSearchParams()
     if (selectedOrderId) next.set('order', selectedOrderId)
+    next.set('per_page', String(perPage))
     setSearchInput('')
     setStoreQuery('')
     setSearchParams(next, { replace: true })
@@ -376,9 +378,16 @@ function MarketplaceOrders({ t }: { t: TFunction }) {
     })
   }
 
-  const firstPage = Math.max(1, Math.min(page - 3, meta.last_page - 6))
-  const lastPage = Math.min(meta.last_page, firstPage + 6)
-  const pageNumbers = Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, index) => firstPage + index)
+  const currentPage = Math.max(1, meta.current_page || page)
+  const effectivePerPage = Math.max(1, meta.per_page || perPage)
+  const firstResult = meta.total === 0 ? 0 : ((currentPage - 1) * effectivePerPage) + 1
+  const lastResult = meta.total === 0 ? 0 : Math.min(meta.total, currentPage * effectivePerPage)
+  const pageNumbers = marketplacePageNumbers(currentPage, meta.last_page)
+  const goToPage = (nextPage: number) => {
+    const boundedPage = Math.max(1, Math.min(nextPage, meta.last_page))
+    updateParams({ page: String(boundedPage) }, false)
+    window.requestAnimationFrame(() => ordersTableHeadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
   const summaryValues = summary || { total_orders: 0, pending_orders: 0, processing_orders: 0, shipped_orders: 0, delivered_orders: 0, cancelled_orders: 0, payment_pending_orders: 0 }
 
   return <div className="space-y-4">
@@ -392,7 +401,7 @@ function MarketplaceOrders({ t }: { t: TFunction }) {
       <StatCard label={t('text.payment_pending_orders')} value={summaryValues.payment_pending_orders} detail={t('text.payment_requires_review')} icon={CircleDollarSign} tone="amber" />
     </div>
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-base font-bold text-slate-900 dark:text-white">{t('text.marketplace_orders')}</h2><p className="mt-1 text-xs text-slate-500">{t('text.marketplace_orders_description')}</p></div><span className="text-xs font-semibold text-slate-500">{meta.total.toLocaleString()} {t('text.orders')}</span></div>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3"><div><h2 ref={ordersTableHeadingRef} id="marketplace-orders-heading" tabIndex={-1} className="scroll-mt-24 text-base font-bold text-slate-900 outline-none dark:text-white">{t('text.marketplace_orders')}</h2><p className="mt-1 text-xs text-slate-500">{t('text.marketplace_orders_description')}</p></div><div className="flex items-center gap-3"><span className="text-xs font-semibold text-slate-500">{meta.total.toLocaleString()} {t('text.orders')}</span><label className="flex items-center gap-2 text-xs font-semibold text-slate-500"><span className="whitespace-nowrap">{t('text.rows_per_page')}</span><select value={String(perPage)} onChange={(event) => updateParams({ per_page: event.target.value, page: undefined })} aria-label={t('text.rows_per_page')} className={inputClass + ' h-9 py-1.5'}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div></div>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
         <label className="relative flex items-center xl:col-span-2"><Search size={16} className="pointer-events-none absolute left-3 text-slate-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t('text.search_marketplace_orders')} aria-label={t('text.search_marketplace_orders')} className={inputClass + ' w-full pl-9'} /></label>
         <select value={searchParams.get('status') || ''} onChange={(event) => updateParams({ status: event.target.value })} aria-label={t('text.order_status')} className={inputClass}><option value="">{t('text.all_order_statuses')}</option>{['pending_payment', 'confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered', 'cancelled', 'partially_refunded', 'refunded'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}</select>
@@ -403,19 +412,43 @@ function MarketplaceOrders({ t }: { t: TFunction }) {
         <label className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">{t('text.from_date')}</span><input type="date" value={searchParams.get('from') || ''} onChange={(event) => updateParams({ from: event.target.value })} aria-label={t('text.from_date')} className={inputClass + ' min-w-0 flex-1'} /></label>
         <label className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">{t('text.to_date')}</span><input type="date" value={searchParams.get('to') || ''} onChange={(event) => updateParams({ to: event.target.value })} aria-label={t('text.to_date')} className={inputClass + ' min-w-0 flex-1'} /></label>
         <select value={(searchParams.get('sort') || 'created_at') + ':' + (searchParams.get('direction') || 'desc')} onChange={(event) => { const [sort, direction] = event.target.value.split(':'); updateParams({ sort, direction }) }} aria-label={t('text.sort_orders')} className={inputClass}><option value="created_at:desc">{t('text.newest_first')}</option><option value="created_at:asc">{t('text.oldest_first')}</option><option value="order_number:asc">{t('text.order_number_a_to_z')}</option><option value="total:desc">{t('text.total_high_to_low')}</option><option value="total:asc">{t('text.total_low_to_high')}</option></select>
-        <select value={String(perPage)} onChange={(event) => updateParams({ per_page: event.target.value, page: undefined })} aria-label={t('text.rows_per_page')} className={inputClass}><option value="25">25 {t('text.per_page')}</option><option value="50">50 {t('text.per_page')}</option><option value="100">100 {t('text.per_page')}</option></select>
         <button type="button" onClick={clearFilters} className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:border-blue-400 dark:border-slate-700 dark:text-slate-200">{t('text.clear_filters')}</button>
       </div>
     </section>
     {error && <div><ErrorState message={error} /><button type="button" onClick={retryList} className="mt-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold dark:border-slate-700">{t('text.retry')}</button></div>}
     {loading ? <LoadingState /> : rows.length === 0 ? <EmptyState label={t('text.no_marketplace_orders')} /> : <Panel title={t('text.order_directory')} icon={ClipboardList}><MarketplaceOrderTable rows={rows} t={t} onOpen={openOrder} /></Panel>}
-    {meta.last_page > 1 && <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500"><span>{meta.total.toLocaleString()} {t('text.orders')} · {t('text.page')} {meta.current_page} {t('text.of')} {meta.last_page}</span><div className="flex items-center gap-1"><button type="button" disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.previous')}><ChevronLeft size={15} /></button>{pageNumbers.map((number) => <button type="button" key={number} onClick={() => updateParams({ page: String(number) }, false)} className={'min-w-8 rounded-lg border px-2 py-1.5 text-xs font-semibold ' + (number === page ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 dark:border-slate-700')}>{number}</button>)}<button type="button" disabled={page >= meta.last_page} onClick={() => updateParams({ page: String(page + 1) }, false)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40 dark:border-slate-700" aria-label={t('text.next')}><ChevronRight size={15} /></button></div></div>}
+    <div className="flex flex-col gap-3 border-t border-slate-200 pt-3 text-sm text-slate-500 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span>{t('text.showing_orders', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: meta.total.toLocaleString() })}</span>
+        <span>{t('text.page_of', { current: currentPage, total: meta.last_page })}</span>
+      </div>
+      <div className="flex items-center justify-between gap-1 md:justify-end">
+        <button type="button" disabled={currentPage <= 1} onClick={() => goToPage(1)} className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300 md:inline-flex" aria-label={t('text.first_page')}>{t('text.first_page')}</button>
+        <button type="button" disabled={currentPage <= 1} onClick={() => goToPage(currentPage - 1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300" aria-label={t('text.previous')}><ChevronLeft size={15} />{t('text.previous')}</button>
+        <div className="hidden items-center gap-1 md:flex">{pageNumbers.map((item, index) => item === 'ellipsis' ? <span key={`ellipsis-${index}`} className="px-1" aria-hidden="true">…</span> : <button type="button" key={item} aria-current={item === currentPage ? 'page' : undefined} onClick={() => goToPage(item)} className={'min-w-8 rounded-lg border px-2 py-1.5 text-xs font-semibold ' + (item === currentPage ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300')}>{item}</button>)}</div>
+        <span className="whitespace-nowrap text-xs font-semibold md:hidden">{t('text.page_of', { current: currentPage, total: meta.last_page })}</span>
+        <button type="button" disabled={currentPage >= meta.last_page} onClick={() => goToPage(currentPage + 1)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300" aria-label={t('text.next')}>{t('text.next')}<ChevronRight size={15} /></button>
+        <button type="button" disabled={currentPage >= meta.last_page} onClick={() => goToPage(meta.last_page)} className="hidden rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-blue-300 hover:text-blue-700 disabled:opacity-40 dark:border-slate-700 dark:hover:border-blue-500 dark:hover:text-blue-300 md:inline-flex" aria-label={t('text.last_page')}>{t('text.last_page')}</button>
+      </div>
+    </div>
     {selectedOrderId && <MarketplaceOrderInvestigation detail={detail} loading={detailLoading} error={detailError} headingRef={investigationHeadingRef} t={t} busy={busy} reason={reason} status={statusCorrection} paymentAmount={paymentAmount} onRetry={retryDetail} onClose={closeOrder} onReason={setReason} onStatus={setStatusCorrection} onPaymentAmount={setPaymentAmount} onHold={hold} onCorrectStatus={correctStatus} onAddNote={addNote} onCollectCod={collectCod} />}
   </div>
 }
 
 function MarketplaceOrderTable({ rows, t, onOpen }: { rows: AdminOrder[]; t: TFunction; onOpen: (id: string) => void }) {
   return <div className="overflow-x-auto"><table className="w-full min-w-[1260px] text-left text-sm"><thead className="sticky top-0 border-b border-slate-200 bg-white text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900"><tr><th className="px-3 py-2.5">{t('text.order_number')}</th><th className="px-3 py-2.5">{t('text.date')}</th><th className="px-3 py-2.5">{t('text.customer')}</th><th className="px-3 py-2.5">{t('text.vendor_store')}</th><th className="px-3 py-2.5">{t('text.vendor_orders')}</th><th className="px-3 py-2.5">{t('text.order_total')}</th><th className="px-3 py-2.5">{t('text.order_status')}</th><th className="px-3 py-2.5">{t('text.payment_status')}</th><th className="px-3 py-2.5">{t('text.fulfillment_summary')}</th><th className="px-3 py-2.5">{t('text.shipment_summary')}</th><th className="px-3 py-2.5 text-right">{t('text.actions')}</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => { const stores = row.vendor_orders?.map((vendor) => vendor.store_name).filter(Boolean).join(', ') || '—'; const fulfillment = row.fulfillment_summary; const shipment = row.shipment_summary; return <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50"><td className="px-3 py-2.5"><p className="font-semibold text-slate-900 dark:text-white">{row.order_number}</p>{row.admin_hold && <p className="mt-1 text-xs font-semibold text-amber-700">{t('text.on_hold')}</p>}</td><td className="px-3 py-2.5 text-xs text-slate-500">{formatDate(row.created_at)}</td><td className="px-3 py-2.5"><p className="font-semibold">{row.customer?.name || '—'}</p><p className="text-xs text-slate-500">{row.customer?.email || row.customer?.phone || '—'}</p></td><td className="max-w-[190px] truncate px-3 py-2.5" title={stores}>{stores}</td><td className="px-3 py-2.5">{row.vendor_count ?? row.vendor_orders?.length ?? 0}</td><td className="px-3 py-2.5 font-semibold">{row.grand_total ?? '—'} {row.currency_code || ''}</td><td className="px-3 py-2.5"><StatusBadge status={row.status} /></td><td className="px-3 py-2.5"><StatusBadge status={row.payment_status} /></td><td className="px-3 py-2.5 text-xs">{fulfillment ? `${fulfillment.delivered || 0}/${row.vendor_count || row.vendor_orders?.length || 0} ${t('text.delivered')}` : '—'}</td><td className="px-3 py-2.5 text-xs">{shipment ? `${shipment.delivered || 0}/${shipment.total || 0} ${t('text.delivered')}` : '—'}</td><td className="px-3 py-2.5 text-right"><button type="button" onClick={() => onOpen(row.id)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"><Eye size={14} />{t('text.investigate')}</button></td></tr> })}</tbody></table></div>
+}
+
+function marketplacePageNumbers(current: number, last: number): Array<number | 'ellipsis'> {
+  if (last <= 7) return Array.from({ length: Math.max(last, 1) }, (_, index) => index + 1)
+  const values = new Set([1, last, current, current - 1, current + 1])
+  const sorted = [...values].filter((value) => value > 0 && value <= last).sort((a, b) => a - b)
+  const pages: Array<number | 'ellipsis'> = []
+  sorted.forEach((value, index) => {
+    if (index > 0 && value - sorted[index - 1] > 1) pages.push('ellipsis')
+    pages.push(value)
+  })
+  return pages
 }
 
 function ProductModeration({ t }: { t: TFunction }) {

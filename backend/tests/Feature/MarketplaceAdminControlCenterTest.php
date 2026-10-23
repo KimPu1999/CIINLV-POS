@@ -267,6 +267,12 @@ class MarketplaceAdminControlCenterTest extends TestCase
             ->assertJsonPath('meta.current_page', 100)
             ->assertJsonPath('meta.last_page', 100)
             ->assertJsonCount(100, 'data');
+
+        $this->actingAs($superAdmin, 'sanctum')
+            ->getJson('/api/v1/admin/marketplace/orders?per_page=10&page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonCount(10, 'data');
     }
 
     public function test_super_admin_interventions_are_reasoned_audited_and_business_scoped(): void
