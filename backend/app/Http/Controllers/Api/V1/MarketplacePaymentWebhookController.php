@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\MarketplacePayment;
+use App\Services\BusinessNotificationService;
 use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceDocumentService;
-use App\Services\BusinessNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ class MarketplacePaymentWebhookController
         }
 
         $result = DB::transaction(function () use ($commissions, $documents, $data, $provider, $reference, $status): array {
-            $payment = \App\Models\MarketplacePayment::query()->where('provider_reference', $reference)->lockForUpdate()->first();
+            $payment = MarketplacePayment::query()->where('provider_reference', $reference)->lockForUpdate()->first();
             if (! $payment || ($payment->provider !== null && $payment->provider !== $provider)) {
                 throw new ConflictHttpException('The payment reference is not recognized.');
             }

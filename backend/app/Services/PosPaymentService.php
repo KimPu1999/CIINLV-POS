@@ -52,7 +52,9 @@ class PosPaymentService
             $change = $payload['method'] === 'cash' ? max(0, (float) bcsub(bcadd($verified, $received, 2), (string) $sale->grand_total, 2)) : 0;
             $payment = Payment::create(['tenant_id' => $sale->tenant_id, 'store_id' => $sale->store_id, 'register_id' => $sale->register_id, 'cashier_shift_id' => $sale->cashier_shift_id, 'sale_id' => $sale->id, 'method' => $payload['method'], 'amount' => $amount, 'received_amount' => $received, 'change_amount' => number_format($change, 2, '.', ''), 'currency_code' => $sale->currency_code, 'status' => $payload['method'] === 'cash' ? 'verified' : 'pending', 'external_reference' => $payload['external_reference'] ?? null, 'provider' => $payload['provider'] ?? null, 'verified_at' => $payload['method'] === 'cash' ? now() : null, 'collected_by' => $actor->id, 'idempotency_key' => $idempotencyKey, 'request_hash' => $hash, 'metadata' => $payload['metadata'] ?? null]);
             $this->sales->refreshPaymentTotals($sale);
-            if ($sale->status === 'completed') $this->invoices->sync($sale->fresh());
+            if ($sale->status === 'completed') {
+                $this->invoices->sync($sale->fresh());
+            }
             $this->audit->record('pos.payment_created', $actor, $sale->store->tenant, $payment, ['sale_id' => $sale->uuid, 'method' => $payment->method, 'status' => $payment->status, 'amount' => $payment->amount]);
 
             return $payment;

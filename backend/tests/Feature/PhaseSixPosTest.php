@@ -3,10 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessSetting;
-use App\Models\CashierShift;
 use App\Models\InventoryLocation;
-use App\Models\Product;
 use App\Models\PosRegister;
+use App\Models\Product;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\Store;

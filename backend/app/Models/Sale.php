@@ -87,5 +87,8 @@ class Sale extends Model
         return $this->hasOne(Receipt::class);
     }
 
-    public function invoice(): HasOne { return $this->hasOne(Invoice::class); }
+    public function invoice(): HasOne
+    {
+        return $this->hasOne(Invoice::class);
+    }
 }

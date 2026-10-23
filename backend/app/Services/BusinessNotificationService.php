@@ -8,6 +8,7 @@ use App\Models\MarketplacePayment;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\StockAlert;
 use App\Models\TenantMembership;
+
 class BusinessNotificationService
 {
     public function orderCreated(MarketplaceOrder $order): void

@@ -50,7 +50,10 @@ class Payment extends Model
         return $this->belongsTo(Sale::class);
     }
 
-    public function invoice(): BelongsTo { return $this->belongsTo(Invoice::class); }
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
+    }
 
     public function collector(): BelongsTo
     {
