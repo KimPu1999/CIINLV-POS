@@ -123,6 +123,7 @@
     "welcome_back": "ပြန်လည်ကြိုဆိုပါသည်",
     "email": "အီးမေးလ်",
     "password": "စကားဝှက်",
+    "password_minimum_length_help": "စကားဝှက်တွင် အနည်းဆုံး စာလုံး ၈ လုံး ပါရမည်။",
     "enter_your_email_address": "သင့်အီးမေးလ်လိပ်စာ ရိုက်ထည့်ပါ...",
     "enter_your_password": "သင့်စကားဝှက် ရိုက်ထည့်ပါ...",
     "unable_to_sign_in_check_your_credentials_and_backend_connection": "ဝင်ရောက်၍ မရပါ။ အထောက်အထားများနှင့် backend ချိတ်ဆက်မှုကို စစ်ဆေးပါ။",

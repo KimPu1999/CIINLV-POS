@@ -123,6 +123,7 @@
     "welcome_back": "Welcome Back",
     "email": "Email",
     "password": "Password",
+    "password_minimum_length_help": "Password must contain at least 8 characters.",
     "enter_your_email_address": "Enter your email address...",
     "enter_your_password": "Enter your password...",
     "unable_to_sign_in_check_your_credentials_and_backend_connection": "Unable to sign in. Check your credentials and backend connection.",

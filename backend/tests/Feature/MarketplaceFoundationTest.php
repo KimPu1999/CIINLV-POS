@@ -94,6 +94,26 @@ class MarketplaceFoundationTest extends TestCase
         ])->assertCreated();
     }
 
+    public function test_customer_registration_accepts_twelve_characters_and_rejects_confirmation_mismatch(): void
+    {
+        $payload = [
+            'name' => 'Long Password Customer',
+            'email' => 'long-password@example.com',
+            'phone' => '0912345678',
+            'terms_accepted' => true,
+        ];
+
+        $this->postJson('/api/v1/marketplace/auth/register', $payload + [
+            'password' => 'Ab1!cdefghij',
+            'password_confirmation' => 'Ab1!cdefghik',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
+
+        $this->postJson('/api/v1/marketplace/auth/register', $payload + [
+            'password' => 'Ab1!cdefghij',
+            'password_confirmation' => 'Ab1!cdefghij',
+        ])->assertCreated();
+    }
+
     public function test_customer_registration_does_not_create_business_membership_or_platform_role(): void
     {
         $this->postJson('/api/v1/marketplace/auth/register', [
