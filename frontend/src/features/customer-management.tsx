@@ -1,8 +1,8 @@
+import { LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LoaderCircle, RefreshCw, RotateCcw, Search, ShieldCheck, UserRound } from 'lucide-react'
-import { request } from '../lib/api'
 import { DataTable, ErrorState, LoadingState, PageHeader } from '../components/ui'
+import { request } from '../lib/api'
 
 type Customer = { id: number; name: string; email: string; phone?: string | null; status?: string | null; registered_at?: string | null; last_login_at?: string | null; email_verified_at?: string | null; order_count?: number; business_scoped?: boolean }
 type CustomerDetail = Customer & { terms_accepted_at?: string | null; terms_version?: string | null; addresses?: Array<Record<string, unknown>> }

@@ -830,5 +830,6 @@
     ,"staff_salesperson_management": "Staff & salesperson management"
     ,"staff_salesperson_management_description": "Assign existing business users to branches. Cashiers remain responsible for shifts; salesperson is recorded on each sale."
     ,"no_staff_for_branch": "No staff assigned to this branch."
+    ,"confirm_cod_payment_received": "Confirm COD Payment Received"
   }
 }

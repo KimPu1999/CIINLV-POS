@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle, BarChart3, Boxes, Package, Plus, Receipt, ShoppingCart, Store, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { DataTable, ErrorState, LoadingState, PageHeader, StatCard } from '../components/ui'
@@ -43,7 +43,7 @@ export function BusinessDashboardPage() {
   const formatMoney = (value?: string | number | null) => value === null || value === undefined ? '—' : new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value))
   const points = trend?.points || []
   const periodNetRevenue = points.reduce((total, point) => total + Number(point.net_sales || 0), 0)
-  const maxSales = useMemo(() => Math.max(1, ...points.map((point) => Number(point.net_sales))), [points])
+  const maxSales = Math.max(1, ...points.map((point) => Number(point.net_sales)))
   const lowRows = (lowStock?.data || []).map((row) => { const variant = row.variant as Record<string, unknown> | undefined; const product = variant?.product as Record<string, unknown> | undefined; return { product: String(product?.name || '—'), sku: String(variant?.sku || '—'), available: String(row.available_quantity ?? row.on_hand_quantity ?? '—'), status: 'low' } })
   const topRows = (top?.rows || []).slice(0, 5).map((row) => ({ product: row.variant?.product?.name || '—', sku: row.variant?.sku || '—', units: row.quantity_sold, sales: formatMoney(row.sales_total) }))
   const salesRows = (recent?.data || []).map((row) => ({ sale: row.sale_number, date: row.completed_at ? new Date(String(row.completed_at)).toLocaleString() : '—', store: (row.store as Record<string, unknown> | undefined)?.name || '—', total: formatMoney(String(row.grand_total ?? '')), status: row.status }))

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Activity, BarChart3, Check, CircleDollarSign, ClipboardList, Eye, LockKeyhole, Package, Save, ShieldAlert, Store, Truck, Users, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -41,7 +41,7 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
       if (tab === 'overview') setDashboard(await request<Dashboard>({ method: 'get', url: '/api/v1/admin/marketplace/dashboard' }))
@@ -52,9 +52,9 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
         setRows(extractRows(await request<unknown>({ method: 'get', url: endpoint, params: { per_page: 50, search: search || undefined, status: status || undefined } })))
       }
     } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_control_center'))) } finally { setLoading(false) }
-  }
+  }, [from, search, status, t, tab, to])
 
-  useEffect(() => { void load() }, [tab])
+  useEffect(() => { void load() }, [load])
 
   const updateStore = (store: AdminStore, active: boolean) => requestConfirmation({ title: active ? t('text.restore_marketplace_store') : t('text.suspend_marketplace_store'), description: active ? t('text.restore_marketplace_store_help') : t('text.suspend_marketplace_store_help'), confirmLabel: active ? t('text.restore') : t('text.suspend'), tone: active ? 'primary' : 'warning', successMessage: t('text.marketplace_store_updated') }, async () => {
     try { await request({ method: 'patch', url: `/api/v1/admin/marketplace/stores/${encodeURIComponent(store.id)}/status`, data: { is_active: active } }); await load() } catch (err) { return errorMessage(err, t('text.unable_to_update_marketplace_store')) }

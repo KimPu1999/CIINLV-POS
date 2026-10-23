@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { BarChart3, Check, CircleDollarSign, Eye, EyeOff, FileText, ImagePlus, Package, Printer, RefreshCw, Save, Search, Settings2, ShoppingBag, Store, Upload, Users, X } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -142,7 +142,7 @@ export function MarketplaceOverviewPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -152,9 +152,9 @@ export function MarketplaceOverviewPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load() }, [load])
 
   if (loading) return <><PageHeader title={t('text.marketplace_overview')} description={t('text.marketplace_overview_description')} /><LoadingState /></>
   if (error || !overview) return <><PageHeader title={t('text.marketplace_overview')} description={t('text.marketplace_overview_description')} action={<RefreshButton onClick={load} />} />{error && <ErrorState message={error} />}</>
@@ -192,14 +192,14 @@ export function MarketplaceStorePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
       const current = await request<MarketplaceStore>({ method: 'get', url: '/api/v1/vendor/marketplace/store' })
       setStore(current); setDraft({ name: current.name || '', slug: current.slug || '', description: current.description || '', public_contact_email: current.public_contact_email || '', public_contact_phone: current.public_contact_phone || '', business_category: current.business_category || '', is_active: current.is_active !== false })
     } catch (err) { setError(errorMessage(err, t('text.unable_to_load_store'))) } finally { setLoading(false) }
-  }
-  useEffect(() => { void load() }, [])
+  }, [t])
+  useEffect(() => { void load() }, [load])
 
   const save = async () => {
     setSaving(true); setError(''); setSuccess('')
@@ -247,13 +247,13 @@ export function MarketplaceProductsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError('')
     try { const [productRows, listingRows] = await Promise.all([request<Product[]>({ method: 'get', url: '/api/v1/products', params: { per_page: 100 } }), request<MarketplaceListing[]>({ method: 'get', url: '/api/v1/vendor/marketplace/listings', params: { per_page: 100 } })]); setProducts(Array.isArray(productRows) ? productRows : []); setListings(Array.isArray(listingRows) ? listingRows : []); setSelected([]) }
     catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_products'))) }
     finally { setLoading(false) }
-  }
-  useEffect(() => { void load() }, [])
+  }, [t])
+  useEffect(() => { void load() }, [load])
   const listingByProduct = useMemo(() => new Map(listings.map((listing) => [listing.product_id || '', listing])), [listings])
   const rows = useMemo(() => products.filter((product) => { const listing = listingByProduct.get(product.id); const matchesQuery = !query.trim() || `${product.name || ''} ${product.sku || ''}`.toLowerCase().includes(query.toLowerCase()); const matchesStatus = status === 'all' || (status === 'published' ? listing?.status === 'published' : listing?.status !== 'published'); return matchesQuery && matchesStatus }), [products, listingByProduct, query, status])
 
@@ -290,7 +290,7 @@ export function MarketplaceOrdersPage() {
   const [page, setPage] = useState(1)
   const [lastPage, setLastPage] = useState(1)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -302,9 +302,9 @@ export function MarketplaceOrdersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, paymentStatus, search, status, t])
 
-  useEffect(() => { void load() }, [page, paymentStatus, search, status])
+  useEffect(() => { void load() }, [load])
 
   if (loading) return <><PageHeader title={t('text.marketplace_orders')} description={t('text.marketplace_orders_description')} /><LoadingState /></>
 
@@ -394,12 +394,12 @@ export function MarketplaceBillingOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!orderId) return
     setLoading(true); setError('')
     try { setOrder(await request<VendorOrder>({ method: 'get', url: `/api/v1/vendor/marketplace/orders/${encodeURIComponent(orderId)}` })) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_order'))) } finally { setLoading(false) }
-  }
-  useEffect(() => { void load() }, [orderId])
+  }, [orderId, t])
+  useEffect(() => { void load() }, [load])
 
   if (loading) return <><PageHeader title="Marketplace Order Details" description="Order, payment and document details." /><LoadingState /></>
   if (!order) return <><PageHeader title="Marketplace Order Details" description="Order, payment and document details." /><ErrorState message={error || t('text.unable_to_load_marketplace_order')} /></>
@@ -416,12 +416,12 @@ export function MarketplaceOrderDetailPage() {
   const [success, setSuccess] = useState('')
   const [form, setForm] = useState({ delivery_type: 'self_delivery' as VendorShipment['delivery_type'], carrier_name: '', tracking_number: '', tracking_url: '', delivery_notes: '' })
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!orderId) return
     setLoading(true); setError('')
     try { setOrder(await request<VendorOrder>({ method: 'get', url: `/api/v1/vendor/marketplace/orders/${encodeURIComponent(orderId)}` })) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_order'))) } finally { setLoading(false) }
-  }
-  useEffect(() => { void load() }, [orderId])
+  }, [orderId, t])
+  useEffect(() => { void load() }, [load])
 
   const createShipment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if (!orderId) return
@@ -477,8 +477,8 @@ export function MarketplaceShippingPage() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const load = async () => { setLoading(true); setError(''); try { const response = await request<{ data?: VendorOrder[] }>({ method: 'get', url: '/api/v1/vendor/marketplace/orders', params: { per_page: 100, active_shipping: true, search: search || undefined, shipment_status: shipmentStatus || undefined, delivery_type: deliveryType || undefined, carrier: carrier || undefined, from: date || undefined, to: date || undefined } }); setOrders(Array.isArray(response) ? response : Array.isArray(response.data) ? response.data : []) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_orders'))) } finally { setLoading(false) } }
-  useEffect(() => { void load() }, [search, shipmentStatus, deliveryType, carrier, date])
+  const load = useCallback(async () => { setLoading(true); setError(''); try { const response = await request<{ data?: VendorOrder[] }>({ method: 'get', url: '/api/v1/vendor/marketplace/orders', params: { per_page: 100, active_shipping: true, search: search || undefined, shipment_status: shipmentStatus || undefined, delivery_type: deliveryType || undefined, carrier: carrier || undefined, from: date || undefined, to: date || undefined } }); setOrders(Array.isArray(response) ? response : Array.isArray(response.data) ? response.data : []) } catch (err) { setError(errorMessage(err, t('text.unable_to_load_marketplace_orders'))) } finally { setLoading(false) } }, [carrier, date, deliveryType, search, shipmentStatus, t])
+  useEffect(() => { void load() }, [load])
   const updateShipment = async (shipment: VendorShipment, status: string) => {
     setBusy(true); setError('')
     try {
@@ -510,14 +510,14 @@ export function MarketplaceEarningsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try { setEarnings(await request<typeof earnings>({ method: 'get', url: '/api/v1/vendor/marketplace/earnings' })) }
     catch (err) { setError(errorMessage(err, 'Unable to load earnings.')) }
     finally { setLoading(false) }
-  }
-  useEffect(() => { void load() }, [])
+  }, [])
+  useEffect(() => { void load() }, [load])
 
   if (loading) return <><PageHeader title={t('text.earnings_commissions')} description={t('text.earnings_commissions_description')} /><LoadingState /></>
   return <><PageHeader title={t('text.earnings_commissions')} description={t('text.earnings_commissions_description')} action={<RefreshButton onClick={load} />} />{error && <div className="mb-5"><ErrorState message={error} /></div>}{!earnings.configured && <div className="mb-5"><ErrorState message="Earnings storage is not available until the reviewed marketplace migration is applied." /></div>}{earnings.commission && <section className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/60 p-5 dark:border-blue-900/60 dark:bg-blue-950/20 sm:p-6"><h2 className="font-bold text-slate-950 dark:text-white">Effective marketplace commission</h2><div className="mt-4 grid gap-4 sm:grid-cols-3"><div><p className="text-xs uppercase tracking-wide text-slate-500">Rate</p><p className="mt-1 text-xl font-bold text-slate-950 dark:text-white">{earnings.commission.rate}%</p></div><div><p className="text-xs uppercase tracking-wide text-slate-500">Rule source</p><p className="mt-1 font-semibold capitalize text-slate-950 dark:text-white">{earnings.commission.source}</p></div><div><p className="text-xs uppercase tracking-wide text-slate-500">Commission base</p><p className="mt-1 font-semibold text-slate-950 dark:text-white">{earnings.commission.base.replaceAll('_', ' ')}</p></div></div><p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">This rate is read-only for Business Admins. Finalized order snapshots keep the rate that applied when each order was recorded.</p></section>}<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[['Pending', earnings.pending], ['Available', earnings.available], ['Reserved', earnings.reserved], ['Paid', earnings.paid]].map(([label, value]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="text-sm font-semibold text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{value}</p></div>)}</div><section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex items-center gap-3"><BarChart3 className="text-blue-600" size={20} /><h2 className="font-bold text-slate-950 dark:text-white">Earnings ledger</h2></div>{earnings.transactions?.data?.length ? <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700"><tr><th className="px-3 py-3">Type</th><th className="px-3 py-3">Direction</th><th className="px-3 py-3">Amount</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Date</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{earnings.transactions.data.map((entry) => <tr key={entry.id}><td className="px-3 py-3">{entry.entry_type}</td><td className="px-3 py-3">{entry.direction}</td><td className="px-3 py-3 font-semibold">{entry.amount} {entry.currency_code}</td><td className="px-3 py-3"><StatusBadge status={entry.status} /></td><td className="px-3 py-3 text-slate-500">{entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div> : <EmptyState label="No marketplace earnings have been recorded yet." />}</section></>
@@ -536,7 +536,7 @@ export function MarketplaceSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  useEffect(() => { request<MarketplaceStore>({ method: 'get', url: '/api/v1/vendor/marketplace/store' }).then(setStore).catch((err) => setError(errorMessage(err, t('text.unable_to_load_store')))).finally(() => setLoading(false)) }, [])
+  useEffect(() => { request<MarketplaceStore>({ method: 'get', url: '/api/v1/vendor/marketplace/store' }).then(setStore).catch((err) => setError(errorMessage(err, t('text.unable_to_load_store')))).finally(() => setLoading(false)) }, [t])
   const save = async (data: Record<string, unknown>) => { if (!store) return; setSaving(true); setError(''); setSuccess(''); try { const saved = await request<MarketplaceStore>({ method: 'patch', url: '/api/v1/vendor/marketplace/store', data }); setStore(saved); setSuccess(t('text.marketplace_settings_saved')) } catch (err) { setError(errorMessage(err, t('text.unable_to_save_marketplace_settings'))) } finally { setSaving(false) } }
   const notifications = { order_updates: store?.notification_preferences?.order_updates ?? true, low_stock_alerts: store?.notification_preferences?.low_stock_alerts ?? true }
   const deliveryType = store?.fulfillment_preferences?.delivery_type || 'self_delivery'
