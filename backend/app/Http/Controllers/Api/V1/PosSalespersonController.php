@@ -14,22 +14,25 @@ class PosSalespersonController
 {
     public function index(Request $request, TenantContext $context, PosAccessService $access): JsonResponse
     {
-        $store = Store::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $request->query('store_id'))->first();
-        if (! $store || ! $access->canAccessStore($request->user(), $store)) {
+        $stores = $context->tenant()->stores()->get()->filter(fn (Store $store) => $access->canAccessStore($request->user(), $store));
+        if ($request->filled('store_id')) {
+            $stores = $stores->where('uuid', $request->query('store_id'));
+        }
+        if ($stores->isEmpty()) {
             throw new NotFoundHttpException('The selected branch was not found.');
         }
 
         $members = StoreMembership::query()
             ->with('user')
             ->where('tenant_id', $context->tenant()->id)
-            ->where('store_id', $store->id)
+            ->whereIn('store_id', $stores->pluck('id'))
             ->whereIn('role', ['salesperson', 'sales_staff', 'cashier'])
             ->where('status', 'active')
             ->whereNull('revoked_at')
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->orderBy('role')
             ->orderBy('id')
-            ->get();
+            ->get()->unique('user_id')->values();
 
         return response()->json(['success' => true, 'data' => $members->map(fn (StoreMembership $membership): array => [
             'id' => $membership->user->id,

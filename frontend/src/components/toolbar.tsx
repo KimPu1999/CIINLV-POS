@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode, type Ref } from 'react'
+import { createPortal } from 'react-dom'
 import { CircleX, Filter, MoreHorizontal, Search, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { translateStatic } from '../lib/i18n'
@@ -6,12 +7,12 @@ import { LabelBadge } from './ui'
 
 type ToolbarIcon = ComponentType<{ size?: number; className?: string }>
 type ToolbarPanel = 'search' | 'filter' | 'menu' | 'close' | 'close-request'
-type ToolbarPanelDetail = { type?: ToolbarPanel; source?: symbol; anchor?: DOMRect }
+type ToolbarPanelDetail = { type?: ToolbarPanel; source?: symbol; anchor?: DOMRect; trigger?: HTMLElement }
 const toolbarPanelEvent = 'ciinlv-toolbar-panel-open'
 const toolbarFilterLabelEvent = 'ciinlv-toolbar-filter-label'
 
-function announceToolbarPanel(type: ToolbarPanel, source?: symbol, anchor?: DOMRect) {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(toolbarPanelEvent, { detail: { type, source, anchor } }))
+function announceToolbarPanel(type: ToolbarPanel, source?: symbol, anchor?: DOMRect, trigger?: HTMLElement | null) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(toolbarPanelEvent, { detail: { type, source, anchor, trigger: trigger || undefined } }))
 }
 
 export function PageToolbar({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -124,7 +125,7 @@ export function FilterToggle({ open, activeCount = 0, onClick }: { open: boolean
   }, [])
   const active = visibleOpen || activeCount > 0
   return <div className="relative inline-flex flex-col items-center">
-    <ToolbarTooltip label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'} onClick={() => { announceToolbarPanel('filter', undefined, triggerRef.current?.getBoundingClientRect()); onClick() }} className={`toolbar-icon-button relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
+    <ToolbarTooltip label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'} onClick={() => { announceToolbarPanel('filter', undefined, triggerRef.current?.getBoundingClientRect(), triggerRef.current); onClick() }} className={`toolbar-icon-button relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
     {activeCount > 0 && <LabelBadge tone="info" className="max-w-28 truncate">{statusLabel}</LabelBadge>}
   </div>
 }
@@ -173,10 +174,11 @@ export function FilterPopover({ open, activeCount = 0, statusLabel, statusActive
   return <div ref={rootRef} className="relative inline-flex flex-col items-center"><ToolbarTooltip label={`Filters: ${statusLabel}`}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={`Filters: ${statusLabel}`} onClick={() => { if (visibleOpen) { onClose(); return } announceToolbarPanel('filter', source.current); setSuppressed(false); onOpen() }} className={`toolbar-icon-button relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>{(statusActive || activeCount > 0) && <LabelBadge tone="info" className="max-w-24 truncate">{statusLabel}</LabelBadge>}{visibleOpen && <div role="dialog" aria-label={`Filter options: ${statusLabel}`} className="absolute right-0 top-full z-50 mt-2.5 w-[min(16rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out]">{children}{onClear && <button type="button" onClick={() => { onClear(); onClose(); window.setTimeout(() => triggerRef.current?.focus(), 0) }} className="mt-3 text-xs font-semibold text-slate-500 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">Clear filter</button>}</div>}</div>
 }
 
-export function FilterPanel({ open, children, placement = 'fixed' }: { open: boolean; children: ReactNode; placement?: 'fixed' | 'inline' }) {
+export function FilterPanel({ open, children, placement = 'fixed', title, onClose, footer }: { open: boolean; children: ReactNode; placement?: 'fixed' | 'inline'; title?: string; onClose?: () => void; footer?: ReactNode }) {
   const [suppressed, setSuppressed] = useState(false)
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
-  const [viewportWidth, setViewportWidth] = useState(typeof window === 'undefined' ? 1024 : window.innerWidth)
+  const [trigger, setTrigger] = useState<HTMLElement | null>(null)
+  const [position, setPosition] = useState({ top: 8, left: 8, maxHeight: 480 })
   const panelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const suppressWhenAnotherPanelOpens = (event: Event) => {
@@ -186,17 +188,47 @@ export function FilterPanel({ open, children, placement = 'fixed' }: { open: boo
       if (type === 'filter') {
         setSuppressed(false)
         if (detail.anchor) setAnchor(detail.anchor)
+        if (detail.trigger) setTrigger(detail.trigger)
       }
     }
     window.addEventListener(toolbarPanelEvent, suppressWhenAnotherPanelOpens)
-    const updateViewport = () => setViewportWidth(window.innerWidth)
-    window.addEventListener('resize', updateViewport)
     return () => {
       window.removeEventListener(toolbarPanelEvent, suppressWhenAnotherPanelOpens)
-      window.removeEventListener('resize', updateViewport)
     }
   }, [])
   const visible = open && !suppressed
+  useEffect(() => {
+    if (!visible || placement === 'inline' || !trigger) return
+    let frame = 0
+    const updatePosition = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const rect = trigger.getBoundingClientRect()
+        if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) {
+          announceToolbarPanel('close-request')
+          return
+        }
+        const panelHeight = panelRef.current?.offsetHeight || 420
+        const panelWidth = Math.min(560, window.innerWidth - 24)
+        const left = Math.max(12, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 12))
+        let top = rect.bottom + 8
+        if (top + panelHeight > window.innerHeight - 12 && rect.top - panelHeight - 8 >= 12) top = rect.top - panelHeight - 8
+        setPosition({ top, left, maxHeight: Math.max(180, window.innerHeight - top - 12) })
+      })
+    }
+    updatePosition()
+    document.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updatePosition) : null
+    observer?.observe(trigger)
+    if (panelRef.current) observer?.observe(panelRef.current)
+    return () => {
+      cancelAnimationFrame(frame)
+      document.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+      observer?.disconnect()
+    }
+  }, [placement, trigger, visible])
   useEffect(() => {
     if (!visible) return
     const panel = panelRef.current
@@ -221,7 +253,8 @@ export function FilterPanel({ open, children, placement = 'fixed' }: { open: boo
     const panel = panelRef.current
     const closeOnOutsideClick = (event: PointerEvent) => {
       const target = event.target as Node
-      const withinTrigger = anchor && event.clientX >= anchor.left && event.clientX <= anchor.right && event.clientY >= anchor.top && event.clientY <= anchor.bottom
+      const triggerRect = trigger?.getBoundingClientRect()
+      const withinTrigger = triggerRect && event.clientX >= triggerRect.left && event.clientX <= triggerRect.right && event.clientY >= triggerRect.top && event.clientY <= triggerRect.bottom
       if (!panel?.contains(target) && !withinTrigger) announceToolbarPanel('close-request')
     }
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -236,11 +269,11 @@ export function FilterPanel({ open, children, placement = 'fixed' }: { open: boo
       document.removeEventListener('pointerdown', closeOnOutsideClick)
       document.removeEventListener('keydown', closeOnEscape)
     }
-  }, [anchor, visible])
+  }, [trigger, visible])
   if (!visible) return null
-  if (placement === 'inline') return <div ref={panelRef} className="relative z-10 mt-2 max-w-[680px] rounded-xl border border-slate-200 bg-white p-4 premium-shadow-md dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-label="Filter options"><div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div></div>
-  const right = anchor ? Math.max(8, viewportWidth - anchor.right) : 8
-  return <div ref={panelRef} className="fixed z-50 w-[min(20rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out]" style={{ top: (anchor?.bottom ?? 0) + 10, right }} role="dialog" aria-label="Filter options"><div className="grid gap-4 sm:grid-cols-2">{children}</div></div>
+  if (placement === 'inline') return <div ref={panelRef} className="sales-filter-popover relative z-10 mt-2 box-border w-[min(560px,calc(100vw-2rem))] max-w-full rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-label={title || 'Filter options'}>{title && <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-700"><h2 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h2>{onClose && <button type="button" onClick={onClose} aria-label="Close filters" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:hover:bg-slate-800 dark:hover:text-slate-200"><X size={17} /></button>}</div>}<div className="grid grid-cols-1 gap-3">{children}</div>{footer && <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">{footer}</div>}</div>
+  const panel = <div ref={panelRef} className="sales-filter-popover fixed z-50 box-border w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out] dark:border-slate-700 dark:bg-slate-900" style={{ top: position.top, left: position.left, maxHeight: position.maxHeight }} role="dialog" aria-label={title || 'Filter options'}>{title && <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-700"><h2 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h2>{onClose && <button type="button" onClick={onClose} aria-label="Close filters" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:hover:bg-slate-800 dark:hover:text-slate-200"><X size={17} /></button>}</div>}<div className="grid grid-cols-1 gap-3">{children}</div>{footer && <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">{footer}</div>}</div>
+  return createPortal(panel, document.body)
 }
 
 export type ToolbarMenuItem = { label: string; icon?: ToolbarIcon; onClick: () => void; disabled?: boolean }
