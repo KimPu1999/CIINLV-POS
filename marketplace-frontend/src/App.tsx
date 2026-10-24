@@ -1169,6 +1169,7 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
   const [ordersMeta, setOrdersMeta] = useState<PaginationMeta | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [ordersError, setOrdersError] = useState('')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const genericError = t('errorGeneric')
 
   useEffect(() => {
@@ -1241,7 +1242,7 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
     { id: 'security', label: t('accountSecurity'), icon: <ShieldCheck size={16} /> },
   ]
 
-  return <PageContainer compact>
+  return <PageContainer compact wide>
     <header className="mb-5 flex flex-wrap items-center justify-between gap-4">
       <Link to={returnToCheckout ? '/checkout' : '/shop'} className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"><ArrowLeft size={15} /> {returnToCheckout ? t('backToCheckout') : t('backToShop')}</Link>
       <div className="flex min-w-0 items-center gap-3">
@@ -1249,20 +1250,31 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
         <div className="min-w-0"><p className="truncate text-sm font-black text-slate-950 dark:text-white">{customer.name}</p><p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{customer.email}</p></div>
       </div>
     </header>
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">{t('account')}</h1></div>
-      <p className="hidden max-w-md text-right text-sm font-semibold text-slate-500 dark:text-slate-400 sm:block">{t('accountWelcome')}</p>
-    </div>
-    <nav role="tablist" aria-label={t('account')} className="mb-5 flex overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex min-w-max gap-1">
-        {accountTabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => selectTab(tab.id)} className={'inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition sm:px-4 ' + (activeTab === tab.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-200')}>{tab.icon}{tab.label}</button>)}
-      </div>
-    </nav>
-    <main className="min-w-0">
+    <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
+      <aside className="lg:sticky lg:top-24 lg:self-start">
+        <button type="button" onClick={() => setSidebarOpen((open) => !open)} aria-expanded={sidebarOpen} aria-controls="account-sidebar-nav" className="flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-800 shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 lg:hidden">
+          <span className="inline-flex min-w-0 items-center gap-2"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-blue-600 text-[10px] font-black text-white">{initials}</span><span className="truncate">{accountTabs.find((tab) => tab.id === activeTab)?.label ?? t('accountOverview')}</span></span><ChevronDown size={17} className={'transition ' + (sidebarOpen ? 'rotate-180' : '')} />
+        </button>
+        <div id="account-sidebar-nav" className={(sidebarOpen ? 'mt-2 block' : 'mt-2 hidden') + ' lg:mt-0 lg:block'}>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="border-b border-slate-100 bg-gradient-to-br from-blue-50 to-white p-4 dark:border-slate-800 dark:from-blue-950/40 dark:to-slate-900">
+              <div className="flex items-center gap-3"><div className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-sm font-black text-white shadow-sm" aria-hidden="true">{initials}</div><div className="min-w-0"><p className="truncate text-sm font-black text-slate-950 dark:text-white">{customer.name}</p><p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{customer.email}</p></div></div>
+            </div>
+            <nav aria-label={t('account')} className="grid gap-1 p-2">
+              {accountTabs.map((tab) => <button key={tab.id} type="button" aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => { selectTab(tab.id); setSidebarOpen(false) }} className={'flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-black transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (activeTab === tab.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-200')}>{tab.icon}<span>{tab.label}</span></button>)}
+              <Link to="/orders" onClick={() => setSidebarOpen(false)} className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:text-slate-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-200"><Package size={16} /><span>{t('myOrders')}</span></Link>
+              <Link to="/wishlist" onClick={() => setSidebarOpen(false)} className="flex min-h-10 items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-black text-slate-600 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:text-slate-300 dark:hover:bg-blue-950/40 dark:hover:text-blue-200"><Heart size={16} /><span>{t('wishlist')}</span></Link>
+              <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+              <button type="button" onClick={() => void handleSignOut()} disabled={loggingOut} className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-black text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-500/20 disabled:cursor-wait disabled:opacity-60 dark:text-red-300 dark:hover:bg-red-950/30"><ShieldCheck size={16} />{loggingOut ? t('loading') : t('signOut')}</button>
+            </nav>
+          </div>
+        </div>
+      </aside>
+      <main className="min-w-0">
           {(notice || error) && <div role={error ? 'alert' : 'status'} className={'rounded-2xl border p-4 text-sm font-semibold ' + (error ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200')}>{error || notice}</div>}
 
           <section id="overview" className={'scroll-mt-28 ' + (activeTab === 'overview' ? '' : 'hidden')}>
-            <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">{t('account')}</p><h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">{t('accountOverview')}</h2></div><Link to="/shop" className="hidden items-center gap-1 text-sm font-black text-blue-600 hover:gap-2 sm:inline-flex">{t('startShopping')} <ArrowRight size={16} /></Link></div>
+            <div className="mb-5 flex items-end justify-between gap-4"><div><h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{t('accountOverview')}</h2></div><Link to="/shop" className="hidden items-center gap-1 text-sm font-black text-blue-600 hover:gap-2 sm:inline-flex">{t('startShopping')} <ArrowRight size={16} /></Link></div>
             <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 sm:grid-cols-3">
               <CompactSummaryCard icon={<Package size={20} />} label={t('ordersCount')} value={count(ordersMeta?.total ?? null)} tone="blue" />
               <CompactSummaryCard icon={<Heart size={20} />} label={t('savedItems')} value={count(wishlist.length)} tone="rose" />
@@ -1271,12 +1283,11 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
           </section>
 
           <section className={activeTab === 'overview' ? '' : 'hidden'}>
-            <div className="mb-3"><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-lg font-black text-slate-950 dark:text-white">{t('quickActions')}</h2></div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Link to="/orders" className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-blue-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"><span className="grid size-9 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><Package size={18} /></span><h3 className="mt-3 text-sm font-black text-slate-950 dark:text-white">{t('viewOrders')}</h3><p className="mt-1 text-xs font-semibold text-slate-500">{t('orderHistory')}</p></Link>
-              <Link to="/wishlist" className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-rose-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"><span className="grid size-9 place-items-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300"><Heart size={18} /></span><h3 className="mt-3 text-sm font-black text-slate-950 dark:text-white">{t('viewWishlist')}</h3><p className="mt-1 text-xs font-semibold text-slate-500">{count(wishlist.length)} {t('savedItems')}</p></Link>
-              <a href="#profile" className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-blue-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"><span className="grid size-9 place-items-center rounded-xl bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300"><UserRound size={18} /></span><h3 className="mt-3 text-sm font-black text-slate-950 dark:text-white">{t('manageProfile')}</h3><p className="mt-1 text-xs font-semibold text-slate-500">{t('profile')}</p></a>
-              <a href="#addresses" className="group rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-amber-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"><span className="grid size-9 place-items-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><MapPin size={18} /></span><h3 className="mt-3 text-sm font-black text-slate-950 dark:text-white">{t('manageAddresses')}</h3><p className="mt-1 text-xs font-semibold text-slate-500">{count(customer.addresses.length)} {t('savedAddresses')}</p></a>
+            <div className="mb-3"><h2 className="text-lg font-black text-slate-950 dark:text-white">{t('quickActions')}</h2></div>
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+              <span className="mr-1 text-xs font-black text-slate-500 dark:text-slate-400">{t('quickActions')}</span>
+              <button type="button" onClick={() => selectTab('profile')} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><UserRound size={14} />{t('manageProfile')}</button>
+              <button type="button" onClick={() => selectTab('addresses')} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"><MapPin size={14} />{t('manageAddresses')}</button>
             </div>
           </section>
 
@@ -1286,13 +1297,13 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
           </section>
 
           <form id="profile" onSubmit={submitProfile} className={'scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 ' + (activeTab === 'profile' ? '' : 'hidden')}>
-            <div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><UserRound size={22} /></span><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('profile')}</h2></div></div><p className="text-xs font-semibold text-slate-400">{t('profileImageUnavailable')}</p></div>
+            <div className="flex flex-wrap items-start justify-between gap-4"><div className="flex items-center gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><UserRound size={22} /></span><div><h2 className="text-2xl font-black text-slate-950 dark:text-white">{t('profile')}</h2></div></div><p className="text-xs font-semibold text-slate-400">{t('profileImageUnavailable')}</p></div>
             <div className="mt-7 grid gap-5 md:grid-cols-2"><Field label={t('fullName')} name="name" value={name} onChange={setName} autoComplete="name" required /><Field label={t('email')} name="email" value={customer.email} autoComplete="email" readOnly /><Field label={t('phoneOptional')} name="phone" type="tel" value={phone} onChange={setPhone} autoComplete="tel" /></div>
             <button type="submit" disabled={busy} className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={17} /> : <Check size={17} />} {t('saveChanges')}</button>
           </form>
 
           <section id="addresses" className={'scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 ' + (activeTab === 'addresses' ? '' : 'hidden')}>
-            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('addresses')}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{t('address')}</p></div><div className="flex items-center gap-3"><MapPin className="text-blue-600" size={22} />{(returnToCheckout || savedForCheckout) && <Link to="/checkout" className="inline-flex items-center gap-1 text-sm font-black text-blue-600 hover:underline">{t('returnToCheckout')} <ArrowRight size={15} /></Link>}</div></div>
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-2xl font-black text-slate-950 dark:text-white">{t('addresses')}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{t('address')}</p></div><div className="flex items-center gap-3"><MapPin className="text-blue-600" size={22} />{(returnToCheckout || savedForCheckout) && <Link to="/checkout" className="inline-flex items-center gap-1 text-sm font-black text-blue-600 hover:underline">{t('returnToCheckout')} <ArrowRight size={15} /></Link>}</div></div>
             {savedForCheckout && <div role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"><span>{t('addressSavedForCheckout')}</span><Link to="/checkout" className="font-black underline">{t('returnToCheckout')}</Link></div>}
             <div className="mt-5 grid gap-3">{customer.addresses.length ? customer.addresses.map((item) => <div key={item.id} className="rounded-2xl border border-slate-200 p-3 dark:border-slate-700 sm:p-4"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-black text-slate-950 dark:text-white">{item.recipientName}</p><p className="mt-1 break-words text-sm leading-6 text-slate-500">{item.addressLine1}{item.addressLine2 ? `, ${item.addressLine2}` : ''}, {item.city}{item.region ? `, ${item.region}` : ''}</p>{item.phone && <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-slate-400"><Phone size={13} /> {item.phone}</p>}</div>{item.isDefault && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{t('defaultAddress')}</span>}</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => { setEditing(item.id); setAddress(addressFromCustomer(item)); setAddressFormOpen(true) }} className="rounded-lg px-3 py-2 text-xs font-black text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">{t('edit')}</button><button type="button" onClick={() => void removeAddress(item.id)} disabled={busy} className="rounded-lg px-3 py-2 text-xs font-black text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">{t('delete')}</button></div></div>) : <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noSavedAddresses')}</p>}</div>
             <div className="mt-5 border-t border-slate-100 pt-5 dark:border-slate-800"><button type="button" onClick={() => { setEditing(null); setAddress(emptyAddress(customer.name)); setAddressFormOpen(true) }} className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white hover:bg-blue-500"><Plus size={16} /> {t('addNewAddress')}</button></div>
@@ -1300,12 +1311,13 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
           </section>
 
           <section id="security" className={'scroll-mt-28 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 ' + (activeTab === 'security' ? '' : 'hidden')}>
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('accountSecurity')}</h2></div><ShieldCheck className="text-emerald-600" size={24} /></div>
+            <div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-black text-slate-950 dark:text-white">{t('accountSecurity')}</h2></div><ShieldCheck className="text-emerald-600" size={24} /></div>
             <div className="mt-6 grid gap-4 md:grid-cols-2"><div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20"><div className="flex items-center gap-2 text-sm font-black text-emerald-800 dark:text-emerald-200"><ShieldCheck size={18} /> {t('sessionProtected')}</div><p className="mt-2 text-sm leading-6 text-emerald-900/70 dark:text-emerald-100/70">{t('securedByServer')}</p></div><div className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-slate-950 dark:text-white">{t('emailStatus')}</p><span className={'rounded-full px-2.5 py-1 text-xs font-black ' + (customer.emailVerifiedAt ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300')}>{customer.emailVerifiedAt ? t('verified') : t('notVerified')}</span></div><p className="mt-2 truncate text-sm font-semibold text-slate-500">{customer.email}</p></div></div>
             <div className="mt-4 rounded-2xl border border-slate-200 p-5 dark:border-slate-700"><p className="font-black text-slate-950 dark:text-white">{t('password')}</p><p className="mt-2 text-sm leading-6 text-slate-500">{t('passwordChangeUnavailable')}</p></div>
             <button type="button" onClick={() => void handleSignOut()} disabled={loggingOut} className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 px-5 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60 dark:border-red-900/50 dark:hover:bg-red-950/20">{loggingOut && <LoaderCircle className="animate-spin" size={17} />}{t('signOut')}</button>
           </section>
         </main>
+    </div>
   </PageContainer>
 }
 

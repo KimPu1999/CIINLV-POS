@@ -198,10 +198,14 @@ test('customer account dashboard uses authenticated profile, address, order and 
   assert.match(app, /accountSecurity/)
 })
 
-test('customer account uses compact tabs and preserves safe checkout deep links', () => {
+test('customer account uses an in-body sidebar and preserves safe checkout deep links', () => {
   assert.match(app, /type AccountTab = 'overview' \| 'profile' \| 'addresses' \| 'security'/)
-  assert.match(app, /role="tablist"/)
-  assert.match(app, /aria-selected=\{activeTab === tab\.id\}/)
+  assert.match(app, /lg:grid-cols-\[240px_minmax\(0,1fr\)\]/)
+  assert.match(app, /lg:sticky lg:top-24 lg:self-start/)
+  assert.match(app, /account-sidebar-nav/)
+  assert.match(app, /to="\/orders"/)
+  assert.match(app, /to="\/wishlist"/)
+  assert.doesNotMatch(app, /role="tablist"/)
   assert.match(app, /returnToCheckout \? '\/checkout' : '\/shop'/)
   assert.match(app, /addressFormOpen/)
   assert.match(app, /addNewAddress/)
