@@ -93,6 +93,76 @@ class CustomerManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_platform_super_admin_can_manually_verify_an_unverified_customer_with_audited_evidence(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $customer = User::factory()->unverified()->create(['email' => 'manual-verify@example.com']);
+        CustomerProfile::create(['user_id' => $customer->id, 'status' => 'active']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/platform/customers/{$customer->id}/email-verification", [
+                'reason' => 'Customer confirmed ownership through the approved support callback.',
+                'evidence_reference' => 'SUP-2026-0042',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.email_verification_method', 'admin_override')
+            ->assertJsonPath('data.email', $customer->email);
+
+        $this->assertNotNull($customer->refresh()->email_verified_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'platform.customer_email_verified_manually',
+            'actor_user_id' => $admin->id,
+            'subject_id' => (string) $customer->id,
+        ]);
+        $this->assertSame('admin_override', DB::table('audit_logs')->where('action', 'platform.customer_email_verified_manually')->latest('id')->value('metadata->verification_method'));
+    }
+
+    public function test_manual_customer_email_verification_requires_reason_and_evidence_and_rejects_non_customers(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $customer = User::factory()->unverified()->create();
+        CustomerProfile::create(['user_id' => $customer->id, 'status' => 'active']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/platform/customers/{$customer->id}/email-verification", [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['reason', 'evidence_reference']);
+
+        $nonCustomer = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/v1/platform/customers/{$nonCustomer->id}/email-verification", [
+                'reason' => 'This account is not a customer and must be rejected.',
+                'evidence_reference' => 'SUP-2026-0043',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_business_admin_cannot_manually_verify_customer_email_and_verified_accounts_are_not_reverified(): void
+    {
+        [$tenant] = [Tenant::create(['name' => 'Verification Business', 'slug' => 'verification-business'])];
+        $role = Role::create(['tenant_id' => $tenant->id, 'name' => 'business_admin']);
+        $businessAdmin = User::factory()->create();
+        TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $businessAdmin->id, 'role_id' => $role->id, 'status' => 'active']);
+        $customer = User::factory()->create(['email_verified_at' => now()]);
+        CustomerProfile::create(['user_id' => $customer->id, 'status' => 'active']);
+
+        $this->actingAs($businessAdmin, 'sanctum')
+            ->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->patchJson("/api/v1/platform/customers/{$customer->id}/email-verification", [
+                'reason' => 'A business administrator must not perform this action.',
+                'evidence_reference' => 'SUP-2026-0044',
+            ])
+            ->assertForbidden();
+
+        $superAdmin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $this->actingAs($superAdmin, 'sanctum')
+            ->patchJson("/api/v1/platform/customers/{$customer->id}/email-verification", [
+                'reason' => 'This account has already completed email verification.',
+                'evidence_reference' => 'SUP-2026-0045',
+            ])
+            ->assertStatus(409);
+    }
+
     public function test_platform_listing_returns_filter_metadata_statistics_and_supported_page_sizes(): void
     {
         $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);

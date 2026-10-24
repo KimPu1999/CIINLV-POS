@@ -178,6 +178,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/customers/{customer}/activity', [CustomerManagementController::class, 'activity']);
             Route::get('/customers/{customer}', [CustomerManagementController::class, 'platformShow']);
             Route::patch('/customers/{customer}/status', [CustomerManagementController::class, 'updateStatus']);
+            Route::patch('/customers/{customer}/email-verification', [CustomerManagementController::class, 'manuallyVerifyEmail']);
             Route::post('/customers/{customer}/password-reset', [CustomerManagementController::class, 'sendPasswordReset'])->middleware('throttle:password-reset');
 
             Route::apiResource('tenants', PlatformTenantController::class)->only(['index', 'store', 'show', 'update']);

@@ -153,6 +153,40 @@ class CustomerManagementController
         return response()->json(['success' => true, 'data' => $this->summary($customer->refresh()->load('customerProfile'))]);
     }
 
+    public function manuallyVerifyEmail(Request $request, User $customer, AuditLogger $auditLogger): JsonResponse
+    {
+        $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+            'evidence_reference' => ['required', 'string', 'min:3', 'max:500'],
+        ]);
+
+        $verifiedCustomer = DB::transaction(function () use ($customer): User {
+            $lockedCustomer = User::query()->lockForUpdate()->findOrFail($customer->id);
+            $this->platformCustomer($lockedCustomer);
+
+            if ($lockedCustomer->hasVerifiedEmail()) {
+                abort(409, 'This customer email is already verified.');
+            }
+
+            $lockedCustomer->forceFill(['email_verified_at' => now()])->save();
+
+            return $lockedCustomer->refresh()->load('customerProfile');
+        });
+
+        $auditLogger->record('platform.customer_email_verified_manually', $request->user(), subject: $verifiedCustomer, metadata: [
+            'customer_email_reference' => hash('sha256', strtolower($verifiedCustomer->email)),
+            'previous_status' => 'unverified',
+            'new_status' => 'verified',
+            'verification_method' => 'admin_override',
+            'reason' => trim((string) $request->input('reason')),
+            'evidence_reference' => trim((string) $request->input('evidence_reference')),
+        ]);
+
+        return response()->json(['success' => true, 'data' => array_merge($this->summary($verifiedCustomer), [
+            'email_verification_method' => 'admin_override',
+        ])]);
+    }
+
     public function sendPasswordReset(Request $request, User $customer, AuditLogger $auditLogger): JsonResponse
     {
         $customer = $this->platformCustomer($customer);

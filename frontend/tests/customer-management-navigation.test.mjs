@@ -21,6 +21,14 @@ test('customer management UI keeps platform-only account actions', () => {
   assert.match(feature, /Business customers/)
 })
 
+test('manual email verification is platform-only, audited, and requires evidence', () => {
+  assert.match(feature, /email-verification/)
+  assert.match(feature, /verification_reason/)
+  assert.match(feature, /verification_evidence/)
+  assert.match(feature, /verify_email_manually/)
+  assert.match(feature, /email_verification_successful/)
+})
+
 test('customer list uses debounced URL state and server pagination metadata', () => {
   assert.match(feature, /350\)/)
   assert.match(feature, /useSearchParams/)
@@ -31,9 +39,11 @@ test('customer list uses debounced URL state and server pagination metadata', ()
 })
 
 test('customer actions stay inside table rows and details preserve tenant-scoped endpoints', () => {
-  assert.match(feature, /aria-label=\{`\$\{t\('text\.view'\)\} \$\{row\.name\}`\}/)
+  assert.match(feature, /CustomerActionsMenu/)
+  assert.match(feature, /aria-haspopup="menu"/)
+  assert.match(feature, /view_customer/)
   assert.match(feature, /api\/v1\/business\/customers\//)
   assert.match(feature, /orderPage/)
   assert.match(feature, /\/orders/)
-  assert.doesNotMatch(feature, /rows\.map\(\(row\) => <button/)
+  assert.doesNotMatch(feature, /verify_email_manually.*onClick=\{\(\) => onVerify\(row\)\}/)
 })
