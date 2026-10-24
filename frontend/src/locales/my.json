@@ -25,7 +25,7 @@
     "sales_history": "အရောင်းမှတ်တမ်း",
     "returns_refunds": "ပြန်အပ်မှုနှင့် ငွေပြန်အမ်းမှု",
     "reports_analytics": "အစီရင်ခံစာနှင့် ခွဲခြမ်းစိတ်ဖြာမှု",
-    "low_stock_alerts": "လက်ကျန်နည်း သတိပေးချက်များ",
+    "low_stock_alerts": "လက်ကျန်နည်း အကြောင်းကြားချက်များ",
     "settings": "ဆက်တင်များ",
     "overview": "အနှစ်ချုပ်",
     "workspace": "လုပ်ငန်းခွင်",
@@ -72,11 +72,11 @@
     "ready": "အသင့်ဖြစ်သည်",
     "pending": "စောင့်ဆိုင်းနေသည်",
     "completed": "ပြီးစီးသည်",
-    "cancelled": "ပယ်ဖျက်သည်",
+    "cancelled": "ပယ်ဖျက်ပြီး",
     "draft": "မူကြမ်း",
     "approved": "အတည်ပြုသည်",
     "received": "လက်ခံပြီး",
-    "processing": "လုပ်ဆောင်နေသည်",
+    "processing": "လုပ်ဆောင်နေသည်…",
     "failed": "မအောင်မြင်ပါ",
     "rejected": "ပယ်ချသည်",
     "open": "ဖွင့်ထားသည်",
@@ -110,7 +110,7 @@
     "previous": "ယခင်",
     "next": "နောက်တစ်ခု",
     "page": "စာမျက်နှာ",
-    "save_changes": "ပြောင်းလဲမှုများ သိမ်းဆည်းရန်",
+    "save_changes": "ပြောင်းလဲမှုများ သိမ်းရန်",
     "cancel": "ပယ်ဖျက်ရန်",
     "close": "ပိတ်ရန်",
     "confirm": "အတည်ပြုရန်",
@@ -146,7 +146,7 @@
     "pending_approval": "အတည်ပြုရန် စောင့်ဆိုင်းနေသည်",
     "receiving": "လက်ခံနေသည်",
     "ordered_value": "အော်ဒါတန်ဖိုး",
-    "business_profile": "လုပ်ငန်း ကိုယ်ရေးအချက်အလက်",
+    "business_profile": "လုပ်ငန်းပရိုဖိုင်",
     "business_information": "လုပ်ငန်းအချက်အလက်",
     "business_logo": "လုပ်ငန်းလိုဂို",
     "business_name": "လုပ်ငန်းအမည်",
@@ -154,7 +154,7 @@
     "business_type": "လုပ်ငန်းအမျိုးအစား",
     "company": "ကုမ္ပဏီ",
     "personal": "တစ်ဦးပိုင်",
-    "identity_information": "ကိုယ်ရေးအထောက်အထား အချက်အလက်",
+    "identity_information": "ကိုယ်ရေးအထောက်အထားအချက်အလက်",
     "verification_documents": "အတည်ပြုစာရွက်စာတမ်းများ",
     "branding": "အမှတ်တံဆိပ်",
     "id_type": "အထောက်အထားအမျိုးအစား",
@@ -183,12 +183,11 @@
     "remove": "ဖယ်ရှားရန်",
     "save": "သိမ်းဆည်းရန်",
     "save_profile": "ကိုယ်ရေးအချက်အလက် သိမ်းဆည်းရန်",
-    "pos_checkout": "POS ငွေရှင်းခြင်း",
     "pos_checkout_description": "ရွေးချယ်ထားသော ခွင့်ပြုထားသည့် ဆိုင်ခွဲနှင့် ငွေရှင်းကောင်တာအတွက် ဆာဗာမှ တွက်ချက်ပေးသော အမြန်ငွေရှင်းမှု။",
     "open_cashier_shift": "ငွေကိုင်အလှည့် ဖွင့်ရန်",
     "shift_open": "အလှည့် ဖွင့်ထားသည်",
     "shift_closed": "အလှည့် ပိတ်ထားသည်",
-    "branch": "ဆိုင်ခွဲ",
+    "branch": "ဘဏ်ခွဲ",
     "salesperson": "ရောင်းကိုယ်စားလှယ်",
     "salesperson_select": "ရောင်းကိုယ်စားလှယ် ရွေးပါ",
     "select_salesperson_before_checkout": "ငွေရှင်းမပြီးမီ ရောင်းကိုယ်စားလှယ်ကို ရွေးပါ။",
@@ -199,7 +198,7 @@
     "search_products": "ကုန်ပစ္စည်းများ ရှာရန်",
     "search_products_sku_or_barcode": "ကုန်ပစ္စည်း၊ SKU သို့မဟုတ် ဘားကုဒ် ရှာရန်",
     "current_cart": "လက်ရှိခြင်း",
-    "items": "ပစ္စည်း",
+    "items": "ပစ္စည်းများ",
     "cash_drawer": "ငွေသေတ္တာ",
     "expected_cash": "မျှော်မှန်းငွေသား",
     "opening_balance": "စတင်လက်ကျန်",
@@ -215,10 +214,9 @@
     "add_to_cart": "ခြင်းထဲသို့ ထည့်ရန်",
     "confirm_sale": "အရောင်းအတည်ပြုမည်",
     "next_category": "နောက်အမျိုးအစား",
-    "out_of_stock": "လက်ကျန်မရှိပါ",
     "item_discount": "ပစ္စည်းလျှော့စျေး",
     "item_discount_value": "ပစ္စည်းလျှော့စျေးတန်ဖိုး",
-    "scan_or_select_products_to_begin": "စတင်ရန် ကုန်ပစ္စည်းကို စကင်ဖတ်ပါ သို့မဟုတ် ရွေးချယ်ပါ။",
+    "scan_or_select_products_to_begin": "စတင်ရန် ကုန်ပစ္စည်းများကို စကင်ဖတ်ပါ သို့မဟုတ် ရွေးပါ။",
     "uncategorized": "အမျိုးအစားမခွဲထားပါ",
     "product_out_of_stock": "ဤကုန်ပစ္စည်းမှာ လက်ကျန်မရှိပါ။",
     "no_active_product_matches_barcode": "ဤဘားကုဒ်နှင့် ကိုက်ညီသော အသုံးပြုနိုင်သည့် ကုန်ပစ္စည်း မတွေ့ပါ။",
@@ -268,17 +266,16 @@
     "partially_paid": "တစ်စိတ်တစ်ပိုင်း ပေးချေပြီး",
     "unpaid": "မပေးချေရသေးပါ",
     "total_amount_paid": "ပေးချေပြီးငွေ စုစုပေါင်း",
-    "balance_due": "ကျန်ငွေ",
+    "balance_due": "ပေးရန်ကျန်ငွေ",
     "payment_status": "ငွေပေးချေမှုအခြေအနေ",
     "confirm_payment": "ငွေပေးချေမှု အတည်ပြုရန်",
     "print_bill": "ဘေလ် ပုံနှိပ်ရန်",
-    "subtotal": "စုစုပေါင်းခွဲ",
+    "subtotal": "အခွန်မပါ စုစုပေါင်း",
     "tax": "အခွန်",
     "total": "စုစုပေါင်း",
-    "cash_received": "လက်ခံရရှိငွေ",
+    "cash_received": "လက်ခံရရှိသော ငွေသား",
     "enter_tendered_amount": "ပေးချေမည့်ငွေ ရိုက်ထည့်ပါ",
     "change": "အမ်းငွေ",
-    "processing": "လုပ်ဆောင်နေသည်…",
     "complete_cash_sale": "ငွေသားအရောင်း ပြီးစီးရန်",
     "open_shift_to_checkout": "ငွေရှင်းရန် အလှည့်ဖွင့်ပါ",
     "open_shift_before_sale": "အရောင်းမပြီးမီ ငွေရှင်းကောင်တာအလှည့်ကို ဖွင့်ပါ။",
@@ -314,10 +311,9 @@
     "no_purchase_orders_match_these_filters": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော ဝယ်ယူမှုအော်ဒါမရှိပါ။",
     "no_active_low_stock_alerts_in_this_scope": "ဤအတိုင်းအတာအတွင်း လက်ကျန်နည်း သတိပေးချက်မရှိပါ။",
     "search_for_a_product_to_begin": "စတင်ရန် ကုန်ပစ္စည်းတစ်ခု ရှာပါ။",
-    "scan_or_select_products_to_begin": "စတင်ရန် ကုန်ပစ္စည်းများကို စကင်ဖတ်ပါ သို့မဟုတ် ရွေးပါ။",
     "all_stock_states": "လက်ကျန်အခြေအနေအားလုံး",
     "all_authorized_locations": "ခွင့်ပြုထားသော တည်နေရာအားလုံး",
-    "active_alerts": "လက်ရှိသတိပေးချက်များ",
+    "active_alerts": "လက်ရှိ သတိပေးချက်များ",
     "resolved_history": "ဖြေရှင်းပြီး မှတ်တမ်း",
     "all_history": "မှတ်တမ်းအားလုံး",
     "grid_view": "ဇယားကွက်မြင်ကွင်း",
@@ -369,7 +365,7 @@
     "failure": "မအောင်မြင်ပါ",
     "no_security_events_match_the_selected_filters": "ရွေးချယ်ထားသော စစ်ထုတ်မှုများနှင့် ကိုက်ညီသော လုံခြုံရေးဖြစ်ရပ် မရှိပါ။",
     "event": "ဖြစ်ရပ်",
-    "actor": "ဆောင်ရွက်သူ",
+    "actor": "လုပ်ဆောင်သူ",
     "time": "အချိန်",
     "security_monitoring": "လုံခြုံရေး စောင့်ကြည့်မှု",
     "alert_monitoring_unavailable": "သတိပေးချက် စောင့်ကြည့်မှု မရရှိနိုင်ပါ",
@@ -393,14 +389,9 @@
     "browser_sessions_only": "ဘရောက်ဇာ စက်ရှင်များသာ",
     "availability_unknown": "ရရှိနိုင်မှု မသိရှိရသေးပါ",
     "events": "ဖြစ်ရပ်များ",
-    "actions": "လုပ်ဆောင်ချက်များ",
-    "details": "အသေးစိတ်",
     "platform_event": "ပလက်ဖောင်း ဖြစ်ရပ်",
     "system": "စနစ်",
     "platform": "ပလက်ဖောင်း",
-    "previous": "ယခင်",
-    "next": "နောက်တစ်ခု",
-    "active_alerts": "လက်ရှိ သတိပေးချက်များ",
     "no_persisted_security_alert_source": "သိမ်းဆည်းထားသော လုံခြုံရေးသတိပေးချက် အရင်းအမြစ် မသတ်မှတ်ထားပါ။",
     "ip_unavailable": "IP မရရှိနိုင်ပါ",
     "browser_details_unavailable": "ဘရောက်ဇာ အသေးစိတ် မရရှိနိုင်ပါ",
@@ -410,15 +401,13 @@
     "confirm_session_revocation": "ဤစက်ရှင်ကို ရုပ်သိမ်းရန် အတည်ပြုပါသည်။",
     "revoking": "ရုပ်သိမ်းနေသည်…",
     "confirm_revoke": "ရုပ်သိမ်းရန် အတည်ပြု",
-    "cancel": "ပယ်ဖျက်ရန်",
     "audit_event_details": "စစ်ဆေးမှု ဖြစ်ရပ် အသေးစိတ်",
-    "close": "ပိတ်ရန်",
     "timestamp": "အချိန်တံဆိပ်",
     "actor_role": "ဆောင်ရွက်သူ အခန်းကဏ္ဍ",
     "resource": "အရင်းအမြစ်",
     "resource_id": "အရင်းအမြစ် ID",
     "correlation_id": "ဆက်စပ်မှု ID",
-    "not_recorded": "မှတ်တမ်းတင်ထားခြင်း မရှိပါ",
+    "not_recorded": "မှတ်တမ်း မရှိပါ",
     "related_activity": "ဆက်စပ်လုပ်ဆောင်မှု",
     "safe_metadata": "လုံခြုံသော မက်တာဒေတာ",
     "security_metadata_redacted": "အထောက်အထားများ၊ တိုကင်များ၊ လျှို့ဝှက်ချက်များနှင့် ငွေပေးချေမှု အချက်အလက်များကို ဆာဗာဘက်တွင် ဖုံးကွယ်ထားပါသည်။",
@@ -442,15 +431,14 @@
     "refresh_returns": "ပြန်အပ်မှုများ ပြန်လည်စစ်ဆေးရန်",
     "approve_return": "ပြန်အပ်မှု အတည်ပြုရန်",
     "total_transfers": "လွှဲပြောင်းမှု စုစုပေါင်း",
-    "in_transit": "ပို့ဆောင်နေသည်",
-    "discrepancies": "ကွာဟချက်များ",
+    "in_transit": "လမ်းကြောင်းပေါ်တွင်",
+    "discrepancies": "မကိုက်ညီမှုများ",
     "search_transfer_number_or_location": "လွှဲပြောင်းနံပါတ် သို့မဟုတ် တည်နေရာ ရှာရန်",
     "no_stock_transfers_match_these_filters": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော လက်ကျန်လွှဲပြောင်းမှု မရှိပါ။",
     "new_stock_transfer": "လက်ကျန်လွှဲပြောင်းမှုအသစ်",
     "receive_transfer": "လွှဲပြောင်းမှု လက်ခံရန်",
     "post_receipt": "လက်ခံမှု မှတ်တမ်းတင်ရန်",
     "no_sku": "SKU မရှိပါ",
-    "uncategorized": "အမျိုးအစားမခွဲထားပါ",
     "product_search": "ကုန်ပစ္စည်း ရှာဖွေမှု",
     "search_name_brand_sku_or_barcode": "အမည်၊ အမှတ်တံဆိပ်၊ SKU သို့မဟုတ် ဘားကုဒ် ရှာရန်။",
     "copy": "ကူးယူရန်",
@@ -474,1106 +462,1058 @@
     "camera_unsupported": "ဤဘရောက်ဇာ သို့မဟုတ် စက်တွင် ကင်မရာအသုံးပြုမှုကို မထောက်ပံ့ပါ။ HTTPS သို့မဟုတ် localhost ကို အသုံးပြုပါ သို့မဟုတ် USB/ကိုယ်တိုင်ရိုက်ထည့်မှုကို အသုံးပြုပါ။",
     "camera_start_failed": "ကင်မရာ စတင်၍မရပါ။ ဘရောက်ဇာခွင့်ပြုချက်နှင့် စက်အခြေအနေကို စစ်ဆေးပြီး ပြန်စမ်းပါ။",
     "unable_to_verify_the_session_check_the_laravel_server_and_retry": "စက်ရှင်ကို အတည်ပြု၍ မရပါ။ Laravel ဆာဗာကို စစ်ဆေးပြီး ပြန်စမ်းပါ။",
-    "too_many_login_attempts_try_again_in": "ဝင်ရောက်ရန် ကြိုးစားမှုများလွန်းပါသည်။ {{time}} အကြာတွင် ပြန်စမ်းပါ။"
-    ,"signing_in": "ဝင်ရောက်နေသည်…"
-    ,"try_again_in": "{{time}} အကြာတွင် ပြန်စမ်းရန်"
-    ,"hide_password": "စကားဝှက် ဖျောက်ရန်"
-    ,"show_password": "စကားဝှက် ပြရန်"
-    ,"marketplace_overview": "Marketplace အနှစ်ချုပ်"
-    ,"marketplace_overview_description": "ဤလုပ်ငန်းအတွက် အတည်ပြုထားသော Customer Marketplace စာမျက်နှာကို လုပ်ငန်းအလိုက် စီမံပါ။"
-    ,"manage_store": "စတိုး စီမံရန်"
-    ,"unable_to_load_marketplace_overview": "Marketplace အနှစ်ချုပ်ကို ဖွင့်၍ မရပါ။"
-    ,"store_visible": "စတိုးကို ပြသထားသည်"
-    ,"store_hidden": "စတိုးကို ဖျောက်ထားသည်"
-    ,"store_visibility_help": "ဖျောက်ထားပါက စတိုးနှင့် ထုတ်ဝေထားသော စာရင်းများကို အများမြင်နိုင်မည် မဟုတ်ပါ။"
-    ,"published_products": "ထုတ်ဝေထားသော ကုန်ပစ္စည်းများ"
-    ,"marketplace_listings_visible_to_customers": "ဖောက်သည်များ မြင်နိုင်သော Marketplace စာရင်းများ"
-    ,"pending_marketplace_orders": "စောင့်ဆိုင်းနေသော Marketplace အော်ဒါများ"
-    ,"orders_not_available_yet": "အော်ဒါများ မရရှိသေးပါ"
-    ,"awaiting_fulfillment": "ဖြည့်ဆည်းပေးရန် စောင့်ဆိုင်းနေသည်"
-    ,"completed_marketplace_orders": "ပြီးစီးသော Marketplace အော်ဒါများ"
-    ,"fulfilled_orders": "ဖြည့်ဆည်းပြီးသော အော်ဒါများ"
-    ,"marketplace_revenue": "Marketplace ဝင်ငွေ"
-    ,"revenue_not_available_yet": "ဝင်ငွေ မရရှိသေးပါ"
-    ,"net_marketplace_revenue": "အသားတင် Marketplace ဝင်ငွေ"
-    ,"preview_storefront": "Storefront ကြည့်ရန်"
-    ,"all_authorized_branches": "ခွင့်ပြုထားသော ဆိုင်ခွဲအားလုံး"
-    ,"unassigned_unknown_branch": "သတ်မှတ်မထား / မသိရှိသော ဆိုင်ခွဲ"
-    ,"group_day": "နေ့စဉ်"
-    ,"group_week": "အပတ်စဉ်"
-    ,"group_month": "လစဉ်"
-    ,"dashboard_activity_period_note": "လုပ်ဆောင်ချက်ကာလ: {{range}} · လုပ်ငန်းအချိန်ဇုန်: {{timezone}}။ လက်ရှိလက်ကျန်များကို ဤကာလဖြင့် မကန့်သတ်ပါ။"
-    ,"total_marketplace_orders": "Marketplace အော်ဒါ စုစုပေါင်း"
-    ,"selected_period": "ရွေးထားသော လုပ်ဆောင်ချက်ကာလ"
-    ,"paid_revenue": "ပေးချေပြီး ဝင်ငွေ"
-    ,"verified_paid_orders": "အတည်ပြုပြီး ပေးချေမှုမှတ်တမ်းများ"
-    ,"pending_cod": "စောင့်ဆိုင်းနေသော COD"
-    ,"pending_cod_orders": "ငွေလက်ခံရန် စောင့်နေသော အော်ဒါ {{count}} ခု"
-    ,"approved_refunds": "အတည်ပြုပြီး ပြန်အမ်းမှု လုပ်ဆောင်ချက်"
-    ,"revenue_analytics": "ဝင်ငွေ ခွဲခြမ်းစိတ်ဖြာမှု"
-    ,"revenue_analytics_description": "ရွေးထားသော အုပ်စုခွဲအလိုက် အော်ဒါတန်ဖိုးစုစုပေါင်းနှင့် အတည်ပြုပြီး ပေးချေငွေ။"
-    ,"current_balances_not_date_activity": "အတည်ပြုထားသော settlement လက်ကျန်များဖြစ်ပြီး ရက်စွဲစစ်ထုတ်မှုသည် လုပ်ဆောင်ချက်အပေါ်သာ သက်ရောက်ပါသည်။"
-    ,"earnings_snapshot": "ဝင်ငွေ လက်ရှိအခြေအနေ"
-    ,"gross_order_value": "အော်ဒါတန်ဖိုး စုစုပေါင်း"
-    ,"order": "အော်ဒါ"
-    ,"view_earnings": "ဝင်ငွေကြည့်ရန်"
-    ,"order_performance": "အော်ဒါ လုပ်ဆောင်ရည်"
-    ,"order_performance_description": "ဖြည့်ဆည်းမှုသည် ဆိုင်ခွဲများစွာကို ဖြတ်သန်းသော်လည်း အော်ဒါကို တစ်ကြိမ်သာ ရေတွက်ပါသည်။"
-    ,"payment_overview": "ပေးချေမှု အနှစ်ချုပ်"
-    ,"payment_overview_description": "COD ကို ပေးချေပြီးဟု အတည်ပြုမပြီးမချင်း မသတ်မှတ်ပါ။"
-    ,"paid_orders": "ပေးချေပြီး အော်ဒါများ"
-    ,"authorized_payments": "ခွင့်ပြုထားသော ပေးချေမှုများ"
-    ,"failed_payments": "မအောင်မြင်သော ပေးချေမှုများ"
-    ,"refunded_payments": "ပြန်အမ်းပြီး ပေးချေမှုများ"
-    ,"fulfillment_dashboard": "ဖြည့်ဆည်းမှု ဒက်ရှ်ဘုတ်"
-    ,"fulfillment_dashboard_description": "ပို့ဆောင်မှု လုပ်ဆောင်ချက်ကို အော်ဒါအခြေအနေ ရေတွက်မှုမှ သီးခြားထားပါသည်။"
-    ,"ready_for_dispatch": "ပို့ဆောင်ရန် အသင့်"
-    ,"inventory_alerts": "Inventory သတိပေးချက်များ"
-    ,"out_of_stock_products": "လက်ကျန်ကုန်နေသော ကုန်ပစ္စည်းများ"
-    ,"available_inventory": "ရရှိနိုင်သော Inventory"
-    ,"top_selling_products": "အရောင်းရဆုံး ကုန်ပစ္စည်းများ"
-    ,"top_selling_products_description": "ရွေးထားသော လုပ်ဆောင်ချက်ကာလအတွင်းရှိ အမှန်တကယ် Marketplace အော်ဒါပစ္စည်းများ။"
-    ,"units": "ယူနစ်"
-    ,"recent_orders_bounded": "လတ်တလော လုပ်ဆောင်ချက်ကို ကန့်သတ်အရေအတွက်ဖြင့် ပြသထားပါသည်။"
-    ,"view_all_orders": "အော်ဒါအားလုံး ကြည့်ရန်"
-    ,"alerts_action_center": "သတိပေးချက်များနှင့် လုပ်ဆောင်ရန်နေရာ"
-    ,"alerts_action_center_description": "အာရုံစိုက်ရန် လိုအပ်နိုင်သော လုပ်ငန်းဆိုင်ရာ အချက်များ။"
-    ,"new_orders_requiring_review": "ပြန်လည်စစ်ဆေးရန် အော်ဒါအသစ်များ"
-    ,"pending_cod_collection": "စောင့်ဆိုင်းနေသော COD ငွေလက်ခံမှု"
-    ,"failed_deliveries": "မအောင်မြင်သော ပို့ဆောင်မှုများ"
-    ,"quick_actions": "အမြန်လုပ်ဆောင်ချက်များ"
-    ,"quick_actions_description": "ခွင့်ပြုထားသော Marketplace စီမံမှု လုပ်ငန်းစဉ်ကို ဖွင့်ပါ။"
-    ,"delivery_fulfillment": "ပို့ဆောင်မှုနှင့် ဖြည့်ဆည်းမှု"
-    ,"earnings_commissions": "ဝင်ငွေနှင့် ကော်မရှင်များ"
-    ,"low_stock_products": "လက်ကျန်နည်းသော ကုန်ပစ္စည်းများ"
-    ,"marketplace_uses_pos_inventory_availability": "လက်ကျန်ရရှိနိုင်မှုကို လက်ရှိ POS inventory စနစ်မှ ဖတ်ယူပါသည်။"
-    ,"view_inventory": "လက်ကျန်ကြည့်ရန်"
-    ,"no_marketplace_low_stock_products": "Reorder level အောက်ရောက်နေသော Marketplace ကုန်ပစ္စည်း မရှိပါ။"
-    ,"recent_marketplace_orders": "လတ်တလော Marketplace အော်ဒါများ"
-    ,"orders_will_appear_after_checkout_is_enabled": "Marketplace checkout နှင့် အော်ဒါဝန်ဆောင်မှုများ ဖွင့်ပြီးနောက် အော်ဒါများ ဤနေရာတွင် ပေါ်လာပါမည်။"
-    ,"no_marketplace_orders_yet": "Marketplace အော်ဒါ မရှိသေးပါ။"
-    ,"my_store": "ကျွန်ုပ်၏ စတိုး"
-    ,"manage_public_marketplace_store": "ဤလုပ်ငန်း၏ အများမြင် Marketplace စတိုး ပရိုဖိုင်ကို စီမံပါ။"
-    ,"unable_to_load_store": "Marketplace စတိုးကို ဖွင့်၍ မရပါ။"
-    ,"store_profile_saved": "စတိုးပရိုဖိုင် သိမ်းပြီးပါပြီ။"
-    ,"unable_to_save_store": "စတိုးပရိုဖိုင်ကို သိမ်း၍ မရပါ။"
-    ,"marketplace_image_validation": "JPG၊ PNG သို့မဟုတ် WebP ပုံကို 5 MB အထိ ရွေးပါ။"
-    ,"store_image_updated": "စတိုးပုံကို ပြင်ဆင်ပြီးပါပြီ။"
-    ,"unable_to_upload_store_image": "စတိုးပုံကို တင်၍ မရပါ။"
-    ,"store_profile": "စတိုးပရိုဖိုင်"
-    ,"store_profile_description": "အတည်ပြုပြီးနောက် ဤအချက်အလက်များကို Marketplace ဖောက်သည်များ မြင်နိုင်ပါမည်။"
-    ,"store_name": "စတိုးအမည်"
-    ,"store_slug": "စတိုး URL အမည်"
-    ,"store_description": "စတိုးအကြောင်းဖော်ပြချက်"
-    ,"public_contact_email": "အများမြင် ဆက်သွယ်ရန် အီးမေးလ်"
-    ,"public_contact_phone": "အများမြင် ဆက်သွယ်ရန် ဖုန်း"
-    ,"notification_preferences": "အကြောင်းကြားချက် ဆက်တင်များ"
-    ,"order_updates": "အော်ဒါ အပ်ဒိတ်များ"
-    ,"low_stock_alerts": "လက်ကျန်နည်း အကြောင်းကြားချက်များ"
-    ,"fulfillment_preference": "ဖြည့်ဆည်းမှု ဦးစားပေးမှု"
-    ,"self_delivery": "ကိုယ်တိုင် ပို့ဆောင်ခြင်း"
-    ,"external_courier": "ပြင်ပ Courier"
-    ,"store_logo": "စတိုးလိုဂို"
-    ,"marketplace_logo_help": "အများမြင်စတိုးနှင့် Marketplace စာရင်းများတွင် ပြသပါမည်။"
-    ,"store_banner": "စတိုးဘန်နာ"
-    ,"marketplace_banner_help": "အများမြင်စတိုးခေါင်းစီးအတွက် အလျားလိုက်ပုံကို အသုံးပြုပါ။"
-    ,"saving": "သိမ်းနေသည်…"
-    ,"approval_required": "Super Admin အတည်ပြုချက် လိုအပ်ပါသည်"
-    ,"store_approval_help": "Business Admin သည် မိမိလုပ်ငန်း၏ စတိုးပရိုဖိုင်ကိုသာ ပြင်နိုင်ပြီး စတိုးအတည်ပြုချက်ကို ကိုယ်တိုင်ပြုလုပ်ခြင်း သို့မဟုတ် archived/suspended လုပ်ငန်းစည်းမျဉ်းကို ကျော်လွှားခြင်း မပြုနိုင်ပါ။"
-    ,"marketplace_products": "Marketplace ကုန်ပစ္စည်းများ"
-    ,"manage_marketplace_product_publishing": "Catalog သို့မဟုတ် inventory မှတ်တမ်းများ မိတ္တူမပြုဘဲ လက်ရှိ POS ကုန်ပစ္စည်းများကို ထုတ်ဝေပါ။"
-    ,"marketplace_catalog_scope": "ခွင့်ပြုထားသော ကုန်ပစ္စည်းစာရင်းနှင့် ဘဏ်ခွဲလက်ကျန်များအပေါ် Marketplace စာရင်းများကို စီမံပါ။"
-    ,"unable_to_load_marketplace_products": "Marketplace ကုန်ပစ္စည်းများကို ဖွင့်၍ မရပါ။"
-    ,"publish_selected": "ရွေးထားသည်များ ထုတ်ဝေရန်"
-    ,"search_products_or_sku": "ကုန်ပစ္စည်း သို့မဟုတ် SKU ရှာရန်"
-    ,"all_products": "ကုန်ပစ္စည်းအားလုံး"
-    ,"published": "ထုတ်ဝေထားသည်"
-    ,"unpublished": "မထုတ်ဝေရသေးပါ"
-    ,"unpublished_products": "မထုတ်ဝေရသေးသော ကုန်ပစ္စည်းများ"
-    ,"draft_archived_not_listed": "မူကြမ်း၊ သိမ်းဆည်းထားသည် သို့မဟုတ် စာရင်းမတင်ရသေးပါ"
-    ,"all_listing_states": "စာရင်းအခြေအနေအားလုံး"
-    ,"not_listed": "စာရင်းမတင်ရသေးပါ"
-    ,"marketplace_status": "Marketplace အခြေအနေ"
-    ,"view_stock": "လက်ကျန်ကြည့်ရန်"
-    ,"select_current_page": "လက်ရှိစာမျက်နှာကို ရွေးရန်"
-    ,"only_selected_page_products": "ဤစာမျက်နှာတွင် ရွေးချယ်ထားသော ကုန်ပစ္စည်းများကိုသာ လုပ်ဆောင်မည်ဖြစ်ပြီး စာရင်းတစ်ခုချင်းစီကို ဆာဗာက စစ်ဆေးပါမည်။"
-    ,"authorized_branch_stock": "ခွင့်ပြုထားသော ဘဏ်ခွဲလက်ကျန်"
-    ,"authorized_branch_stock_help": "လက်ရှိဘဏ်ခွဲ စစ်ထုတ်မှုအတွက် ခွင့်ပြုထားသော လက်ကျန်မှတ်တမ်းများ။"
-    ,"no_authorized_stock_balances": "ခွင့်ပြုထားသော လက်ကျန်မှတ်တမ်း မတွေ့ပါ။"
-    ,"branch_stock_title": "ဘဏ်ခွဲလက်ကျန် · {{name}}"
-    ,"variant_size": "မူကွဲ / အရွယ်အစား"
-    ,"select_all_products": "ကုန်ပစ္စည်းအားလုံး ရွေးရန်"
-    ,"price": "စျေးနှုန်း"
-    ,"available_stock": "ရရှိနိုင်သော လက်ကျန်"
-    ,"category": "အမျိုးအစား"
-    ,"not_tracked": "ခြေရာမခံပါ"
-    ,"not_published": "မထုတ်ဝေရသေးပါ"
-    ,"publish": "ထုတ်ဝေရန်"
-    ,"unpublish": "ထုတ်ဝေမှု ရပ်ရန်"
-    ,"images": "ပုံများ"
-    ,"select": "ရွေးရန်"
-    ,"no_products_match_filters": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော ကုန်ပစ္စည်း မရှိပါ။"
-    ,"stock_load_failed": "ခွင့်ပြုထားသော ဘဏ်ခွဲလက်ကျန်ကို မဖတ်နိုင်ပါ။"
-    ,"publish_product_question": "{{name}} ကို ထုတ်ဝေမည်လား။"
-    ,"unpublish_product_question": "{{name}} ကို ထုတ်ဝေမှု ရပ်မည်လား။"
-    ,"publish_product_help": "လက်ရှိ POS ကုန်ပစ္စည်းအတွက် Marketplace စာရင်းတစ်ခု ဖန်တီးပါမည်။ Inventory နှင့် SKU မှတ်တမ်းများ မပြောင်းလဲပါ။"
-    ,"unpublish_product_help": "ဤစာရင်းကို အများမြင်နိုင်တော့မည် မဟုတ်ပါ။ POS ကုန်ပစ္စည်းနှင့် inventory သည် မပြောင်းလဲပါ။"
-    ,"publish_product": "ကုန်ပစ္စည်း ထုတ်ဝေရန်"
-    ,"unpublish_product": "ကုန်ပစ္စည်း ထုတ်ဝေမှု ရပ်ရန်"
-    ,"publish_selected_products_question": "ရွေးထားသော ကုန်ပစ္စည်း {{count}} ခုကို ထုတ်ဝေမည်လား။"
-    ,"publish_selected_products_help": "စတိုးအတည်ပြုချက်၊ အခြေအနေ နှင့် inventory စည်းမျဉ်းများကို ဖြတ်ကျော်နိုင်သော ကုန်ပစ္စည်းများသာ ထုတ်ဝေပါမည်။"
-    ,"product_published": "ကုန်ပစ္စည်းကို Marketplace သို့ ထုတ်ဝေပြီးပါပြီ။"
-    ,"product_unpublished": "ကုန်ပစ္စည်းကို Marketplace မှ ထုတ်ဝေမှု ရပ်ပြီးပါပြီ။"
-    ,"unable_to_update_marketplace_product": "Marketplace ကုန်ပစ္စည်းကို ပြင်ဆင်၍ မရပါ။"
-    ,"listing_images_uploaded": "Marketplace စာရင်းပုံများ တင်ပြီးပါပြီ။"
-    ,"unable_to_upload_listing_images": "Marketplace စာရင်းပုံများကို တင်၍ မရပါ။"
-    ,"marketplace_orders": "Marketplace အော်ဒါများ"
-    ,"order_investigation": "အော်ဒါ စိစစ်မှု"
-    ,"investigate": "စိစစ်ရန်"
-    ,"audit_history": "စာရင်းစစ်မှတ်တမ်း"
-    ,"businesses_and_shipments": "လုပ်ငန်းများနှင့် ပို့ဆောင်မှုများ"
-    ,"order_status": "အော်ဒါအခြေအနေ"
-    ,"on_hold": "ဆိုင်းငံ့ထားသည်"
-    ,"order_on_hold": "အော်ဒါ ဆိုင်းငံ့ထားသည်"
-    ,"intervention_reason": "ကြားဝင်ဆောင်ရွက်ရသည့် အကြောင်းရင်း"
-    ,"intervention_reason_placeholder": "စစ်ဆေးပြီးသော လုပ်ငန်းဆိုင်ရာ အကြောင်းရင်းကို ရှင်းပြပါ။"
-    ,"intervention_reason_required": "ဤကြားဝင်ဆောင်ရွက်မှုအတွက် အကြောင်းရင်း လိုအပ်ပါသည်။"
-    ,"intervention_confirmation": "ဤလုပ်ဆောင်ချက်ကို စည်းမျဉ်းအတိုင်း စစ်ဆေးပြီး မှတ်တမ်းတင်ကာ သက်ဆိုင်ရာလုပ်ငန်းများကို အကြောင်းကြားပါမည်။"
-    ,"place_order_on_hold": "အော်ဒါကို ဆိုင်းငံ့ရန်"
-    ,"release_order_hold": "အော်ဒါဆိုင်းငံ့မှု ဖြုတ်ရန်"
-    ,"record_investigation_note": "စိစစ်မှတ်ချက် မှတ်တမ်းတင်ရန်"
-    ,"correct_order_status": "အော်ဒါအခြေအနေ ပြင်ရန်"
-    ,"save_correction": "ပြင်ဆင်ချက် သိမ်းရန်"
-    ,"cod_amount_received": "COD လက်ခံရရှိသည့် ပမာဏ"
-    ,"confirm_cod_payment": "COD ငွေပေးချေမှု အတည်ပြုရန်"
-    ,"cod_payment_confirmation_help": "ရှိပြီးသား ငွေပေးချေမှုဝန်ဆောင်မှုက ပမာဏနှင့် ထပ်တူမဖြစ်စေရန် key ကို စစ်ဆေးပါမည်။"
-    ,"payment_amount_required": "လက်ခံရရှိသည့် မှန်ကန်သော ပမာဏကို ထည့်ပါ။"
-    ,"marketplace_intervention_saved": "Marketplace ကြားဝင်ဆောင်ရွက်မှုကို သိမ်းပြီးပါပြီ။"
-    ,"unable_to_save_marketplace_intervention": "Marketplace ကြားဝင်ဆောင်ရွက်မှုကို သိမ်း၍ မရပါ။"
-    ,"unable_to_load_marketplace_order": "Marketplace အော်ဒါကို ဖွင့်၍ မရပါ။"
-    ,"marketplace_orders_description": "ခွင့်ပြုထားသော လုပ်ငန်းများ၏ Marketplace အော်ဒါများကို ရှာဖွေ၊ စစ်ထုတ်ပြီး စိစစ်ပါ။"
-    ,"marketplace_operations": "Marketplace လုပ်ငန်းစဉ်များ"
-    ,"marketplace_operations_description": "Marketplace အော်ဒါများ၊ ပို့ဆောင်မှု ပြဿနာများနှင့် ဖောက်သည်တောင်းဆိုချက်များကို စောင့်ကြည့်ပါ။"
-    ,"unable_to_load_marketplace_operations": "Marketplace လုပ်ငန်းစဉ်များကို ဖွင့်၍ မရပါ။"
-    ,"no_marketplace_operations": "Marketplace မှတ်တမ်း မတွေ့ပါ။"
-    ,"cancellation_requests": "ပယ်ဖျက်ရန် တောင်းဆိုချက်များ"
-    ,"return_requests": "ပြန်အပ်ရန် တောင်းဆိုချက်များ"
-    ,"refund_requests": "ပြန်အမ်းငွေ တောင်းဆိုချက်များ"
-    ,"vendor_orders": "ရောင်းချသူအော်ဒါများ"
-    ,"internal_tracking_id": "အတွင်းသုံး ခြေရာခံ ID"
-    ,"requested_amount": "တောင်းဆိုထားသော ပမာဏ"
-    ,"reason": "အကြောင်းရင်း"
-    ,"server_verified": "ဆာဗာက စိစစ်ပြီး"
-    ,"approve_marketplace_request": "Marketplace တောင်းဆိုချက်ကို အတည်ပြုမည်လား။"
-    ,"approve_marketplace_request_help": "ဆာဗာဘက်မှ အတည်ပြုမှုလုပ်ငန်းစဉ်ကို ဆောင်ရွက်ပြီး စာရင်းစစ်မှတ်တမ်း ထည့်သွင်းပါမည်။"
-    ,"reject_marketplace_request": "Marketplace တောင်းဆိုချက်ကို ငြင်းပယ်မည်လား။"
-    ,"reject_marketplace_request_help": "တောင်းဆိုချက်ကို ငြင်းပယ်ပြီး ဆုံးဖြတ်ချက်ကို မှတ်တမ်းတင်ပါမည်။"
-    ,"marketplace_request_updated": "Marketplace တောင်းဆိုချက်ကို ပြင်ဆင်ပြီးပါပြီ။"
-    ,"unable_to_update_marketplace_request": "Marketplace တောင်းဆိုချက်ကို ပြင်ဆင်၍ မရပါ။"
-    ,"refunds_blocked_provider": "အတည်ပြုထားသော provider မသတ်မှတ်မချင်း အမှန်တကယ် ငွေပြန်အမ်းခြင်းကို ပိတ်ထားပါသည်။"
-    ,"reviewed": "စိစစ်ပြီး"
-    ,"unable_to_load_marketplace_orders": "Marketplace အော်ဒါများကို ဖွင့်၍ မရပါ။"
-    ,"order_number": "အော်ဒါနံပါတ်"
-    ,"order_date": "အော်ဒါရက်စွဲ"
-    ,"items": "ပစ္စည်းများ"
-    ,"quantity": "အရေအတွက်"
-    ,"product": "ကုန်ပစ္စည်း"
-    ,"price": "ဈေးနှုန်း"
-    ,"total": "စုစုပေါင်း"
-    ,"back": "နောက်သို့"
-    ,"confirmed": "အတည်ပြုပြီး"
-    ,"shipped": "ပို့ပြီး"
-    ,"delivered": "ရောက်ရှိပြီး"
-    ,"marketplace_order_details": "Marketplace အော်ဒါအသေးစိတ်"
-    ,"fulfillment_status": "အော်ဒါဖြည့်ဆည်းမှု အခြေအနေ"
-    ,"shipment_status": "ပို့ဆောင်မှု အခြေအနေ"
-    ,"create_shipment": "ပို့ဆောင်မှု ဖန်တီးရန်"
-    ,"delivery_type": "ပို့ဆောင်မှုအမျိုးအစား"
-    ,"self_delivery": "ကိုယ်တိုင်ပို့ဆောင်ခြင်း"
-    ,"external_courier": "ပြင်ပပို့ဆောင်ရေး"
-    ,"carrier_name": "ပို့ဆောင်သူအမည်"
-    ,"tracking_number": "ခြေရာခံနံပါတ်"
-    ,"tracking_url": "ခြေရာခံ URL"
-    ,"delivery_notes": "ပို့ဆောင်မှုမှတ်ချက်"
-    ,"save_shipment": "ပို့ဆောင်မှု ဖန်တီးရန်"
-    ,"shipment_created": "ပို့ဆောင်မှု ဖန်တီးပြီးပါပြီ။"
-    ,"shipment_updated": "ပို့ဆောင်မှုအခြေအနေ ပြင်ဆင်ပြီးပါပြီ။"
-    ,"unable_to_load_marketplace_order": "Marketplace အော်ဒါကို ဖွင့်၍ မရပါ။"
-    ,"unable_to_create_shipment": "ပို့ဆောင်မှုကို ဖန်တီး၍ မရပါ။"
-    ,"unable_to_update_shipment": "ပို့ဆောင်မှုအခြေအနေကို ပြင်ဆင်၍ မရပါ။"
-    ,"shipment_not_created": "ပို့ဆောင်မှုကို မဖန်တီးရသေးပါ။"
-    ,"in_transit": "လမ်းကြောင်းပေါ်တွင်"
-    ,"delivery_failed": "ပို့ဆောင်မှု မအောင်မြင်ပါ"
-    ,"returned": "ပြန်ပို့ပြီး"
-    ,"cancelled": "ပယ်ဖျက်ပြီး"
-    ,"customer_delivery_address": "ဖောက်သည်ပို့ဆောင်ရမည့်လိပ်စာ"
-    ,"shipping_fulfillment": "ပို့ဆောင်မှုနှင့် ဖြည့်ဆည်းခြင်း"
-    ,"shipping_fulfillment_description": "Marketplace vendor အော်ဒါများအတွက် ခွင့်ပြုထားသော ပို့ဆောင်မှုအခြေအနေများကို စီမံရန် ပြင်ဆင်ပါ။"
-    ,"customer_reviews": "ဖောက်သည်သုံးသပ်ချက်များ"
-    ,"customer_reviews_description": "ဤစတိုးအတွက် အတည်ပြုထားသော ဖောက်သည်အကြံပြုချက်များကို ကြည့်ပါ။"
-    ,"unable_to_load_customer_reviews": "ဖောက်သည်သုံးသပ်ချက်များကို ဖွင့်၍ မရပါ။"
-    ,"total_reviews": "သုံးသပ်ချက်စုစုပေါင်း"
-    ,"average_rating": "ပျမ်းမျှအဆင့်သတ်မှတ်ချက်"
-    ,"pending_reviews": "စောင့်ဆိုင်းနေသော သုံးသပ်ချက်များ"
-    ,"approved_reviews": "အတည်ပြုထားသော သုံးသပ်ချက်များ"
-    ,"rejected_hidden_reviews": "ငြင်းပယ် သို့မဟုတ် ဖျောက်ထားသည်"
-    ,"search_reviews": "ကုန်ပစ္စည်း၊ ဖောက်သည် သို့မဟုတ် သုံးသပ်ချက် ရှာရန်"
-    ,"review_status": "သုံးသပ်ချက်အခြေအနေ"
-    ,"rating": "အဆင့်သတ်မှတ်ချက်"
-    ,"all_ratings": "အဆင့်အားလုံး"
-    ,"stars": "ကြယ်"
-    ,"review_pending": "စောင့်ဆိုင်းနေသည်"
-    ,"review_approved": "အတည်ပြုပြီး"
-    ,"review_rejected": "ငြင်းပယ်ပြီး"
-    ,"review_hidden": "ဖျောက်ထားသည်"
-    ,"no_customer_reviews": "ဖောက်သည်သုံးသပ်ချက် မတွေ့ပါ။"
-    ,"unknown_product": "မသိရသော ကုန်ပစ္စည်း"
-    ,"customer": "ဖောက်သည်"
-    ,"verified_purchase": "အတည်ပြုထားသော ဝယ်ယူမှု"
-    ,"moderation_reason": "စိစစ်မှုအကြောင်းပြချက်"
-    ,"previous": "ယခင်"
-    ,"next": "နောက်တစ်ခု"
-    ,"earnings_commissions": "ဝင်ငွေနှင့် ကော်မရှင်များ"
-    ,"earnings_commissions_description": "Marketplace ရောင်းအား၊ အခကြေးငွေ၊ ပြန်အမ်းငွေနှင့် အသားတင်ဝင်ငွေကို ကြည့်ပါ။"
-    ,"feature_not_available_yet": "ဤ Marketplace လုပ်ငန်းစဉ်ကို မရရှိသေးပါ"
-    ,"phase_5_dependency": "Marketplace အခြေခံစနစ်ကို စောင့်ဆိုင်းနေသည်"
-    ,"marketplace_orders_not_available": "လက်ရှိ backend အခြေခံစနစ်တွင် Marketplace အော်ဒါနှင့် checkout ဇယားများ မရှိသေးပါ။ Phase 5 အော်ဒါစနစ် ပြီးစီးသောအခါ အမှန်တကယ် vendor sub-order များကို အသုံးပြုပါမည်။"
-    ,"shipping_not_available": "ပို့ဆောင်မှုမှတ်တမ်းနှင့် ဆာဗာက ထိန်းချုပ်သော ဖြည့်ဆည်းမှုအခြေအနေများ မရှိသေးပါ။ ခွင့်ပြုထားသော ပို့ဆောင်မှုစနစ် မရှိမချင်း ဤစာမျက်နှာကို ဖတ်ရှုရန်သာ ထားရှိပါမည်။"
-    ,"reviews_not_available": "ဖောက်သည်သုံးသပ်ချက်မှတ်တမ်းနှင့် စိစစ်မှု API မရှိသေးပါ။ အစားထိုးသုံးသပ်ချက်များကို မပြပါ။"
-    ,"earnings_not_available": "Marketplace ကော်မရှင်၊ ပြန်အမ်းငွေနှင့် ပေးချေမှုမှတ်တမ်းများ မရှိသေးပါ။ POS ဝင်ငွေကို Marketplace ဝင်ငွေအဖြစ် မပြပါ။"
-    ,"marketplace_settings": "Marketplace ဆက်တင်များ"
-    ,"marketplace_settings_description": "ဤလုပ်ငန်းစတိုး၏ ပါဝင်မှုနှင့် အများမြင်ရရှိနိုင်မှုကို ထိန်းချုပ်ပါ။"
-    ,"qr_payment_settings": "QR / မိုဘိုင်း ငွေပေးချေမှု"
-    ,"global_qr_payment_title": "Marketplace အားလုံးသုံး QR / မိုဘိုင်း ငွေပေးချေမှု"
-    ,"global_qr_payment_help": "ဤဗဟိုငွေပေးချေမှုအကောင့်ကို Super Admin က ထိန်းချုပ်ပြီး ရောင်းချသူအားလုံး၏ သင့်လျော်သော Marketplace အော်ဒါများအတွက် အသုံးပြုပါသည်။"
-    ,"qr_payment_settings_help": "အတည်ပြုထားသော ဝန်ဆောင်မှုက QR ငွေပေးချေမှုကို ပံ့ပိုးပါက ဖောက်သည်များအသုံးပြုနိုင်မည့် လုပ်ငန်းပိုင် ငွေပေးချေမှုအချက်အလက်ကို သတ်မှတ်ပါ။"
-    ,"payment_provider": "ငွေပေးချေမှု ဝန်ဆောင်မှုပေးသူ"
-    ,"payment_account_name": "ငွေပေးချေမှု အကောင့်အမည်"
-    ,"payment_phone_number": "ငွေပေးချေမှု ဖုန်းနံပါတ်"
-    ,"payment_instructions": "ငွေပေးချေမှု လမ်းညွှန်ချက်"
-    ,"enable_qr_payment": "QR / မိုဘိုင်း ငွေပေးချေမှုအချက်အလက် ဖွင့်ရန်"
-    ,"qr_payment_enable_help": "ဤလုပ်ဆောင်ချက်သည် ငွေပေးချေမှုလမ်းညွှန်ချက်များကိုသာ ပြသပါသည်။ ရှိပြီးသား ဝန်ဆောင်မှုပေးသူ၏ အတည်ပြုမှု မပြီးမချင်း အော်ဒါများသည် စောင့်ဆိုင်းနေမည်ဖြစ်သည်။"
-    ,"qr_code_image": "QR ကုဒ်ပုံ"
-    ,"qr_code_image_help": "5 MB အထိ ရှင်းလင်းသော PNG၊ JPG၊ JPEG သို့မဟုတ် WebP ပုံကို တင်ပါ။"
-    ,"qr_code_preview": "QR ကုဒ် အစမ်းကြည့်ရန်"
-    ,"no_qr_code_uploaded": "QR ကုဒ်ပုံ မတင်ရသေးပါ"
-    ,"remove_qr_code": "QR ကုဒ် ဖယ်ရှားရန်"
-    ,"qr_payment_image_updated": "QR ငွေပေးချေမှုပုံကို ပြင်ဆင်ပြီးပါပြီ။"
-    ,"qr_payment_image_removed": "QR ငွေပေးချေမှုပုံကို ဖယ်ရှားပြီးပါပြီ။"
-    ,"marketplace_settings_saved": "Marketplace ဆက်တင်များ သိမ်းပြီးပါပြီ။"
-    ,"unable_to_save_marketplace_settings": "Marketplace ဆက်တင်များကို သိမ်း၍ မရပါ။"
-    ,"marketplace_settings_unavailable": "Marketplace ဆက်တင်များကို ရယူ၍ မရပါ။"
-    ,"marketplace_settings_load_help": "ဆက်တင်များ တောင်းဆိုမှု မအောင်မြင်ပါ။ အက်ဒမင်အကောင့်ဝင်ထားမှုနှင့် API ရရှိနိုင်မှုကို စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။"
-    ,"platform_admin_session_required": "ဤဘရောက်ဇာစက်ရှင်သည် Platform Super Admin အဖြစ် အကောင့်ဝင်ထားခြင်း မရှိပါ။ ထွက်ပြီး ရည်ရွယ်ထားသော အက်ဒမင်အကောင့်ဖြင့် ပြန်လည်ဝင်ရောက်ပါ။"
-    ,"retry": "ထပ်မံကြိုးစားရန်"
-    ,"marketplace_participation": "Marketplace ပါဝင်မှု"
-    ,"marketplace_participation_help": "အတည်ပြုထားသော ဤစတိုး၏ အများမြင် Marketplace ရရှိနိုင်မှုကို ဖွင့် သို့မဟုတ် ပိတ်ပါ။ အတည်ပြုချက်ကို Super Admin ကသာ ထိန်းချုပ်ပါသည်။"
-    ,"approval_status": "အတည်ပြုချက်အခြေအနေ"
-    ,"business_status": "လုပ်ငန်းအခြေအနေ"
-    ,"business_verification_status": "လုပ်ငန်းအတည်ပြုမှု အခြေအနေ"
-    ,"suspension_reason": "ရပ်ဆိုင်းရသည့်အကြောင်းပြချက်"
-    ,"suspended_by": "ရပ်ဆိုင်းသူ"
-    ,"suspended_at": "ရပ်ဆိုင်းချိန်"
-    ,"settings_scope_note": "လက်ရှိဆက်တင်အတိုင်းအတာ"
-    ,"notification_and_fulfillment_settings_come_with_later_marketplace_workflows": "အကြောင်းကြားချက်၊ ပို့ဆောင်မှုနှင့် ဖြည့်ဆည်းမှုဆက်တင်များကို backend လုပ်ငန်းစဉ်များ ရရှိလာသောအခါ ချိတ်ဆက်ပါမည်။"
-    ,"choose_image": "ပုံရွေးရန်"
-    ,"total_vendors": "ရောင်းချသူ စုစုပေါင်း"
-    ,"all_marketplace_stores": "Marketplace စတိုးအားလုံး"
-    ,"approved_marketplace_stores": "အတည်ပြုထားသော Marketplace စတိုးများ"
-    ,"suspended_vendors": "ရပ်ဆိုင်းထားသော ရောင်းချသူများ"
-    ,"inactive_marketplace_stores": "အသုံးမပြုနိုင်သော Marketplace စတိုးများ"
-    ,"search_vendors": "ရောင်းချသူ၊ စတိုး သို့မဟုတ် လုပ်ငန်း ရှာရန်"
-    ,"business_filter": "လုပ်ငန်း ID သို့မဟုတ် အမည်"
-    ,"all_approval_statuses": "အတည်ပြုမှု အခြေအနေအားလုံး"
-    ,"store_status": "စတိုးအခြေအနေ"
-    ,"product_status": "ကုန်ပစ္စည်းအခြေအနေ"
-    ,"all_store_statuses": "စတိုးအခြေအနေအားလုံး"
-    ,"sort_vendors": "ရောင်းချသူများ စီရန်"
-    ,"most_listings": "စာရင်းအများဆုံး"
-    ,"most_orders": "အော်ဒါအများဆုံး"
-    ,"registration_date": "မှတ်ပုံတင်ရက်"
-    ,"view_details": "အသေးစိတ်ကြည့်ရန်"
-    ,"vendors": "ရောင်းချသူများ"
-    ,"rejection_reason_placeholder": "ဤရောင်းချသူကို ငြင်းပယ်ရသည့်အကြောင်းပြချက်ကို ရေးပါ"
-    ,"suspension_reason_placeholder": "ဤရောင်းချသူကို ရပ်ဆိုင်းရသည့်အကြောင်းပြချက်ကို ရေးပါ"
-    ,"vendor_detail": "ရောင်းချသူ အသေးစိတ်"
-    ,"back_to_vendors": "ရောင်းချသူများထံ ပြန်သွားရန်"
-    ,"unable_to_load_vendor_detail": "ရောင်းချသူအသေးစိတ်ကို ဖွင့်၍ မရပါ။"
-    ,"vendor_not_found": "ရောင်းချသူ မတွေ့ပါ။"
-    ,"performance": "စွမ်းဆောင်ရည်"
-    ,"financial_summary": "ငွေကြေးအကျဉ်းချုပ်"
-    ,"fulfillment": "အော်ဒါဖြည့်ဆည်းမှု"
-    ,"vendor_products": "ရောင်းချသူ ကုန်ပစ္စည်းများ"
-    ,"vendor_orders": "ရောင်းချသူ အော်ဒါများ"
-    ,"variants": "အမျိုးကွဲများ"
-    ,"no_vendor_products": "ရောင်းချသူ ကုန်ပစ္စည်း မတွေ့ပါ။"
-    ,"no_vendor_orders": "ရောင်းချသူ အော်ဒါ မတွေ့ပါ။"
-    ,"no_vendor_audit_history": "ရောင်းချသူ စာရင်းစစ်မှတ်တမ်း မတွေ့ပါ။"
-    ,"delivered_orders": "ပို့ဆောင်ပြီး အော်ဒါများ"
-    ,"cancelled_orders": "ပယ်ဖျက်ထားသော အော်ဒါများ"
-    ,"completion_rate": "ပြီးစီးမှုနှုန်း"
-    ,"cancellation_rate": "ပယ်ဖျက်မှုနှုန်း"
-    ,"low_stock_listings": "လက်ကျန်နည်းသော စာရင်းများ"
-    ,"inventory_attention": "Inventory စစ်ဆေးရန်"
-    ,"operations_summary": "လုပ်ငန်းဆောင်ရွက်မှု အကျဉ်းချုပ်"
-    ,"review_audit_history": "စာရင်းစစ်မှတ်တမ်း ကြည့်ရန်"
-    ,"authorized_contact_email": "ခွင့်ပြုထားသော ဆက်သွယ်ရန်အီးမေးလ်"
-    ,"authorized_contact_phone": "ခွင့်ပြုထားသော ဆက်သွယ်ရန်ဖုန်း"
-    ,"business_id": "လုပ်ငန်း ID"
-    ,"eligible_sales": "အကျုံးဝင်ရောင်းအား"
-    ,"platform_commission": "Platform ကော်မရှင်"
-    ,"vendor_net_amount": "ရောင်းချသူ အသားတင်ပမာဏ"
-    ,"payout_status": "ပေးချေမှု အခြေအနေ"
-    ,"financial_summary_unavailable": "ဤရောင်းချသူအတွက် ငွေကြေးရှင်းတမ်းဒေတာ မရရှိပါ။"
-    ,"review_required": "စစ်ဆေးရန် လိုအပ်သည်"
-    ,"marketplace_control_center": "Marketplace ထိန်းချုပ်ရေးစင်တာ"
-    ,"marketplace_control_center_description": "အတည်ပြုထားသော Marketplace ရောင်းချသူများ၊ စာရင်းများ၊ အော်ဒါများ၊ အစီရင်ခံစာများနှင့် လုံခြုံရေးလုပ်ဆောင်ချက်များကို တစ်နေရာတည်းမှ စီမံပါ။"
-    ,"vendor_management": "ရောင်းချသူ စီမံခန့်ခွဲမှု"
-    ,"product_moderation": "ကုန်ပစ္စည်း စိစစ်ထိန်းချုပ်မှု"
-    ,"payments_and_refunds": "ငွေပေးချေမှုနှင့် ပြန်အမ်းငွေများ"
-    ,"commissions_and_payouts": "ကော်မရှင်နှင့် ပေးချေမှုများ"
-    ,"disputes": "အငြင်းပွားမှုများ"
-    ,"marketplace_reports": "အစီရင်ခံစာနှင့် ခွဲခြမ်းစိတ်ဖြာမှု"
-    ,"marketplace_audit_logs": "Marketplace စာရင်းစစ်မှတ်တမ်းများ"
-    ,"approved_vendors": "အတည်ပြုထားသော ရောင်းချသူများ"
-    ,"active_marketplace_stores": "အတည်ပြုပြီး အသုံးပြုနေသော စတိုးများ"
-    ,"pending_vendor_approvals": "အတည်ပြုရန် စောင့်ဆိုင်းနေသော ရောင်းချသူများ"
-    ,"requires_review": "Super Admin စိစစ်ရန်လိုသည်"
-    ,"public_marketplace_listings": "အများမြင် Marketplace စာရင်းများ"
-    ,"orders_in_selected_range": "ရွေးထားသောကာလအတွင်း အော်ဒါများ"
-    ,"recent_moderation_activity": "လတ်တလော စိစစ်ထိန်းချုပ်မှု လုပ်ဆောင်ချက်များ"
-    ,"no_moderation_activity": "Marketplace စိစစ်ထိန်းချုပ်မှု လုပ်ဆောင်ချက် မရှိသေးပါ။"
-    ,"no_marketplace_data": "Marketplace ဒေတာ မတွေ့ပါ။"
-    ,"no_marketplace_vendors": "Marketplace ရောင်းချသူ မတွေ့ပါ။"
-    ,"vendor_directory": "ရောင်းချသူ စာရင်း"
-    ,"no_marketplace_listings": "Marketplace စာရင်း မတွေ့ပါ။"
-    ,"total_marketplace_listings": "Marketplace စာရင်း စုစုပေါင်း"
-    ,"all_marketplace_listings": "Marketplace စာရင်းအားလုံး"
-    ,"published_listings": "ထုတ်ဝေထားသော စာရင်းများ"
-    ,"draft_listings": "မူကြမ်း စာရင်းများ"
-    ,"listings_not_published": "မထုတ်ဝေရသေးပါ"
-    ,"archived_listings": "သိမ်းဆည်းထားသော စာရင်းများ"
-    ,"listings_hidden_from_marketplace": "Marketplace မှ ဖျောက်ထားသည်"
-    ,"product_moderation_description": "မူလ POS ကုန်ပစ္စည်း သို့မဟုတ် inventory ကို မပြောင်းလဲဘဲ အမှန်တကယ် Marketplace စာရင်းများကို စိစစ်ပါ။"
-    ,"search_marketplace_listings": "ကုန်ပစ္စည်း၊ SKU၊ ဘားကုဒ် သို့မဟုတ် စတိုး ရှာရန်"
-    ,"listing_status": "စာရင်း အခြေအနေ"
-    ,"all_listing_statuses": "စာရင်း အခြေအနေအားလုံး"
-    ,"marketplace_store_filter": "Marketplace စတိုး ရှာရန်"
-    ,"stock_availability": "လက်ကျန် ရရှိနိုင်မှု"
-    ,"all_stock_statuses": "လက်ကျန် အခြေအနေအားလုံး"
-    ,"sort_listings": "စာရင်းများ စီရန်"
-    ,"price_low_to_high": "စျေးနှုန်း: နိမ့်မှ မြင့်"
-    ,"price_high_to_low": "စျေးနှုန်း: မြင့်မှ နိမ့်"
-    ,"status_a_to_z": "အခြေအနေ A–Z"
-    ,"per_page": "စာမျက်နှာလျှင်"
-    ,"listing_directory": "Marketplace စာရင်း လမ်းညွှန်"
-    ,"review_listing": "စိစစ်ရန်"
-    ,"unable_to_load_marketplace_listings": "Marketplace စာရင်းများကို ဖွင့်၍ မရပါ။"
-    ,"product_moderation_details": "ကုန်ပစ္စည်း စိစစ်ထိန်းချုပ်မှု အသေးစိတ်"
-    ,"back_to_listings": "စာရင်းများထံ ပြန်သွားရန်"
-    ,"listing_not_found": "Marketplace စာရင်း မတွေ့ပါ။"
-    ,"unable_to_load_listing_detail": "စာရင်းအသေးစိတ်ကို ဖွင့်၍ မရပါ။"
-    ,"moderation_reason": "စိစစ်ထိန်းချုပ်ရသည့် အကြောင်းပြချက်"
-    ,"moderation_reason_placeholder": "ဤစိစစ်ထိန်းချုပ်မှုလုပ်ဆောင်ချက်၏ အကြောင်းပြချက်ကို မှတ်တမ်းတင်ပါ"
-    ,"store_approval_status": "စတိုး အတည်ပြုချက် အခြေအနေ"
-    ,"publishing_eligible": "ထုတ်ဝေရန် အကျုံးဝင်သည်"
-    ,"publishing_not_eligible": "ထုတ်ဝေရန် အကျုံးမဝင်ပါ"
-    ,"product_images": "ကုန်ပစ္စည်း ပုံများ"
-    ,"no_product_images": "ကုန်ပစ္စည်းပုံ မရရှိပါ။"
-    ,"variants_and_inventory": "အမျိုးကွဲများနှင့် inventory"
-    ,"no_product_variants": "အသုံးပြုနေသော ကုန်ပစ္စည်းအမျိုးကွဲ မရရှိပါ။"
-    ,"moderation_history": "စိစစ်ထိန်းချုပ်မှု မှတ်တမ်း"
-    ,"no_reason_recorded": "အကြောင်းပြချက် မှတ်တမ်းမရှိပါ"
-    ,"no_moderation_history": "စိစစ်ထိန်းချုပ်မှု မှတ်တမ်း မရရှိပါ။"
-    ,"listings": "စာရင်းများ"
-    ,"stock": "လက်ကျန်"
-    ,"hide": "ဖျောက်ရန်"
-    ,"hide_marketplace_listing": "Marketplace စာရင်းကို ဖျောက်မည်လား။"
-    ,"hide_marketplace_listing_help": "မူလ POS ကုန်ပစ္စည်းနှင့် inventory မပြောင်းလဲပါ။ Marketplace အများမြင်နိုင်မှုသာ ပြောင်းလဲပါမည်။"
-    ,"publish_marketplace_listing": "Marketplace စာရင်းကို ထုတ်ဝေမည်လား။"
-    ,"publish_marketplace_listing_help": "စတိုး၊ လုပ်ငန်း၊ ကုန်ပစ္စည်းနှင့် inventory စည်းမျဉ်းများကို ဆာဗာဘက်မှ ဖြတ်ကျော်ပြီးမှသာ အများမြင်နိုင်ပါမည်။"
-    ,"marketplace_listing_updated": "Marketplace စာရင်းကို ပြင်ဆင်ပြီးပါပြီ။"
-    ,"unable_to_update_marketplace_listing": "Marketplace စာရင်းကို ပြင်ဆင်၍ မရပါ။"
-    ,"approve_marketplace_store": "Marketplace စတိုးကို အတည်ပြုမည်လား။"
-    ,"approve_marketplace_store_help": "အသုံးပြုနေသော လုပ်ငန်းနှင့် အတည်ပြုထားသော Marketplace စတိုးများသာ အများမြင်စာရင်းများကို ထုတ်ဝေနိုင်ပါသည်။"
-    ,"reject_marketplace_store": "Marketplace စတိုးကို ငြင်းပယ်မည်လား။"
-    ,"reject_marketplace_store_help": "စတိုးသည် အများမြင် Marketplace ထုတ်ဝေမှုအတွက် မရရှိနိုင်တော့ပါ။"
-    ,"restore_marketplace_store": "Marketplace စတိုးကို ပြန်ဖွင့်မည်လား။"
-    ,"restore_marketplace_store_help": "Marketplace အများမြင်နိုင်မှုအတွက် ရရှိနိုင်မှုကို ပြန်ဖွင့်ပါမည်။ လုပ်ငန်းအတည်ပြုချက်နှင့် စာရင်းစည်းမျဉ်းများ ဆက်လက်သက်ရောက်ပါမည်။"
-    ,"suspend_marketplace_store": "Marketplace စတိုးကို ရပ်ဆိုင်းမည်လား။"
-    ,"suspend_marketplace_store_help": "လုပ်ငန်းဒေတာကို မဖျက်ဘဲ စတိုးကို အများမြင် Marketplace မှ ဖျောက်ပါမည်။"
-    ,"marketplace_store_updated": "Marketplace စတိုးကို ပြင်ဆင်ပြီးပါပြီ။"
-    ,"unable_to_update_marketplace_store": "Marketplace စတိုးကို ပြင်ဆင်၍ မရပါ။"
-    ,"suspended": "ရပ်ဆိုင်းထားသည်"
-    ,"gross_marketplace_sales": "စုစုပေါင်း Marketplace ရောင်းအား"
-    ,"paid_or_authorized_orders": "ငွေပေးပြီး သို့မဟုတ် ခွင့်ပြုထားသော အော်ဒါများ"
-    ,"refund_total": "ပြန်အမ်းငွေ စုစုပေါင်း"
-    ,"approved_refund_requests": "အတည်ပြုထားသော ပြန်အမ်းငွေတောင်းဆိုချက်များ"
-    ,"orders_by_status": "အခြေအနေအလိုက် အော်ဒါများ"
-    ,"payments_by_status": "အခြေအနေအလိုက် ငွေပေးချေမှုများ"
-    ,"vendor_performance": "ရောင်းချသူ စွမ်းဆောင်ရည်"
-    ,"no_vendor_sales": "ဤကာလအတွင်း ရောင်းချသူရောင်းအား မရှိပါ။"
-    ,"no_refund_requests": "ပြန်အမ်းငွေတောင်းဆိုချက် မတွေ့ပါ။"
-    ,"financial_capabilities": "ငွေကြေးဆိုင်ရာ စွမ်းဆောင်ချက်များ"
-    ,"commission_rules": "ကော်မရှင် စည်းမျဉ်းများ"
-    ,"settlement_ledger": "ငွေရှင်းတမ်း မှတ်တမ်း"
-    ,"payouts": "ရောင်းချသူ ပေးချေမှုများ"
-    ,"real_money_refunds": "အမှန်တကယ် ငွေပြန်အမ်းမှုများ"
-    ,"configured": "သတ်မှတ်ပြီး"
-    ,"not_configured": "မသတ်မှတ်ရသေးပါ"
-    ,"marketplace_finance_not_configured": "ကော်မရှင်၊ ငွေရှင်းတမ်း၊ ပေးချေမှု၊ အငြင်းပွားမှုနှင့် အတည်ပြုထားသော ငွေပြန်အမ်းမှု လုပ်ငန်းစဉ်များကို လက်ရှိ backend schema တွင် မသတ်မှတ်ရသေးပါ။ ဤနေရာတွင် ငွေကြေးဆိုင်ရာ လုပ်ဆောင်ချက် မဖွင့်ထားပါ။"
-    ,"no_marketplace_audit_logs": "Marketplace စာရင်းစစ်မှတ်တမ်း မတွေ့ပါ။"
-    ,"action": "လုပ်ဆောင်ချက်"
-    ,"actor": "လုပ်ဆောင်သူ"
-    ,"entity": "အချက်အလက်အရာ"
-    ,"system": "စနစ်"
-    ,"unable_to_load_marketplace_control_center": "Marketplace ထိန်းချုပ်ရေးစင်တာကို ဖွင့်၍ မရပါ။"
-    ,"suspend": "ရပ်ဆိုင်းရန်"
-    ,"reject": "ငြင်းပယ်ရန်"
-    ,"apply_filters": "စစ်ထုတ်မှုများ အသုံးပြုရန်"
-    ,"store": "စတိုး"
-    ,"date": "ရက်စွဲ"
-    ,"orders": "အော်ဒါများ"
-    ,"gross_sales": "စုစုပေါင်း ရောင်းအား"
-    ,"business_category": "လုပ်ငန်းအမျိုးအစား"
-    ,"from_date": "စတင်ရက်စွဲ"
-    ,"to_date": "ပြီးဆုံးရက်စွဲ"
-    ,"no_shipments": "ပို့ဆောင်မှု မတွေ့ပါ။"
-    ,"no_marketplace_requests": "Marketplace တောင်းဆိုချက် မတွေ့ပါ။"
-    ,"platform_monitoring": "ပလက်ဖောင်း စောင့်ကြည့်မှု"
-    ,"platform_monitoring_description": "CIINLV POS ပလက်ဖောင်း၏ ဖတ်ရှုရန်သာ လုပ်ငန်းလည်ပတ်မှု အချက်ပြချက်များ။"
-    ,"system_performance": "စနစ် လုပ်ဆောင်ရည်"
-    ,"monitoring_response_time": "စောင့်ကြည့်မှု တုံ့ပြန်ချိန်"
-    ,"http_error_rate": "HTTP အမှားနှုန်း (၂၄ နာရီ)"
-    ,"performance_metrics_are_read_only": "Application အမှားနှုန်းမှတ်တမ်း မပြင်ဆင်ရသေးသဖြင့် အတည်ပြုထားသော runtime အချက်ပြချက်များကိုသာ ပြသပါသည်။"
-    ,"deployment_visibility": "Deployment မြင်နိုင်မှု"
-    ,"release_version": "Release ဗားရှင်း"
-    ,"commit_reference": "Commit ရည်ညွှန်းချက်"
-    ,"deployed_at": "တင်သွင်းချိန်"
-    ,"deployment_provider": "Deployment provider"
-    ,"deployment_metadata_source": "Metadata ရင်းမြစ်"
-    ,"operational_incidents": "လုပ်ငန်းလည်ပတ်မှု ပြဿနာများ"
-    ,"no_active_operational_incidents": "ရရှိနိုင်သော လုပ်ငန်းလည်ပတ်မှု အချက်ပြချက်များတွင် လက်ရှိပြဿနာ မတွေ့ရှိပါ။"
-    ,"incidents_derived_from_verified_signals": "ပြဿနာများကို Queue၊ Scheduler၊ Database၊ Storage နှင့် Backup အတည်ပြုအချက်ပြချက်များမှသာ သတ်မှတ်ပါသည်။"
-    ,"review_required": "စစ်ဆေးရန်လိုသည်"
-    ,"incident_queue_failures": "ပြီးခဲ့သော ၂၄ နာရီအတွင်း Queue အမှားများ"
-    ,"incident_scheduler_failures": "ပြီးခဲ့သော ၂၄ နာရီအတွင်း Scheduler အမှားများ"
-    ,"incident_database": "Database ကျန်းမာရေး အမှား"
-    ,"incident_storage": "Storage ကျန်းမာရေး အမှား"
-    ,"incident_backups": "Backup အခြေအနေ စစ်ဆေးရန်လိုသည်"
-    ,"sale_details": "အရောင်း အသေးစိတ်"
-    ,"manage_payment": "ငွေပေးချေမှု စီမံရန်"
-    ,"payment": "ငွေပေးချေမှု"
-    ,"total": "စုစုပေါင်း"
-    ,"verified_paid": "အတည်ပြုပြီး ပေးချေငွေ"
-    ,"outstanding_balance": "ကျန်ရှိငွေ"
-    ,"cash_payment_instruction": "လက်ခံရရှိသော ငွေသားအမှန်ကို မှတ်တမ်းတင်ပါ။ စနစ်က အတည်ပြုငွေနှင့် ပြန်အမ်းငွေကို တွက်ချက်ပါမည်။"
-    ,"cash_received": "လက်ခံရရှိသော ငွေသား"
-    ,"record_cash_payment": "ငွေသားပေးချေမှု မှတ်တမ်းတင်ရန်"
-    ,"verify_external_payment": "ပြင်ပငွေပေးချေမှု အတည်ပြုရန်"
-    ,"external_payment_verification_notice": "ခွင့်ပြုထားသော provider ရည်ညွှန်းချက်နှင့် အတည်ပြုမှတ်ချက်ကို အသုံးပြုပါ။ လက်ဖြင့်အတည်ပြုခြင်းသည် server မူဝါဒအရသာ ဖြစ်ပါမည်။"
-    ,"provider": "ဝန်ဆောင်မှုပေးသူ"
-    ,"external_reference": "ပြင်ပ ရည်ညွှန်းချက်"
-    ,"verification_note": "အတည်ပြုမှတ်ချက်"
-    ,"verify_payment": "ငွေပေးချေမှု အတည်ပြုရန်"
-    ,"payment_requirements_met": "ငွေပေးချေမှု လိုအပ်ချက်များ ပြည့်မီပါပြီ။"
-    ,"complete_sale": "အရောင်း ပြီးစီးရန်"
-    ,"sale_already_completed": "ဤအရောင်းသည် ပြီးစီးပြီး သို့မဟုတ် ငွေပြန်အမ်းပြီး ဖြစ်ပါသည်။"
-    ,"payment_actions_unavailable": "ဤအရောင်းအခြေအနေတွင် ငွေပေးချေမှု လုပ်ဆောင်ချက်များ မရနိုင်ပါ။"
-    ,"payment_history": "ငွေပေးချေမှု မှတ်တမ်း"
-    ,"no_external_reference": "ပြင်ပ ရည်ညွှန်းချက် မရှိပါ"
-    ,"no_payment_records": "ငွေပေးချေမှု မှတ်တမ်း မရှိပါ။"
-    ,"print_receipt": "ပြေစာ ပုံနှိပ်ရန်"
-    ,"unable_to_load_sale_details": "အရောင်းအသေးစိတ်ကို ဖွင့်၍ မရပါ။"
-    ,"enter_valid_cash_received": "လက်ခံရရှိသော ငွေသားပမာဏ မှန်ကန်စွာ ထည့်ပါ။"
-    ,"cash_received_below_balance": "လက်ခံရရှိသော ငွေသားသည် ကျန်ရှိငွေထက် မနည်းရပါ။"
-    ,"unable_to_record_payment": "ငွေပေးချေမှုကို မှတ်တမ်းတင်၍ မရပါ။"
-    ,"complete_verification_fields": "ဝန်ဆောင်မှုပေးသူ၊ ပြင်ပရည်ညွှန်းချက်နှင့် အတည်ပြုမှတ်ချက် လိုအပ်ပါသည်။"
-    ,"unable_to_verify_payment": "ငွေပေးချေမှုကို အတည်ပြု၍ မရပါ။"
-    ,"unable_to_complete_sale": "အရောင်းကို ပြီးစီးအောင် မလုပ်နိုင်ပါ။"
-    ,"saving": "သိမ်းဆည်းနေသည်..."
-    ,"verifying": "အတည်ပြုနေသည်..."
-    ,"completing": "ပြီးစီးအောင် လုပ်နေသည်..."
-    ,"business_products": "လုပ်ငန်း ကုန်ပစ္စည်းများ"
-    ,"all_businesses": "လုပ်ငန်းအားလုံး"
-    ,"name_a_to_z": "အမည် A မှ Z"
-    ,"name_z_to_a": "အမည် Z မှ A"
-    ,"availability": "ရရှိနိုင်မှု"
-    ,"sku": "SKU"
-    ,"size": "အရွယ်အစား"
-    ,"business_products_description": "လုပ်ငန်းများအကြား POS ကုန်ပစ္စည်းနှင့် လက်ကျန်များကို ဖတ်ရှုရန်သာ စောင့်ကြည့်ခြင်း။"
-    ,"search_business_products": "ကုန်ပစ္စည်း၊ အမှတ်တံဆိပ်၊ SKU သို့မဟုတ် ဘားကုဒ် ရှာရန်"
-    ,"category_brand": "အမျိုးအစား / အမှတ်တံဆိပ်"
-    ,"variants_stock": "မူကွဲ / လက်ကျန်"
-    ,"no_branch_stock": "ဆိုင်ခွဲလက်ကျန် မရှိပါ"
-    ,"no_business_products_found": "လုပ်ငန်းကုန်ပစ္စည်း မတွေ့ပါ။"
-    ,"product_detail": "ကုန်ပစ္စည်း အသေးစိတ်"
-    ,"product_detail_description": "ကုန်ပစ္စည်း၊ ဈေးနှုန်း၊ ရရှိနိုင်မှုနှင့် လက်ကျန်စစ်ဆေးမှတ်တမ်း။"
-    ,"back_to_products": "လုပ်ငန်းကုန်ပစ္စည်းများသို့ ပြန်ရန်"
-    ,"variants_inventory": "မူကွဲများနှင့် လက်ကျန်"
-    ,"on_hand": "လက်ဝယ်"
-    ,"reserved": "ကြိုတင်ထား"
-    ,"audit_history": "စစ်ဆေးမှတ်တမ်း"
-    ,"no_audit_history": "ကုန်ပစ္စည်း စစ်ဆေးမှတ်တမ်း မတွေ့ပါ။"
-    ,"business_products_read_only_notice": "ပလက်ဖောင်း စောင့်ကြည့်ရန်သာ ဖြစ်ပါသည်။ ကုန်ပစ္စည်းနှင့် လက်ကျန် ပြောင်းလဲမှုများကို Business Admin လုပ်ငန်းစဉ်မှသာ ဆောင်ရွက်ပါသည်။"
-    ,"unable_to_load_business_products": "လုပ်ငန်းကုန်ပစ္စည်းများကို ဖွင့်၍ မရပါ။"
-    ,"unable_to_load_product_detail": "ကုန်ပစ္စည်းအသေးစိတ်ကို ဖွင့်၍ မရပါ။"
-    ,"refresh_platform_monitoring": "ပလက်ဖောင်း စောင့်ကြည့်မှု ပြန်စစ်ရန်"
-    ,"unable_to_load_platform_monitoring": "ပလက်ဖောင်း စောင့်ကြည့်မှုကို ဖွင့်၍ မရပါ။"
-    ,"api_health": "API အခြေအနေ"
-    ,"postgresql_health": "PostgreSQL အခြေအနေ"
-    ,"queue_failures": "Queue မအောင်မြင်မှုများ"
-    ,"inventory_anomalies": "လက်ကျန် မကိုက်ညီမှုများ"
-    ,"api_health_detail": "အတည်ပြုထားသော monitoring API က တုံ့ပြန်နေပါသည်။"
-    ,"postgresql_health_detail": "ကန့်သတ်ထားသော database အသင့်ဖြစ်မှု စစ်ဆေးချက်။"
-    ,"queue_failures_detail": "လွန်ခဲ့သော ၂၄ နာရီအတွင်း မှတ်တမ်းတင်ထားသော မအောင်မြင်သည့်အလုပ်များ။"
-    ,"inventory_anomalies_detail": "အစီရင်ခံစာအတွက်သာ လက်ကျန်ကိုက်ညီမှု စစ်ဆေးချက်များ။"
-    ,"queue_monitoring": "Queue စောင့်ကြည့်မှု"
-    ,"scheduler_monitoring": "Scheduler စောင့်ကြည့်မှု"
-    ,"registered_tasks": "မှတ်ပုံတင်ထားသော လုပ်ငန်းများ"
-    ,"running_tasks": "လက်ရှိ လုပ်ဆောင်နေသော လုပ်ငန်းများ"
-    ,"scheduler_successes_24h": "အောင်မြင်သော လုပ်ဆောင်မှု (၂၄ နာရီ)"
-    ,"scheduler_failures_24h": "မအောင်မြင်သော လုပ်ဆောင်မှု (၂၄ နာရီ)"
-    ,"missed_overdue_runs": "လွတ်ကျော် / ကျော်လွန်သည့် လုပ်ဆောင်မှုများ"
-    ,"scheduler_task": "Scheduler လုပ်ငန်း"
-    ,"all_scheduler_tasks": "Scheduler လုပ်ငန်းအားလုံး"
-    ,"scheduled_tasks": "စီစဉ်ထားသော လုပ်ငန်းများ"
-    ,"command_identifier": "Command ခွဲခြားချက်"
-    ,"schedule_frequency": "စီစဉ်မှု အကြိမ်ရေ"
-    ,"last_started": "နောက်ဆုံး စတင်ချိန်"
-    ,"last_finished": "နောက်ဆုံး ပြီးစီးချိန်"
-    ,"last_success": "နောက်ဆုံး အောင်မြင်ချိန်"
-    ,"last_failure": "နောက်ဆုံး မအောင်မြင်ချိန်"
-    ,"next_due": "နောက်တစ်ကြိမ် လုပ်ဆောင်ရမည့်အချိန်"
-    ,"no_scheduler_tasks": "ရွေးချယ်ထားသော စစ်ထုတ်မှုများနှင့် ကိုက်ညီသည့် Scheduler လုပ်ငန်း မရှိပါ။"
-    ,"scheduler_execution_history": "လုပ်ဆောင်မှု မှတ်တမ်း"
-    ,"no_scheduler_history": "ရွေးချယ်ထားသော စစ်ထုတ်မှုများအတွက် Scheduler လုပ်ဆောင်မှု မှတ်တမ်း မရှိပါ။"
-    ,"scheduler_errors": "နောက်ဆုံး Scheduler အမှားများ"
-    ,"no_scheduler_errors": "Scheduler အမှား မှတ်တမ်း မရှိပါ။"
-    ,"reference": "ရည်ညွှန်းချက်"
-    ,"queue": "Queue"
-    ,"failed_at": "မအောင်မြင်သည့်အချိန်"
-    ,"no_failed_jobs_in_period": "လွန်ခဲ့သော ၂၄ နာရီအတွင်း မအောင်မြင်သည့်အလုပ် မရှိပါ။"
-    ,"all_queues": "Queue အားလုံး"
-    ,"pending_jobs": "စောင့်ဆိုင်းနေသော အလုပ်များ"
-    ,"processing_jobs": "လုပ်ဆောင်နေသော အလုပ်များ"
-    ,"completed_last_24h": "ပြီးစီးမှု (၂၄ နာရီ)"
-    ,"failed_last_24h": "မအောင်မြင်မှု (၂၄ နာရီ)"
-    ,"oldest_waiting_job": "စောင့်ဆိုင်းမှု အကြာဆုံးအလုပ်"
-    ,"average_processing_duration": "ပျမ်းမျှ လုပ်ဆောင်ချိန်"
-    ,"queue_connection": "Queue ချိတ်ဆက်မှု"
-    ,"queue_driver": "Queue driver"
-    ,"queue_activity": "Queue လှုပ်ရှားမှု"
-    ,"completed_and_failed": "ပြီးစီးနှင့် မအောင်မြင်သောအလုပ်များ"
-    ,"queue_activity_unavailable": "Telemetry မှတ်တမ်း မရှိသေးသဖြင့် Queue လှုပ်ရှားမှု မရနိုင်သေးပါ။"
-    ,"recent_job_history": "လတ်တလော အလုပ်မှတ်တမ်း"
-    ,"job_type": "အလုပ်အမျိုးအစား"
-    ,"attempts": "ကြိုးစားမှုများ"
-    ,"created_at": "ဖန်တီးချိန်"
-    ,"started_at": "စတင်ချိန်"
-    ,"finished_at": "ပြီးစီး / မအောင်မြင်ချိန်"
-    ,"duration": "ကြာချိန်"
-    ,"no_job_history": "ရွေးချယ်ထားသော စစ်ထုတ်မှုများအတွက် အလုပ်မှတ်တမ်း မရှိပါ။"
-    ,"last_successful_heartbeat": "နောက်ဆုံး အောင်မြင်သော heartbeat"
-    ,"last_failed_heartbeat": "နောက်ဆုံး မအောင်မြင်သော heartbeat"
-    ,"last_error": "နောက်ဆုံး အမှား"
-    ,"not_recorded": "မှတ်တမ်း မရှိပါ"
-    ,"none_recorded": "မှတ်တမ်း မရှိပါ"
-    ,"inventory_consistency": "လက်ကျန် ကိုက်ညီမှု"
-    ,"balances_checked": "စစ်ဆေးပြီး လက်ကျန်များ"
-    ,"discrepancies": "မကိုက်ညီမှုများ"
-    ,"mode": "မုဒ်"
-    ,"report_only": "အစီရင်ခံစာသာ"
-    ,"tenant": "လုပ်ငန်း"
-    ,"variant": "မူကွဲ"
-    ,"edit_product": "ကုန်ပစ္စည်း ပြင်ဆင်ရန်"
-    ,"brand": "အမှတ်တံဆိပ်"
-    ,"enter_brand": "အမှတ်တံဆိပ် ရိုက်ထည့်ပါ"
-    ,"track_inventory": "လက်ကျန်စာရင်း ခြေရာခံရန်"
-    ,"this_product_has_sizes": "ဤကုန်ပစ္စည်းတွင် အရွယ်အစားများ ရှိသည်"
-    ,"inventory_location_for_entered_stock": "ထည့်သွင်းမည့် လက်ကျန်၏ တည်နေရာ"
-    ,"select_an_authorized_location": "ခွင့်ပြုထားသော တည်နေရာကို ရွေးပါ"
-    ,"leave_stock_quantity_blank_to_make_no_inventory_adjustment": "လက်ကျန်ကို မပြောင်းလဲလိုပါက အရေအတွက်ကို မဖြည့်ပါနှင့်။"
-    ,"write_product_description": "ကုန်ပစ္စည်းဖော်ပြချက် ရေးပါ"
-    ,"product_variants": "ကုန်ပစ္စည်း မူကွဲများ"
-    ,"use_xs_eu_36_numeric_or_custom_size_label": "XS–XXXL၊ EU 36–46၊ ဂဏန်း သို့မဟုတ် စိတ်ကြိုက် အရွယ်အစားအမည်ကို အသုံးပြုပါ။"
-    ,"add_variant": "မူကွဲ ထည့်ရန်"
-    ,"size_optional_unless_enabled": "အရွယ်အစား (ဖွင့်ထားမှ မဖြစ်မနေ)"
-    ,"no_size": "အရွယ်အစား မရှိ"
-    ,"selling_price": "ရောင်းဈေး"
-    ,"stock_quantity": "လက်ကျန်အရေအတွက်"
-    ,"leave_unchanged": "မပြောင်းလဲဘဲထားရန်"
-    ,"reorder_level": "ပြန်မှာယူရန် အဆင့်"
-    ,"barcode": "ဘားကုဒ်"
-    ,"optional_barcode": "ရွေးချယ်နိုင်သော ဘားကုဒ်"
-    ,"remove_variant": "မူကွဲ ဖယ်ရှားရန်"
-    ,"default_variant": "မူလ မူကွဲ"
-    ,"uploading_images": "ပုံများ တင်နေသည်…"
-    ,"uploading": "တင်နေသည်…"
-    ,"saving": "သိမ်းနေသည်…"
-    ,"save_product": "ကုန်ပစ္စည်း သိမ်းရန်"
-    ,"products_without_sizes_keep_existing_variant_workflow": "အရွယ်အစားမရှိသော ကုန်ပစ္စည်းများသည် လက်ရှိ မူကွဲတစ်ခုတည်းလုပ်ငန်းစဉ်ကို ဆက်သုံးပါမည်။ လက်ကျန်ကို inventory မှတ်တမ်းမှတစ်ဆင့် မှတ်တမ်းတင်ပါမည်။"
-    ,"balance": "လက်ကျန်"
-    ,"ledger": "မှတ်တမ်းစာရင်း"
-    ,"backup_status": "Backup အခြေအနေ"
-    ,"backup_artifacts": "Backup ဖိုင်များ"
-    ,"latest_backup": "နောက်ဆုံး Backup"
-    ,"backup_artifacts_detected": "သတ်မှတ်ထားသောဖိုင်တွဲတွင် Backup ဖိုင်များ တွေ့ရှိပါသည်။"
-    ,"restore_testing_must_use_separate_environment": "Restore စမ်းသပ်မှုကို production မဟုတ်သော သီးခြားပတ်ဝန်းကျင်တွင်သာ ပြုလုပ်ရပါမည်။"
-    ,"payment_health": "ငွေပေးချေမှု အခြေအနေ"
-    ,"payment_monitoring_unavailable": "အတည်ပြုထားသော payment provider မသတ်မှတ်ရသေးသဖြင့် ငွေပေးချေမှု စောင့်ကြည့်မှု မရရှိနိုင်ပါ။"
-    ,"no_payment_records_in_period": "ဤကာလအတွက် ငွေပေးချေမှုမှတ်တမ်း မတွေ့ပါ။"
-    ,"security_posture": "လုံခြုံရေး အခြေအနေ"
-    ,"debug": "Debug"
-    ,"https": "HTTPS"
-    ,"secure_sessions": "လုံခြုံသော Session များ"
-    ,"enabled": "ဖွင့်ထားသည်"
-    ,"disabled": "ပိတ်ထားသည်"
-    ,"security_posture_read_only": "ဤညွှန်ပြချက်များသည် ဖတ်ရှုရန်သာဖြစ်ပြီး လုံခြုံရေးဆက်တင်များကို မပြောင်းလဲပါ။"
-    ,"storage_status": "သိုလှောင်မှု အခြေအနေ"
-    ,"private_storage": "သီးသန့် သိုလှောင်မှု"
-    ,"storage_probe_status": "သိုလှောင်မှု စစ်ဆေးမှုအခြေအနေ"
-    ,"last_checked_at": "နောက်ဆုံး စစ်ဆေးချိန်"
-    ,"unavailable": "မရရှိနိုင်ပါ"
-    ,"platform_dashboard": "ပလက်ဖောင်း ဒက်ရှ်ဘုတ်"
-    ,"business_management": "လုပ်ငန်း စီမံခန့်ခွဲမှု"
-    ,"marketplace_management": "Marketplace စီမံခန့်ခွဲမှု"
-    ,"platform_settings": "ပလက်ဖောင်း ဆက်တင်များ"
-    ,"manage_business": "လုပ်ငန်း စီမံရန်"
-    ,"customer_profile": "ဖောက်သည် ပရိုဖိုင်"
-    ,"send_reset_link": "ပြန်လည်သတ်မှတ်ရန် လင့်ခ် ပို့ရန်"
-    ,"no_authorized_orders_found": "ခွင့်ပြုထားသော အော်ဒါ မတွေ့ပါ။"
-    ,"recent_account_activity": "လတ်တလော အကောင့် လုပ်ဆောင်ချက်"
-    ,"no_authorized_activity_found": "ခွင့်ပြုထားသော လုပ်ဆောင်ချက် မတွေ့ပါ။"
-    ,"authorized_account_details": "ခွင့်ပြုထားသော အကောင့် အချက်အလက်"
-    ,"search_name_or_email": "အမည် သို့မဟုတ် အီးမေးလ် ရှာရန်"
-    ,"last_login": "နောက်ဆုံး ဝင်ရောက်မှု"
-    ,"total_customers": "ဖောက်သည် စုစုပေါင်း"
-    ,"active_customers": "အသုံးပြုနေသော ဖောက်သည်များ"
-    ,"suspended_customers": "ဆိုင်းငံ့ထားသော ဖောက်သည်များ"
-    ,"new_customers_this_month": "ဤလအတွင်း ဖောက်သည်အသစ်များ"
-    ,"search_customers": "အမည်၊ အီးမေးလ်၊ ဖုန်း သို့မဟုတ် ID ဖြင့် ဖောက်သည်ရှာရန်"
-    ,"registered": "မှတ်ပုံတင်ထားသည့်အချိန်"
-    ,"unverified": "အတည်မပြုရသေးပါ"
-    ,"verify_email_manually": "အီးမေးလ်ကို လက်ဖြင့် အတည်ပြုရန်"
-    ,"view_customer": "ဖောက်သည်ကို ကြည့်ရန်"
-    ,"verification_reason": "အတည်ပြုရသည့် အကြောင်းပြချက်"
-    ,"verification_reason_help": "အီးမေးလ်ပိုင်ဆိုင်မှုကို သီးခြားစစ်ဆေးအတည်ပြုခဲ့သည့် နည်းလမ်းကို ရှင်းပြပါ။"
-    ,"verification_evidence": "အတည်ပြုအထောက်အထား / ရည်ညွှန်းချက်"
-    ,"verification_evidence_help": "Ticket၊ ဖုန်းခေါ်ဆိုမှုမှတ်တမ်း သို့မဟုတ် စစ်ဆေးနိုင်သော ရည်ညွှန်းချက် ထည့်ပါ။"
-    ,"confirm_verification": "အတည်ပြုမှုကို အတည်ပြုရန်"
-    ,"email_verification_successful": "အီးမေးလ်အတည်ပြုမှု အောင်မြင်စွာ ပြီးဆုံးပါပြီ။"
-    ,"email_verification_failed": "ဤအီးမေးလ်ကို အတည်ပြု၍ မရပါ။"
-    ,"admin_override": "စီမံခန့်ခွဲသူ အစားထိုးအတည်ပြုမှု"
-    ,"clear_filters": "စစ်ထုတ်မှုများ ရှင်းရန်"
-    ,"customers": "ဖောက်သည်များ"
-    ,"unable_to_load_customers": "ဖောက်သည်များကို ဖွင့်၍မရပါ။"
-    ,"unable_to_load_customer_profile": "ဖောက်သည် ပရိုဖိုင်ကို ဖွင့်၍မရပါ။"
-    ,"unable_to_update_customer_status": "ဖောက်သည်အခြေအနေကို ပြင်ဆင်၍မရပါ။"
-    ,"unable_to_load_customer_history": "ဖောက်သည်မှတ်တမ်းကို ဖွင့်၍မရပါ။"
-    ,"terms": "စည်းမျဉ်းများ"
-    ,"no_customer_accounts_match_filters": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော ဖောက်သည်အကောင့် မတွေ့ပါ။"
-    ,"suspend_customer": "ဖောက်သည်အကောင့် ဆိုင်းငံ့ရန်"
-    ,"activate_customer": "ဖောက်သည်အကောင့် အသက်သွင်းရန်"
-    ,"activate": "အသက်သွင်းရန်"
-    ,"suspend_customer_confirmation": "ဤဖောက်သည်အကောင့်ကို ဆိုင်းငံ့ပြီး အသုံးပြုနေသော စက်ရှင်များကို ပယ်ဖျက်မည်လား။"
-    ,"activate_customer_confirmation": "ဤဖောက်သည်အကောင့်ကို အသက်သွင်းမည်လား။"
-    ,"customer_status_updated": "ဖောက်သည်အခြေအနေ ပြင်ဆင်ပြီးပါပြီ။"
-    ,"password_reset_confirmation": "ဤဖောက်သည်ထံ စကားဝှက်ပြန်လည်သတ်မှတ်ရန် လမ်းညွှန်ချက် ပို့မည်လား။"
-    ,"password_reset_requested": "စကားဝှက်ပြန်လည်သတ်မှတ်ရန် လမ်းညွှန်ချက် တောင်းဆိုပြီးပါပြီ။"
-    ,"unable_to_send_reset_link": "ပြန်လည်သတ်မှတ်ရန် လင့်ခ် ပို့၍မရပါ။"
-    ,"authorized_addresses": "ခွင့်ပြုထားသော လိပ်စာများ"
-    ,"order_history": "အော်ဒါမှတ်တမ်း"
-    ,"customer_data_scope_notice": "လက်ရှိ ပလက်ဖောင်း သို့မဟုတ် ရွေးချယ်ထားသော လုပ်ငန်းအတိုင်းအတာအတွင်း ခွင့်ပြုထားသည့် အချက်အလက်များသာ ပြသထားပါသည်။"
-    ,"customer_error_unauthenticated": "အတည်ပြုဝင်ရောက်ထားခြင်း မရှိပါ။ ထပ်မံဝင်ရောက်ပါ။"
-    ,"customer_error_forbidden": "ဤဖောက်သည်များကို ကြည့်ရှုရန် ခွင့်ပြုချက်မရှိပါ။"
-    ,"customer_error_not_found": "တောင်းဆိုထားသော ဖောက်သည်ကို မတွေ့ပါ။"
-    ,"customer_error_invalid_filters": "စစ်ထုတ်မှုတစ်ခု သို့မဟုတ် တစ်ခုထက်ပို၍ မမှန်ကန်ပါ။"
-    ,"customer_error_backend": "ဖောက်သည်ဝန်ဆောင်မှုကို ယာယီအသုံးမပြုနိုင်ပါ။"
-    ,"customer_error_network": "ဖောက်သည်ဝန်ဆောင်မှုသို့ ချိတ်ဆက်၍မရပါ။"
-    ,"registration_from": "မှတ်ပုံတင်ချိန် အစ"
-    ,"registration_to": "မှတ်ပုံတင်ချိန် အဆုံး"
-    ,"last_login_from": "နောက်ဆုံးဝင်ရောက်ချိန် အစ"
-    ,"last_login_to": "နောက်ဆုံးဝင်ရောက်ချိန် အဆုံး"
-    ,"register_management": "ငွေရှင်းကောင်တာ စီမံခန့်ခွဲမှု"
-    ,"register_management_description": "ငွေရှင်းခြင်းနှင့် ငွေရှင်းကောင်တာအလှည့်များတွင် အသုံးပြုသည့် ဘဏ်ခွဲအလိုက် ငွေရှင်းကောင်တာများကို စီမံပါ။"
-    ,"add_register": "ငွေရှင်းကောင်တာ ထည့်ရန်"
-    ,"save_register": "ငွေရှင်းကောင်တာ သိမ်းရန်"
-    ,"all_accessible_branches": "ဝင်ရောက်ခွင့်ရှိသော ဘဏ်ခွဲများအားလုံး"
-    ,"cashiers": "ငွေရှင်းဝန်ထမ်းများ"
-    ,"register_isolated_to_branch": "ငွေရှင်းကောင်တာများသည် ရွေးချယ်ထားသော ဘဏ်ခွဲနှင့်သာ သက်ဆိုင်ပါသည်။"
-    ,"edit_register": "ငွေရှင်းကောင်တာ ပြင်ရန်"
-    ,"register_cashiers": "ငွေရှင်းကောင်တာ ဝန်ထမ်းများ"
-    ,"select_branch_cashier": "ဘဏ်ခွဲ ငွေရှင်းဝန်ထမ်း ရွေးပါ"
-    ,"assign": "တာဝန်ပေးရန်"
-    ,"no_cashier_assigned": "ဤငွေရှင်းကောင်တာအတွက် ဝန်ထမ်းမသတ်မှတ်ရသေးပါ။"
-    ,"existing_user": "ရှိပြီးသား အသုံးပြုသူ"
-    ,"select_user": "အသုံးပြုသူ ရွေးပါ"
-    ,"branch_role": "ဘဏ်ခွဲတာဝန်"
-    ,"sales_staff": "အရောင်းဝန်ထမ်း"
-    ,"cashier": "ငွေရှင်းဝန်ထမ်း"
-    ,"store_manager": "ဘဏ်ခွဲမန်နေဂျာ"
-    ,"inventory_manager": "ကုန်ပစ္စည်းလက်ကျန် မန်နေဂျာ"
-    ,"current_branch_staff": "လက်ရှိ ဘဏ်ခွဲဝန်ထမ်းများ"
-    ,"no_registers_for_branch": "ဤဘဏ်ခွဲအတွက် ငွေရှင်းကောင်တာ မတွေ့ပါ။"
-    ,"staff_salesperson_management": "ဝန်ထမ်းနှင့် ရောင်းကိုယ်စားလှယ် စီမံခန့်ခွဲမှု"
-    ,"staff_salesperson_management_description": "ရှိပြီးသား လုပ်ငန်းအသုံးပြုသူများကို ဘဏ်ခွဲများသို့ တာဝန်ပေးပါ။ ငွေရှင်းဝန်ထမ်းများသည် အလှည့်များကို စီမံပြီး ရောင်းကိုယ်စားလှယ်ကို အရောင်းမှတ်တမ်းတွင် သိမ်းဆည်းပါမည်။"
-    ,"no_staff_for_branch": "ဤဘဏ်ခွဲတွင် ဝန်ထမ်းမသတ်မှတ်ရသေးပါ။"
-    ,"confirm_cod_payment_received": "ပစ္စည်းပို့ချိန် ငွေပေးချေမှု လက်ခံရရှိကြောင်း အတည်ပြုရန်"
-    ,"pos_monitoring": "POS စောင့်ကြည့်မှု"
-    ,"pos_monitoring_description": "လုပ်ငန်းအားလုံး၏ POS အရောင်းမှတ်တမ်းများကို ဖတ်ရှုရန်သာ စောင့်ကြည့်ပါ။"
-    ,"all_pos_transactions": "POS အရောင်းမှတ်တမ်းများ"
-    ,"refund_void_history": "ပြန်အမ်းနှင့် ပယ်ဖျက်မှတ်တမ်း"
-    ,"payment_audit": "ငွေပေးချေမှု စစ်ဆေးချက်"
-    ,"completed_sales": "ပြီးစီးသော အရောင်းများ"
-    ,"completed_sales_detail": "ပြီးစီးသော POS အရောင်းအရေအတွက်"
-    ,"verified_revenue": "အတည်ပြုထားသော ဝင်ငွေ"
-    ,"verified_revenue_detail": "ခွဲပေးချေမှုများကို တစ်ကြိမ်သာ ရေတွက်သည်"
-    ,"pending_payments": "ဆိုင်းငံ့ငွေပေးချေမှုများ"
-    ,"pending_payments_detail": "ကျန်ရှိသော ငွေပမာဏ"
-    ,"refunds": "ပြန်အမ်းငွေများ"
-    ,"refunds_detail": "မှတ်တမ်းတင်ထားသော ပြန်အမ်းစုစုပေါင်း"
-    ,"net_sales": "အသားတင် အရောင်း"
-    ,"net_sales_detail": "အတည်ပြုဝင်ငွေမှ ပြန်အမ်းငွေ နုတ်ပြီး"
-    ,"refresh": "ပြန်လည်စစ်ဆေးရန်"
-    ,"export_csv": "CSV ထုတ်ယူရန်"
-    ,"search": "ရှာဖွေရန်"
-    ,"search_pos_transactions": "အရောင်း၊ လုပ်ငန်း၊ ဘဏ်ခွဲ၊ ဝန်ထမ်း သို့မဟုတ် ကုန်ပစ္စည်း ရှာရန်"
-    ,"all_payment_methods": "ငွေပေးချေမှုနည်းလမ်းအားလုံး"
-    ,"all_statuses": "အခြေအနေအားလုံး"
-    ,"from": "မှ"
-    ,"to": "အထိ"
-    ,"sort": "စီစဉ်ရန်"
-    ,"newest_first": "အသစ်ဆုံးမှ စရန်"
-    ,"oldest_first": "အဟောင်းဆုံးမှ စရန်"
-    ,"sale_number_a_to_z": "အရောင်းနံပါတ် A–Z"
-    ,"highest_total_first": "စုစုပေါင်းအများဆုံးမှ စရန်"
-    ,"records": "မှတ်တမ်း"
-    ,"sale_number": "အရောင်းနံပါတ်"
-    ,"business": "လုပ်ငန်း"
-    ,"branch": "ဘဏ်ခွဲ"
-    ,"branch_register": "ဘဏ်ခွဲ / ငွေရှင်းကောင်တာ"
-    ,"business_identifier": "လုပ်ငန်း UUID သို့မဟုတ် ID"
-    ,"branch_identifier": "ဘဏ်ခွဲ UUID သို့မဟုတ် ID"
-    ,"cashier_id": "ငွေရှင်းဝန်ထမ်း User ID"
-    ,"method": "နည်းလမ်း"
-    ,"amount": "ပမာဏ"
-    ,"date": "ရက်စွဲ"
-    ,"view": "ကြည့်ရန်"
-    ,"read_only_detail": "ဖတ်ရှုရန်သာ အရောင်းအသေးစိတ်"
-    ,"product_details": "ကုန်ပစ္စည်းအသေးစိတ်"
-    ,"subtotal": "အခွန်မပါ စုစုပေါင်း"
-    ,"discount": "လျှော့စျေး"
-    ,"tax": "အခွန်"
-    ,"receipt": "ပြေစာ"
-    ,"not_available": "မရရှိနိုင်ပါ"
-    ,"pos_monitoring_read_only_notice": "ဤစောင့်ကြည့်မှုစာမျက်နှာမှ အရောင်း၊ ငွေပေးချေမှု၊ ကုန်ပစ္စည်းလက်ကျန် သို့မဟုတ် ပြေစာများကို ပြင်ဆင်၍မရပါ။"
-    ,"no_pos_records_found": "POS မှတ်တမ်း မတွေ့ပါ။"
-    ,"unable_to_load_pos_monitoring": "POS စောင့်ကြည့်မှုဒေတာ ရယူ၍မရပါ။"
-    ,"unable_to_load_pos_transaction": "POS အရောင်းမှတ်တမ်း ရယူ၍မရပါ။"
-    ,"page": "စာမျက်နှာ"
-    ,"of": "၏"
-    ,"previous": "ယခင်"
-    ,"next": "နောက်တစ်ခု"
-    ,"review_verify": "စိစစ်ရန်"
-    ,"business_verification": "လုပ်ငန်း အတည်ပြုခြင်း"
-    ,"business_verification_description": "လျှောက်ထားသူ၊ ကိုယ်ရေးအထောက်အထားစာရွက်စာတမ်းများ၊ အတည်ပြုမှုအခြေအနေနှင့် စိစစ်မှုမှတ်တမ်းကို စစ်ဆေးပါ။"
-    ,"unable_to_load_verification": "လုပ်ငန်းအတည်ပြုမှုအသေးစိတ်ကို ရယူ၍မရပါ။"
-    ,"unable_to_update_verification": "အတည်ပြုမှုအခြေအနေကို ပြောင်းလဲ၍မရပါ။"
-    ,"verification_not_found": "တောင်းဆိုထားသော အတည်ပြုမှုကို မတွေ့ပါ။"
-    ,"back_to_businesses": "လုပ်ငန်းများသို့ ပြန်သွားရန်"
-    ,"business_profile": "လုပ်ငန်းပရိုဖိုင်"
-    ,"business_email": "လုပ်ငန်းအီးမေးလ်"
-    ,"applicant": "လျှောက်ထားသူ"
-    ,"email_verification": "အီးမေးလ်အတည်ပြုမှု"
-    ,"verified": "အတည်ပြုပြီး"
-    ,"pending": "စောင့်ဆိုင်းနေသည်"
-    ,"approval_status": "အတည်ပြုခွင့်အခြေအနေ"
-    ,"identity_information": "ကိုယ်ရေးအထောက်အထားအချက်အလက်"
-    ,"preview": "ကြိုတင်ကြည့်ရန်"
-    ,"download": "ဒေါင်းလုဒ်လုပ်ရန်"
-    ,"review_history": "စိစစ်မှုမှတ်တမ်း"
-    ,"no_review_history": "စိစစ်မှုမှတ်တမ်း မရှိပါ။"
-    ,"approve_business_verification": "အတည်ပြုမှုကို ခွင့်ပြုရန်"
-    ,"approve_business_verification_help": "တင်ပြထားသော ကိုယ်ရေးအချက်အလက်နှင့် စာရွက်စာတမ်းများကို စစ်ဆေးပြီးမှသာ ဤလုပ်ငန်းကို ခွင့်ပြုပါ။"
-    ,"business_verification_updated": "လုပ်ငန်းအတည်ပြုမှုကို ပြောင်းလဲပြီးပါပြီ။"
-    ,"payment_received": "ငွေပေးချေမှု လက်ခံရရှိပြီးပါပြီ"
-    ,"amount_collected": "လက်ခံရရှိသည့် ပမာဏ"
-    ,"balance_due": "ပေးရန်ကျန်ငွေ"
-    ,"amount_due": "ပေးရန်ကျန်ပမာဏ"
-    ,"payment_already_received": "ငွေပေးချေမှု လက်ခံရရှိပြီးဖြစ်သဖြင့် ထပ်မံကောက်ခံ၍မရပါ။"
-    ,"payment_collection_blocked_hold": "အော်ဒါကို စီမံခန့်ခွဲရေး ထိန်းသိမ်းထားစဉ် ငွေပေးချေမှုကောက်ခံ၍မရပါ။"
-    ,"payment_amount_exceeds_balance": "လက်ခံရရှိသည့် ပမာဏသည် ပေးရန်ကျန် COD လက်ကျန်ထက် မပိုရပါ။"
-    ,"cod_payment_unavailable": "ဤ COD ငွေပေးချေမှုကို ကောက်ခံ၍မရပါ။"
-    ,"payment_history": "ငွေပေးချေမှုမှတ်တမ်း"
-    ,"clear_search": "ရှာဖွေမှု ရှင်းရန်"
-    ,"search_businesses": "လုပ်ငန်းများ ရှာရန်"
-    ,"search_branches": "ဘဏ်ခွဲများ ရှာရန်"
-    ,"select_business_first": "ပထမဆုံး လုပ်ငန်းရွေးပါ"
-    ,"no_matching_businesses": "ကိုက်ညီသော လုပ်ငန်းမတွေ့ပါ"
-    ,"no_matching_branches": "ကိုက်ညီသော ဘဏ်ခွဲမတွေ့ပါ"
-    ,"searching": "ရှာဖွေနေသည်..."
-    ,"load_more": "ထပ်မံဖော်ပြရန်"
-    ,"all_stock_states": "လက်ကျန်အခြေအနေအားလုံး"
-    ,"minimum_price": "အနည်းဆုံးဈေးနှုန်း"
-    ,"maximum_price": "အများဆုံးဈေးနှုန်း"
-    ,"created_from": "ဖန်တီးသည့်နေ့မှ"
-    ,"created_to": "ဖန်တီးသည့်နေ့အထိ"
-    ,"clear_all_filters": "စစ်ထုတ်မှုအားလုံး ရှင်းရန်"
-    ,"inventory_location": "ကုန်ပစ္စည်းလက်ကျန် တည်နေရာ"
-    ,"authorized_branch_inventory": "ခွင့်ပြုထားသော ဘဏ်ခွဲလက်ကျန်"
-    ,"adjust_stock": "လက်ကျန် ပြင်ရန်"
-    ,"transfer_stock": "လက်ကျန် လွှဲရန်"
-    ,"no_authorized_inventory_balances": "ခွင့်ပြုထားသော လက်ကျန်မှတ်တမ်း မရှိပါ။"
-    ,"recent_movements": "လတ်တလော လက်ကျန်လှုပ်ရှားမှုများ"
-    ,"no_movements_recorded": "လှုပ်ရှားမှုမှတ်တမ်း မရှိပါ။"
-    ,"select_location": "တည်နေရာ ရွေးပါ"
-    ,"select_destination": "သွားမည့်တည်နေရာ ရွေးပါ"
-    ,"close_inventory": "လက်ကျန်ပိတ်ရန်"
-    ,"source_location": "မူလတည်နေရာ"
-    ,"destination_location": "သွားမည့်တည်နေရာ"
-    ,"complete_inventory_action_fields": "ခွင့်ပြုထားသော တည်နေရာနှင့် မှန်ကန်သော အရေအတွက်အပါအဝင် လိုအပ်သည့်အချက်များကို ဖြည့်ပါ။"
-    ,"highest_price_first": "ဈေးနှုန်းအမြင့်ဆုံးမှ စရန်"
-    ,"lowest_stock_first": "လက်ကျန်အနည်းဆုံးမှ စရန်"
-    ,"rows_per_page": "စာမျက်နှာတစ်ခုလျှင် အတန်းများ"
-    ,"showing_orders": "အော်ဒါစုစုပေါင်း {{total}} ခုအနက် {{from}}–{{to}} ကို ပြသနေသည်"
-    ,"showing_products": "ကုန်ပစ္စည်းစုစုပေါင်း {{total}} ခုအနက် {{from}}–{{to}} ကို ပြသနေသည်"
-    ,"showing_audit_logs": "မှတ်တမ်းစုစုပေါင်း {{total}} ခုအနက် {{from}}–{{to}} ကို ပြသနေသည်"
-    ,"action_type": "လုပ်ဆောင်ချက်အမျိုးအစား"
-    ,"business_id": "လုပ်ငန်း ID"
-    ,"audit_logs_read_only": "စာရင်းစစ်မှတ်တမ်းများသည် ဖတ်ရှုရန်သာဖြစ်သော သမိုင်းမှတ်တမ်းများ ဖြစ်သည်။"
-    ,"unable_to_load_marketplace_audit_logs": "Marketplace စာရင်းစစ်မှတ်တမ်းများကို မဖတ်နိုင်ပါ။"
-    ,"first_page": "ပထမ"
-    ,"last_page": "နောက်ဆုံး"
-    ,"variants": "မူကွဲများ"
-    ,"actions": "လုပ်ဆောင်ချက်များ"
-    ,"stock": "လက်ကျန်"
-    ,"on_hand_short": "လက်ဝယ်"
-    ,"reserved_short": "ကြိုတင်"
-    ,"stock_summary": "လက်ကျန်အနှစ်ချုပ်"
-    ,"branch_inventory": "ဘဏ်ခွဲလက်ကျန်"
-    ,"reorder_level": "ပြန်မှာယူအဆင့်"
-    ,"inventory_unavailable": "ဤကုန်ပစ္စည်းအတွက် လက်ကျန်ဒေတာ မရရှိနိုင်ပါ။"
-    ,"all_marketplace_orders": "Marketplace အော်ဒါအားလုံး"
-    ,"pending_orders": "စောင့်ဆိုင်းနေသော အော်ဒါများ"
-    ,"pending_payment_orders": "ငွေပေးချေရန်ကျန် အော်ဒါများ"
-    ,"processing_orders": "လုပ်ဆောင်နေသော အော်ဒါများ"
-    ,"orders_being_fulfilled": "ဖြည့်ဆည်းနေသော အော်ဒါများ"
-    ,"shipped_orders": "ပို့ဆောင်ပြီး အော်ဒါများ"
-    ,"shipped_or_partially_shipped": "ပို့ဆောင်ပြီး သို့မဟုတ် တစ်စိတ်တစ်ပိုင်းပို့ဆောင်ပြီး"
-    ,"completed_deliveries": "ပြီးဆုံးသော ပို့ဆောင်မှုများ"
-    ,"cancelled_marketplace_orders": "ပယ်ဖျက်ထားသော Marketplace အော်ဒါများ"
-    ,"payment_pending_orders": "ငွေပေးချေရန်ကျန် အော်ဒါများ"
-    ,"payment_requires_review": "ငွေပေးချေမှု စိစစ်ရန်လိုသည်"
-    ,"search_marketplace_orders": "အော်ဒါ၊ ရောင်းချသူအော်ဒါ၊ ခြေရာခံနံပါတ်၊ ဆိုင် သို့မဟုတ် ဖောက်သည် ရှာရန်"
-    ,"all_order_statuses": "အော်ဒါအခြေအနေအားလုံး"
-    ,"all_payment_statuses": "ငွေပေးချေမှုအခြေအနေအားလုံး"
-    ,"all_fulfillment_statuses": "အော်ဒါဖြည့်ဆည်းမှုအခြေအနေအားလုံး"
-    ,"all_shipment_statuses": "ပို့ဆောင်မှုအခြေအနေအားလုံး"
-    ,"sort_orders": "အော်ဒါများ စီရန်"
-    ,"order_number_a_to_z": "အော်ဒါနံပါတ် A–Z"
-    ,"total_high_to_low": "စုစုပေါင်း အမြင့်မှ အနိမ့်"
-    ,"total_low_to_high": "စုစုပေါင်း အနိမ့်မှ အမြင့်"
-    ,"vendor_store": "ရောင်းချသူ / ဆိုင်"
-    ,"order_total": "အော်ဒါ စုစုပေါင်း"
-    ,"fulfillment_summary": "ဖြည့်ဆည်းမှု"
-    ,"shipment_summary": "ပို့ဆောင်မှု"
-    ,"order_directory": "အော်ဒါစာရင်း"
-    ,"no_marketplace_orders": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော Marketplace အော်ဒါမရှိပါ။"
-    ,"order_items_and_vendors": "အော်ဒါပစ္စည်းများနှင့် ရောင်းချသူအော်ဒါများ"
-    ,"no_order_items": "အော်ဒါပစ္စည်း မရရှိနိုင်ပါ။"
-    ,"shipment": "ပို့ဆောင်မှု"
-    ,"no_payment_history": "ငွေပေးချေမှုမှတ်တမ်း မရရှိနိုင်ပါ။"
-    ,"order_timeline": "အော်ဒါဖြစ်စဉ်မှတ်တမ်း"
-    ,"no_order_timeline": "အော်ဒါဖြစ်စဉ်မှတ်တမ်း မရရှိနိုင်ပါ။"
-    ,"settings_general": "အထွေထွေ"
-    ,"settings_vendor_management": "ရောင်းချသူ စီမံခန့်ခွဲမှု"
-    ,"settings_product_listing": "ကုန်ပစ္စည်းနှင့် စာရင်းတင်ခြင်း စည်းမျဉ်းများ"
-    ,"settings_order_checkout": "အော်ဒါနှင့် Checkout"
-    ,"settings_payments": "ငွေပေးချေမှုများ"
-    ,"settings_shipping_fulfillment": "ပို့ဆောင်မှုနှင့် အော်ဒါဖြည့်ဆည်းမှု"
-    ,"settings_commissions_payouts": "ကော်မရှင်နှင့် ပေးချေမှုများ"
-    ,"settings_notifications": "အသိပေးချက်များ"
-    ,"settings_security_audit": "လုံခြုံရေးနှင့် စာရင်းစစ်"
-    ,"search_settings": "ဆက်တင်များ ရှာရန်"
-    ,"marketplace_enabled": "Marketplace ဖွင့်ထားသည်"
-    ,"marketplace_enabled_help": "Marketplace catalog၊ cart နှင့် checkout အသွားအလာကို ခွင့်ပြုသည်။"
-    ,"maintenance_mode": "ပြုပြင်ထိန်းသိမ်းမှုမုဒ်"
-    ,"maintenance_mode_help": "အများသုံး Marketplace နှင့် checkout အသွားအလာကို ယာယီပိတ်သည်။"
-    ,"default_currency": "မူလငွေကြေး"
-    ,"seller_registration_enabled": "ရောင်းချသူ မှတ်ပုံတင်ခြင်း ဖွင့်ထားသည်"
-    ,"seller_registration_enabled_help": "လုပ်ငန်းများကို Marketplace ဆိုင်ဖန်တီးခွင့်ပြုသည်။ ရှိပြီးသားအတည်ပြုချက်များ မပြောင်းလဲပါ။"
-    ,"seller_approval_required": "ရောင်းချသူ အတည်ပြုချက်လိုအပ်သည်"
-    ,"seller_approval_required_help": "Platform Super Admin အတည်ပြုသည်အထိ ဆိုင်အသစ်များသည် pending ဖြစ်နေမည်။"
-    ,"listing_approval_required": "စာရင်းတင်ခြင်း အတည်ပြုချက်လိုအပ်သည်"
-    ,"listing_approval_required_help": "ခွင့်ပြုထားသော moderation က publish မလုပ်မချင်း ရောင်းချသူစာရင်းအသစ်များသည် draft ဖြစ်နေမည်။"
-    ,"settings_listing_safety_note": "Publish လုပ်ခြင်းသည် ဆိုင်၊ tenant၊ ကုန်ပစ္စည်း၊ inventory နှင့် ခွင့်ပြုချက် စစ်ဆေးမှုများကို ဆက်လက်လိုက်နာမည်။"
-    ,"default_commission_rate": "မူလကော်မရှင်နှုန်း (%)"
-    ,"commission_base": "ကော်မရှင်အခြေခံ"
-    ,"item_subtotal": "ပစ္စည်းစုစုပေါင်းခွဲ"
-    ,"payout_schedule": "ပေးချေမှု အချိန်ဇယား"
-    ,"manual_approval": "လက်ဖြင့် အတည်ပြုရန်"
-    ,"weekly": "အပတ်စဉ်"
-    ,"biweekly": "နှစ်ပတ်တစ်ကြိမ်"
-    ,"monthly": "လစဉ်"
-    ,"payout_minimum": "အနည်းဆုံးပေးချေငွေ"
-    ,"commission_change_impact": "ပြောင်းလဲမှုများသည် နောင်ကော်မရှင် snapshot များကိုသာ သက်ရောက်မည်။ ယခင်ရောင်းချသူဝင်ငွေနှင့် ပေးရန်တာဝန်များကို ပြန်လည်တွက်ချက်မည်မဟုတ်ပါ။"
-    ,"open_finance_management": "Finance Management ဖွင့်ရန်"
-    ,"last_updated": "နောက်ဆုံးပြင်ဆင်ချိန်"
-    ,"updated_by": "ပြင်ဆင်သူ"
-    ,"settings_revision": "ဆက်တင် revision"
-    ,"reason_for_change": "အရေးကြီးပြောင်းလဲမှု အကြောင်းပြချက်"
-    ,"advanced_policy_json": "အဆင့်မြင့် policy JSON"
-    ,"settings_change_history": "ဆက်တင်ပြောင်းလဲမှု မှတ်တမ်း"
-    ,"no_settings_history": "ဆက်တင်ပြောင်းလဲမှု မှတ်တမ်းမရှိသေးပါ။"
-    ,"saving": "သိမ်းနေသည်…"
-    ,"save_changes": "ပြောင်းလဲမှုများ သိမ်းရန်"
-    ,"cancel_reset": "ပယ်ဖျက် / ပြန်စရန်"
-    ,"unsaved_changes": "မသိမ်းရသေးသော ပြောင်းလဲမှုများ"
-    ,"settings_policy_json_invalid": "Policies သည် မှန်ကန်သော JSON object ဖြစ်ရမည်။"
-    ,"settings_change_reason_required": "အရေးကြီးပြောင်းလဲမှုကို သိမ်းရန် အကြောင်းပြချက်ထည့်ပါ။"
-    ,"confirm_marketplace_settings_change": "Marketplace ဆက်တင်ပြောင်းလဲမှုကို အတည်ပြုပါ"
-    ,"confirm_marketplace_settings_change_help": "ဤပြောင်းလဲမှုသည် အများသုံးရရှိနိုင်မှု သို့မဟုတ် ရောင်းချသူ onboarding ကို သက်ရောက်မည်။ သိမ်းမီ သေချာစစ်ဆေးပါ။"
-    ,"settings_not_configured": "မပြင်ဆင်ရသေးပါ"
-    ,"settings_order_checkout_unavailable": "အနည်းဆုံးအော်ဒါ၊ reservation timeout၊ cancellation window နှင့် မပေးချေရသေးသော expiration များသည် လက်ရှိ checkout service တွင် global setting အဖြစ် မထောက်ပံ့ပါ။"
-    ,"settings_payments_unavailable": "ငွေပေးချေမှုနည်းလမ်းများကို အတည်ပြုထားသော provider configuration က ထိန်းချုပ်သည်။ ငွေပေးချေမှုအချက်အလက် သို့မဟုတ် UI-only ဖွင့်ခြင်းကို မပြပါ။"
-    ,"settings_shipping_unavailable": "ပို့ဆောင်မှုနည်းလမ်းနှင့် tracking လိုအပ်ချက်များကို လက်ရှိ shipment workflow က စစ်ဆေးပြီး global setting အဖြစ် မထောက်ပံ့ပါ။"
-    ,"settings_notifications_unavailable": "Marketplace notification channel များကို global အဖြစ် မပြင်ဆင်ထားပါ။ ရှိပြီးသား server-side notification များသည် လက်ရှိ service များကို ဆက်သုံးမည်။"
-    ,"all_authorized_tenant_products": "ခွင့်ပြုထားသော tenant ထုတ်ကုန်အားလုံး"
-    ,"active_on_page": "ဤစာမျက်နှာရှိ အသုံးပြုနေသောထုတ်ကုန်"
-    ,"low_stock_on_page": "ဤစာမျက်နှာရှိ လက်ကျန်နည်းသောထုတ်ကုန်"
-    ,"current_page_only": "လက်ရှိစာမျက်နှာသာ"
-    ,"visible_stock_value": "မြင်ရသော စတော့တန်ဖိုး"
-    ,"current_page_estimate": "လက်ရှိစာမျက်နှာ ခန့်မှန်းချက်"
-    ,"search_product_name_brand_sku_barcode": "အမည်၊ အမှတ်တံဆိပ်၊ SKU သို့မဟုတ် ဘားကုဒ်ရှာရန်"
-    ,"branch_location": "ဆိုင်ခွဲ / တည်နေရာ"
-    ,"all_locations": "တည်နေရာအားလုံး"
-    ,"any_brand": "မည်သည့်အမှတ်တံဆိပ်မဆို"
-    ,"min_price": "အနည်းဆုံးဈေး"
-    ,"max_price": "အများဆုံးဈေး"
-    ,"previous_page": "ယခင်စာမျက်နှာ"
-    ,"next_page": "နောက်စာမျက်နှာ"
-    ,"settings_audit_table": "Marketplace ဆက်တင် စာရင်းစစ်မှတ်တမ်းများ"
-    ,"settings_audit_log_description": "ဖတ်ရှုရန်သာရှိသော ဆက်တင်နှင့် Marketplace စာရင်းစစ်မှတ်တမ်းများ။"
-    ,"products_in_scope": "သက်ဆိုင်ရာထုတ်ကုန်များ"
-    ,"server_total": "ဆာဗာစုစုပေါင်း"
-    ,"authorized_branch_scope": "ခွင့်ပြုထားသော ဆိုင်ခွဲအကျယ်အဝန်း"
-    ,"bulk_deactivate": "ပိတ်ရန်"
-    ,"bulk_export": "တင်ပို့ရန်"
-    ,"clear_selection": "ရွေးချယ်မှုရှင်းရန်"
-    ,"unassigned_unknown_branch": "မသတ်မှတ်ရသေးသော / မသိရသေးသော ဆိုင်ခွဲ"
-    ,"branch_revenue_allocation_note": "ဆိုင်ခွဲဝင်ငွေကို line တန်ဖိုးခွဲဝေမှုဖြင့် တွက်ထားသည်။"
-    ,"branch_fulfillment_attribution": "ဆိုင်ခွဲ / ဖြည့်ဆည်းပေးမှု သတ်မှတ်ချက်"
-    ,"reservation_record": "Reservation မှတ်တမ်း"
-    ,"attribution_unavailable": "သတ်မှတ်ချက် မရရှိနိုင်ပါ"
-    ,"no_historical_fulfillment_branch": "ဤအော်ဒါအတွက် သမိုင်းမှတ်တမ်းရှိ ဖြည့်ဆည်းဆိုင်ခွဲ မရှိပါ။"
-    ,"marketplace_sales_pagination": "Marketplace အရောင်းမှတ်တမ်းစာမျက်နှာပြောင်းရန်"
-    ,"partially_refunded": "တစ်စိတ်တစ်ပိုင်း ပြန်အမ်းပြီး"
-    ,"edit_store": "စတိုးကို ပြင်ဆင်ရန်"
-    ,"public_store_identity": "အများမြင် စတိုးအမှတ်အသား"
-    ,"public_url": "အများမြင် URL"
-    ,"store_description_not_set": "Marketplace ဖောက်သည်များအတွက် စတိုးအကျဉ်းချုပ်ကို ထည့်သွင်းပါ။"
-    ,"tagline": "ဆောင်ပုဒ် / စာတန်း"
-    ,"active_branches": "အသုံးပြုနေသော ဆိုင်ခွဲများ"
-    ,"published_marketplace_products": "ထုတ်ဝေထားသော Marketplace ကုန်ပစ္စည်းများ"
-    ,"total_sales": "အရောင်း စုစုပေါင်း"
-    ,"business_information_help": "ဤလုပ်ငန်းခွင်၏ ဥပဒေရေးရာနှင့် လုပ်ငန်းဆိုင်ရာ အချက်အလက်များကို နောက်ဆုံးအခြေအနေတွင် ထားပါ။"
-    ,"select_type": "အမျိုးအစား ရွေးပါ"
-    ,"registration_number": "မှတ်ပုံတင်နံပါတ်"
-    ,"tax_number": "အခွန်နံပါတ်"
-    ,"currency": "ငွေကြေး"
-    ,"timezone": "အချိန်ဇုန်"
-    ,"default_language": "မူရင်းဘာသာစကား"
-    ,"contact_information": "ဆက်သွယ်ရန် အချက်အလက်"
-    ,"contact_information_help": "အများမြင်ဖောက်သည်များက ဤလမ်းကြောင်းများမှ လုပ်ငန်းကို ဆက်သွယ်နိုင်ပါသည်။"
-    ,"secondary_phone": "အရန်ဖုန်း"
-    ,"facebook_page": "Facebook စာမျက်နှာ"
-    ,"messaging_contact": "စာပို့ဆက်သွယ်ရန်"
-    ,"full_address": "လိပ်စာအပြည့်အစုံ"
-    ,"state_region": "ပြည်နယ် / တိုင်းဒေသကြီး"
-    ,"postal_code": "စာပို့သင်္ကေတ"
-    ,"operating_hours": "ဖွင့်ချိန်များ"
-    ,"operating_hours_help": "အများမြင်စတိုးတွင် ပြသမည့် ပုံမှန်ဖွင့်ချိန်များကို သတ်မှတ်ပါ။"
-    ,"closed": "ပိတ်ထားသည်"
-    ,"day_monday": "တနင်္လာ"
-    ,"day_tuesday": "အင်္ဂါ"
-    ,"day_wednesday": "ဗုဒ္ဓဟူး"
-    ,"day_thursday": "ကြာသပတေး"
-    ,"day_friday": "သောကြာ"
-    ,"day_saturday": "စနေ"
-    ,"day_sunday": "တနင်္ဂနွေ"
-    ,"temporary_closure_message": "ယာယီပိတ်ထားကြောင်း စာတန်း"
-    ,"holiday_notice": "အားလပ်ရက် အသိပေးချက်"
-    ,"store_policies": "စတိုးမူဝါဒများ"
-    ,"store_policies_help": "ပို့ဆောင်ခြင်း၊ ပြန်လည်ပေးပို့ခြင်း၊ ပြန်အမ်းခြင်းနှင့် ဖောက်သည်ပံ့ပိုးမှုဆိုင်ရာ မျှော်မှန်းချက်များကို ရှင်းပြပါ။"
-    ,"shipping_policy": "ပို့ဆောင်ရေး မူဝါဒ"
-    ,"return_policy": "ပြန်လည်ပေးပို့ရေး မူဝါဒ"
-    ,"refund_policy": "ပြန်အမ်းရေး မူဝါဒ"
-    ,"support_policy": "ပံ့ပိုးရေး မူဝါဒ"
-    ,"marketplace_visibility": "Marketplace မြင်နိုင်မှု"
-    ,"shipping_coverage": "ပို့ဆောင်နိုင်သော နယ်ပယ်"
-    ,"customer_support_contact": "ဖောက်သည်ပံ့ပိုးရေး ဆက်သွယ်ရန်"
-    ,"delivery_methods": "ပို့ဆောင်နည်းများ"
-    ,"cod_available": "ပစ္စည်းရောက်ငွေချေ ရရှိနိုင်သည်"
-    ,"cod_available_help": "သတ်မှတ်ချက်နှင့် ကိုက်ညီပါက ပစ္စည်းရောက်ငွေချေကို ငွေပေးချေမှုရွေးချယ်စရာအဖြစ် ပြပါမည်။"
-    ,"preview_storefront": "စတိုးမျက်နှာစာ ကြည့်ရန်"
-    ,"branches_overview": "ဆိုင်ခွဲ အနှစ်ချုပ်"
-    ,"branches_overview_help": "ခွင့်ပြုထားသော လုပ်ငန်းဆိုင်ခွဲများနှင့် လက်ရှိလုပ်ငန်းအခြေအနေများ။"
-    ,"main_branch": "ပင်မဆိုင်ခွဲ"
-    ,"address_not_set": "လိပ်စာ မသတ်မှတ်ရသေးပါ"
-    ,"no_branches": "ဆိုင်ခွဲများ မထည့်ရသေးပါ။"
-    ,"manage_branches": "ဆိုင်ခွဲများ စီမံရန်"
-    ,"activity": "လုပ်ဆောင်ချက်များ"
-    ,"activity_help": "မကြာသေးမီက စတိုးပရိုဖိုင်နှင့် အမှတ်တံဆိပ် ပြင်ဆင်မှုများ။"
-    ,"no_activity": "စတိုးလုပ်ဆောင်ချက် မှတ်တမ်း မရှိသေးပါ။"
-    ,"public_storefront": "အများမြင် စတိုးမျက်နှာစာ"
-    ,"published_products": "ထုတ်ဝေထားသော ကုန်ပစ္စည်းများ"
-    ,"no_published_products": "ထုတ်ဝေထားသော ကုန်ပစ္စည်း မရှိသေးပါ။"
-    ,"no_description": "ဖော်ပြချက် မထည့်ရသေးပါ။"
-    ,"close_filters": "စစ်ထုတ်မှု ပိတ်ရန်"
-    ,"marketplace_finance": "Marketplace ဘဏ္ဍာရေး"
-    ,"view_marketplace_earnings_commission_rules_payouts_and_ledger_activity": "Marketplace ဝင်ငွေ၊ ကော်မရှင်စည်းမျဉ်း၊ payout နှင့် ledger လုပ်ဆောင်ချက်များကို ကြည့်ရန်။"
-    ,"open_earnings_page": "ဝင်ငွေစာမျက်နှာ ဖွင့်ရန် →"
-    ,"search_earnings": "ဝင်ငွေ ရှာရန်"
-    ,"unassigned_unknown": "သတ်မှတ်မထား / မသိရှိ"
-    ,"all_entry_types": "မှတ်တမ်းအမျိုးအစားအားလုံး"
-    ,"seller_earning": "ရောင်းချသူ ဝင်ငွေ"
-    ,"refund": "ပြန်အမ်းငွေ"
-    ,"adjustment": "ပြင်ဆင်ချက်"
-    ,"all_directions": "ဦးတည်ချက်အားလုံး"
-    ,"credit": "ဝင်ငွေ"
-    ,"debit": "ထွက်ငွေ"
-    ,"reversed": "ပြန်လှန်ထားသည်"
-    ,"amount_high_to_low": "ပမာဏ အများမှ အနည်း"
-    ,"amount_low_to_high": "ပမာဏ အနည်းမှ အများ"
-    ,"date_range_activity": "ရက်စွဲကာလ လုပ်ဆောင်ချက်"
-    ,"transaction_date": "ငွေစာရင်း ရက်စွဲ"
-    ,"reference_order": "ရည်ညွှန်း / အော်ဒါ"
-    ,"entry_type": "မှတ်တမ်းအမျိုးအစား"
-    ,"first": "ပထမ"
-    ,"last": "နောက်ဆုံး"
-    ,"transaction_details": "ငွေစာရင်း အသေးစိတ်"
-    ,"search_reference_or_order": "ရည်ညွှန်း သို့မဟုတ် အော်ဒါ ရှာရန်"
-    ,"transaction_status": "ငွေစာရင်း အခြေအနေ"
-    ,"any_currency": "ငွေကြေးမရွေး"
-    ,"original_ledger_amount": "မူရင်း ledger ပမာဏ"
-    ,"destination_warehouse": "ပို့မည့် ဂိုဒေါင်"
-    ,"all_suppliers": "ပေးသွင်းသူအားလုံး"
-    ,"order_date_from": "အော်ဒါရက်စွဲမှ"
-    ,"order_date_to": "အော်ဒါရက်စွဲအထိ"
-    ,"search_po_number_supplier_code_or_sku": "PO နံပါတ်၊ ပေးသွင်းသူ၊ ကုဒ် သို့မဟုတ် SKU ရှာရန်"
-    ,"reset": "ပြန်စရန်"
-    ,"done": "ပြီးပါပြီ"
-    ,"all_authorized_cashiers": "ခွင့်ပြုထားသော ငွေကိုင်အားလုံး"
-    ,"pending_payment": "စောင့်ဆိုင်းနေသော ပေးချေမှု"
-    ,"all_verified_methods": "အတည်ပြုထားသော နည်းလမ်းအားလုံး"
-    ,"any_verification_state": "အတည်ပြုမှုအခြေအနေ မရွေး"
-    ,"filter_sales": "အရောင်း စစ်ထုတ်ရန်"
-    ,"review_authorized_sales_payments_receipts_and_refund_totals_across_your_branches": "ခွင့်ပြုထားသော ဆိုင်ခွဲများအလိုက် အရောင်း၊ ပေးချေမှု၊ ပြေစာနှင့် ပြန်အမ်းငွေ စုစုပေါင်းများကို စစ်ဆေးပါ။"
-    ,"voided": "ပယ်ဖျက်ထားသည်"
-    ,"search_sale_receipt_or_cashier": "အရောင်း၊ ပြေစာ သို့မဟုတ် ငွေကိုင် ရှာရန်"
-    ,"sale_status": "အရောင်း အခြေအနေ"
-    ,"verification": "အတည်ပြုမှု"
-    ,"sales_pagination": "အရောင်း စာမျက်နှာခွဲခြားမှု"
+    "too_many_login_attempts_try_again_in": "ဝင်ရောက်ရန် ကြိုးစားမှုများလွန်းပါသည်။ {{time}} အကြာတွင် ပြန်စမ်းပါ။",
+    "signing_in": "ဝင်ရောက်နေသည်…",
+    "try_again_in": "{{time}} အကြာတွင် ပြန်စမ်းရန်",
+    "hide_password": "စကားဝှက် ဖျောက်ရန်",
+    "show_password": "စကားဝှက် ပြရန်",
+    "marketplace_overview": "Marketplace အနှစ်ချုပ်",
+    "marketplace_overview_description": "ဤလုပ်ငန်းအတွက် အတည်ပြုထားသော Customer Marketplace စာမျက်နှာကို လုပ်ငန်းအလိုက် စီမံပါ။",
+    "manage_store": "စတိုး စီမံရန်",
+    "unable_to_load_marketplace_overview": "Marketplace အနှစ်ချုပ်ကို ဖွင့်၍ မရပါ။",
+    "store_visible": "စတိုးကို ပြသထားသည်",
+    "store_hidden": "စတိုးကို ဖျောက်ထားသည်",
+    "store_visibility_help": "ဖျောက်ထားပါက စတိုးနှင့် ထုတ်ဝေထားသော စာရင်းများကို အများမြင်နိုင်မည် မဟုတ်ပါ။",
+    "published_products": "ထုတ်ဝေထားသော ကုန်ပစ္စည်းများ",
+    "marketplace_listings_visible_to_customers": "ဖောက်သည်များ မြင်နိုင်သော Marketplace စာရင်းများ",
+    "pending_marketplace_orders": "စောင့်ဆိုင်းနေသော Marketplace အော်ဒါများ",
+    "orders_not_available_yet": "အော်ဒါများ မရရှိသေးပါ",
+    "awaiting_fulfillment": "ဖြည့်ဆည်းပေးရန် စောင့်ဆိုင်းနေသည်",
+    "completed_marketplace_orders": "ပြီးစီးသော Marketplace အော်ဒါများ",
+    "fulfilled_orders": "ဖြည့်ဆည်းပြီးသော အော်ဒါများ",
+    "marketplace_revenue": "Marketplace ဝင်ငွေ",
+    "revenue_not_available_yet": "ဝင်ငွေ မရရှိသေးပါ",
+    "net_marketplace_revenue": "အသားတင် Marketplace ဝင်ငွေ",
+    "preview_storefront": "စတိုးမျက်နှာစာ ကြည့်ရန်",
+    "all_authorized_branches": "ခွင့်ပြုထားသော ဆိုင်ခွဲအားလုံး",
+    "unassigned_unknown_branch": "မသတ်မှတ်ရသေးသော / မသိရသေးသော ဆိုင်ခွဲ",
+    "group_day": "နေ့စဉ်",
+    "group_week": "အပတ်စဉ်",
+    "group_month": "လစဉ်",
+    "dashboard_activity_period_note": "လုပ်ဆောင်ချက်ကာလ: {{range}} · လုပ်ငန်းအချိန်ဇုန်: {{timezone}}။ လက်ရှိလက်ကျန်များကို ဤကာလဖြင့် မကန့်သတ်ပါ။",
+    "total_marketplace_orders": "Marketplace အော်ဒါ စုစုပေါင်း",
+    "selected_period": "ရွေးထားသော လုပ်ဆောင်ချက်ကာလ",
+    "paid_revenue": "ပေးချေပြီး ဝင်ငွေ",
+    "verified_paid_orders": "အတည်ပြုပြီး ပေးချေမှုမှတ်တမ်းများ",
+    "pending_cod": "စောင့်ဆိုင်းနေသော COD",
+    "pending_cod_orders": "ငွေလက်ခံရန် စောင့်နေသော အော်ဒါ {{count}} ခု",
+    "approved_refunds": "အတည်ပြုပြီး ပြန်အမ်းမှု လုပ်ဆောင်ချက်",
+    "revenue_analytics": "ဝင်ငွေ ခွဲခြမ်းစိတ်ဖြာမှု",
+    "revenue_analytics_description": "ရွေးထားသော အုပ်စုခွဲအလိုက် အော်ဒါတန်ဖိုးစုစုပေါင်းနှင့် အတည်ပြုပြီး ပေးချေငွေ။",
+    "current_balances_not_date_activity": "အတည်ပြုထားသော settlement လက်ကျန်များဖြစ်ပြီး ရက်စွဲစစ်ထုတ်မှုသည် လုပ်ဆောင်ချက်အပေါ်သာ သက်ရောက်ပါသည်။",
+    "earnings_snapshot": "ဝင်ငွေ လက်ရှိအခြေအနေ",
+    "gross_order_value": "အော်ဒါတန်ဖိုး စုစုပေါင်း",
+    "order": "အော်ဒါ",
+    "view_earnings": "ဝင်ငွေကြည့်ရန်",
+    "order_performance": "အော်ဒါ လုပ်ဆောင်ရည်",
+    "order_performance_description": "ဖြည့်ဆည်းမှုသည် ဆိုင်ခွဲများစွာကို ဖြတ်သန်းသော်လည်း အော်ဒါကို တစ်ကြိမ်သာ ရေတွက်ပါသည်။",
+    "payment_overview": "ပေးချေမှု အနှစ်ချုပ်",
+    "payment_overview_description": "COD ကို ပေးချေပြီးဟု အတည်ပြုမပြီးမချင်း မသတ်မှတ်ပါ။",
+    "paid_orders": "ပေးချေပြီး အော်ဒါများ",
+    "authorized_payments": "ခွင့်ပြုထားသော ပေးချေမှုများ",
+    "failed_payments": "မအောင်မြင်သော ပေးချေမှုများ",
+    "refunded_payments": "ပြန်အမ်းပြီး ပေးချေမှုများ",
+    "fulfillment_dashboard": "ဖြည့်ဆည်းမှု ဒက်ရှ်ဘုတ်",
+    "fulfillment_dashboard_description": "ပို့ဆောင်မှု လုပ်ဆောင်ချက်ကို အော်ဒါအခြေအနေ ရေတွက်မှုမှ သီးခြားထားပါသည်။",
+    "ready_for_dispatch": "ပို့ဆောင်ရန် အသင့်",
+    "inventory_alerts": "Inventory သတိပေးချက်များ",
+    "out_of_stock_products": "လက်ကျန်ကုန်နေသော ကုန်ပစ္စည်းများ",
+    "available_inventory": "ရရှိနိုင်သော Inventory",
+    "top_selling_products": "အရောင်းရဆုံး ကုန်ပစ္စည်းများ",
+    "top_selling_products_description": "ရွေးထားသော လုပ်ဆောင်ချက်ကာလအတွင်းရှိ အမှန်တကယ် Marketplace အော်ဒါပစ္စည်းများ။",
+    "units": "ယူနစ်",
+    "recent_orders_bounded": "လတ်တလော လုပ်ဆောင်ချက်ကို ကန့်သတ်အရေအတွက်ဖြင့် ပြသထားပါသည်။",
+    "view_all_orders": "အော်ဒါအားလုံး ကြည့်ရန်",
+    "alerts_action_center": "သတိပေးချက်များနှင့် လုပ်ဆောင်ရန်နေရာ",
+    "alerts_action_center_description": "အာရုံစိုက်ရန် လိုအပ်နိုင်သော လုပ်ငန်းဆိုင်ရာ အချက်များ။",
+    "new_orders_requiring_review": "ပြန်လည်စစ်ဆေးရန် အော်ဒါအသစ်များ",
+    "pending_cod_collection": "စောင့်ဆိုင်းနေသော COD ငွေလက်ခံမှု",
+    "failed_deliveries": "မအောင်မြင်သော ပို့ဆောင်မှုများ",
+    "quick_actions": "အမြန်လုပ်ဆောင်ချက်များ",
+    "quick_actions_description": "ခွင့်ပြုထားသော Marketplace စီမံမှု လုပ်ငန်းစဉ်ကို ဖွင့်ပါ။",
+    "delivery_fulfillment": "ပို့ဆောင်မှုနှင့် ဖြည့်ဆည်းမှု",
+    "earnings_commissions": "ဝင်ငွေနှင့် ကော်မရှင်များ",
+    "low_stock_products": "လက်ကျန်နည်းသော ကုန်ပစ္စည်းများ",
+    "marketplace_uses_pos_inventory_availability": "လက်ကျန်ရရှိနိုင်မှုကို လက်ရှိ POS inventory စနစ်မှ ဖတ်ယူပါသည်။",
+    "view_inventory": "လက်ကျန်ကြည့်ရန်",
+    "no_marketplace_low_stock_products": "Reorder level အောက်ရောက်နေသော Marketplace ကုန်ပစ္စည်း မရှိပါ။",
+    "recent_marketplace_orders": "လတ်တလော Marketplace အော်ဒါများ",
+    "orders_will_appear_after_checkout_is_enabled": "Marketplace checkout နှင့် အော်ဒါဝန်ဆောင်မှုများ ဖွင့်ပြီးနောက် အော်ဒါများ ဤနေရာတွင် ပေါ်လာပါမည်။",
+    "no_marketplace_orders_yet": "Marketplace အော်ဒါ မရှိသေးပါ။",
+    "my_store": "ကျွန်ုပ်၏ စတိုး",
+    "manage_public_marketplace_store": "ဤလုပ်ငန်း၏ အများမြင် Marketplace စတိုး ပရိုဖိုင်ကို စီမံပါ။",
+    "unable_to_load_store": "Marketplace စတိုးကို ဖွင့်၍ မရပါ။",
+    "store_profile_saved": "စတိုးပရိုဖိုင် သိမ်းပြီးပါပြီ။",
+    "unable_to_save_store": "စတိုးပရိုဖိုင်ကို သိမ်း၍ မရပါ။",
+    "marketplace_image_validation": "JPG၊ PNG သို့မဟုတ် WebP ပုံကို 5 MB အထိ ရွေးပါ။",
+    "store_image_updated": "စတိုးပုံကို ပြင်ဆင်ပြီးပါပြီ။",
+    "unable_to_upload_store_image": "စတိုးပုံကို တင်၍ မရပါ။",
+    "store_profile": "စတိုးပရိုဖိုင်",
+    "store_profile_description": "အတည်ပြုပြီးနောက် ဤအချက်အလက်များကို Marketplace ဖောက်သည်များ မြင်နိုင်ပါမည်။",
+    "store_name": "စတိုးအမည်",
+    "store_slug": "စတိုး URL အမည်",
+    "store_description": "စတိုးအကြောင်းဖော်ပြချက်",
+    "public_contact_email": "အများမြင် ဆက်သွယ်ရန် အီးမေးလ်",
+    "public_contact_phone": "အများမြင် ဆက်သွယ်ရန် ဖုန်း",
+    "notification_preferences": "အကြောင်းကြားချက် ဆက်တင်များ",
+    "order_updates": "အော်ဒါ အပ်ဒိတ်များ",
+    "fulfillment_preference": "ဖြည့်ဆည်းမှု ဦးစားပေးမှု",
+    "self_delivery": "ကိုယ်တိုင်ပို့ဆောင်ခြင်း",
+    "external_courier": "ပြင်ပပို့ဆောင်ရေး",
+    "store_logo": "စတိုးလိုဂို",
+    "marketplace_logo_help": "အများမြင်စတိုးနှင့် Marketplace စာရင်းများတွင် ပြသပါမည်။",
+    "store_banner": "စတိုးဘန်နာ",
+    "marketplace_banner_help": "အများမြင်စတိုးခေါင်းစီးအတွက် အလျားလိုက်ပုံကို အသုံးပြုပါ။",
+    "saving": "သိမ်းနေသည်…",
+    "approval_required": "Super Admin အတည်ပြုချက် လိုအပ်ပါသည်",
+    "store_approval_help": "Business Admin သည် မိမိလုပ်ငန်း၏ စတိုးပရိုဖိုင်ကိုသာ ပြင်နိုင်ပြီး စတိုးအတည်ပြုချက်ကို ကိုယ်တိုင်ပြုလုပ်ခြင်း သို့မဟုတ် archived/suspended လုပ်ငန်းစည်းမျဉ်းကို ကျော်လွှားခြင်း မပြုနိုင်ပါ။",
+    "marketplace_products": "Marketplace ကုန်ပစ္စည်းများ",
+    "manage_marketplace_product_publishing": "Catalog သို့မဟုတ် inventory မှတ်တမ်းများ မိတ္တူမပြုဘဲ လက်ရှိ POS ကုန်ပစ္စည်းများကို ထုတ်ဝေပါ။",
+    "marketplace_catalog_scope": "ခွင့်ပြုထားသော ကုန်ပစ္စည်းစာရင်းနှင့် ဘဏ်ခွဲလက်ကျန်များအပေါ် Marketplace စာရင်းများကို စီမံပါ။",
+    "unable_to_load_marketplace_products": "Marketplace ကုန်ပစ္စည်းများကို ဖွင့်၍ မရပါ။",
+    "publish_selected": "ရွေးထားသည်များ ထုတ်ဝေရန်",
+    "search_products_or_sku": "ကုန်ပစ္စည်း သို့မဟုတ် SKU ရှာရန်",
+    "all_products": "ကုန်ပစ္စည်းအားလုံး",
+    "published": "ထုတ်ဝေထားသည်",
+    "unpublished": "မထုတ်ဝေရသေးပါ",
+    "unpublished_products": "မထုတ်ဝေရသေးသော ကုန်ပစ္စည်းများ",
+    "draft_archived_not_listed": "မူကြမ်း၊ သိမ်းဆည်းထားသည် သို့မဟုတ် စာရင်းမတင်ရသေးပါ",
+    "all_listing_states": "စာရင်းအခြေအနေအားလုံး",
+    "not_listed": "စာရင်းမတင်ရသေးပါ",
+    "marketplace_status": "Marketplace အခြေအနေ",
+    "view_stock": "လက်ကျန်ကြည့်ရန်",
+    "select_current_page": "လက်ရှိစာမျက်နှာကို ရွေးရန်",
+    "only_selected_page_products": "ဤစာမျက်နှာတွင် ရွေးချယ်ထားသော ကုန်ပစ္စည်းများကိုသာ လုပ်ဆောင်မည်ဖြစ်ပြီး စာရင်းတစ်ခုချင်းစီကို ဆာဗာက စစ်ဆေးပါမည်။",
+    "authorized_branch_stock": "ခွင့်ပြုထားသော ဘဏ်ခွဲလက်ကျန်",
+    "authorized_branch_stock_help": "လက်ရှိဘဏ်ခွဲ စစ်ထုတ်မှုအတွက် ခွင့်ပြုထားသော လက်ကျန်မှတ်တမ်းများ။",
+    "no_authorized_stock_balances": "ခွင့်ပြုထားသော လက်ကျန်မှတ်တမ်း မတွေ့ပါ။",
+    "branch_stock_title": "ဘဏ်ခွဲလက်ကျန် · {{name}}",
+    "variant_size": "မူကွဲ / အရွယ်အစား",
+    "select_all_products": "ကုန်ပစ္စည်းအားလုံး ရွေးရန်",
+    "price": "ဈေးနှုန်း",
+    "available_stock": "ရရှိနိုင်သော လက်ကျန်",
+    "category": "အမျိုးအစား",
+    "not_tracked": "ခြေရာမခံပါ",
+    "not_published": "မထုတ်ဝေရသေးပါ",
+    "publish": "ထုတ်ဝေရန်",
+    "unpublish": "ထုတ်ဝေမှု ရပ်ရန်",
+    "images": "ပုံများ",
+    "select": "ရွေးရန်",
+    "no_products_match_filters": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော ကုန်ပစ္စည်း မရှိပါ။",
+    "stock_load_failed": "ခွင့်ပြုထားသော ဘဏ်ခွဲလက်ကျန်ကို မဖတ်နိုင်ပါ။",
+    "publish_product_question": "{{name}} ကို ထုတ်ဝေမည်လား။",
+    "unpublish_product_question": "{{name}} ကို ထုတ်ဝေမှု ရပ်မည်လား။",
+    "publish_product_help": "လက်ရှိ POS ကုန်ပစ္စည်းအတွက် Marketplace စာရင်းတစ်ခု ဖန်တီးပါမည်။ Inventory နှင့် SKU မှတ်တမ်းများ မပြောင်းလဲပါ။",
+    "unpublish_product_help": "ဤစာရင်းကို အများမြင်နိုင်တော့မည် မဟုတ်ပါ။ POS ကုန်ပစ္စည်းနှင့် inventory သည် မပြောင်းလဲပါ။",
+    "publish_product": "ကုန်ပစ္စည်း ထုတ်ဝေရန်",
+    "unpublish_product": "ကုန်ပစ္စည်း ထုတ်ဝေမှု ရပ်ရန်",
+    "publish_selected_products_question": "ရွေးထားသော ကုန်ပစ္စည်း {{count}} ခုကို ထုတ်ဝေမည်လား။",
+    "publish_selected_products_help": "စတိုးအတည်ပြုချက်၊ အခြေအနေ နှင့် inventory စည်းမျဉ်းများကို ဖြတ်ကျော်နိုင်သော ကုန်ပစ္စည်းများသာ ထုတ်ဝေပါမည်။",
+    "product_published": "ကုန်ပစ္စည်းကို Marketplace သို့ ထုတ်ဝေပြီးပါပြီ။",
+    "product_unpublished": "ကုန်ပစ္စည်းကို Marketplace မှ ထုတ်ဝေမှု ရပ်ပြီးပါပြီ။",
+    "unable_to_update_marketplace_product": "Marketplace ကုန်ပစ္စည်းကို ပြင်ဆင်၍ မရပါ။",
+    "listing_images_uploaded": "Marketplace စာရင်းပုံများ တင်ပြီးပါပြီ။",
+    "unable_to_upload_listing_images": "Marketplace စာရင်းပုံများကို တင်၍ မရပါ။",
+    "marketplace_orders": "Marketplace အော်ဒါများ",
+    "order_investigation": "အော်ဒါ စိစစ်မှု",
+    "investigate": "စိစစ်ရန်",
+    "audit_history": "စစ်ဆေးမှတ်တမ်း",
+    "businesses_and_shipments": "လုပ်ငန်းများနှင့် ပို့ဆောင်မှုများ",
+    "order_status": "အော်ဒါအခြေအနေ",
+    "on_hold": "ဆိုင်းငံ့ထားသည်",
+    "order_on_hold": "အော်ဒါ ဆိုင်းငံ့ထားသည်",
+    "intervention_reason": "ကြားဝင်ဆောင်ရွက်ရသည့် အကြောင်းရင်း",
+    "intervention_reason_placeholder": "စစ်ဆေးပြီးသော လုပ်ငန်းဆိုင်ရာ အကြောင်းရင်းကို ရှင်းပြပါ။",
+    "intervention_reason_required": "ဤကြားဝင်ဆောင်ရွက်မှုအတွက် အကြောင်းရင်း လိုအပ်ပါသည်။",
+    "intervention_confirmation": "ဤလုပ်ဆောင်ချက်ကို စည်းမျဉ်းအတိုင်း စစ်ဆေးပြီး မှတ်တမ်းတင်ကာ သက်ဆိုင်ရာလုပ်ငန်းများကို အကြောင်းကြားပါမည်။",
+    "place_order_on_hold": "အော်ဒါကို ဆိုင်းငံ့ရန်",
+    "release_order_hold": "အော်ဒါဆိုင်းငံ့မှု ဖြုတ်ရန်",
+    "record_investigation_note": "စိစစ်မှတ်ချက် မှတ်တမ်းတင်ရန်",
+    "correct_order_status": "အော်ဒါအခြေအနေ ပြင်ရန်",
+    "save_correction": "ပြင်ဆင်ချက် သိမ်းရန်",
+    "cod_amount_received": "COD လက်ခံရရှိသည့် ပမာဏ",
+    "confirm_cod_payment": "COD ငွေပေးချေမှု အတည်ပြုရန်",
+    "cod_payment_confirmation_help": "ရှိပြီးသား ငွေပေးချေမှုဝန်ဆောင်မှုက ပမာဏနှင့် ထပ်တူမဖြစ်စေရန် key ကို စစ်ဆေးပါမည်။",
+    "payment_amount_required": "လက်ခံရရှိသည့် မှန်ကန်သော ပမာဏကို ထည့်ပါ။",
+    "marketplace_intervention_saved": "Marketplace ကြားဝင်ဆောင်ရွက်မှုကို သိမ်းပြီးပါပြီ။",
+    "unable_to_save_marketplace_intervention": "Marketplace ကြားဝင်ဆောင်ရွက်မှုကို သိမ်း၍ မရပါ။",
+    "unable_to_load_marketplace_order": "Marketplace အော်ဒါကို ဖွင့်၍ မရပါ။",
+    "marketplace_orders_description": "ခွင့်ပြုထားသော လုပ်ငန်းများ၏ Marketplace အော်ဒါများကို ရှာဖွေ၊ စစ်ထုတ်ပြီး စိစစ်ပါ။",
+    "marketplace_operations": "Marketplace လုပ်ငန်းစဉ်များ",
+    "marketplace_operations_description": "Marketplace အော်ဒါများ၊ ပို့ဆောင်မှု ပြဿနာများနှင့် ဖောက်သည်တောင်းဆိုချက်များကို စောင့်ကြည့်ပါ။",
+    "unable_to_load_marketplace_operations": "Marketplace လုပ်ငန်းစဉ်များကို ဖွင့်၍ မရပါ။",
+    "no_marketplace_operations": "Marketplace မှတ်တမ်း မတွေ့ပါ။",
+    "cancellation_requests": "ပယ်ဖျက်ရန် တောင်းဆိုချက်များ",
+    "return_requests": "ပြန်အပ်ရန် တောင်းဆိုချက်များ",
+    "refund_requests": "ပြန်အမ်းငွေ တောင်းဆိုချက်များ",
+    "vendor_orders": "ရောင်းချသူ အော်ဒါများ",
+    "internal_tracking_id": "အတွင်းသုံး ခြေရာခံ ID",
+    "requested_amount": "တောင်းဆိုထားသော ပမာဏ",
+    "reason": "အကြောင်းရင်း",
+    "server_verified": "ဆာဗာက စိစစ်ပြီး",
+    "approve_marketplace_request": "Marketplace တောင်းဆိုချက်ကို အတည်ပြုမည်လား။",
+    "approve_marketplace_request_help": "ဆာဗာဘက်မှ အတည်ပြုမှုလုပ်ငန်းစဉ်ကို ဆောင်ရွက်ပြီး စာရင်းစစ်မှတ်တမ်း ထည့်သွင်းပါမည်။",
+    "reject_marketplace_request": "Marketplace တောင်းဆိုချက်ကို ငြင်းပယ်မည်လား။",
+    "reject_marketplace_request_help": "တောင်းဆိုချက်ကို ငြင်းပယ်ပြီး ဆုံးဖြတ်ချက်ကို မှတ်တမ်းတင်ပါမည်။",
+    "marketplace_request_updated": "Marketplace တောင်းဆိုချက်ကို ပြင်ဆင်ပြီးပါပြီ။",
+    "unable_to_update_marketplace_request": "Marketplace တောင်းဆိုချက်ကို ပြင်ဆင်၍ မရပါ။",
+    "refunds_blocked_provider": "အတည်ပြုထားသော provider မသတ်မှတ်မချင်း အမှန်တကယ် ငွေပြန်အမ်းခြင်းကို ပိတ်ထားပါသည်။",
+    "reviewed": "စိစစ်ပြီး",
+    "unable_to_load_marketplace_orders": "Marketplace အော်ဒါများကို ဖွင့်၍ မရပါ။",
+    "order_number": "အော်ဒါနံပါတ်",
+    "order_date": "အော်ဒါရက်စွဲ",
+    "quantity": "အရေအတွက်",
+    "back": "နောက်သို့",
+    "confirmed": "အတည်ပြုပြီး",
+    "shipped": "ပို့ပြီး",
+    "delivered": "ရောက်ရှိပြီး",
+    "marketplace_order_details": "Marketplace အော်ဒါအသေးစိတ်",
+    "fulfillment_status": "အော်ဒါဖြည့်ဆည်းမှု အခြေအနေ",
+    "shipment_status": "ပို့ဆောင်မှု အခြေအနေ",
+    "create_shipment": "ပို့ဆောင်မှု ဖန်တီးရန်",
+    "delivery_type": "ပို့ဆောင်မှုအမျိုးအစား",
+    "carrier_name": "ပို့ဆောင်သူအမည်",
+    "tracking_number": "ခြေရာခံနံပါတ်",
+    "tracking_url": "ခြေရာခံ URL",
+    "delivery_notes": "ပို့ဆောင်မှုမှတ်ချက်",
+    "save_shipment": "ပို့ဆောင်မှု ဖန်တီးရန်",
+    "shipment_created": "ပို့ဆောင်မှု ဖန်တီးပြီးပါပြီ။",
+    "shipment_updated": "ပို့ဆောင်မှုအခြေအနေ ပြင်ဆင်ပြီးပါပြီ။",
+    "unable_to_create_shipment": "ပို့ဆောင်မှုကို ဖန်တီး၍ မရပါ။",
+    "unable_to_update_shipment": "ပို့ဆောင်မှုအခြေအနေကို ပြင်ဆင်၍ မရပါ။",
+    "shipment_not_created": "ပို့ဆောင်မှုကို မဖန်တီးရသေးပါ။",
+    "delivery_failed": "ပို့ဆောင်မှု မအောင်မြင်ပါ",
+    "returned": "ပြန်ပို့ပြီး",
+    "customer_delivery_address": "ဖောက်သည်ပို့ဆောင်ရမည့်လိပ်စာ",
+    "shipping_fulfillment": "ပို့ဆောင်မှုနှင့် ဖြည့်ဆည်းခြင်း",
+    "shipping_fulfillment_description": "Marketplace vendor အော်ဒါများအတွက် ခွင့်ပြုထားသော ပို့ဆောင်မှုအခြေအနေများကို စီမံရန် ပြင်ဆင်ပါ။",
+    "customer_reviews": "ဖောက်သည်သုံးသပ်ချက်များ",
+    "customer_reviews_description": "ဤစတိုးအတွက် အတည်ပြုထားသော ဖောက်သည်အကြံပြုချက်များကို ကြည့်ပါ။",
+    "unable_to_load_customer_reviews": "ဖောက်သည်သုံးသပ်ချက်များကို ဖွင့်၍ မရပါ။",
+    "total_reviews": "သုံးသပ်ချက်စုစုပေါင်း",
+    "average_rating": "ပျမ်းမျှအဆင့်သတ်မှတ်ချက်",
+    "pending_reviews": "စောင့်ဆိုင်းနေသော သုံးသပ်ချက်များ",
+    "approved_reviews": "အတည်ပြုထားသော သုံးသပ်ချက်များ",
+    "rejected_hidden_reviews": "ငြင်းပယ် သို့မဟုတ် ဖျောက်ထားသည်",
+    "search_reviews": "ကုန်ပစ္စည်း၊ ဖောက်သည် သို့မဟုတ် သုံးသပ်ချက် ရှာရန်",
+    "review_status": "သုံးသပ်ချက်အခြေအနေ",
+    "rating": "အဆင့်သတ်မှတ်ချက်",
+    "all_ratings": "အဆင့်အားလုံး",
+    "stars": "ကြယ်",
+    "review_pending": "စောင့်ဆိုင်းနေသည်",
+    "review_approved": "အတည်ပြုပြီး",
+    "review_rejected": "ငြင်းပယ်ပြီး",
+    "review_hidden": "ဖျောက်ထားသည်",
+    "no_customer_reviews": "ဖောက်သည်သုံးသပ်ချက် မတွေ့ပါ။",
+    "unknown_product": "မသိရသော ကုန်ပစ္စည်း",
+    "customer": "ဖောက်သည်",
+    "verified_purchase": "အတည်ပြုထားသော ဝယ်ယူမှု",
+    "moderation_reason": "စိစစ်ထိန်းချုပ်ရသည့် အကြောင်းပြချက်",
+    "earnings_commissions_description": "Marketplace ရောင်းအား၊ အခကြေးငွေ၊ ပြန်အမ်းငွေနှင့် အသားတင်ဝင်ငွေကို ကြည့်ပါ။",
+    "feature_not_available_yet": "ဤ Marketplace လုပ်ငန်းစဉ်ကို မရရှိသေးပါ",
+    "phase_5_dependency": "Marketplace အခြေခံစနစ်ကို စောင့်ဆိုင်းနေသည်",
+    "marketplace_orders_not_available": "လက်ရှိ backend အခြေခံစနစ်တွင် Marketplace အော်ဒါနှင့် checkout ဇယားများ မရှိသေးပါ။ Phase 5 အော်ဒါစနစ် ပြီးစီးသောအခါ အမှန်တကယ် vendor sub-order များကို အသုံးပြုပါမည်။",
+    "shipping_not_available": "ပို့ဆောင်မှုမှတ်တမ်းနှင့် ဆာဗာက ထိန်းချုပ်သော ဖြည့်ဆည်းမှုအခြေအနေများ မရှိသေးပါ။ ခွင့်ပြုထားသော ပို့ဆောင်မှုစနစ် မရှိမချင်း ဤစာမျက်နှာကို ဖတ်ရှုရန်သာ ထားရှိပါမည်။",
+    "reviews_not_available": "ဖောက်သည်သုံးသပ်ချက်မှတ်တမ်းနှင့် စိစစ်မှု API မရှိသေးပါ။ အစားထိုးသုံးသပ်ချက်များကို မပြပါ။",
+    "earnings_not_available": "Marketplace ကော်မရှင်၊ ပြန်အမ်းငွေနှင့် ပေးချေမှုမှတ်တမ်းများ မရှိသေးပါ။ POS ဝင်ငွေကို Marketplace ဝင်ငွေအဖြစ် မပြပါ။",
+    "marketplace_settings": "Marketplace ဆက်တင်များ",
+    "marketplace_settings_description": "ဤလုပ်ငန်းစတိုး၏ ပါဝင်မှုနှင့် အများမြင်ရရှိနိုင်မှုကို ထိန်းချုပ်ပါ။",
+    "qr_payment_settings": "QR / မိုဘိုင်း ငွေပေးချေမှု",
+    "global_qr_payment_title": "Marketplace အားလုံးသုံး QR / မိုဘိုင်း ငွေပေးချေမှု",
+    "global_qr_payment_help": "ဤဗဟိုငွေပေးချေမှုအကောင့်ကို Super Admin က ထိန်းချုပ်ပြီး ရောင်းချသူအားလုံး၏ သင့်လျော်သော Marketplace အော်ဒါများအတွက် အသုံးပြုပါသည်။",
+    "qr_payment_settings_help": "အတည်ပြုထားသော ဝန်ဆောင်မှုက QR ငွေပေးချေမှုကို ပံ့ပိုးပါက ဖောက်သည်များအသုံးပြုနိုင်မည့် လုပ်ငန်းပိုင် ငွေပေးချေမှုအချက်အလက်ကို သတ်မှတ်ပါ။",
+    "payment_provider": "ငွေပေးချေမှု ဝန်ဆောင်မှုပေးသူ",
+    "payment_account_name": "ငွေပေးချေမှု အကောင့်အမည်",
+    "payment_phone_number": "ငွေပေးချေမှု ဖုန်းနံပါတ်",
+    "payment_instructions": "ငွေပေးချေမှု လမ်းညွှန်ချက်",
+    "enable_qr_payment": "QR / မိုဘိုင်း ငွေပေးချေမှုအချက်အလက် ဖွင့်ရန်",
+    "qr_payment_enable_help": "ဤလုပ်ဆောင်ချက်သည် ငွေပေးချေမှုလမ်းညွှန်ချက်များကိုသာ ပြသပါသည်။ ရှိပြီးသား ဝန်ဆောင်မှုပေးသူ၏ အတည်ပြုမှု မပြီးမချင်း အော်ဒါများသည် စောင့်ဆိုင်းနေမည်ဖြစ်သည်။",
+    "qr_code_image": "QR ကုဒ်ပုံ",
+    "qr_code_image_help": "5 MB အထိ ရှင်းလင်းသော PNG၊ JPG၊ JPEG သို့မဟုတ် WebP ပုံကို တင်ပါ။",
+    "qr_code_preview": "QR ကုဒ် အစမ်းကြည့်ရန်",
+    "no_qr_code_uploaded": "QR ကုဒ်ပုံ မတင်ရသေးပါ",
+    "remove_qr_code": "QR ကုဒ် ဖယ်ရှားရန်",
+    "qr_payment_image_updated": "QR ငွေပေးချေမှုပုံကို ပြင်ဆင်ပြီးပါပြီ။",
+    "qr_payment_image_removed": "QR ငွေပေးချေမှုပုံကို ဖယ်ရှားပြီးပါပြီ။",
+    "marketplace_settings_saved": "Marketplace ဆက်တင်များ သိမ်းပြီးပါပြီ။",
+    "unable_to_save_marketplace_settings": "Marketplace ဆက်တင်များကို သိမ်း၍ မရပါ။",
+    "marketplace_settings_unavailable": "Marketplace ဆက်တင်များကို ရယူ၍ မရပါ။",
+    "marketplace_settings_load_help": "ဆက်တင်များ တောင်းဆိုမှု မအောင်မြင်ပါ။ အက်ဒမင်အကောင့်ဝင်ထားမှုနှင့် API ရရှိနိုင်မှုကို စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။",
+    "platform_admin_session_required": "ဤဘရောက်ဇာစက်ရှင်သည် Platform Super Admin အဖြစ် အကောင့်ဝင်ထားခြင်း မရှိပါ။ ထွက်ပြီး ရည်ရွယ်ထားသော အက်ဒမင်အကောင့်ဖြင့် ပြန်လည်ဝင်ရောက်ပါ။",
+    "retry": "ထပ်မံကြိုးစားရန်",
+    "marketplace_participation": "Marketplace ပါဝင်မှု",
+    "marketplace_participation_help": "အတည်ပြုထားသော ဤစတိုး၏ အများမြင် Marketplace ရရှိနိုင်မှုကို ဖွင့် သို့မဟုတ် ပိတ်ပါ။ အတည်ပြုချက်ကို Super Admin ကသာ ထိန်းချုပ်ပါသည်။",
+    "approval_status": "အတည်ပြုခွင့်အခြေအနေ",
+    "business_status": "လုပ်ငန်းအခြေအနေ",
+    "business_verification_status": "လုပ်ငန်းအတည်ပြုမှု အခြေအနေ",
+    "suspension_reason": "ရပ်ဆိုင်းရသည့်အကြောင်းပြချက်",
+    "suspended_by": "ရပ်ဆိုင်းသူ",
+    "suspended_at": "ရပ်ဆိုင်းချိန်",
+    "settings_scope_note": "လက်ရှိဆက်တင်အတိုင်းအတာ",
+    "notification_and_fulfillment_settings_come_with_later_marketplace_workflows": "အကြောင်းကြားချက်၊ ပို့ဆောင်မှုနှင့် ဖြည့်ဆည်းမှုဆက်တင်များကို backend လုပ်ငန်းစဉ်များ ရရှိလာသောအခါ ချိတ်ဆက်ပါမည်။",
+    "total_vendors": "ရောင်းချသူ စုစုပေါင်း",
+    "all_marketplace_stores": "Marketplace စတိုးအားလုံး",
+    "approved_marketplace_stores": "အတည်ပြုထားသော Marketplace စတိုးများ",
+    "suspended_vendors": "ရပ်ဆိုင်းထားသော ရောင်းချသူများ",
+    "inactive_marketplace_stores": "အသုံးမပြုနိုင်သော Marketplace စတိုးများ",
+    "search_vendors": "ရောင်းချသူ၊ စတိုး သို့မဟုတ် လုပ်ငန်း ရှာရန်",
+    "business_filter": "လုပ်ငန်း ID သို့မဟုတ် အမည်",
+    "all_approval_statuses": "အတည်ပြုမှု အခြေအနေအားလုံး",
+    "store_status": "စတိုးအခြေအနေ",
+    "product_status": "ကုန်ပစ္စည်းအခြေအနေ",
+    "all_store_statuses": "စတိုးအခြေအနေအားလုံး",
+    "sort_vendors": "ရောင်းချသူများ စီရန်",
+    "most_listings": "စာရင်းအများဆုံး",
+    "most_orders": "အော်ဒါအများဆုံး",
+    "registration_date": "မှတ်ပုံတင်ရက်",
+    "view_details": "အသေးစိတ်ကြည့်ရန်",
+    "vendors": "ရောင်းချသူများ",
+    "rejection_reason_placeholder": "ဤရောင်းချသူကို ငြင်းပယ်ရသည့်အကြောင်းပြချက်ကို ရေးပါ",
+    "suspension_reason_placeholder": "ဤရောင်းချသူကို ရပ်ဆိုင်းရသည့်အကြောင်းပြချက်ကို ရေးပါ",
+    "vendor_detail": "ရောင်းချသူ အသေးစိတ်",
+    "back_to_vendors": "ရောင်းချသူများထံ ပြန်သွားရန်",
+    "unable_to_load_vendor_detail": "ရောင်းချသူအသေးစိတ်ကို ဖွင့်၍ မရပါ။",
+    "vendor_not_found": "ရောင်းချသူ မတွေ့ပါ။",
+    "performance": "စွမ်းဆောင်ရည်",
+    "financial_summary": "ငွေကြေးအကျဉ်းချုပ်",
+    "fulfillment": "အော်ဒါဖြည့်ဆည်းမှု",
+    "vendor_products": "ရောင်းချသူ ကုန်ပစ္စည်းများ",
+    "variants": "မူကွဲများ",
+    "no_vendor_products": "ရောင်းချသူ ကုန်ပစ္စည်း မတွေ့ပါ။",
+    "no_vendor_orders": "ရောင်းချသူ အော်ဒါ မတွေ့ပါ။",
+    "no_vendor_audit_history": "ရောင်းချသူ စာရင်းစစ်မှတ်တမ်း မတွေ့ပါ။",
+    "delivered_orders": "ပို့ဆောင်ပြီး အော်ဒါများ",
+    "cancelled_orders": "ပယ်ဖျက်ထားသော အော်ဒါများ",
+    "completion_rate": "ပြီးစီးမှုနှုန်း",
+    "cancellation_rate": "ပယ်ဖျက်မှုနှုန်း",
+    "low_stock_listings": "လက်ကျန်နည်းသော စာရင်းများ",
+    "inventory_attention": "Inventory စစ်ဆေးရန်",
+    "operations_summary": "လုပ်ငန်းဆောင်ရွက်မှု အကျဉ်းချုပ်",
+    "review_audit_history": "စာရင်းစစ်မှတ်တမ်း ကြည့်ရန်",
+    "authorized_contact_email": "ခွင့်ပြုထားသော ဆက်သွယ်ရန်အီးမေးလ်",
+    "authorized_contact_phone": "ခွင့်ပြုထားသော ဆက်သွယ်ရန်ဖုန်း",
+    "business_id": "လုပ်ငန်း ID",
+    "eligible_sales": "အကျုံးဝင်ရောင်းအား",
+    "platform_commission": "Platform ကော်မရှင်",
+    "vendor_net_amount": "ရောင်းချသူ အသားတင်ပမာဏ",
+    "payout_status": "ပေးချေမှု အခြေအနေ",
+    "financial_summary_unavailable": "ဤရောင်းချသူအတွက် ငွေကြေးရှင်းတမ်းဒေတာ မရရှိပါ။",
+    "review_required": "စစ်ဆေးရန်လိုသည်",
+    "marketplace_control_center": "Marketplace ထိန်းချုပ်ရေးစင်တာ",
+    "marketplace_control_center_description": "အတည်ပြုထားသော Marketplace ရောင်းချသူများ၊ စာရင်းများ၊ အော်ဒါများ၊ အစီရင်ခံစာများနှင့် လုံခြုံရေးလုပ်ဆောင်ချက်များကို တစ်နေရာတည်းမှ စီမံပါ။",
+    "vendor_management": "ရောင်းချသူ စီမံခန့်ခွဲမှု",
+    "product_moderation": "ကုန်ပစ္စည်း စိစစ်ထိန်းချုပ်မှု",
+    "payments_and_refunds": "ငွေပေးချေမှုနှင့် ပြန်အမ်းငွေများ",
+    "commissions_and_payouts": "ကော်မရှင်နှင့် ပေးချေမှုများ",
+    "disputes": "အငြင်းပွားမှုများ",
+    "marketplace_reports": "အစီရင်ခံစာနှင့် ခွဲခြမ်းစိတ်ဖြာမှု",
+    "marketplace_audit_logs": "Marketplace စာရင်းစစ်မှတ်တမ်းများ",
+    "approved_vendors": "အတည်ပြုထားသော ရောင်းချသူများ",
+    "active_marketplace_stores": "အတည်ပြုပြီး အသုံးပြုနေသော စတိုးများ",
+    "pending_vendor_approvals": "အတည်ပြုရန် စောင့်ဆိုင်းနေသော ရောင်းချသူများ",
+    "requires_review": "Super Admin စိစစ်ရန်လိုသည်",
+    "public_marketplace_listings": "အများမြင် Marketplace စာရင်းများ",
+    "orders_in_selected_range": "ရွေးထားသောကာလအတွင်း အော်ဒါများ",
+    "recent_moderation_activity": "လတ်တလော စိစစ်ထိန်းချုပ်မှု လုပ်ဆောင်ချက်များ",
+    "no_moderation_activity": "Marketplace စိစစ်ထိန်းချုပ်မှု လုပ်ဆောင်ချက် မရှိသေးပါ။",
+    "no_marketplace_data": "Marketplace ဒေတာ မတွေ့ပါ။",
+    "no_marketplace_vendors": "Marketplace ရောင်းချသူ မတွေ့ပါ။",
+    "vendor_directory": "ရောင်းချသူ စာရင်း",
+    "no_marketplace_listings": "Marketplace စာရင်း မတွေ့ပါ။",
+    "total_marketplace_listings": "Marketplace စာရင်း စုစုပေါင်း",
+    "all_marketplace_listings": "Marketplace စာရင်းအားလုံး",
+    "published_listings": "ထုတ်ဝေထားသော စာရင်းများ",
+    "draft_listings": "မူကြမ်း စာရင်းများ",
+    "listings_not_published": "မထုတ်ဝေရသေးပါ",
+    "archived_listings": "သိမ်းဆည်းထားသော စာရင်းများ",
+    "listings_hidden_from_marketplace": "Marketplace မှ ဖျောက်ထားသည်",
+    "product_moderation_description": "မူလ POS ကုန်ပစ္စည်း သို့မဟုတ် inventory ကို မပြောင်းလဲဘဲ အမှန်တကယ် Marketplace စာရင်းများကို စိစစ်ပါ။",
+    "search_marketplace_listings": "ကုန်ပစ္စည်း၊ SKU၊ ဘားကုဒ် သို့မဟုတ် စတိုး ရှာရန်",
+    "listing_status": "စာရင်း အခြေအနေ",
+    "all_listing_statuses": "စာရင်း အခြေအနေအားလုံး",
+    "marketplace_store_filter": "Marketplace စတိုး ရှာရန်",
+    "stock_availability": "လက်ကျန် ရရှိနိုင်မှု",
+    "all_stock_statuses": "လက်ကျန် အခြေအနေအားလုံး",
+    "sort_listings": "စာရင်းများ စီရန်",
+    "price_low_to_high": "စျေးနှုန်း: နိမ့်မှ မြင့်",
+    "price_high_to_low": "စျေးနှုန်း: မြင့်မှ နိမ့်",
+    "status_a_to_z": "အခြေအနေ A–Z",
+    "per_page": "စာမျက်နှာလျှင်",
+    "listing_directory": "Marketplace စာရင်း လမ်းညွှန်",
+    "review_listing": "စိစစ်ရန်",
+    "unable_to_load_marketplace_listings": "Marketplace စာရင်းများကို ဖွင့်၍ မရပါ။",
+    "product_moderation_details": "ကုန်ပစ္စည်း စိစစ်ထိန်းချုပ်မှု အသေးစိတ်",
+    "back_to_listings": "စာရင်းများထံ ပြန်သွားရန်",
+    "listing_not_found": "Marketplace စာရင်း မတွေ့ပါ။",
+    "unable_to_load_listing_detail": "စာရင်းအသေးစိတ်ကို ဖွင့်၍ မရပါ။",
+    "moderation_reason_placeholder": "ဤစိစစ်ထိန်းချုပ်မှုလုပ်ဆောင်ချက်၏ အကြောင်းပြချက်ကို မှတ်တမ်းတင်ပါ",
+    "store_approval_status": "စတိုး အတည်ပြုချက် အခြေအနေ",
+    "publishing_eligible": "ထုတ်ဝေရန် အကျုံးဝင်သည်",
+    "publishing_not_eligible": "ထုတ်ဝေရန် အကျုံးမဝင်ပါ",
+    "product_images": "ကုန်ပစ္စည်း ပုံများ",
+    "no_product_images": "ကုန်ပစ္စည်းပုံ မရရှိပါ။",
+    "variants_and_inventory": "အမျိုးကွဲများနှင့် inventory",
+    "no_product_variants": "အသုံးပြုနေသော ကုန်ပစ္စည်းအမျိုးကွဲ မရရှိပါ။",
+    "moderation_history": "စိစစ်ထိန်းချုပ်မှု မှတ်တမ်း",
+    "no_reason_recorded": "အကြောင်းပြချက် မှတ်တမ်းမရှိပါ",
+    "no_moderation_history": "စိစစ်ထိန်းချုပ်မှု မှတ်တမ်း မရရှိပါ။",
+    "listings": "စာရင်းများ",
+    "stock": "လက်ကျန်",
+    "hide": "ဖျောက်ရန်",
+    "hide_marketplace_listing": "Marketplace စာရင်းကို ဖျောက်မည်လား။",
+    "hide_marketplace_listing_help": "မူလ POS ကုန်ပစ္စည်းနှင့် inventory မပြောင်းလဲပါ။ Marketplace အများမြင်နိုင်မှုသာ ပြောင်းလဲပါမည်။",
+    "publish_marketplace_listing": "Marketplace စာရင်းကို ထုတ်ဝေမည်လား။",
+    "publish_marketplace_listing_help": "စတိုး၊ လုပ်ငန်း၊ ကုန်ပစ္စည်းနှင့် inventory စည်းမျဉ်းများကို ဆာဗာဘက်မှ ဖြတ်ကျော်ပြီးမှသာ အများမြင်နိုင်ပါမည်။",
+    "marketplace_listing_updated": "Marketplace စာရင်းကို ပြင်ဆင်ပြီးပါပြီ။",
+    "unable_to_update_marketplace_listing": "Marketplace စာရင်းကို ပြင်ဆင်၍ မရပါ။",
+    "approve_marketplace_store": "Marketplace စတိုးကို အတည်ပြုမည်လား။",
+    "approve_marketplace_store_help": "အသုံးပြုနေသော လုပ်ငန်းနှင့် အတည်ပြုထားသော Marketplace စတိုးများသာ အများမြင်စာရင်းများကို ထုတ်ဝေနိုင်ပါသည်။",
+    "reject_marketplace_store": "Marketplace စတိုးကို ငြင်းပယ်မည်လား။",
+    "reject_marketplace_store_help": "စတိုးသည် အများမြင် Marketplace ထုတ်ဝေမှုအတွက် မရရှိနိုင်တော့ပါ။",
+    "restore_marketplace_store": "Marketplace စတိုးကို ပြန်ဖွင့်မည်လား။",
+    "restore_marketplace_store_help": "Marketplace အများမြင်နိုင်မှုအတွက် ရရှိနိုင်မှုကို ပြန်ဖွင့်ပါမည်။ လုပ်ငန်းအတည်ပြုချက်နှင့် စာရင်းစည်းမျဉ်းများ ဆက်လက်သက်ရောက်ပါမည်။",
+    "suspend_marketplace_store": "Marketplace စတိုးကို ရပ်ဆိုင်းမည်လား။",
+    "suspend_marketplace_store_help": "လုပ်ငန်းဒေတာကို မဖျက်ဘဲ စတိုးကို အများမြင် Marketplace မှ ဖျောက်ပါမည်။",
+    "marketplace_store_updated": "Marketplace စတိုးကို ပြင်ဆင်ပြီးပါပြီ။",
+    "unable_to_update_marketplace_store": "Marketplace စတိုးကို ပြင်ဆင်၍ မရပါ။",
+    "suspended": "ရပ်ဆိုင်းထားသည်",
+    "gross_marketplace_sales": "စုစုပေါင်း Marketplace ရောင်းအား",
+    "paid_or_authorized_orders": "ငွေပေးပြီး သို့မဟုတ် ခွင့်ပြုထားသော အော်ဒါများ",
+    "refund_total": "ပြန်အမ်းငွေ စုစုပေါင်း",
+    "approved_refund_requests": "အတည်ပြုထားသော ပြန်အမ်းငွေတောင်းဆိုချက်များ",
+    "orders_by_status": "အခြေအနေအလိုက် အော်ဒါများ",
+    "payments_by_status": "အခြေအနေအလိုက် ငွေပေးချေမှုများ",
+    "vendor_performance": "ရောင်းချသူ စွမ်းဆောင်ရည်",
+    "no_vendor_sales": "ဤကာလအတွင်း ရောင်းချသူရောင်းအား မရှိပါ။",
+    "no_refund_requests": "ပြန်အမ်းငွေတောင်းဆိုချက် မတွေ့ပါ။",
+    "financial_capabilities": "ငွေကြေးဆိုင်ရာ စွမ်းဆောင်ချက်များ",
+    "commission_rules": "ကော်မရှင် စည်းမျဉ်းများ",
+    "settlement_ledger": "ငွေရှင်းတမ်း မှတ်တမ်း",
+    "payouts": "ရောင်းချသူ ပေးချေမှုများ",
+    "real_money_refunds": "အမှန်တကယ် ငွေပြန်အမ်းမှုများ",
+    "configured": "သတ်မှတ်ပြီး",
+    "not_configured": "မသတ်မှတ်ရသေးပါ",
+    "marketplace_finance_not_configured": "ကော်မရှင်၊ ငွေရှင်းတမ်း၊ ပေးချေမှု၊ အငြင်းပွားမှုနှင့် အတည်ပြုထားသော ငွေပြန်အမ်းမှု လုပ်ငန်းစဉ်များကို လက်ရှိ backend schema တွင် မသတ်မှတ်ရသေးပါ။ ဤနေရာတွင် ငွေကြေးဆိုင်ရာ လုပ်ဆောင်ချက် မဖွင့်ထားပါ။",
+    "no_marketplace_audit_logs": "Marketplace စာရင်းစစ်မှတ်တမ်း မတွေ့ပါ။",
+    "entity": "အချက်အလက်အရာ",
+    "unable_to_load_marketplace_control_center": "Marketplace ထိန်းချုပ်ရေးစင်တာကို ဖွင့်၍ မရပါ။",
+    "suspend": "ရပ်ဆိုင်းရန်",
+    "reject": "ငြင်းပယ်ရန်",
+    "apply_filters": "စစ်ထုတ်မှုများ အသုံးပြုရန်",
+    "store": "စတိုး",
+    "date": "ရက်စွဲ",
+    "orders": "အော်ဒါများ",
+    "gross_sales": "စုစုပေါင်း ရောင်းအား",
+    "business_category": "လုပ်ငန်းအမျိုးအစား",
+    "from_date": "စတင်ရက်စွဲ",
+    "to_date": "ပြီးဆုံးရက်စွဲ",
+    "no_shipments": "ပို့ဆောင်မှု မတွေ့ပါ။",
+    "no_marketplace_requests": "Marketplace တောင်းဆိုချက် မတွေ့ပါ။",
+    "platform_monitoring": "ပလက်ဖောင်း စောင့်ကြည့်မှု",
+    "platform_monitoring_description": "CIINLV POS ပလက်ဖောင်း၏ ဖတ်ရှုရန်သာ လုပ်ငန်းလည်ပတ်မှု အချက်ပြချက်များ။",
+    "system_performance": "စနစ် လုပ်ဆောင်ရည်",
+    "monitoring_response_time": "စောင့်ကြည့်မှု တုံ့ပြန်ချိန်",
+    "http_error_rate": "HTTP အမှားနှုန်း (၂၄ နာရီ)",
+    "performance_metrics_are_read_only": "Application အမှားနှုန်းမှတ်တမ်း မပြင်ဆင်ရသေးသဖြင့် အတည်ပြုထားသော runtime အချက်ပြချက်များကိုသာ ပြသပါသည်။",
+    "deployment_visibility": "Deployment မြင်နိုင်မှု",
+    "release_version": "Release ဗားရှင်း",
+    "commit_reference": "Commit ရည်ညွှန်းချက်",
+    "deployed_at": "တင်သွင်းချိန်",
+    "deployment_provider": "Deployment provider",
+    "deployment_metadata_source": "Metadata ရင်းမြစ်",
+    "operational_incidents": "လုပ်ငန်းလည်ပတ်မှု ပြဿနာများ",
+    "no_active_operational_incidents": "ရရှိနိုင်သော လုပ်ငန်းလည်ပတ်မှု အချက်ပြချက်များတွင် လက်ရှိပြဿနာ မတွေ့ရှိပါ။",
+    "incidents_derived_from_verified_signals": "ပြဿနာများကို Queue၊ Scheduler၊ Database၊ Storage နှင့် Backup အတည်ပြုအချက်ပြချက်များမှသာ သတ်မှတ်ပါသည်။",
+    "incident_queue_failures": "ပြီးခဲ့သော ၂၄ နာရီအတွင်း Queue အမှားများ",
+    "incident_scheduler_failures": "ပြီးခဲ့သော ၂၄ နာရီအတွင်း Scheduler အမှားများ",
+    "incident_database": "Database ကျန်းမာရေး အမှား",
+    "incident_storage": "Storage ကျန်းမာရေး အမှား",
+    "incident_backups": "Backup အခြေအနေ စစ်ဆေးရန်လိုသည်",
+    "sale_details": "အရောင်း အသေးစိတ်",
+    "manage_payment": "ငွေပေးချေမှု စီမံရန်",
+    "payment": "ငွေပေးချေမှု",
+    "verified_paid": "အတည်ပြုပြီး ပေးချေငွေ",
+    "outstanding_balance": "ကျန်ရှိငွေ",
+    "cash_payment_instruction": "လက်ခံရရှိသော ငွေသားအမှန်ကို မှတ်တမ်းတင်ပါ။ စနစ်က အတည်ပြုငွေနှင့် ပြန်အမ်းငွေကို တွက်ချက်ပါမည်။",
+    "record_cash_payment": "ငွေသားပေးချေမှု မှတ်တမ်းတင်ရန်",
+    "verify_external_payment": "ပြင်ပငွေပေးချေမှု အတည်ပြုရန်",
+    "external_payment_verification_notice": "ခွင့်ပြုထားသော provider ရည်ညွှန်းချက်နှင့် အတည်ပြုမှတ်ချက်ကို အသုံးပြုပါ။ လက်ဖြင့်အတည်ပြုခြင်းသည် server မူဝါဒအရသာ ဖြစ်ပါမည်။",
+    "provider": "ဝန်ဆောင်မှုပေးသူ",
+    "external_reference": "ပြင်ပ ရည်ညွှန်းချက်",
+    "verification_note": "အတည်ပြုမှတ်ချက်",
+    "verify_payment": "ငွေပေးချေမှု အတည်ပြုရန်",
+    "payment_requirements_met": "ငွေပေးချေမှု လိုအပ်ချက်များ ပြည့်မီပါပြီ။",
+    "complete_sale": "အရောင်း ပြီးစီးရန်",
+    "sale_already_completed": "ဤအရောင်းသည် ပြီးစီးပြီး သို့မဟုတ် ငွေပြန်အမ်းပြီး ဖြစ်ပါသည်။",
+    "payment_actions_unavailable": "ဤအရောင်းအခြေအနေတွင် ငွေပေးချေမှု လုပ်ဆောင်ချက်များ မရနိုင်ပါ။",
+    "payment_history": "ငွေပေးချေမှုမှတ်တမ်း",
+    "no_external_reference": "ပြင်ပ ရည်ညွှန်းချက် မရှိပါ",
+    "no_payment_records": "ငွေပေးချေမှု မှတ်တမ်း မရှိပါ။",
+    "unable_to_load_sale_details": "အရောင်းအသေးစိတ်ကို ဖွင့်၍ မရပါ။",
+    "enter_valid_cash_received": "လက်ခံရရှိသော ငွေသားပမာဏ မှန်ကန်စွာ ထည့်ပါ။",
+    "cash_received_below_balance": "လက်ခံရရှိသော ငွေသားသည် ကျန်ရှိငွေထက် မနည်းရပါ။",
+    "unable_to_record_payment": "ငွေပေးချေမှုကို မှတ်တမ်းတင်၍ မရပါ။",
+    "complete_verification_fields": "ဝန်ဆောင်မှုပေးသူ၊ ပြင်ပရည်ညွှန်းချက်နှင့် အတည်ပြုမှတ်ချက် လိုအပ်ပါသည်။",
+    "unable_to_verify_payment": "ငွေပေးချေမှုကို အတည်ပြု၍ မရပါ။",
+    "unable_to_complete_sale": "အရောင်းကို ပြီးစီးအောင် မလုပ်နိုင်ပါ။",
+    "verifying": "အတည်ပြုနေသည်...",
+    "completing": "ပြီးစီးအောင် လုပ်နေသည်...",
+    "business_products": "လုပ်ငန်း ကုန်ပစ္စည်းများ",
+    "all_businesses": "လုပ်ငန်းအားလုံး",
+    "name_a_to_z": "အမည် A မှ Z",
+    "name_z_to_a": "အမည် Z မှ A",
+    "availability": "ရရှိနိုင်မှု",
+    "sku": "SKU",
+    "size": "အရွယ်အစား",
+    "business_products_description": "လုပ်ငန်းများအကြား POS ကုန်ပစ္စည်းနှင့် လက်ကျန်များကို ဖတ်ရှုရန်သာ စောင့်ကြည့်ခြင်း။",
+    "search_business_products": "ကုန်ပစ္စည်း၊ အမှတ်တံဆိပ်၊ SKU သို့မဟုတ် ဘားကုဒ် ရှာရန်",
+    "category_brand": "အမျိုးအစား / အမှတ်တံဆိပ်",
+    "variants_stock": "မူကွဲ / လက်ကျန်",
+    "no_branch_stock": "ဆိုင်ခွဲလက်ကျန် မရှိပါ",
+    "no_business_products_found": "လုပ်ငန်းကုန်ပစ္စည်း မတွေ့ပါ။",
+    "product_detail": "ကုန်ပစ္စည်း အသေးစိတ်",
+    "product_detail_description": "ကုန်ပစ္စည်း၊ ဈေးနှုန်း၊ ရရှိနိုင်မှုနှင့် လက်ကျန်စစ်ဆေးမှတ်တမ်း။",
+    "back_to_products": "လုပ်ငန်းကုန်ပစ္စည်းများသို့ ပြန်ရန်",
+    "variants_inventory": "မူကွဲများနှင့် လက်ကျန်",
+    "on_hand": "လက်ဝယ်",
+    "reserved": "ကြိုတင်ထား",
+    "no_audit_history": "ကုန်ပစ္စည်း စစ်ဆေးမှတ်တမ်း မတွေ့ပါ။",
+    "business_products_read_only_notice": "ပလက်ဖောင်း စောင့်ကြည့်ရန်သာ ဖြစ်ပါသည်။ ကုန်ပစ္စည်းနှင့် လက်ကျန် ပြောင်းလဲမှုများကို Business Admin လုပ်ငန်းစဉ်မှသာ ဆောင်ရွက်ပါသည်။",
+    "unable_to_load_business_products": "လုပ်ငန်းကုန်ပစ္စည်းများကို ဖွင့်၍ မရပါ။",
+    "unable_to_load_product_detail": "ကုန်ပစ္စည်းအသေးစိတ်ကို ဖွင့်၍ မရပါ။",
+    "refresh_platform_monitoring": "ပလက်ဖောင်း စောင့်ကြည့်မှု ပြန်စစ်ရန်",
+    "unable_to_load_platform_monitoring": "ပလက်ဖောင်း စောင့်ကြည့်မှုကို ဖွင့်၍ မရပါ။",
+    "api_health": "API အခြေအနေ",
+    "postgresql_health": "PostgreSQL အခြေအနေ",
+    "queue_failures": "Queue မအောင်မြင်မှုများ",
+    "inventory_anomalies": "လက်ကျန် မကိုက်ညီမှုများ",
+    "api_health_detail": "အတည်ပြုထားသော monitoring API က တုံ့ပြန်နေပါသည်။",
+    "postgresql_health_detail": "ကန့်သတ်ထားသော database အသင့်ဖြစ်မှု စစ်ဆေးချက်။",
+    "queue_failures_detail": "လွန်ခဲ့သော ၂၄ နာရီအတွင်း မှတ်တမ်းတင်ထားသော မအောင်မြင်သည့်အလုပ်များ။",
+    "inventory_anomalies_detail": "အစီရင်ခံစာအတွက်သာ လက်ကျန်ကိုက်ညီမှု စစ်ဆေးချက်များ။",
+    "queue_monitoring": "Queue စောင့်ကြည့်မှု",
+    "scheduler_monitoring": "Scheduler စောင့်ကြည့်မှု",
+    "registered_tasks": "မှတ်ပုံတင်ထားသော လုပ်ငန်းများ",
+    "running_tasks": "လက်ရှိ လုပ်ဆောင်နေသော လုပ်ငန်းများ",
+    "scheduler_successes_24h": "အောင်မြင်သော လုပ်ဆောင်မှု (၂၄ နာရီ)",
+    "scheduler_failures_24h": "မအောင်မြင်သော လုပ်ဆောင်မှု (၂၄ နာရီ)",
+    "missed_overdue_runs": "လွတ်ကျော် / ကျော်လွန်သည့် လုပ်ဆောင်မှုများ",
+    "scheduler_task": "Scheduler လုပ်ငန်း",
+    "all_scheduler_tasks": "Scheduler လုပ်ငန်းအားလုံး",
+    "scheduled_tasks": "စီစဉ်ထားသော လုပ်ငန်းများ",
+    "command_identifier": "Command ခွဲခြားချက်",
+    "schedule_frequency": "စီစဉ်မှု အကြိမ်ရေ",
+    "last_started": "နောက်ဆုံး စတင်ချိန်",
+    "last_finished": "နောက်ဆုံး ပြီးစီးချိန်",
+    "last_success": "နောက်ဆုံး အောင်မြင်ချိန်",
+    "last_failure": "နောက်ဆုံး မအောင်မြင်ချိန်",
+    "next_due": "နောက်တစ်ကြိမ် လုပ်ဆောင်ရမည့်အချိန်",
+    "no_scheduler_tasks": "ရွေးချယ်ထားသော စစ်ထုတ်မှုများနှင့် ကိုက်ညီသည့် Scheduler လုပ်ငန်း မရှိပါ။",
+    "scheduler_execution_history": "လုပ်ဆောင်မှု မှတ်တမ်း",
+    "no_scheduler_history": "ရွေးချယ်ထားသော စစ်ထုတ်မှုများအတွက် Scheduler လုပ်ဆောင်မှု မှတ်တမ်း မရှိပါ။",
+    "scheduler_errors": "နောက်ဆုံး Scheduler အမှားများ",
+    "no_scheduler_errors": "Scheduler အမှား မှတ်တမ်း မရှိပါ။",
+    "reference": "ရည်ညွှန်းချက်",
+    "queue": "Queue",
+    "failed_at": "မအောင်မြင်သည့်အချိန်",
+    "no_failed_jobs_in_period": "လွန်ခဲ့သော ၂၄ နာရီအတွင်း မအောင်မြင်သည့်အလုပ် မရှိပါ။",
+    "all_queues": "Queue အားလုံး",
+    "pending_jobs": "စောင့်ဆိုင်းနေသော အလုပ်များ",
+    "processing_jobs": "လုပ်ဆောင်နေသော အလုပ်များ",
+    "completed_last_24h": "ပြီးစီးမှု (၂၄ နာရီ)",
+    "failed_last_24h": "မအောင်မြင်မှု (၂၄ နာရီ)",
+    "oldest_waiting_job": "စောင့်ဆိုင်းမှု အကြာဆုံးအလုပ်",
+    "average_processing_duration": "ပျမ်းမျှ လုပ်ဆောင်ချိန်",
+    "queue_connection": "Queue ချိတ်ဆက်မှု",
+    "queue_driver": "Queue driver",
+    "queue_activity": "Queue လှုပ်ရှားမှု",
+    "completed_and_failed": "ပြီးစီးနှင့် မအောင်မြင်သောအလုပ်များ",
+    "queue_activity_unavailable": "Telemetry မှတ်တမ်း မရှိသေးသဖြင့် Queue လှုပ်ရှားမှု မရနိုင်သေးပါ။",
+    "recent_job_history": "လတ်တလော အလုပ်မှတ်တမ်း",
+    "job_type": "အလုပ်အမျိုးအစား",
+    "attempts": "ကြိုးစားမှုများ",
+    "created_at": "ဖန်တီးချိန်",
+    "started_at": "စတင်ချိန်",
+    "finished_at": "ပြီးစီး / မအောင်မြင်ချိန်",
+    "duration": "ကြာချိန်",
+    "no_job_history": "ရွေးချယ်ထားသော စစ်ထုတ်မှုများအတွက် အလုပ်မှတ်တမ်း မရှိပါ။",
+    "last_successful_heartbeat": "နောက်ဆုံး အောင်မြင်သော heartbeat",
+    "last_failed_heartbeat": "နောက်ဆုံး မအောင်မြင်သော heartbeat",
+    "last_error": "နောက်ဆုံး အမှား",
+    "none_recorded": "မှတ်တမ်း မရှိပါ",
+    "inventory_consistency": "လက်ကျန် ကိုက်ညီမှု",
+    "balances_checked": "စစ်ဆေးပြီး လက်ကျန်များ",
+    "mode": "မုဒ်",
+    "report_only": "အစီရင်ခံစာသာ",
+    "tenant": "လုပ်ငန်း",
+    "variant": "မူကွဲ",
+    "edit_product": "ကုန်ပစ္စည်း ပြင်ဆင်ရန်",
+    "brand": "အမှတ်တံဆိပ်",
+    "enter_brand": "အမှတ်တံဆိပ် ရိုက်ထည့်ပါ",
+    "track_inventory": "လက်ကျန်စာရင်း ခြေရာခံရန်",
+    "this_product_has_sizes": "ဤကုန်ပစ္စည်းတွင် အရွယ်အစားများ ရှိသည်",
+    "inventory_location_for_entered_stock": "ထည့်သွင်းမည့် လက်ကျန်၏ တည်နေရာ",
+    "select_an_authorized_location": "ခွင့်ပြုထားသော တည်နေရာကို ရွေးပါ",
+    "leave_stock_quantity_blank_to_make_no_inventory_adjustment": "လက်ကျန်ကို မပြောင်းလဲလိုပါက အရေအတွက်ကို မဖြည့်ပါနှင့်။",
+    "write_product_description": "ကုန်ပစ္စည်းဖော်ပြချက် ရေးပါ",
+    "product_variants": "ကုန်ပစ္စည်း မူကွဲများ",
+    "use_xs_eu_36_numeric_or_custom_size_label": "XS–XXXL၊ EU 36–46၊ ဂဏန်း သို့မဟုတ် စိတ်ကြိုက် အရွယ်အစားအမည်ကို အသုံးပြုပါ။",
+    "add_variant": "မူကွဲ ထည့်ရန်",
+    "size_optional_unless_enabled": "အရွယ်အစား (ဖွင့်ထားမှ မဖြစ်မနေ)",
+    "no_size": "အရွယ်အစား မရှိ",
+    "selling_price": "ရောင်းဈေး",
+    "stock_quantity": "လက်ကျန်အရေအတွက်",
+    "leave_unchanged": "မပြောင်းလဲဘဲထားရန်",
+    "reorder_level": "ပြန်မှာယူအဆင့်",
+    "barcode": "ဘားကုဒ်",
+    "optional_barcode": "ရွေးချယ်နိုင်သော ဘားကုဒ်",
+    "remove_variant": "မူကွဲ ဖယ်ရှားရန်",
+    "default_variant": "မူလ မူကွဲ",
+    "uploading_images": "ပုံများ တင်နေသည်…",
+    "uploading": "တင်နေသည်…",
+    "save_product": "ကုန်ပစ္စည်း သိမ်းရန်",
+    "products_without_sizes_keep_existing_variant_workflow": "အရွယ်အစားမရှိသော ကုန်ပစ္စည်းများသည် လက်ရှိ မူကွဲတစ်ခုတည်းလုပ်ငန်းစဉ်ကို ဆက်သုံးပါမည်။ လက်ကျန်ကို inventory မှတ်တမ်းမှတစ်ဆင့် မှတ်တမ်းတင်ပါမည်။",
+    "balance": "လက်ကျန်",
+    "ledger": "မှတ်တမ်းစာရင်း",
+    "backup_status": "Backup အခြေအနေ",
+    "backup_artifacts": "Backup ဖိုင်များ",
+    "latest_backup": "နောက်ဆုံး Backup",
+    "backup_artifacts_detected": "သတ်မှတ်ထားသောဖိုင်တွဲတွင် Backup ဖိုင်များ တွေ့ရှိပါသည်။",
+    "restore_testing_must_use_separate_environment": "Restore စမ်းသပ်မှုကို production မဟုတ်သော သီးခြားပတ်ဝန်းကျင်တွင်သာ ပြုလုပ်ရပါမည်။",
+    "payment_health": "ငွေပေးချေမှု အခြေအနေ",
+    "payment_monitoring_unavailable": "အတည်ပြုထားသော payment provider မသတ်မှတ်ရသေးသဖြင့် ငွေပေးချေမှု စောင့်ကြည့်မှု မရရှိနိုင်ပါ။",
+    "no_payment_records_in_period": "ဤကာလအတွက် ငွေပေးချေမှုမှတ်တမ်း မတွေ့ပါ။",
+    "security_posture": "လုံခြုံရေး အခြေအနေ",
+    "debug": "Debug",
+    "https": "HTTPS",
+    "secure_sessions": "လုံခြုံသော Session များ",
+    "enabled": "ဖွင့်ထားသည်",
+    "disabled": "ပိတ်ထားသည်",
+    "security_posture_read_only": "ဤညွှန်ပြချက်များသည် ဖတ်ရှုရန်သာဖြစ်ပြီး လုံခြုံရေးဆက်တင်များကို မပြောင်းလဲပါ။",
+    "storage_status": "သိုလှောင်မှု အခြေအနေ",
+    "private_storage": "သီးသန့် သိုလှောင်မှု",
+    "storage_probe_status": "သိုလှောင်မှု စစ်ဆေးမှုအခြေအနေ",
+    "last_checked_at": "နောက်ဆုံး စစ်ဆေးချိန်",
+    "unavailable": "မရရှိနိုင်ပါ",
+    "platform_dashboard": "ပလက်ဖောင်း ဒက်ရှ်ဘုတ်",
+    "business_management": "လုပ်ငန်း စီမံခန့်ခွဲမှု",
+    "marketplace_management": "Marketplace စီမံခန့်ခွဲမှု",
+    "platform_settings": "ပလက်ဖောင်း ဆက်တင်များ",
+    "manage_business": "လုပ်ငန်း စီမံရန်",
+    "customer_profile": "ဖောက်သည် ပရိုဖိုင်",
+    "send_reset_link": "ပြန်လည်သတ်မှတ်ရန် လင့်ခ် ပို့ရန်",
+    "no_authorized_orders_found": "ခွင့်ပြုထားသော အော်ဒါ မတွေ့ပါ။",
+    "recent_account_activity": "လတ်တလော အကောင့် လုပ်ဆောင်ချက်",
+    "no_authorized_activity_found": "ခွင့်ပြုထားသော လုပ်ဆောင်ချက် မတွေ့ပါ။",
+    "authorized_account_details": "ခွင့်ပြုထားသော အကောင့် အချက်အလက်",
+    "search_name_or_email": "အမည် သို့မဟုတ် အီးမေးလ် ရှာရန်",
+    "last_login": "နောက်ဆုံး ဝင်ရောက်မှု",
+    "total_customers": "ဖောက်သည် စုစုပေါင်း",
+    "active_customers": "အသုံးပြုနေသော ဖောက်သည်များ",
+    "suspended_customers": "ဆိုင်းငံ့ထားသော ဖောက်သည်များ",
+    "new_customers_this_month": "ဤလအတွင်း ဖောက်သည်အသစ်များ",
+    "search_customers": "အမည်၊ အီးမေးလ်၊ ဖုန်း သို့မဟုတ် ID ဖြင့် ဖောက်သည်ရှာရန်",
+    "registered": "မှတ်ပုံတင်ထားသည့်အချိန်",
+    "unverified": "အတည်မပြုရသေးပါ",
+    "verify_email_manually": "အီးမေးလ်ကို လက်ဖြင့် အတည်ပြုရန်",
+    "view_customer": "ဖောက်သည်ကို ကြည့်ရန်",
+    "verification_reason": "အတည်ပြုရသည့် အကြောင်းပြချက်",
+    "verification_reason_help": "အီးမေးလ်ပိုင်ဆိုင်မှုကို သီးခြားစစ်ဆေးအတည်ပြုခဲ့သည့် နည်းလမ်းကို ရှင်းပြပါ။",
+    "verification_evidence": "အတည်ပြုအထောက်အထား / ရည်ညွှန်းချက်",
+    "verification_evidence_help": "Ticket၊ ဖုန်းခေါ်ဆိုမှုမှတ်တမ်း သို့မဟုတ် စစ်ဆေးနိုင်သော ရည်ညွှန်းချက် ထည့်ပါ။",
+    "confirm_verification": "အတည်ပြုမှုကို အတည်ပြုရန်",
+    "email_verification_successful": "အီးမေးလ်အတည်ပြုမှု အောင်မြင်စွာ ပြီးဆုံးပါပြီ။",
+    "email_verification_failed": "ဤအီးမေးလ်ကို အတည်ပြု၍ မရပါ။",
+    "admin_override": "စီမံခန့်ခွဲသူ အစားထိုးအတည်ပြုမှု",
+    "clear_filters": "စစ်ထုတ်မှုများ ရှင်းရန်",
+    "customers": "ဖောက်သည်များ",
+    "unable_to_load_customers": "ဖောက်သည်များကို ဖွင့်၍မရပါ။",
+    "unable_to_load_customer_profile": "ဖောက်သည် ပရိုဖိုင်ကို ဖွင့်၍မရပါ။",
+    "unable_to_update_customer_status": "ဖောက်သည်အခြေအနေကို ပြင်ဆင်၍မရပါ။",
+    "unable_to_load_customer_history": "ဖောက်သည်မှတ်တမ်းကို ဖွင့်၍မရပါ။",
+    "terms": "စည်းမျဉ်းများ",
+    "no_customer_accounts_match_filters": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော ဖောက်သည်အကောင့် မတွေ့ပါ။",
+    "suspend_customer": "ဖောက်သည်အကောင့် ဆိုင်းငံ့ရန်",
+    "activate_customer": "ဖောက်သည်အကောင့် အသက်သွင်းရန်",
+    "activate": "အသက်သွင်းရန်",
+    "suspend_customer_confirmation": "ဤဖောက်သည်အကောင့်ကို ဆိုင်းငံ့ပြီး အသုံးပြုနေသော စက်ရှင်များကို ပယ်ဖျက်မည်လား။",
+    "activate_customer_confirmation": "ဤဖောက်သည်အကောင့်ကို အသက်သွင်းမည်လား။",
+    "customer_status_updated": "ဖောက်သည်အခြေအနေ ပြင်ဆင်ပြီးပါပြီ။",
+    "password_reset_confirmation": "ဤဖောက်သည်ထံ စကားဝှက်ပြန်လည်သတ်မှတ်ရန် လမ်းညွှန်ချက် ပို့မည်လား။",
+    "password_reset_requested": "စကားဝှက်ပြန်လည်သတ်မှတ်ရန် လမ်းညွှန်ချက် တောင်းဆိုပြီးပါပြီ။",
+    "unable_to_send_reset_link": "ပြန်လည်သတ်မှတ်ရန် လင့်ခ် ပို့၍မရပါ။",
+    "authorized_addresses": "ခွင့်ပြုထားသော လိပ်စာများ",
+    "order_history": "အော်ဒါမှတ်တမ်း",
+    "customer_data_scope_notice": "လက်ရှိ ပလက်ဖောင်း သို့မဟုတ် ရွေးချယ်ထားသော လုပ်ငန်းအတိုင်းအတာအတွင်း ခွင့်ပြုထားသည့် အချက်အလက်များသာ ပြသထားပါသည်။",
+    "customer_error_unauthenticated": "အတည်ပြုဝင်ရောက်ထားခြင်း မရှိပါ။ ထပ်မံဝင်ရောက်ပါ။",
+    "customer_error_forbidden": "ဤဖောက်သည်များကို ကြည့်ရှုရန် ခွင့်ပြုချက်မရှိပါ။",
+    "customer_error_not_found": "တောင်းဆိုထားသော ဖောက်သည်ကို မတွေ့ပါ။",
+    "customer_error_invalid_filters": "စစ်ထုတ်မှုတစ်ခု သို့မဟုတ် တစ်ခုထက်ပို၍ မမှန်ကန်ပါ။",
+    "customer_error_backend": "ဖောက်သည်ဝန်ဆောင်မှုကို ယာယီအသုံးမပြုနိုင်ပါ။",
+    "customer_error_network": "ဖောက်သည်ဝန်ဆောင်မှုသို့ ချိတ်ဆက်၍မရပါ။",
+    "registration_from": "မှတ်ပုံတင်ချိန် အစ",
+    "registration_to": "မှတ်ပုံတင်ချိန် အဆုံး",
+    "last_login_from": "နောက်ဆုံးဝင်ရောက်ချိန် အစ",
+    "last_login_to": "နောက်ဆုံးဝင်ရောက်ချိန် အဆုံး",
+    "register_management": "ငွေရှင်းကောင်တာ စီမံခန့်ခွဲမှု",
+    "register_management_description": "ငွေရှင်းခြင်းနှင့် ငွေရှင်းကောင်တာအလှည့်များတွင် အသုံးပြုသည့် ဘဏ်ခွဲအလိုက် ငွေရှင်းကောင်တာများကို စီမံပါ။",
+    "add_register": "ငွေရှင်းကောင်တာ ထည့်ရန်",
+    "save_register": "ငွေရှင်းကောင်တာ သိမ်းရန်",
+    "all_accessible_branches": "ဝင်ရောက်ခွင့်ရှိသော ဘဏ်ခွဲများအားလုံး",
+    "cashiers": "ငွေရှင်းဝန်ထမ်းများ",
+    "register_isolated_to_branch": "ငွေရှင်းကောင်တာများသည် ရွေးချယ်ထားသော ဘဏ်ခွဲနှင့်သာ သက်ဆိုင်ပါသည်။",
+    "edit_register": "ငွေရှင်းကောင်တာ ပြင်ရန်",
+    "register_cashiers": "ငွေရှင်းကောင်တာ ဝန်ထမ်းများ",
+    "select_branch_cashier": "ဘဏ်ခွဲ ငွေရှင်းဝန်ထမ်း ရွေးပါ",
+    "assign": "တာဝန်ပေးရန်",
+    "no_cashier_assigned": "ဤငွေရှင်းကောင်တာအတွက် ဝန်ထမ်းမသတ်မှတ်ရသေးပါ။",
+    "existing_user": "ရှိပြီးသား အသုံးပြုသူ",
+    "select_user": "အသုံးပြုသူ ရွေးပါ",
+    "branch_role": "ဘဏ်ခွဲတာဝန်",
+    "sales_staff": "အရောင်းဝန်ထမ်း",
+    "cashier": "ငွေရှင်းဝန်ထမ်း",
+    "store_manager": "ဘဏ်ခွဲမန်နေဂျာ",
+    "inventory_manager": "ကုန်ပစ္စည်းလက်ကျန် မန်နေဂျာ",
+    "current_branch_staff": "လက်ရှိ ဘဏ်ခွဲဝန်ထမ်းများ",
+    "no_registers_for_branch": "ဤဘဏ်ခွဲအတွက် ငွေရှင်းကောင်တာ မတွေ့ပါ။",
+    "staff_salesperson_management": "ဝန်ထမ်းနှင့် ရောင်းကိုယ်စားလှယ် စီမံခန့်ခွဲမှု",
+    "staff_salesperson_management_description": "ရှိပြီးသား လုပ်ငန်းအသုံးပြုသူများကို ဘဏ်ခွဲများသို့ တာဝန်ပေးပါ။ ငွေရှင်းဝန်ထမ်းများသည် အလှည့်များကို စီမံပြီး ရောင်းကိုယ်စားလှယ်ကို အရောင်းမှတ်တမ်းတွင် သိမ်းဆည်းပါမည်။",
+    "no_staff_for_branch": "ဤဘဏ်ခွဲတွင် ဝန်ထမ်းမသတ်မှတ်ရသေးပါ။",
+    "confirm_cod_payment_received": "ပစ္စည်းပို့ချိန် ငွေပေးချေမှု လက်ခံရရှိကြောင်း အတည်ပြုရန်",
+    "pos_monitoring": "POS စောင့်ကြည့်မှု",
+    "pos_monitoring_description": "လုပ်ငန်းအားလုံး၏ POS အရောင်းမှတ်တမ်းများကို ဖတ်ရှုရန်သာ စောင့်ကြည့်ပါ။",
+    "all_pos_transactions": "POS အရောင်းမှတ်တမ်းများ",
+    "refund_void_history": "ပြန်အမ်းနှင့် ပယ်ဖျက်မှတ်တမ်း",
+    "payment_audit": "ငွေပေးချေမှု စစ်ဆေးချက်",
+    "completed_sales": "ပြီးစီးသော အရောင်းများ",
+    "completed_sales_detail": "ပြီးစီးသော POS အရောင်းအရေအတွက်",
+    "verified_revenue": "အတည်ပြုထားသော ဝင်ငွေ",
+    "verified_revenue_detail": "ခွဲပေးချေမှုများကို တစ်ကြိမ်သာ ရေတွက်သည်",
+    "pending_payments": "ဆိုင်းငံ့ငွေပေးချေမှုများ",
+    "pending_payments_detail": "ကျန်ရှိသော ငွေပမာဏ",
+    "refunds": "ပြန်အမ်းငွေများ",
+    "refunds_detail": "မှတ်တမ်းတင်ထားသော ပြန်အမ်းစုစုပေါင်း",
+    "net_sales": "အသားတင် အရောင်း",
+    "net_sales_detail": "အတည်ပြုဝင်ငွေမှ ပြန်အမ်းငွေ နုတ်ပြီး",
+    "export_csv": "CSV ထုတ်ယူရန်",
+    "search_pos_transactions": "အရောင်း၊ လုပ်ငန်း၊ ဘဏ်ခွဲ၊ ဝန်ထမ်း သို့မဟုတ် ကုန်ပစ္စည်း ရှာရန်",
+    "all_payment_methods": "ငွေပေးချေမှုနည်းလမ်းအားလုံး",
+    "from": "မှ",
+    "to": "အထိ",
+    "sort": "စီစဉ်ရန်",
+    "newest_first": "အသစ်ဆုံးမှ စရန်",
+    "oldest_first": "အဟောင်းဆုံးမှ စရန်",
+    "sale_number_a_to_z": "အရောင်းနံပါတ် A–Z",
+    "highest_total_first": "စုစုပေါင်းအများဆုံးမှ စရန်",
+    "records": "မှတ်တမ်း",
+    "sale_number": "အရောင်းနံပါတ်",
+    "branch_register": "ဘဏ်ခွဲ / ငွေရှင်းကောင်တာ",
+    "business_identifier": "လုပ်ငန်း UUID သို့မဟုတ် ID",
+    "branch_identifier": "ဘဏ်ခွဲ UUID သို့မဟုတ် ID",
+    "cashier_id": "ငွေရှင်းဝန်ထမ်း User ID",
+    "method": "နည်းလမ်း",
+    "amount": "ပမာဏ",
+    "read_only_detail": "ဖတ်ရှုရန်သာ အရောင်းအသေးစိတ်",
+    "product_details": "ကုန်ပစ္စည်းအသေးစိတ်",
+    "receipt": "ပြေစာ",
+    "not_available": "မရရှိနိုင်ပါ",
+    "pos_monitoring_read_only_notice": "ဤစောင့်ကြည့်မှုစာမျက်နှာမှ အရောင်း၊ ငွေပေးချေမှု၊ ကုန်ပစ္စည်းလက်ကျန် သို့မဟုတ် ပြေစာများကို ပြင်ဆင်၍မရပါ။",
+    "no_pos_records_found": "POS မှတ်တမ်း မတွေ့ပါ။",
+    "unable_to_load_pos_monitoring": "POS စောင့်ကြည့်မှုဒေတာ ရယူ၍မရပါ။",
+    "unable_to_load_pos_transaction": "POS အရောင်းမှတ်တမ်း ရယူ၍မရပါ။",
+    "of": "၏",
+    "review_verify": "စိစစ်ရန်",
+    "business_verification": "လုပ်ငန်း အတည်ပြုခြင်း",
+    "business_verification_description": "လျှောက်ထားသူ၊ ကိုယ်ရေးအထောက်အထားစာရွက်စာတမ်းများ၊ အတည်ပြုမှုအခြေအနေနှင့် စိစစ်မှုမှတ်တမ်းကို စစ်ဆေးပါ။",
+    "unable_to_load_verification": "လုပ်ငန်းအတည်ပြုမှုအသေးစိတ်ကို ရယူ၍မရပါ။",
+    "unable_to_update_verification": "အတည်ပြုမှုအခြေအနေကို ပြောင်းလဲ၍မရပါ။",
+    "verification_not_found": "တောင်းဆိုထားသော အတည်ပြုမှုကို မတွေ့ပါ။",
+    "back_to_businesses": "လုပ်ငန်းများသို့ ပြန်သွားရန်",
+    "applicant": "လျှောက်ထားသူ",
+    "email_verification": "အီးမေးလ်အတည်ပြုမှု",
+    "verified": "အတည်ပြုပြီး",
+    "preview": "ကြိုတင်ကြည့်ရန်",
+    "download": "ဒေါင်းလုဒ်လုပ်ရန်",
+    "review_history": "စိစစ်မှုမှတ်တမ်း",
+    "no_review_history": "စိစစ်မှုမှတ်တမ်း မရှိပါ။",
+    "approve_business_verification": "အတည်ပြုမှုကို ခွင့်ပြုရန်",
+    "approve_business_verification_help": "တင်ပြထားသော ကိုယ်ရေးအချက်အလက်နှင့် စာရွက်စာတမ်းများကို စစ်ဆေးပြီးမှသာ ဤလုပ်ငန်းကို ခွင့်ပြုပါ။",
+    "business_verification_updated": "လုပ်ငန်းအတည်ပြုမှုကို ပြောင်းလဲပြီးပါပြီ။",
+    "payment_received": "ငွေပေးချေမှု လက်ခံရရှိပြီးပါပြီ",
+    "amount_collected": "လက်ခံရရှိသည့် ပမာဏ",
+    "amount_due": "ပေးရန်ကျန်ပမာဏ",
+    "payment_already_received": "ငွေပေးချေမှု လက်ခံရရှိပြီးဖြစ်သဖြင့် ထပ်မံကောက်ခံ၍မရပါ။",
+    "payment_collection_blocked_hold": "အော်ဒါကို စီမံခန့်ခွဲရေး ထိန်းသိမ်းထားစဉ် ငွေပေးချေမှုကောက်ခံ၍မရပါ။",
+    "payment_amount_exceeds_balance": "လက်ခံရရှိသည့် ပမာဏသည် ပေးရန်ကျန် COD လက်ကျန်ထက် မပိုရပါ။",
+    "cod_payment_unavailable": "ဤ COD ငွေပေးချေမှုကို ကောက်ခံ၍မရပါ။",
+    "clear_search": "ရှာဖွေမှု ရှင်းရန်",
+    "search_businesses": "လုပ်ငန်းများ ရှာရန်",
+    "search_branches": "ဘဏ်ခွဲများ ရှာရန်",
+    "select_business_first": "ပထမဆုံး လုပ်ငန်းရွေးပါ",
+    "no_matching_businesses": "ကိုက်ညီသော လုပ်ငန်းမတွေ့ပါ",
+    "no_matching_branches": "ကိုက်ညီသော ဘဏ်ခွဲမတွေ့ပါ",
+    "searching": "ရှာဖွေနေသည်...",
+    "load_more": "ထပ်မံဖော်ပြရန်",
+    "minimum_price": "အနည်းဆုံးဈေးနှုန်း",
+    "maximum_price": "အများဆုံးဈေးနှုန်း",
+    "created_from": "ဖန်တီးသည့်နေ့မှ",
+    "created_to": "ဖန်တီးသည့်နေ့အထိ",
+    "clear_all_filters": "စစ်ထုတ်မှုအားလုံး ရှင်းရန်",
+    "inventory_location": "ကုန်ပစ္စည်းလက်ကျန် တည်နေရာ",
+    "authorized_branch_inventory": "ခွင့်ပြုထားသော ဘဏ်ခွဲလက်ကျန်",
+    "adjust_stock": "လက်ကျန် ပြင်ရန်",
+    "transfer_stock": "လက်ကျန် လွှဲရန်",
+    "no_authorized_inventory_balances": "ခွင့်ပြုထားသော လက်ကျန်မှတ်တမ်း မရှိပါ။",
+    "recent_movements": "လတ်တလော လက်ကျန်လှုပ်ရှားမှုများ",
+    "no_movements_recorded": "လှုပ်ရှားမှုမှတ်တမ်း မရှိပါ။",
+    "select_location": "တည်နေရာ ရွေးပါ",
+    "select_destination": "သွားမည့်တည်နေရာ ရွေးပါ",
+    "close_inventory": "လက်ကျန်ပိတ်ရန်",
+    "source_location": "မူလတည်နေရာ",
+    "destination_location": "သွားမည့်တည်နေရာ",
+    "complete_inventory_action_fields": "ခွင့်ပြုထားသော တည်နေရာနှင့် မှန်ကန်သော အရေအတွက်အပါအဝင် လိုအပ်သည့်အချက်များကို ဖြည့်ပါ။",
+    "highest_price_first": "ဈေးနှုန်းအမြင့်ဆုံးမှ စရန်",
+    "lowest_stock_first": "လက်ကျန်အနည်းဆုံးမှ စရန်",
+    "rows_per_page": "စာမျက်နှာတစ်ခုလျှင် အတန်းများ",
+    "showing_orders": "အော်ဒါစုစုပေါင်း {{total}} ခုအနက် {{from}}–{{to}} ကို ပြသနေသည်",
+    "showing_products": "ကုန်ပစ္စည်းစုစုပေါင်း {{total}} ခုအနက် {{from}}–{{to}} ကို ပြသနေသည်",
+    "showing_audit_logs": "မှတ်တမ်းစုစုပေါင်း {{total}} ခုအနက် {{from}}–{{to}} ကို ပြသနေသည်",
+    "action_type": "လုပ်ဆောင်ချက်အမျိုးအစား",
+    "audit_logs_read_only": "စာရင်းစစ်မှတ်တမ်းများသည် ဖတ်ရှုရန်သာဖြစ်သော သမိုင်းမှတ်တမ်းများ ဖြစ်သည်။",
+    "unable_to_load_marketplace_audit_logs": "Marketplace စာရင်းစစ်မှတ်တမ်းများကို မဖတ်နိုင်ပါ။",
+    "first_page": "ပထမ",
+    "last_page": "နောက်ဆုံး",
+    "on_hand_short": "လက်ဝယ်",
+    "reserved_short": "ကြိုတင်",
+    "stock_summary": "လက်ကျန်အနှစ်ချုပ်",
+    "branch_inventory": "ဘဏ်ခွဲလက်ကျန်",
+    "inventory_unavailable": "ဤကုန်ပစ္စည်းအတွက် လက်ကျန်ဒေတာ မရရှိနိုင်ပါ။",
+    "all_marketplace_orders": "Marketplace အော်ဒါအားလုံး",
+    "pending_orders": "စောင့်ဆိုင်းနေသော အော်ဒါများ",
+    "pending_payment_orders": "ငွေပေးချေရန်ကျန် အော်ဒါများ",
+    "processing_orders": "လုပ်ဆောင်နေသော အော်ဒါများ",
+    "orders_being_fulfilled": "ဖြည့်ဆည်းနေသော အော်ဒါများ",
+    "shipped_orders": "ပို့ဆောင်ပြီး အော်ဒါများ",
+    "shipped_or_partially_shipped": "ပို့ဆောင်ပြီး သို့မဟုတ် တစ်စိတ်တစ်ပိုင်းပို့ဆောင်ပြီး",
+    "completed_deliveries": "ပြီးဆုံးသော ပို့ဆောင်မှုများ",
+    "cancelled_marketplace_orders": "ပယ်ဖျက်ထားသော Marketplace အော်ဒါများ",
+    "payment_pending_orders": "ငွေပေးချေရန်ကျန် အော်ဒါများ",
+    "payment_requires_review": "ငွေပေးချေမှု စိစစ်ရန်လိုသည်",
+    "search_marketplace_orders": "အော်ဒါ၊ ရောင်းချသူအော်ဒါ၊ ခြေရာခံနံပါတ်၊ ဆိုင် သို့မဟုတ် ဖောက်သည် ရှာရန်",
+    "all_order_statuses": "အော်ဒါအခြေအနေအားလုံး",
+    "all_payment_statuses": "ငွေပေးချေမှုအခြေအနေအားလုံး",
+    "all_fulfillment_statuses": "အော်ဒါဖြည့်ဆည်းမှုအခြေအနေအားလုံး",
+    "all_shipment_statuses": "ပို့ဆောင်မှုအခြေအနေအားလုံး",
+    "sort_orders": "အော်ဒါများ စီရန်",
+    "order_number_a_to_z": "အော်ဒါနံပါတ် A–Z",
+    "total_high_to_low": "စုစုပေါင်း အမြင့်မှ အနိမ့်",
+    "total_low_to_high": "စုစုပေါင်း အနိမ့်မှ အမြင့်",
+    "vendor_store": "ရောင်းချသူ / ဆိုင်",
+    "order_total": "အော်ဒါ စုစုပေါင်း",
+    "fulfillment_summary": "ဖြည့်ဆည်းမှု",
+    "shipment_summary": "ပို့ဆောင်မှု",
+    "order_directory": "အော်ဒါစာရင်း",
+    "no_marketplace_orders": "ဤစစ်ထုတ်မှုများနှင့် ကိုက်ညီသော Marketplace အော်ဒါမရှိပါ။",
+    "order_items_and_vendors": "အော်ဒါပစ္စည်းများနှင့် ရောင်းချသူအော်ဒါများ",
+    "no_order_items": "အော်ဒါပစ္စည်း မရရှိနိုင်ပါ။",
+    "shipment": "ပို့ဆောင်မှု",
+    "no_payment_history": "ငွေပေးချေမှုမှတ်တမ်း မရရှိနိုင်ပါ။",
+    "order_timeline": "အော်ဒါဖြစ်စဉ်မှတ်တမ်း",
+    "no_order_timeline": "အော်ဒါဖြစ်စဉ်မှတ်တမ်း မရရှိနိုင်ပါ။",
+    "settings_general": "အထွေထွေ",
+    "settings_vendor_management": "ရောင်းချသူ စီမံခန့်ခွဲမှု",
+    "settings_product_listing": "ကုန်ပစ္စည်းနှင့် စာရင်းတင်ခြင်း စည်းမျဉ်းများ",
+    "settings_order_checkout": "အော်ဒါနှင့် Checkout",
+    "settings_payments": "ငွေပေးချေမှုများ",
+    "settings_shipping_fulfillment": "ပို့ဆောင်မှုနှင့် အော်ဒါဖြည့်ဆည်းမှု",
+    "settings_commissions_payouts": "ကော်မရှင်နှင့် ပေးချေမှုများ",
+    "settings_notifications": "အသိပေးချက်များ",
+    "settings_security_audit": "လုံခြုံရေးနှင့် စာရင်းစစ်",
+    "search_settings": "ဆက်တင်များ ရှာရန်",
+    "marketplace_enabled": "Marketplace ဖွင့်ထားသည်",
+    "marketplace_enabled_help": "Marketplace catalog၊ cart နှင့် checkout အသွားအလာကို ခွင့်ပြုသည်။",
+    "maintenance_mode": "ပြုပြင်ထိန်းသိမ်းမှုမုဒ်",
+    "maintenance_mode_help": "အများသုံး Marketplace နှင့် checkout အသွားအလာကို ယာယီပိတ်သည်။",
+    "default_currency": "မူလငွေကြေး",
+    "seller_registration_enabled": "ရောင်းချသူ မှတ်ပုံတင်ခြင်း ဖွင့်ထားသည်",
+    "seller_registration_enabled_help": "လုပ်ငန်းများကို Marketplace ဆိုင်ဖန်တီးခွင့်ပြုသည်။ ရှိပြီးသားအတည်ပြုချက်များ မပြောင်းလဲပါ။",
+    "seller_approval_required": "ရောင်းချသူ အတည်ပြုချက်လိုအပ်သည်",
+    "seller_approval_required_help": "Platform Super Admin အတည်ပြုသည်အထိ ဆိုင်အသစ်များသည် pending ဖြစ်နေမည်။",
+    "listing_approval_required": "စာရင်းတင်ခြင်း အတည်ပြုချက်လိုအပ်သည်",
+    "listing_approval_required_help": "ခွင့်ပြုထားသော moderation က publish မလုပ်မချင်း ရောင်းချသူစာရင်းအသစ်များသည် draft ဖြစ်နေမည်။",
+    "settings_listing_safety_note": "Publish လုပ်ခြင်းသည် ဆိုင်၊ tenant၊ ကုန်ပစ္စည်း၊ inventory နှင့် ခွင့်ပြုချက် စစ်ဆေးမှုများကို ဆက်လက်လိုက်နာမည်။",
+    "default_commission_rate": "မူလကော်မရှင်နှုန်း (%)",
+    "commission_base": "ကော်မရှင်အခြေခံ",
+    "item_subtotal": "ပစ္စည်းစုစုပေါင်းခွဲ",
+    "payout_schedule": "ပေးချေမှု အချိန်ဇယား",
+    "manual_approval": "လက်ဖြင့် အတည်ပြုရန်",
+    "weekly": "အပတ်စဉ်",
+    "biweekly": "နှစ်ပတ်တစ်ကြိမ်",
+    "monthly": "လစဉ်",
+    "payout_minimum": "အနည်းဆုံးပေးချေငွေ",
+    "commission_change_impact": "ပြောင်းလဲမှုများသည် နောင်ကော်မရှင် snapshot များကိုသာ သက်ရောက်မည်။ ယခင်ရောင်းချသူဝင်ငွေနှင့် ပေးရန်တာဝန်များကို ပြန်လည်တွက်ချက်မည်မဟုတ်ပါ။",
+    "open_finance_management": "Finance Management ဖွင့်ရန်",
+    "last_updated": "နောက်ဆုံးပြင်ဆင်ချိန်",
+    "updated_by": "ပြင်ဆင်သူ",
+    "settings_revision": "ဆက်တင် revision",
+    "reason_for_change": "အရေးကြီးပြောင်းလဲမှု အကြောင်းပြချက်",
+    "advanced_policy_json": "အဆင့်မြင့် policy JSON",
+    "settings_change_history": "ဆက်တင်ပြောင်းလဲမှု မှတ်တမ်း",
+    "no_settings_history": "ဆက်တင်ပြောင်းလဲမှု မှတ်တမ်းမရှိသေးပါ။",
+    "cancel_reset": "ပယ်ဖျက် / ပြန်စရန်",
+    "unsaved_changes": "မသိမ်းရသေးသော ပြောင်းလဲမှုများ",
+    "settings_policy_json_invalid": "Policies သည် မှန်ကန်သော JSON object ဖြစ်ရမည်။",
+    "settings_change_reason_required": "အရေးကြီးပြောင်းလဲမှုကို သိမ်းရန် အကြောင်းပြချက်ထည့်ပါ။",
+    "confirm_marketplace_settings_change": "Marketplace ဆက်တင်ပြောင်းလဲမှုကို အတည်ပြုပါ",
+    "confirm_marketplace_settings_change_help": "ဤပြောင်းလဲမှုသည် အများသုံးရရှိနိုင်မှု သို့မဟုတ် ရောင်းချသူ onboarding ကို သက်ရောက်မည်။ သိမ်းမီ သေချာစစ်ဆေးပါ။",
+    "settings_not_configured": "မပြင်ဆင်ရသေးပါ",
+    "settings_order_checkout_unavailable": "အနည်းဆုံးအော်ဒါ၊ reservation timeout၊ cancellation window နှင့် မပေးချေရသေးသော expiration များသည် လက်ရှိ checkout service တွင် global setting အဖြစ် မထောက်ပံ့ပါ။",
+    "settings_payments_unavailable": "ငွေပေးချေမှုနည်းလမ်းများကို အတည်ပြုထားသော provider configuration က ထိန်းချုပ်သည်။ ငွေပေးချေမှုအချက်အလက် သို့မဟုတ် UI-only ဖွင့်ခြင်းကို မပြပါ။",
+    "settings_shipping_unavailable": "ပို့ဆောင်မှုနည်းလမ်းနှင့် tracking လိုအပ်ချက်များကို လက်ရှိ shipment workflow က စစ်ဆေးပြီး global setting အဖြစ် မထောက်ပံ့ပါ။",
+    "settings_notifications_unavailable": "Marketplace notification channel များကို global အဖြစ် မပြင်ဆင်ထားပါ။ ရှိပြီးသား server-side notification များသည် လက်ရှိ service များကို ဆက်သုံးမည်။",
+    "all_authorized_tenant_products": "ခွင့်ပြုထားသော tenant ထုတ်ကုန်အားလုံး",
+    "active_on_page": "ဤစာမျက်နှာရှိ အသုံးပြုနေသောထုတ်ကုန်",
+    "low_stock_on_page": "ဤစာမျက်နှာရှိ လက်ကျန်နည်းသောထုတ်ကုန်",
+    "current_page_only": "လက်ရှိစာမျက်နှာသာ",
+    "visible_stock_value": "မြင်ရသော စတော့တန်ဖိုး",
+    "current_page_estimate": "လက်ရှိစာမျက်နှာ ခန့်မှန်းချက်",
+    "search_product_name_brand_sku_barcode": "အမည်၊ အမှတ်တံဆိပ်၊ SKU သို့မဟုတ် ဘားကုဒ်ရှာရန်",
+    "branch_location": "ဆိုင်ခွဲ / တည်နေရာ",
+    "all_locations": "တည်နေရာအားလုံး",
+    "any_brand": "မည်သည့်အမှတ်တံဆိပ်မဆို",
+    "min_price": "အနည်းဆုံးဈေး",
+    "max_price": "အများဆုံးဈေး",
+    "previous_page": "ယခင်စာမျက်နှာ",
+    "next_page": "နောက်စာမျက်နှာ",
+    "settings_audit_table": "Marketplace ဆက်တင် စာရင်းစစ်မှတ်တမ်းများ",
+    "settings_audit_log_description": "ဖတ်ရှုရန်သာရှိသော ဆက်တင်နှင့် Marketplace စာရင်းစစ်မှတ်တမ်းများ။",
+    "products_in_scope": "သက်ဆိုင်ရာထုတ်ကုန်များ",
+    "server_total": "ဆာဗာစုစုပေါင်း",
+    "authorized_branch_scope": "ခွင့်ပြုထားသော ဆိုင်ခွဲအကျယ်အဝန်း",
+    "bulk_deactivate": "ပိတ်ရန်",
+    "bulk_export": "တင်ပို့ရန်",
+    "clear_selection": "ရွေးချယ်မှုရှင်းရန်",
+    "branch_revenue_allocation_note": "ဆိုင်ခွဲဝင်ငွေကို line တန်ဖိုးခွဲဝေမှုဖြင့် တွက်ထားသည်။",
+    "branch_fulfillment_attribution": "ဆိုင်ခွဲ / ဖြည့်ဆည်းပေးမှု သတ်မှတ်ချက်",
+    "reservation_record": "Reservation မှတ်တမ်း",
+    "attribution_unavailable": "သတ်မှတ်ချက် မရရှိနိုင်ပါ",
+    "no_historical_fulfillment_branch": "ဤအော်ဒါအတွက် သမိုင်းမှတ်တမ်းရှိ ဖြည့်ဆည်းဆိုင်ခွဲ မရှိပါ။",
+    "marketplace_sales_pagination": "Marketplace အရောင်းမှတ်တမ်းစာမျက်နှာပြောင်းရန်",
+    "partially_refunded": "တစ်စိတ်တစ်ပိုင်း ပြန်အမ်းပြီး",
+    "edit_store": "စတိုးကို ပြင်ဆင်ရန်",
+    "public_store_identity": "အများမြင် စတိုးအမှတ်အသား",
+    "public_url": "အများမြင် URL",
+    "store_description_not_set": "Marketplace ဖောက်သည်များအတွက် စတိုးအကျဉ်းချုပ်ကို ထည့်သွင်းပါ။",
+    "tagline": "ဆောင်ပုဒ် / စာတန်း",
+    "active_branches": "အသုံးပြုနေသော ဆိုင်ခွဲများ",
+    "published_marketplace_products": "ထုတ်ဝေထားသော Marketplace ကုန်ပစ္စည်းများ",
+    "total_sales": "အရောင်း စုစုပေါင်း",
+    "business_information_help": "ဤလုပ်ငန်းခွင်၏ ဥပဒေရေးရာနှင့် လုပ်ငန်းဆိုင်ရာ အချက်အလက်များကို နောက်ဆုံးအခြေအနေတွင် ထားပါ။",
+    "select_type": "အမျိုးအစား ရွေးပါ",
+    "registration_number": "မှတ်ပုံတင်နံပါတ်",
+    "tax_number": "အခွန်နံပါတ်",
+    "currency": "ငွေကြေး",
+    "timezone": "အချိန်ဇုန်",
+    "default_language": "မူရင်းဘာသာစကား",
+    "contact_information": "ဆက်သွယ်ရန် အချက်အလက်",
+    "contact_information_help": "အများမြင်ဖောက်သည်များက ဤလမ်းကြောင်းများမှ လုပ်ငန်းကို ဆက်သွယ်နိုင်ပါသည်။",
+    "secondary_phone": "အရန်ဖုန်း",
+    "facebook_page": "Facebook စာမျက်နှာ",
+    "messaging_contact": "စာပို့ဆက်သွယ်ရန်",
+    "full_address": "လိပ်စာအပြည့်အစုံ",
+    "state_region": "ပြည်နယ် / တိုင်းဒေသကြီး",
+    "postal_code": "စာပို့သင်္ကေတ",
+    "operating_hours": "ဖွင့်ချိန်များ",
+    "operating_hours_help": "အများမြင်စတိုးတွင် ပြသမည့် ပုံမှန်ဖွင့်ချိန်များကို သတ်မှတ်ပါ။",
+    "closed": "ပိတ်ထားသည်",
+    "day_monday": "တနင်္လာ",
+    "day_tuesday": "အင်္ဂါ",
+    "day_wednesday": "ဗုဒ္ဓဟူး",
+    "day_thursday": "ကြာသပတေး",
+    "day_friday": "သောကြာ",
+    "day_saturday": "စနေ",
+    "day_sunday": "တနင်္ဂနွေ",
+    "temporary_closure_message": "ယာယီပိတ်ထားကြောင်း စာတန်း",
+    "holiday_notice": "အားလပ်ရက် အသိပေးချက်",
+    "store_policies": "စတိုးမူဝါဒများ",
+    "store_policies_help": "ပို့ဆောင်ခြင်း၊ ပြန်လည်ပေးပို့ခြင်း၊ ပြန်အမ်းခြင်းနှင့် ဖောက်သည်ပံ့ပိုးမှုဆိုင်ရာ မျှော်မှန်းချက်များကို ရှင်းပြပါ။",
+    "shipping_policy": "ပို့ဆောင်ရေး မူဝါဒ",
+    "return_policy": "ပြန်လည်ပေးပို့ရေး မူဝါဒ",
+    "refund_policy": "ပြန်အမ်းရေး မူဝါဒ",
+    "support_policy": "ပံ့ပိုးရေး မူဝါဒ",
+    "marketplace_visibility": "Marketplace မြင်နိုင်မှု",
+    "shipping_coverage": "ပို့ဆောင်နိုင်သော နယ်ပယ်",
+    "customer_support_contact": "ဖောက်သည်ပံ့ပိုးရေး ဆက်သွယ်ရန်",
+    "delivery_methods": "ပို့ဆောင်နည်းများ",
+    "cod_available": "ပစ္စည်းရောက်ငွေချေ ရရှိနိုင်သည်",
+    "cod_available_help": "သတ်မှတ်ချက်နှင့် ကိုက်ညီပါက ပစ္စည်းရောက်ငွေချေကို ငွေပေးချေမှုရွေးချယ်စရာအဖြစ် ပြပါမည်။",
+    "branches_overview": "ဆိုင်ခွဲ အနှစ်ချုပ်",
+    "branches_overview_help": "ခွင့်ပြုထားသော လုပ်ငန်းဆိုင်ခွဲများနှင့် လက်ရှိလုပ်ငန်းအခြေအနေများ။",
+    "main_branch": "ပင်မဆိုင်ခွဲ",
+    "address_not_set": "လိပ်စာ မသတ်မှတ်ရသေးပါ",
+    "no_branches": "ဆိုင်ခွဲများ မထည့်ရသေးပါ။",
+    "manage_branches": "ဆိုင်ခွဲများ စီမံရန်",
+    "activity": "လုပ်ဆောင်ချက်များ",
+    "activity_help": "မကြာသေးမီက စတိုးပရိုဖိုင်နှင့် အမှတ်တံဆိပ် ပြင်ဆင်မှုများ။",
+    "no_activity": "စတိုးလုပ်ဆောင်ချက် မှတ်တမ်း မရှိသေးပါ။",
+    "public_storefront": "အများမြင် စတိုးမျက်နှာစာ",
+    "no_published_products": "ထုတ်ဝေထားသော ကုန်ပစ္စည်း မရှိသေးပါ။",
+    "no_description": "ဖော်ပြချက် မထည့်ရသေးပါ။",
+    "close_filters": "စစ်ထုတ်မှု ပိတ်ရန်",
+    "marketplace_finance": "Marketplace ဘဏ္ဍာရေး",
+    "view_marketplace_earnings_commission_rules_payouts_and_ledger_activity": "Marketplace ဝင်ငွေ၊ ကော်မရှင်စည်းမျဉ်း၊ payout နှင့် ledger လုပ်ဆောင်ချက်များကို ကြည့်ရန်။",
+    "open_earnings_page": "ဝင်ငွေစာမျက်နှာ ဖွင့်ရန် →",
+    "search_earnings": "ဝင်ငွေ ရှာရန်",
+    "unassigned_unknown": "သတ်မှတ်မထား / မသိရှိ",
+    "all_entry_types": "မှတ်တမ်းအမျိုးအစားအားလုံး",
+    "seller_earning": "ရောင်းချသူ ဝင်ငွေ",
+    "refund": "ပြန်အမ်းငွေ",
+    "adjustment": "ပြင်ဆင်ချက်",
+    "all_directions": "ဦးတည်ချက်အားလုံး",
+    "credit": "ဝင်ငွေ",
+    "debit": "ထွက်ငွေ",
+    "reversed": "ပြန်လှန်ထားသည်",
+    "amount_high_to_low": "ပမာဏ အများမှ အနည်း",
+    "amount_low_to_high": "ပမာဏ အနည်းမှ အများ",
+    "date_range_activity": "ရက်စွဲကာလ လုပ်ဆောင်ချက်",
+    "transaction_date": "ငွေစာရင်း ရက်စွဲ",
+    "reference_order": "ရည်ညွှန်း / အော်ဒါ",
+    "entry_type": "မှတ်တမ်းအမျိုးအစား",
+    "first": "ပထမ",
+    "last": "နောက်ဆုံး",
+    "transaction_details": "ငွေစာရင်း အသေးစိတ်",
+    "search_reference_or_order": "ရည်ညွှန်း သို့မဟုတ် အော်ဒါ ရှာရန်",
+    "transaction_status": "ငွေစာရင်း အခြေအနေ",
+    "any_currency": "ငွေကြေးမရွေး",
+    "original_ledger_amount": "မူရင်း ledger ပမာဏ",
+    "destination_warehouse": "ပို့မည့် ဂိုဒေါင်",
+    "all_suppliers": "ပေးသွင်းသူအားလုံး",
+    "order_date_from": "အော်ဒါရက်စွဲမှ",
+    "order_date_to": "အော်ဒါရက်စွဲအထိ",
+    "search_po_number_supplier_code_or_sku": "PO နံပါတ်၊ ပေးသွင်းသူ၊ ကုဒ် သို့မဟုတ် SKU ရှာရန်",
+    "reset": "ပြန်စရန်",
+    "done": "ပြီးပါပြီ",
+    "all_authorized_cashiers": "ခွင့်ပြုထားသော ငွေကိုင်အားလုံး",
+    "pending_payment": "စောင့်ဆိုင်းနေသော ပေးချေမှု",
+    "all_verified_methods": "အတည်ပြုထားသော နည်းလမ်းအားလုံး",
+    "any_verification_state": "အတည်ပြုမှုအခြေအနေ မရွေး",
+    "filter_sales": "အရောင်း စစ်ထုတ်ရန်",
+    "review_authorized_sales_payments_receipts_and_refund_totals_across_your_branches": "ခွင့်ပြုထားသော ဆိုင်ခွဲများအလိုက် အရောင်း၊ ပေးချေမှု၊ ပြေစာနှင့် ပြန်အမ်းငွေ စုစုပေါင်းများကို စစ်ဆေးပါ။",
+    "voided": "ပယ်ဖျက်ထားသည်",
+    "search_sale_receipt_or_cashier": "အရောင်း၊ ပြေစာ သို့မဟုတ် ငွေကိုင် ရှာရန်",
+    "sale_status": "အရောင်း အခြေအနေ",
+    "verification": "အတည်ပြုမှု",
+    "sales_pagination": "အရောင်း စာမျက်နှာခွဲခြားမှု",
+    "help_policies": "အကူအညီနှင့် မူဝါဒများ",
+    "help_intro": "စီမံခန့်ခွဲသူများအတွက် အကူအညီနှင့် မူဝါဒများကို စုစည်းထားမည့်နေရာ ဖြစ်သည်။ အကြောင်းအရာစာမျက်နှာများကို နောက်အဆင့်တွင် ထည့်သွင်းမည်။",
+    "help_privacy": "ကိုယ်ရေးအချက်အလက် မူဝါဒ",
+    "help_privacy_desc": "အတည်ပြုပြီးသော Admin မူဝါဒ ရရှိသည့်အခါ ပလက်ဖောင်းနှင့် ဖောက်သည်အချက်အလက်များ ကိုင်တွယ်ပုံကို ဖတ်ရှုနိုင်မည်။",
+    "help_terms": "စည်းကမ်းသတ်မှတ်ချက်များ",
+    "help_terms_desc": "မိမိ၏ စီမံခန့်ခွဲရေးအခန်းကဏ္ဍနှင့် သက်ဆိုင်သော ပလက်ဖောင်းစည်းမျဉ်းများကို ကြည့်ရှုနိုင်မည်။",
+    "help_faq": "မေးလေ့ရှိသောမေးခွန်းများ",
+    "help_faq_desc": "အကောင့်၊ ကုန်ပစ္စည်း၊ အမှာစာ၊ ငွေပေးချေမှုနှင့် Marketplace လုပ်ငန်းစဉ်များအတွက် အဖြေများကို ရှာဖွေနိုင်မည်။",
+    "help_support": "အကူအညီနှင့် ဆက်သွယ်ရန်",
+    "help_support_desc": "အတည်ပြုထားသော အကူအညီစာမျက်နှာများနှင့် ဆက်သွယ်ရန်နည်းလမ်းများကို ရှာဖွေနိုင်မည်။",
+    "help_next_phase": "အကြောင်းအရာများကို Phase 2 တွင် ထည့်သွင်းမည်"
   }
 }
