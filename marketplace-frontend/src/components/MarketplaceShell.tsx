@@ -43,11 +43,11 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
             <BrandLogo label={t('marketplace')} labelClassName="marketplace-header-logo-label" nameClassName="hidden text-white transition-transform group-hover:scale-105 sm:block" />
           </Link>
 
-          <form onSubmit={submitSearch} className="order-3 flex min-w-0 basis-full sm:order-none sm:mx-4 sm:basis-auto sm:flex-1 lg:mx-10" role="search">
+            <form onSubmit={submitSearch} className="order-3 flex min-w-0 basis-full sm:order-none sm:mx-4 sm:basis-auto sm:flex-1 lg:mx-4 xl:mx-10" role="search">
             <label className="relative block w-full"><Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-cyan-200" size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchPlaceholder')} className="marketplace-header-search h-12 w-full rounded-2xl border pl-11 pr-4 text-sm font-medium outline-none transition" aria-label={t('searchPlaceholder')} /></label>
           </form>
 
-          <nav className="hidden items-center gap-1 lg:flex" aria-label={t('primaryNavigation')}><NavItem to="/" label={t('home')} /><NavItem to="/shop" label={t('shop')} /><NavItem to="/categories" label={t('categories')} /><NavItem to="/stores" label={t('stores')} /></nav>
+          <nav className="hidden items-center gap-1 xl:gap-0.5 lg:flex" aria-label={t('primaryNavigation')}><NavItem to="/" label={t('home')} /><NavItem to="/shop" label={t('shop')} /><NavItem to="/categories" label={t('categories')} /><NavItem to="/stores" label={t('stores')} /><NavItem to="/about" label={t('about')} /><NavItem to="/contact" label={t('contact')} /></nav>
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <button type="button" onClick={switchLocale} className="marketplace-header-control hidden h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30 sm:inline-flex" aria-label={t('changeLanguage')}><span className="text-cyan-200">文</span>{locale === 'en' ? t('burmese') : t('english')}</button>
             <button type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="marketplace-header-control grid size-10 place-items-center rounded-xl transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30" aria-label={t('theme')}>{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
@@ -60,7 +60,7 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
             <button type="button" onClick={() => setMobileOpen(!mobileOpen)} className="marketplace-header-control grid size-10 place-items-center rounded-xl transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30 lg:hidden" aria-label={mobileOpen ? t('closeMenu') : t('openMenu')} aria-expanded={mobileOpen}>{mobileOpen ? <X size={21} /> : <Menu size={21} />}</button>
           </div>
         </div>
-        {mobileOpen && <div className="marketplace-header-mobile border-t px-4 py-4 lg:hidden"><nav className="grid gap-1" aria-label={t('mobileNavigation')}><MobileNavItem to="/" label={t('home')} onClick={closeMobile} /><MobileNavItem to="/shop" label={t('shop')} onClick={closeMobile} /><MobileNavItem to="/categories" label={t('categories')} onClick={closeMobile} /><MobileNavItem to="/stores" label={t('stores')} onClick={closeMobile} /><MobileNavItem to={customer ? '/account' : '/login'} label={customer ? t('account') : t('signIn')} onClick={closeMobile} /></nav><div className="marketplace-header-mobile-divider mt-4 flex items-center justify-between border-t pt-4"><span className="marketplace-header-muted text-sm font-semibold">{t('language')}</span><button type="button" onClick={switchLocale} className="marketplace-header-control rounded-xl px-3 py-2 text-xs font-bold">{locale === 'en' ? t('burmese') : t('english')}</button></div></div>}
+        {mobileOpen && <div className="marketplace-header-mobile border-t px-4 py-4 lg:hidden"><nav className="grid gap-1" aria-label={t('mobileNavigation')}><MobileNavItem to="/" label={t('home')} onClick={closeMobile} /><MobileNavItem to="/shop" label={t('shop')} onClick={closeMobile} /><MobileNavItem to="/categories" label={t('categories')} onClick={closeMobile} /><MobileNavItem to="/stores" label={t('stores')} onClick={closeMobile} /><MobileNavItem to="/about" label={t('about')} onClick={closeMobile} /><MobileNavItem to="/contact" label={t('contact')} onClick={closeMobile} /><MobileNavItem to={customer ? '/account' : '/login'} label={customer ? t('account') : t('signIn')} onClick={closeMobile} /></nav><div className="marketplace-header-mobile-divider mt-4 flex items-center justify-between border-t pt-4"><span className="marketplace-header-muted text-sm font-semibold">{t('language')}</span><button type="button" onClick={switchLocale} className="marketplace-header-control rounded-xl px-3 py-2 text-xs font-bold">{locale === 'en' ? t('burmese') : t('english')}</button></div></div>}
       </header>
       <main>{children}</main>
       <footer className="marketplace-footer border-t">
@@ -70,7 +70,7 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
             <p className="marketplace-footer-copy mt-4 max-w-sm text-sm leading-7">{t('footerBody')}</p>
             <div className="marketplace-footer-muted mt-5 flex items-center gap-2 text-xs font-semibold"><Sparkles size={14} className="marketplace-footer-accent" /> {t('builtForCommunity')}</div>
           </div>
-          <FooterColumn title={t('shop')} links={[[t('shop'), '/shop'], [t('categories'), '/categories'], [t('stores'), '/stores']]} />
+          <FooterColumn title={t('shop')} links={[[t('shop'), '/shop'], [t('categories'), '/categories'], [t('stores'), '/stores'], [t('about'), '/about'], [t('contact'), '/contact']]} />
           <FooterColumn title={t('account')} links={[[t('account'), '/account'], [t('myOrders'), '/orders'], [t('orderTracking'), '/tracking']]} />
         </div>
         <div className="marketplace-footer-divider border-t">
@@ -85,7 +85,7 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
 }
 
 function NavItem({ to, label }: { to: string; label: string }) {
-  return <NavLink to={to} end={to === '/'} className={({ isActive }) => 'marketplace-header-nav rounded-xl px-3 py-2 text-sm font-bold transition ' + (isActive ? 'marketplace-header-nav-active' : '')}>{label}</NavLink>
+  return <NavLink to={to} end={to === '/'} className={({ isActive }) => 'marketplace-header-nav rounded-xl px-2 py-2 text-xs font-bold transition xl:px-3 xl:text-sm ' + (isActive ? 'marketplace-header-nav-active' : '')}>{label}</NavLink>
 }
 
 function MobileNavItem({ to, label, onClick }: { to: string; label: string; onClick: () => void }) {

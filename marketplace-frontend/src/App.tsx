@@ -3,7 +3,9 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  Building2,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   CircleAlert,
@@ -12,6 +14,8 @@ import {
   EyeOff,
   Heart,
   LoaderCircle,
+  MailCheck,
+  MessageCircle,
   LogIn,
   Mail,
   MapPin,
@@ -22,7 +26,9 @@ import {
   Plus,
   QrCode,
   Search,
+  Send,
   ShieldCheck,
+  Sparkles,
   SlidersHorizontal,
   ShoppingBag,
   Star,
@@ -46,6 +52,7 @@ import { CompactSummaryCard } from './components/CompactSummaryCard'
 import { MarketplaceShell, StoreMark } from './components/MarketplaceShell'
 import { privacyPolicyContent } from './privacy-policy'
 import { termsAndConditionsContent } from './terms-and-conditions'
+import { aboutContent, contactContent } from './about-contact-content'
 import {
   apiErrorMessage,
   addMarketplaceCartItem,
@@ -66,6 +73,7 @@ import {
   type MarketplacePaymentMethod,
   fetchMarketplaceTracking,
   fetchMarketplaceReceipt,
+  submitMarketplaceContact,
   fetchProduct,
   fetchRelatedProducts,
   fetchProducts,
@@ -381,6 +389,8 @@ function App() {
         <Route path="/orders/:id/receipt" element={<ProtectedRoute {...services}><CustomerDocumentPage {...services} kind="receipt" /></ProtectedRoute>} />
         <Route path="/tracking/:id" element={<ProtectedRoute {...services}><TrackingPage {...services} /></ProtectedRoute>} />
         <Route path="/tracking" element={<ProtectedRoute {...services}><TrackingPage {...services} /></ProtectedRoute>} />
+        <Route path="/about" element={<AboutUsPage {...services} />} />
+        <Route path="/contact" element={<ContactUsPage {...services} />} />
         <Route path="/privacy" element={<PrivacyPolicyPage {...services} />} />
         <Route path="/terms" element={<TermsAndConditionsPage {...services} />} />
         <Route path="*" element={<NotFoundPage {...services} />} />
@@ -1413,6 +1423,47 @@ function StatusPill({ label }: { label: string }) { return <span className="inli
 
 function ShipmentTimeline({ shipment, locale, t }: { shipment: import('./lib/marketplace').MarketplaceShipment; locale: Locale; t: (key: TranslationKey) => string }) {
   return <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/40"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-black">{t('shipmentTimeline')}</h3><p className="mt-1 text-xs font-semibold text-slate-500">{shipment.storeName || t('vendor')} · {trackingStatusLabel(shipment.status, t)}</p></div><span className="text-xs font-bold text-slate-400">{shipment.createdAt ? new Date(shipment.createdAt).toLocaleString(locale === 'my' ? 'my-MM' : 'en-US') : '—'}</span></div><div className="mt-3 grid gap-2 text-sm">{[[t('deliveryType'), shipment.deliveryType === 'external_courier' ? t('externalCourier') : t('selfDelivery')], [t('carrier'), shipment.carrierName], [t('trackingNumber'), shipment.trackingNumber], [t('internalTrackingId'), shipment.internalTrackingId]].filter(([, value]) => value).map(([label, value]) => <div key={label} className="flex flex-wrap justify-between gap-3"><span className="font-semibold text-slate-500">{label}</span>{shipment.trackingUrl && label === t('trackingNumber') ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer" className="font-black text-blue-600 hover:underline">{String(value)}</a> : <span className="font-black">{String(value)}</span>}</div>)}</div>{shipment.events.length > 0 && <ol className="mt-4 grid gap-3 border-l-2 border-blue-100 pl-4 dark:border-blue-900/50">{shipment.events.map((event) => <li key={event.id} className="relative"><span className="absolute -left-[1.35rem] top-1 size-2.5 rounded-full bg-blue-600 ring-4 ring-white dark:ring-slate-950" /><p className="text-sm font-black">{trackingStatusLabel(event.status, t)}</p><p className="mt-1 text-xs leading-5 text-slate-500">{event.description || '—'}{event.eventTime ? ` · ${new Date(event.eventTime).toLocaleString(locale === 'my' ? 'my-MM' : 'en-US')}` : ''}</p></li>)}</ol>}</div>
+}
+
+function AboutUsPage({ locale }: AppServices) {
+  const content = aboutContent(locale)
+  const cards = [Building2, ShieldCheck, Sparkles, CheckCircle2, MessageCircle]
+  return <PageContainer compact wide>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><nav aria-label={content.eyebrow} className="flex items-center gap-2 text-xs font-bold text-slate-400"><Link to="/">{locale === 'my' ? 'ပင်မစာမျက်နှာ' : 'Home'}</Link><ChevronRight size={14} /><span className="text-slate-700 dark:text-slate-200">{locale === 'my' ? 'ကျွန်ုပ်တို့အကြောင်း' : 'About Us'}</span></nav><Link to="/" className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"><ArrowLeft size={15} /> {locale === 'my' ? 'ပင်မစာမျက်နှာသို့ ပြန်သွားရန်' : 'Back to Home'}</Link></div>
+    <header className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-6 shadow-sm dark:border-blue-950/60 dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900 sm:p-8"><div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,.85fr)]"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">{content.eyebrow}</p><h1 className="mt-2 max-w-2xl text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">{content.title}</h1><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">{content.intro}</p><Link to="/shop" className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{locale === 'my' ? 'ဈေးဝယ်ရန်' : 'Explore the shop'} <ArrowRight size={16} /></Link></div><div className="relative hidden min-h-52 overflow-hidden rounded-2xl border border-blue-100 bg-blue-600 p-6 text-white shadow-xl shadow-blue-900/10 lg:block dark:border-blue-800"><div className="absolute -right-12 -top-16 size-48 rounded-full bg-cyan-300/25 blur-2xl" /><div className="relative flex h-full flex-col justify-between"><Store size={38} className="text-cyan-200" /><p className="max-w-xs text-2xl font-black leading-tight">{locale === 'my' ? 'လုပ်ငန်းများနှင့် ဖောက်သည်များကို ချိတ်ဆက်ပေးသည်။' : 'Connecting customers with participating businesses.'}</p></div></div></div></header>
+    <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><BookOpen size={20} /></span><h2 className="text-xl font-black text-slate-950 dark:text-white">{content.storyTitle}</h2></div><div className="mt-4 grid gap-4 text-sm leading-7 text-slate-600 dark:text-slate-300 lg:grid-cols-2">{content.story.map((paragraph) => <p key={paragraph} className="m-0">{paragraph}</p>)}</div></section>
+    <section className="mt-5 grid gap-4 md:grid-cols-2"><article className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5 dark:border-blue-900/50 dark:bg-blue-950/20 sm:p-6"><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">01</p><h2 className="mt-2 text-xl font-black text-slate-950 dark:text-white">{content.missionTitle}</h2><p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{content.mission}</p></article><article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">02</p><h2 className="mt-2 text-xl font-black text-slate-950 dark:text-white">{content.visionTitle}</h2><p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{content.vision}</p></article></section>
+    <section className="mt-8"><div className="mb-4 flex items-end justify-between gap-3"><h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{content.valuesTitle}</h2><span className="text-xs font-bold text-slate-400">{content.values.length} {locale === 'my' ? 'ခု' : 'principles'}</span></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{content.values.map((value, index) => { const Icon = cards[index] ?? CheckCircle2; return <article key={value.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><span className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"><Icon size={19} /></span><h3 className="mt-3 text-sm font-black text-slate-950 dark:text-white">{value.title}</h3><p className="mt-2 text-xs leading-6 text-slate-500 dark:text-slate-400">{value.body}</p></article> })}</div></section>
+    <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"><h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{content.howTitle}</h2><div className="mt-5 grid gap-4 md:grid-cols-4">{content.steps.map((step, index) => <article key={step.title} className="relative"><div className="flex items-center gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-black text-white">{index + 1}</span><h3 className="text-sm font-black text-slate-950 dark:text-white">{step.title}</h3></div><p className="mt-3 pl-12 text-xs leading-6 text-slate-500 dark:text-slate-400">{step.body}</p></article>)}</div></section>
+    <section className="mt-8"><h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{content.benefitsTitle}</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{content.benefits.map((benefit, index) => { const Icon = cards[index] ?? MessageCircle; return <article key={benefit.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><Icon size={20} className="text-blue-600 dark:text-blue-300" /><h3 className="mt-3 text-sm font-black text-slate-950 dark:text-white">{benefit.title}</h3><p className="mt-2 text-xs leading-6 text-slate-500 dark:text-slate-400">{benefit.body}</p></article> })}</div></section>
+    <section className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-blue-600 p-5 text-white shadow-lg shadow-blue-600/15 sm:p-6"><div><h2 className="text-xl font-black">{locale === 'my' ? 'စတင်ရှာဖွေကြည့်ပါ။' : 'Ready to explore?'}</h2><p className="mt-1 text-sm text-blue-100">{locale === 'my' ? 'ပစ္စည်းများ၊ ဆိုင်များနှင့် အကူအညီကို ရှာဖွေပါ။' : 'Find products, stores and support in one place.'}</p></div><div className="flex flex-wrap gap-2"><Link to="/shop" className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-3 text-xs font-black text-blue-700 transition hover:bg-blue-50">{locale === 'my' ? 'ဈေးဝယ်ရန်' : 'Shop now'} <ArrowRight size={15} /></Link><Link to="/stores" className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-300 px-3 text-xs font-black text-white transition hover:bg-blue-500">{locale === 'my' ? 'ဆိုင်များ' : 'Browse stores'}</Link><Link to="/contact" className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-300 px-3 text-xs font-black text-white transition hover:bg-blue-500">{locale === 'my' ? 'ဆက်သွယ်ရန်' : 'Contact us'}</Link></div></section>
+  </PageContainer>
+}
+
+function ContactUsPage({ locale, t }: AppServices) {
+  const content = contactContent(locale)
+  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', website: '' })
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [error, setError] = useState('')
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setStatus('sending')
+    setError('')
+    try {
+      await submitMarketplaceContact(form, locale)
+      setStatus('success')
+      setForm({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', website: '' })
+    } catch (reason: unknown) {
+      setStatus('error')
+      setError(apiErrorMessage(reason, t('contactFailure')))
+    }
+  }
+  return <PageContainer compact wide>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><nav aria-label={content.eyebrow} className="flex items-center gap-2 text-xs font-bold text-slate-400"><Link to="/">{locale === 'my' ? 'ပင်မစာမျက်နှာ' : 'Home'}</Link><ChevronRight size={14} /><span className="text-slate-700 dark:text-slate-200">{t('contact')}</span></nav><Link to="/" className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"><ArrowLeft size={15} /> {t('backToHome')}</Link></div>
+    <header className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-6 shadow-sm dark:border-blue-950/60 dark:from-blue-950/30 dark:via-slate-900 dark:to-slate-900 sm:p-8"><div className="flex items-start gap-4"><span className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20"><MessageCircle size={24} /></span><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">{content.eyebrow}</p><h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">{content.title}</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">{content.intro}</p></div></div></header>
+    <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]"><section className="space-y-4"><div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="text-lg font-black text-slate-950 dark:text-white">{content.methodsTitle}</h2><div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40"><MailCheck size={20} className="text-blue-600 dark:text-blue-300" /><p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{content.methodsUnavailable}</p></div></div><div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100"><CircleAlert size={16} className="mb-2 text-amber-600 dark:text-amber-300" />{content.reviewNotice}</div></section><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-black text-slate-950 dark:text-white">{content.formTitle}</h2><p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{content.formIntro}</p></div><Send size={20} className="text-blue-600 dark:text-blue-300" /></div><form onSubmit={submit} className="mt-5 grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300"><span>{t('contactName')}</span><input required maxLength={120} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900" /></label><label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300"><span>{t('contactEmail')}</span><input required type="email" maxLength={255} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900" /></label><label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300"><span>{t('contactPhone')}</span><input maxLength={50} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900" /></label><label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300"><span>{t('contactSubject')}</span><select value={form.subject} onChange={(event) => setForm({ ...form, subject: event.target.value })} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900">{content.subjects.map((subject) => <option key={subject.value} value={subject.value}>{subject.label}</option>)}</select></label><label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 sm:col-span-2"><span>{t('contactMessage')}</span><textarea required minLength={10} maxLength={5000} rows={6} value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} className="resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:focus:bg-slate-900" /></label><input tabIndex={-1} autoComplete="off" aria-hidden="true" value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} className="absolute -left-[9999px] h-px w-px opacity-0" /><div className="sm:col-span-2"><div aria-live="polite">{status === 'success' && <p className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"><CheckCircle2 size={17} />{t('contactSuccess')}</p>}{status === 'error' && <p role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200">{error}</p>}</div><button disabled={status === 'sending'} className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-lg shadow-blue-600/15 transition hover:bg-blue-500 disabled:cursor-wait disabled:opacity-60 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{status === 'sending' ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />} {status === 'sending' ? t('contactSending') : t('contactSend')}</button></div></form></section></div>
+    <section className="mt-8"><h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{content.faqTitle}</h2><div className="mt-4 grid gap-3 md:grid-cols-2">{content.faqs.map((faq) => <article key={faq.question} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h3 className="text-sm font-black text-slate-950 dark:text-white">{faq.question}</h3><p className="mt-2 text-xs leading-6 text-slate-500 dark:text-slate-400">{faq.answer}</p>{faq.link && <Link to={faq.link.href} className="mt-3 inline-flex items-center gap-1 text-xs font-black text-blue-600 hover:gap-2 dark:text-blue-300">{faq.link.label} <ArrowRight size={14} /></Link>}</article>)}</div></section>
+  </PageContainer>
 }
 
 function PrivacyPolicyPage({ locale }: AppServices) {

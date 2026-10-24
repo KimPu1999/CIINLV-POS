@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\InventoryReportController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\MarketplaceAdminController;
+use App\Http\Controllers\Api\V1\MarketplaceContactController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAddressController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerCheckoutController;
@@ -84,6 +85,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/products/{listing:slug}/reviews', [MarketplaceReviewController::class, 'publicIndex']);
         Route::get('/categories', [MarketplacePublicController::class, 'categories']);
         Route::get('/search', [MarketplacePublicController::class, 'search']);
+        Route::post('/contact', [MarketplaceContactController::class, 'store']);
         Route::post('/payments/webhook/{provider}', MarketplacePaymentWebhookController::class)->middleware('throttle:payments');
     });
 
