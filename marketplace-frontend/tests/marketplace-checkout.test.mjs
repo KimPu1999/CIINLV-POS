@@ -255,6 +255,16 @@ test('marketplace header keeps search hidden until toggled', () => {
   assert.match(marketplaceShell, /xl:hidden.*aria-label=\{mobileOpen \? t\('closeMenu'\)/)
 })
 
+test('marketplace account control uses an avatar-only dropdown', () => {
+  assert.match(marketplaceShell, /accountButtonRef/)
+  assert.match(marketplaceShell, /grid size-10 place-items-center rounded-full/)
+  assert.match(marketplaceShell, /aria-controls="marketplace-account-menu"/)
+  assert.match(marketplaceShell, /to="\/account#addresses"/)
+  assert.match(marketplaceShell, /to="\/wishlist" label=\{t\('wishlist'\)\}/)
+  assert.match(marketplaceShell, /customerInitials\(customer\.name\)/)
+  assert.match(marketplaceShell, /w-\[300px\]/)
+})
+
 test('about and contact pages are bilingual and contact submission is server-backed', () => {
   assert.match(app, /<Route path="\/about" element={<AboutUsPage/)
   assert.match(app, /<Route path="\/contact" element={<ContactUsPage/)

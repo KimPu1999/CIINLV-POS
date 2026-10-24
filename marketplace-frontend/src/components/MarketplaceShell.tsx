@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { ChevronDown, Heart, LogOut, Menu, Moon, Search, ShoppingBag, Sparkles, Sun, UserCircle, X } from 'lucide-react'
+import { Heart, LogOut, MapPin, Menu, Moon, Package, Search, ShoppingBag, Sparkles, Sun, UserCircle, UserRound, X } from 'lucide-react'
 import type { Customer, Locale, Theme, TranslationKey } from '../lib/marketplace'
 import { translate } from '../lib/marketplace'
 import { BrandLogo } from './BrandLogo'
@@ -24,12 +24,17 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
   const [searchOpen, setSearchOpen] = useState(false)
   const [search, setSearch] = useState('')
   const accountRef = useRef<HTMLDivElement>(null)
+  const accountButtonRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchButtonRef = useRef<HTMLButtonElement>(null)
   const t = (key: TranslationKey) => translate(locale, key)
 
   useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setAccountOpen(false) }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setAccountOpen(false)
+      window.requestAnimationFrame(() => accountButtonRef.current?.focus())
+    }
     const closeOnOutsideClick = (event: MouseEvent) => { if (accountRef.current && !accountRef.current.contains(event.target as Node)) setAccountOpen(false) }
     document.addEventListener('keydown', closeOnEscape)
     document.addEventListener('pointerdown', closeOnOutsideClick)
@@ -78,9 +83,9 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
             <button type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="marketplace-header-control grid size-10 place-items-center rounded-xl transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30" aria-label={t('theme')}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
             <IconLink to="/wishlist" label={t('wishlist')} count={wishlistCount} icon={<Heart size={19} />} />
             <IconLink to="/cart" label={t('cart')} count={cartCount} icon={<ShoppingBag size={19} />} />
-            <div ref={accountRef} className="relative hidden sm:block">
-              <button type="button" onClick={() => setAccountOpen((value) => !value)} className="marketplace-header-control flex h-10 max-w-[132px] items-center gap-1.5 rounded-xl px-2 transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30" aria-label={t('accountMenu')} aria-expanded={accountOpen}><UserCircle size={20} className="shrink-0" /><span className="hidden min-w-0 truncate text-xs font-bold lg:block">{customer?.name ?? t('account')}</span><ChevronDown size={14} className="shrink-0" /></button>
-              {accountOpen && <div className="absolute right-0 top-12 z-50 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-800 dark:bg-slate-900">{customer ? <><div className="border-b border-slate-100 px-3 py-3 dark:border-slate-800"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('signedInAs')}</p><p className="mt-1 truncate text-sm font-black">{customer.name}</p></div><MenuLink to="/account" label={t('account')} onClick={() => setAccountOpen(false)} /><MenuLink to="/orders" label={t('myOrders')} onClick={() => setAccountOpen(false)} /><button type="button" onClick={() => { setAccountOpen(false); onLogout() }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/30"><LogOut size={17} />{t('signOut')}</button></> : <><MenuLink to="/login" label={t('signIn')} onClick={() => setAccountOpen(false)} /><MenuLink to="/register" label={t('createAccount')} onClick={() => setAccountOpen(false)} /></>}</div>}
+            <div ref={accountRef} className="relative">
+              <button ref={accountButtonRef} type="button" onClick={() => setAccountOpen((value) => !value)} className="marketplace-header-control grid size-10 place-items-center rounded-full transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30" aria-label={t('accountMenu')} aria-expanded={accountOpen} aria-controls="marketplace-account-menu"><span className="grid size-8 place-items-center overflow-hidden rounded-full bg-blue-500/30 text-sm font-black text-white ring-1 ring-cyan-200/40">{customer ? customerInitials(customer.name) : <UserCircle size={19} />}</span></button>
+              {accountOpen && <div id="marketplace-account-menu" className="absolute right-0 top-12 z-50 w-[300px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-950/15 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/30">{customer ? <><div className="flex items-center gap-3 border-b border-slate-100 px-3 py-3 dark:border-slate-800"><span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-blue-600 text-sm font-black text-white">{customerInitials(customer.name)}</span><div className="min-w-0"><p className="truncate text-sm font-black text-slate-950 dark:text-white">{customer.name}</p><p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{customer.email}</p></div></div><div className="mt-2 grid gap-0.5"><MenuLink to="/account" label={t('account')} icon={<UserRound size={17} />} onClick={() => setAccountOpen(false)} /><MenuLink to="/orders" label={t('myOrders')} icon={<Package size={17} />} onClick={() => setAccountOpen(false)} /><MenuLink to="/account#addresses" label={t('addresses')} icon={<MapPin size={17} />} onClick={() => setAccountOpen(false)} /><MenuLink to="/wishlist" label={t('wishlist')} icon={<Heart size={17} />} onClick={() => setAccountOpen(false)} /></div><div className="my-2 border-t border-slate-100 dark:border-slate-800" /><button type="button" onClick={() => { setAccountOpen(false); onLogout() }} className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-500/20 dark:text-red-300 dark:hover:bg-red-950/30"><LogOut size={17} />{t('signOut')}</button></> : <div className="grid gap-0.5"><MenuLink to="/login" label={t('signIn')} icon={<UserRound size={17} />} onClick={() => setAccountOpen(false)} /><MenuLink to="/register" label={t('createAccount')} icon={<UserCircle size={17} />} onClick={() => setAccountOpen(false)} /></div>}</div>}
             </div>
             <button type="button" onClick={() => setMobileOpen(!mobileOpen)} className="marketplace-header-control grid size-10 place-items-center rounded-xl transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30 xl:hidden" aria-label={mobileOpen ? t('closeMenu') : t('openMenu')} aria-expanded={mobileOpen}>{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
           </div>
@@ -122,8 +127,12 @@ function IconLink({ to, label, count, icon }: { to: string; label: string; count
   return <Link to={to} className="marketplace-header-control relative grid size-10 place-items-center rounded-xl transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30" aria-label={label}>{icon}{count > 0 && <span className="marketplace-header-badge absolute -right-0.5 -top-0.5 grid min-w-4 translate-x-1/4 -translate-y-1/4 place-items-center rounded-full px-1 text-[10px] font-black leading-4">{count > 99 ? '99+' : count}</span>}</Link>
 }
 
-function MenuLink({ to, label, onClick }: { to: string; label: string; onClick: () => void }) {
-  return <Link to={to} onClick={onClick} className="block rounded-xl px-3 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{label}</Link>
+function MenuLink({ to, label, icon, onClick }: { to: string; label: string; icon?: ReactNode; onClick: () => void }) {
+  return <Link to={to} onClick={onClick} className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:text-slate-200 dark:hover:bg-blue-950/30 dark:hover:text-blue-200">{icon && <span className="grid size-7 shrink-0 place-items-center text-blue-600 dark:text-blue-300">{icon}</span>}<span className="min-w-0 truncate">{label}</span></Link>
+}
+
+function customerInitials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U'
 }
 
 function FooterColumn({ title, links }: { title: string; links: Array<[string, string]> }) {
