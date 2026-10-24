@@ -98,6 +98,28 @@ class PhaseSevenReportingTest extends TestCase
         $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)->getJson('/api/v1/alerts?store_id=00000000-0000-0000-0000-000000000000')->assertOk()->assertJsonCount(0, 'data.data');
     }
 
+    public function test_alert_preferences_require_channels_to_be_an_array_and_allow_empty_arrays(): void
+    {
+        [$tenant, $admin] = $this->fixture('REPORT-A', 'alert-preferences');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->patchJson('/api/v1/alerts/preferences', ['channels' => ['database', 'email']])
+            ->assertOk()
+            ->assertJsonPath('data.channels.0', 'database')
+            ->assertJsonPath('data.channels.1', 'email');
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->patchJson('/api/v1/alerts/preferences', ['channels' => 'database'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['channels']);
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->patchJson('/api/v1/alerts/preferences', ['channels' => []])
+            ->assertOk()
+            ->assertJsonPath('data.channels', []);
+    }
+
     public function test_alert_lifecycle_is_authorized_and_audited(): void
     {
         [$tenant, $admin, , , $location, $variant] = $this->fixture('REPORT-A', 'alert-lifecycle');
