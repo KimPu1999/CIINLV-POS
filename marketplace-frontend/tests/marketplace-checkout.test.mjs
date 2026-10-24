@@ -32,7 +32,9 @@ test('checkout address links return safely to the saved addresses section', () =
   assert.match(app, /returnTo=%2Fcheckout&address_id=/)
   assert.match(app, /searchParams\.get\('returnTo'\) === '\/checkout'/)
   assert.match(app, /returnToCheckout/)
-  assert.match(app, /scrollIntoView/)
+  assert.match(app, /accountTabFromHash/)
+  assert.match(app, /addEventListener\('hashchange'/)
+  assert.match(app, /addEventListener\('popstate'/)
 })
 
 test('checkout uses a compact responsive layout with one final action', () => {
@@ -92,6 +94,24 @@ test('customer tracking and cancellation/return requests use protected server wo
   assert.match(api, /return-requests/)
 })
 
+test('orders page has compact cards and safe back-to-shop navigation', () => {
+  assert.match(app, /function CustomerOrdersPage/)
+  assert.match(app, /PageContainer compact/)
+  assert.match(app, /to="\/shop"/)
+  assert.match(app, /ordersCount/)
+  assert.match(app, /formatPrice\(Number\(order\.grandTotal\)/)
+  assert.match(app, /trackOrder/)
+})
+
+test('tracking page has compact responsive layout and safe back navigation', () => {
+  assert.match(app, /function TrackingBackLink/)
+  assert.match(app, /to="\/orders"/)
+  assert.match(app, /backToOrders/)
+  assert.match(app, /PageContainer compact/)
+  assert.match(app, /lg:grid-cols-\[minmax\(0,0\.8fr\)_minmax\(0,1\.2fr\)\]/)
+  assert.match(app, /lg:sticky lg:top-24/)
+})
+
 test('customer order routes are protected and render verified order details', () => {
   assert.match(app, /ProtectedRoute .*OrderSuccessPage/)
   assert.match(app, /fetchMarketplaceOrder\(/)
@@ -106,6 +126,16 @@ test('customer account dashboard uses authenticated profile, address, order and 
   assert.match(app, /deleteCustomerAddress\(/)
   assert.match(app, /signOut/)
   assert.match(app, /accountSecurity/)
+})
+
+test('customer account uses compact tabs and preserves safe checkout deep links', () => {
+  assert.match(app, /type AccountTab = 'overview' \| 'profile' \| 'addresses' \| 'security'/)
+  assert.match(app, /role="tablist"/)
+  assert.match(app, /aria-selected=\{activeTab === tab\.id\}/)
+  assert.match(app, /returnToCheckout \? '\/checkout' : '\/shop'/)
+  assert.match(app, /addressFormOpen/)
+  assert.match(app, /addNewAddress/)
+  assert.match(app, /setAddressFormOpen\(true\)/)
 })
 
 test('customer account summary cards use the compact responsive layout', () => {
