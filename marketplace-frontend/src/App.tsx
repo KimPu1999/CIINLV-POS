@@ -34,6 +34,7 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -49,6 +50,7 @@ import {
   createCustomerAddress,
   deleteCustomerAddress,
   fetchCatalog,
+  fetchMarketplaceHome,
   fetchCheckoutQuote,
   fetchCustomer,
   fetchMarketplaceCart,
@@ -85,6 +87,7 @@ import {
   type CartItem,
   type CheckoutQuote,
   type CatalogResult,
+  type HomeResult,
   type Customer,
   type CustomerAddress,
   type CustomerAddressInput,
@@ -105,6 +108,7 @@ import {
 interface AppServices {
   locale: Locale
   catalog: CatalogResult
+  home: HomeResult
   cart: CartItem[]
   wishlist: string[]
   customer: Customer | null
@@ -124,9 +128,11 @@ interface AppServices {
 }
 
 function App() {
+  const location = useLocation()
   const [locale, setLocaleState] = useState<Locale>(getStoredLocale)
   const [theme, setThemeState] = useState<Theme>(getStoredTheme)
   const [catalog, setCatalog] = useState<CatalogResult>({ status: 'loading', data: { listings: [], stores: [], categories: [] } })
+  const [home, setHome] = useState<HomeResult>({ status: 'loading', data: { categories: [], stores: [], featuredProducts: [], featuredAvailable: false, newArrivals: [], bestSellers: [], bestSellersAvailable: false } })
   const [cart, setCart] = useState<CartItem[]>(readStoredCart)
   const [wishlist, setWishlist] = useState<string[]>(readStoredWishlist)
   const [customer, setCustomer] = useState<Customer | null>(null)
@@ -150,9 +156,18 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController()
+    if (location.pathname === '/') return () => controller.abort()
     void fetchCatalog(locale, controller.signal).then(setCatalog).catch(() => undefined)
     return () => controller.abort()
-  }, [locale])
+  }, [locale, location.pathname])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    if (location.pathname !== '/') return () => controller.abort()
+    setHome((current) => ({ ...current, status: 'loading' }))
+    void fetchMarketplaceHome(locale, controller.signal).then(setHome).catch(() => undefined)
+    return () => controller.abort()
+  }, [locale, location.pathname])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -319,7 +334,7 @@ function App() {
       setCustomer(null)
     }
   }
-  const services: AppServices = { locale, catalog, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, updateVariant, removeFromCart, toggleWishlist, setCustomer, signOut, cartServer: Boolean(customer), cartBusy, cartError, cartMessage }
+  const services: AppServices = { locale, catalog, home, cart, wishlist, customer, authLoading, t, addToCart, updateQuantity, updateVariant, removeFromCart, toggleWishlist, setCustomer, signOut, cartServer: Boolean(customer), cartBusy, cartError, cartMessage }
 
   return (
     <MarketplaceShell
@@ -367,13 +382,11 @@ function App() {
   )
 }
 
-function HomePage({ locale, catalog, t, addToCart, wishlist, toggleWishlist }: AppServices) {
+function HomePage({ locale, home, t, addToCart, wishlist, toggleWishlist }: AppServices) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
-  const listings = catalog.data.listings
-  const featured = listings.slice(0, 4)
-  const newArrivals = listings.slice(4, 8)
-  const heroListing = featured[0]
+  const { data, status } = home
+  const heroListing = data.featuredProducts[0] ?? data.newArrivals[0]
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -386,21 +399,21 @@ function HomePage({ locale, catalog, t, addToCart, wishlist, toggleWishlist }: A
       <section className="relative isolate overflow-hidden bg-[#0F172A]">
         <div className="absolute -left-40 top-0 -z-10 size-[34rem] rounded-full bg-[#1D4ED8]/35 blur-3xl" />
         <div className="absolute -right-40 bottom-0 -z-10 size-[30rem] rounded-full bg-[#F59E0B]/15 blur-3xl" />
-        <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.04fr_0.96fr] lg:items-center lg:px-8 lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.04fr_0.96fr] lg:items-center lg:px-8 lg:py-14">
           <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-300/25 bg-blue-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-blue-100"><SparkleIcon /> {t('curatedForYou')}</div>
-            <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl">{t('discoverTitle')}</h1>
-            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">{t('discoverBody')}</p>
-            <form onSubmit={submitSearch} role="search" className="mt-8 flex max-w-2xl flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur sm:flex-row">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-300/25 bg-blue-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-100"><SparkleIcon /> {t('curatedForYou')}</div>
+            <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">{t('discoverTitle')}</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">{t('discoverBody')}</p>
+            <form onSubmit={submitSearch} role="search" className="mt-6 flex max-w-2xl flex-col gap-2 rounded-2xl border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur sm:flex-row">
               <label className="flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-white px-3 text-slate-500">
                 <Search size={19} className="shrink-0 text-[#1D4ED8]" />
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400" />
               </label>
               <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#F59E0B] px-5 text-sm font-black text-[#0F172A] transition hover:bg-amber-300 focus:outline-none focus:ring-4 focus:ring-amber-300/30">{t('exploreShop')} <ArrowRight size={17} /></button>
             </form>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link to="/shop" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#1D4ED8] px-5 text-sm font-black text-white shadow-xl shadow-blue-950/30 transition hover:-translate-y-0.5 hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-400/30">{t('exploreShop')} <ArrowRight size={17} /></Link>
-              <Link to="/stores" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-blue-400/30">{t('exploreStores')} <Store size={17} /></Link>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Link to="/shop" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#1D4ED8] px-5 text-sm font-black text-white shadow-xl shadow-blue-950/30 transition hover:-translate-y-0.5 hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-400/30">{t('exploreShop')} <ArrowRight size={17} /></Link>
+              <Link to="/stores" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-blue-400/30">{t('exploreStores')} <Store size={17} /></Link>
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-lg">
@@ -414,7 +427,7 @@ function HomePage({ locale, catalog, t, addToCart, wishlist, toggleWishlist }: A
                   <div className="mt-3 flex items-center justify-between gap-3"><span className="text-lg font-black text-amber-300">{formatPrice(heroListing.variants[0]?.sellingPrice ?? heroListing.price, heroListing.currency, locale)}</span><Link to={`/product/${heroListing.slug ?? heroListing.id}`} className="inline-flex items-center gap-1 text-sm font-black text-white hover:text-amber-300">{t('productDetails')} <ChevronRight size={15} /></Link></div>
                 </div>
               </div> : <div className="grid min-h-[390px] place-items-center rounded-[1.5rem] bg-gradient-to-br from-[#1D4ED8] to-[#0F172A] p-8 text-center text-white">
-                {catalog.status === 'loading' ? <LoaderCircle className="animate-spin text-blue-200" size={46} /> : <><Package className="text-blue-200" size={56} strokeWidth={1.2} /><p className="mt-5 max-w-xs text-sm font-semibold text-blue-100">{catalog.status === 'error' ? t('catalogUnavailable') : t('noListings')}</p></>}
+                {status === 'loading' ? <LoaderCircle className="animate-spin text-blue-200" size={46} /> : <><Package className="text-blue-200" size={56} strokeWidth={1.2} /><p className="mt-5 max-w-xs text-sm font-semibold text-blue-100">{status === 'error' ? t('catalogUnavailable') : t('noListings')}</p></>}
               </div>}
             </div>
           </div>
@@ -429,13 +442,15 @@ function HomePage({ locale, catalog, t, addToCart, wishlist, toggleWishlist }: A
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"><SectionHeading eyebrow={t('popularCategories')} title={t('browseCategories')} link="/categories" linkLabel={t('viewAll')} /><HomepageCategoryGrid categories={catalog.data.categories.slice(0, 6)} t={t} /></section>
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12"><SectionHeading eyebrow={t('popularCategories')} title={t('browseCategories')} link="/categories" linkLabel={t('viewAll')} />{status === 'loading' ? <CategorySkeletonGrid /> : status === 'error' ? <CatalogEmpty status={status} t={t} /> : <HomepageCategoryGrid categories={data.categories} t={t} />}</section>
 
-      <section className="border-y border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900/40 lg:py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('featuredProducts')} title={t('browseCollection')} link="/shop" linkLabel={t('viewAll')} />{catalog.status === 'loading' ? <ProductSkeletonGrid /> : featured.length > 0 ? <ProductGrid listings={featured} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <CatalogEmpty status={catalog.status} t={t} />}</div></section>
+      {data.featuredAvailable && <section className="border-y border-slate-200 bg-white py-10 dark:border-slate-800 dark:bg-slate-900/40 lg:py-12"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('featuredProducts')} title={t('browseCollection')} link="/shop" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : data.featuredProducts.length > 0 ? <ProductGrid compact listings={data.featuredProducts} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <CatalogEmpty status={status} t={t} />}</div></section>}
 
-      {newArrivals.length > 0 && <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"><SectionHeading eyebrow={t('newFinds')} title={t('newFinds')} link="/shop?sort=newest" linkLabel={t('viewAll')} /><ProductGrid listings={newArrivals} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}
+      {(status === 'loading' || data.newArrivals.length > 0) && <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12"><SectionHeading eyebrow={t('newFinds')} title={t('newFinds')} link="/shop?sort=newest" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : <ProductGrid compact listings={data.newArrivals} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} />}</section>}
 
-      {catalog.data.stores.length > 0 && <section className="border-t border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900/40 lg:py-20"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('verifiedBusinesses')} title={t('shopByStore')} link="/stores" linkLabel={t('viewAll')} /><SellerSpotlight store={catalog.data.stores[0]} t={t} /><div className="mt-8"><StoreGrid stores={catalog.data.stores.slice(1, 5)} t={t} /></div></div></section>}
+      {data.bestSellersAvailable && data.bestSellers.length > 0 && <section className="border-y border-slate-200 bg-white py-10 dark:border-slate-800 dark:bg-slate-900/40 lg:py-12"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('bestSellers')} title={t('bestSellers')} link="/shop" linkLabel={t('viewAll')} /><ProductGrid compact listings={data.bestSellers} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></div></section>}
+
+      {data.stores.length > 0 && <section className="border-t border-slate-200 bg-white py-10 dark:border-slate-800 dark:bg-slate-900/40 lg:py-12"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('verifiedBusinesses')} title={t('shopByStore')} link="/stores" linkLabel={t('viewAll')} /><SellerSpotlight store={data.stores[0]} t={t} /><div className="mt-6"><StoreGrid stores={data.stores.slice(1)} t={t} /></div></div></section>}
     </main>
   )
 }

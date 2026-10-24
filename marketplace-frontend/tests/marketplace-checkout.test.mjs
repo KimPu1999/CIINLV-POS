@@ -82,6 +82,17 @@ test('shop pagination and search remain server-side and scalable', () => {
   assert.match(api, /per_page: query\.perPage \?\? 24/)
 })
 
+test('home uses a bounded backend payload instead of catalog slices', () => {
+  assert.match(api, /fetchMarketplaceHome/)
+  assert.match(api, /withQuery\('\/home'/)
+  assert.match(app, /const \[home, setHome\]/)
+  assert.match(app, /data\.newArrivals/)
+  assert.match(app, /data\.featuredAvailable/)
+  assert.match(app, /data\.bestSellersAvailable/)
+  assert.doesNotMatch(app, /listings\.slice\(0, 4\)/)
+  assert.doesNotMatch(app, /listings\.slice\(4, 8\)/)
+})
+
 test('checkout delivery and payment copy is translated in both locales', () => {
   for (const key of ['backToCart', 'checkoutProgress', 'confirmation', 'viewFullDeliveryDetails', 'changeAddress', 'cartItems', 'unitPrice', 'lineTotal', 'continueShopping', 'checkoutTotalsNotice', 'deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
     assert.match(api, new RegExp(`${key}:`))

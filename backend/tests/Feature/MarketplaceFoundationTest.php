@@ -295,6 +295,25 @@ class MarketplaceFoundationTest extends TestCase
             ->assertJsonPath('data.listings.0.slug', 'public-filter-product');
     }
 
+    public function test_public_home_payload_uses_bounded_verified_sections_instead_of_catalog_slices(): void
+    {
+        [$tenant] = $this->businessWithAdmin('MARKETPLACE-HOME', 'marketplace-home@example.com');
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Marketplace Home', 'slug' => 'marketplace-home', 'approval_status' => 'approved', 'is_active' => true]);
+        $older = $this->publicProduct($tenant, 'Older Home Product');
+        $newer = $this->publicProduct($tenant, 'Newer Home Product');
+        MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $older->id, 'slug' => 'older-home-product', 'status' => 'published', 'published_at' => now()->subDay()]);
+        $newerListing = MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $newer->id, 'slug' => 'newer-home-product', 'status' => 'published', 'published_at' => now()]);
+
+        $this->getJson('/api/v1/marketplace/home')
+            ->assertOk()
+            ->assertJsonCount(2, 'data.categories')
+            ->assertJsonCount(1, 'data.stores')
+            ->assertJsonCount(2, 'data.new_arrivals')
+            ->assertJsonPath('data.new_arrivals.0.id', $newerListing->uuid)
+            ->assertJsonPath('data.featured_available', false)
+            ->assertJsonPath('data.best_sellers_available', false);
+    }
+
     public function test_vendor_overview_uses_tenant_scoped_listing_and_inventory_data_without_fabricating_orders(): void
     {
         [$tenant, $admin] = $this->businessWithAdmin('MARKETPLACE-G', 'marketplace-g@example.com');

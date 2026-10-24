@@ -7,6 +7,7 @@ use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceStoreResource;
 use App\Models\Category;
 use App\Models\MarketplaceListing;
+use App\Models\MarketplaceOrderItem;
 use App\Models\MarketplaceStore;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -19,6 +20,78 @@ use Illuminate\Support\Str;
 class MarketplacePublicController
 {
     public function __construct(private readonly MarketplaceSettingsService $settings) {}
+
+    public function home(Request $request): JsonResponse
+    {
+        $this->settings->assertAvailable();
+
+        $categories = Category::query()
+            ->where('categories.status', 'active')
+            ->whereHas('products', fn (Builder $product) => $product->whereHas('marketplaceListings', fn (Builder $listing) => $listing->public()))
+            ->withCount(['products as public_products_count' => fn (Builder $product) => $product->whereHas('marketplaceListings', fn (Builder $listing) => $listing->public())])
+            ->orderByDesc('public_products_count')
+            ->orderBy('categories.name')
+            ->limit(8)
+            ->get();
+
+        $stores = MarketplaceStore::query()
+            ->public()
+            ->with('tenant')
+            ->withCount(['listings' => fn (Builder $query) => $query->public()])
+            ->orderByDesc('listings_count')
+            ->orderBy('marketplace_stores.name')
+            ->limit(6)
+            ->get();
+
+        $newArrivals = $this->publicListings()
+            ->with($this->homeListingRelations())
+            ->orderByDesc('marketplace_listings.published_at')
+            ->orderBy('marketplace_listings.id')
+            ->limit(8)
+            ->get();
+
+        // There is no featured-listing configuration in the current schema. Keep
+        // this capability explicit instead of presenting an arbitrary page slice
+        // as curated content.
+        $featured = collect();
+
+        // Only fully paid, non-cancelled and non-refunded orders are included.
+        // Excluding partially-refunded orders is intentional until item-level
+        // refund quantities are stored, so the homepage never overstates units.
+        $bestSellerRows = MarketplaceOrderItem::query()
+            ->select('marketplace_listing_id')
+            ->selectRaw('SUM(quantity) AS units_sold')
+            ->whereNotNull('marketplace_listing_id')
+            ->whereHas('order', fn (Builder $order) => $order
+                ->where('payment_status', 'paid')
+                ->whereIn('status', ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered']))
+            ->groupBy('marketplace_listing_id')
+            ->orderByDesc('units_sold')
+            ->orderBy('marketplace_listing_id')
+            ->limit(8)
+            ->get();
+        $bestSellerIds = $bestSellerRows->pluck('marketplace_listing_id')->map(fn ($id): int => (int) $id)->all();
+        $bestSellers = $bestSellerIds === [] ? collect() : $this->publicListings()
+            ->whereIn('marketplace_listings.id', $bestSellerIds)
+            ->with($this->homeListingRelations())
+            ->get()
+            ->sortBy(fn (MarketplaceListing $listing): int => array_search((int) $listing->getKey(), $bestSellerIds, true))
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'categories' => MarketplaceCategoryResource::collection($categories)->resolve($request),
+                'stores' => MarketplaceStoreResource::collection($stores)->resolve($request),
+                'featured_products' => MarketplaceListingResource::collection($featured)->resolve($request),
+                'featured_available' => false,
+                'new_arrivals' => MarketplaceListingResource::collection($newArrivals)->resolve($request),
+                'best_sellers' => MarketplaceListingResource::collection($bestSellers)->resolve($request),
+                'best_sellers_available' => $bestSellers->isNotEmpty(),
+                'best_sellers_basis' => 'Fully paid, non-cancelled and non-refunded orders; all-time.',
+            ],
+        ]);
+    }
 
     public function stores(Request $request): JsonResponse
     {
@@ -149,6 +222,18 @@ class MarketplacePublicController
             'product.variants' => fn ($query) => $query->where('product_variants.status', 'active')->orderByDesc('is_default')->orderBy('id')->with('balances'),
             'images',
             'approvedReviews.customer',
+        ];
+    }
+
+    private function homeListingRelations(): array
+    {
+        return [
+            'store.tenant',
+            'tenant',
+            'product.category',
+            'product.images',
+            'product.variants' => fn ($query) => $query->where('product_variants.status', 'active')->orderByDesc('is_default')->orderBy('id')->with('balances'),
+            'images',
         ];
     }
 

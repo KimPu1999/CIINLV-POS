@@ -75,6 +75,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/health/ready', [HealthController::class, 'ready']);
 
     Route::prefix('marketplace')->middleware(['throttle:api', SetApiLocale::class])->group(function (): void {
+        Route::get('/home', [MarketplacePublicController::class, 'home']);
         Route::get('/stores', [MarketplacePublicController::class, 'stores']);
         Route::get('/stores/{store:slug}', [MarketplacePublicController::class, 'store']);
         Route::get('/products', [MarketplacePublicController::class, 'products']);
