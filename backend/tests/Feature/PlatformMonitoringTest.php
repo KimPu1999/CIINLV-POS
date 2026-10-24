@@ -173,6 +173,27 @@ class PlatformMonitoringTest extends TestCase
             ->assertJsonMissingPath('database');
     }
 
+    public function test_monitoring_exposes_safe_performance_release_and_incident_shapes(): void
+    {
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/v1/platform/monitoring')
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'performance' => ['status', 'monitoring_request_ms', 'error_rate_24h', 'error_rate_reason'],
+                    'deployment' => ['status', 'version', 'commit', 'deployed_at', 'provider', 'source', 'reason'],
+                    'incidents',
+                ],
+            ]);
+
+        $this->assertIsInt($response->json('data.performance.monitoring_request_ms'));
+        $this->assertNull($response->json('data.performance.error_rate_24h'));
+        $this->assertIsArray($response->json('data.incidents'));
+        $this->assertFalse($response->json('data.backups.path_exposed'));
+    }
+
     public function test_scheduler_monitoring_lists_registered_tasks_without_fabricating_execution_success(): void
     {
         $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);

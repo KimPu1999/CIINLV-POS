@@ -12,6 +12,8 @@ type QueueMetrics = { connection?: string; driver?: string; queue?: string; queu
 type SchedulerTask = { task_name: string; command_identifier: string; schedule_frequency: string; schedule_expression: string; timezone?: string | null; last_started_at?: string | null; last_finished_at?: string | null; last_success_at?: string | null; last_failure_at?: string | null; next_due_at?: string | null; execution_duration_ms?: number | null; current_status: string; status: string; error_summary?: string | null; without_overlapping?: boolean; maintenance_mode_allowed?: boolean }
 type SchedulerHistory = { reference: string; task_name: string; command_identifier: string; schedule_frequency: string; status: string; started_at?: string | null; finished_at?: string | null; duration_ms?: number | null; error_summary?: string | null }
 type SchedulerMetrics = { storage_available?: boolean; registered_task_count?: number | null; running_task_count?: number | null; successful_executions_last_24h?: number | null; failed_executions_last_24h?: number | null; missed_or_overdue_count?: number | null; tasks?: SchedulerTask[]; history?: SchedulerHistory[]; last_errors?: Array<{ task_name: string; command_identifier: string; failed_at?: string | null; error_summary?: string | null }>; reason?: string }
+type Deployment = { status: string; version?: string | null; commit?: string | null; deployed_at?: string | null; provider?: string | null; source?: string; reason?: string | null }
+type Incident = { type: string; severity: string; count?: number | null }
 type Monitoring = {
   checked_at: string
   health: { api: Check; database: Check; queue_worker?: Check; scheduler?: Check; storage?: Check }
@@ -22,6 +24,9 @@ type Monitoring = {
   inventory: Check & { checked?: number; discrepancy_count?: number | null; report_only?: boolean; sample?: Array<Record<string, string | number>> }
   payments: Check & { by_status?: Array<{ status: string; count: number }>; reason?: string }
   security: Check & { debug_enabled?: boolean; force_https?: boolean; secure_session_cookie?: boolean; policy_count?: number | null }
+  performance?: { status: string; monitoring_request_ms?: number | null; error_rate_24h?: number | null; error_rate_reason?: string | null }
+  deployment?: Deployment
+  incidents?: Incident[]
 }
 
 export function PlatformMonitoringPage() {
@@ -78,6 +83,31 @@ export function PlatformMonitoringPage() {
       <StatCard label="text.postgresql_health" value={statusLabel(t, data.health.database.status)} detail="text.postgresql_health_detail" icon={Database} tone="emerald" />
       <StatCard label="text.queue_failures" value={metric(t, data.queue.failed_jobs_last_24h)} detail="text.queue_failures_detail" icon={XCircle} tone={data.queue.failed_jobs_last_24h ? 'amber' : 'emerald'} />
       <StatCard label="text.inventory_anomalies" value={discrepancies === null || discrepancies === undefined ? t('text.unavailable') : discrepancies.toLocaleString()} detail="text.inventory_anomalies_detail" icon={ShieldCheck} tone={discrepancies ? 'amber' : 'emerald'} />
+    </div>
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <MonitoringPanel title={t('text.system_performance')} icon={Activity} status={data.performance?.status || 'unavailable'}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Info label={t('text.monitoring_response_time')} value={data.performance?.monitoring_request_ms == null ? t('text.unavailable') : formatDuration(t, data.performance.monitoring_request_ms)} />
+          <Info label={t('text.http_error_rate')} value={data.performance?.error_rate_24h == null ? t('text.unavailable') : `${data.performance.error_rate_24h}%`} />
+        </div>
+        <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{data.performance?.error_rate_reason || t('text.performance_metrics_are_read_only')}</p>
+      </MonitoringPanel>
+
+      <MonitoringPanel title={t('text.deployment_visibility')} icon={RefreshCw} status={data.deployment?.status || 'not_configured'}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Info label={t('text.release_version')} value={data.deployment?.version || t('text.unavailable')} />
+          <Info label={t('text.commit_reference')} value={data.deployment?.commit || t('text.unavailable')} />
+          <Info label={t('text.deployed_at')} value={data.deployment?.deployed_at ? formatDate(data.deployment.deployed_at) : t('text.unavailable')} />
+          <Info label={t('text.deployment_provider')} value={data.deployment?.provider || t('text.not_configured')} />
+        </div>
+        <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">{data.deployment?.reason || t('text.deployment_metadata_source')}: {data.deployment?.source || t('text.unavailable')}</p>
+      </MonitoringPanel>
+
+      <MonitoringPanel title={t('text.operational_incidents')} icon={XCircle} status={data.incidents?.length ? 'warning' : 'ok'}>
+        {data.incidents?.length ? <div className="space-y-2">{data.incidents.map((incident, index) => <div key={`${incident.type}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm dark:border-amber-900/60 dark:bg-amber-950/20"><span className="font-medium text-amber-900 dark:text-amber-200">{incidentLabel(t, incident.type)}</span><span className="text-xs text-amber-700 dark:text-amber-300">{incident.count == null ? t('text.review_required') : incident.count.toLocaleString()}</span></div>)}</div> : <p className="text-sm text-slate-600 dark:text-slate-300">{t('text.no_active_operational_incidents')}</p>}
+        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t('text.incidents_derived_from_verified_signals')}</p>
+      </MonitoringPanel>
     </div>
 
     <div className="mt-6 grid gap-6 xl:grid-cols-2">
@@ -209,4 +239,14 @@ function formatDate(value?: string | null): string { return value ? new Date(val
 
 
 function statusLabel(t: (key: string, options?: Record<string, unknown>) => string, status: string): string { return t(`text.${status}`, { defaultValue: status.replaceAll('_', ' ') }) }
+function incidentLabel(t: (key: string, options?: Record<string, unknown>) => string, type: string): string {
+  const labels: Record<string, string> = {
+    queue_failures: 'text.incident_queue_failures',
+    scheduler_failures: 'text.incident_scheduler_failures',
+    database: 'text.incident_database',
+    storage: 'text.incident_storage',
+    backups: 'text.incident_backups',
+  }
+  return t(labels[type] || 'text.operational_incidents')
+}
 function errorMessage(error: unknown, fallback: string): string { const value = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }; return value?.response?.data?.message || Object.values(value?.response?.data?.errors || {})[0]?.[0] || fallback }

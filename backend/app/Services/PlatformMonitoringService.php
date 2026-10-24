@@ -28,13 +28,14 @@ class PlatformMonitoringService
      */
     public function overview(array $filters = []): array
     {
+        $startedAt = microtime(true);
         $systemHealth = $this->systemHealth();
         $postgresql = $systemHealth['checks']['postgresql'] ?? ['status' => 'unavailable', 'checks' => []];
 
         $queueMetrics = $this->jobTelemetry->summary($filters);
         $schedulerHeartbeat = $systemHealth['checks']['scheduler'] ?? ['status' => 'unknown'];
 
-        return [
+        $overview = [
             'checked_at' => now()->toIso8601String(),
             'health' => [
                 'api' => ['status' => 'ok', 'evidence' => 'Authenticated platform monitoring request.'],
@@ -58,6 +59,64 @@ class PlatformMonitoringService
             'payments' => $this->paymentStatus(),
             'security' => $this->securityStatus(),
         ];
+
+        $overview['performance'] = [
+            'status' => 'ok',
+            'monitoring_request_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            'error_rate_24h' => null,
+            'error_rate_reason' => 'Historical HTTP error-rate telemetry is not configured.',
+        ];
+        $overview['deployment'] = $this->deploymentStatus();
+        $overview['incidents'] = $this->incidents($overview);
+
+        return $overview;
+    }
+
+    /**
+     * Runtime release metadata is optional and read-only. Environment values
+     * are intentionally limited to non-secret release identifiers.
+     */
+    private function deploymentStatus(): array
+    {
+        $version = trim((string) config('app.version'));
+        $commit = trim((string) config('app.release_commit'));
+        $deployedAt = trim((string) config('app.deployed_at'));
+        $provider = trim((string) config('app.deployment_provider'));
+
+        return [
+            'status' => $version || $commit || $deployedAt ? 'configured' : 'not_configured',
+            'version' => $version !== '' ? $version : null,
+            'commit' => $commit !== '' ? substr($commit, 0, 12) : null,
+            'deployed_at' => $deployedAt !== '' ? $deployedAt : null,
+            'provider' => $provider !== '' ? $provider : null,
+            'source' => 'runtime release metadata',
+            'reason' => $version || $commit || $deployedAt
+                ? null
+                : 'No deployment release metadata is configured for this environment.',
+        ];
+    }
+
+    /** @param array<string, mixed> $overview */
+    private function incidents(array $overview): array
+    {
+        $incidents = [];
+        $queueFailures = $overview['queue']['failed_jobs_last_24h'] ?? null;
+        if (is_int($queueFailures) && $queueFailures > 0) {
+            $incidents[] = ['type' => 'queue_failures', 'severity' => 'warning', 'count' => $queueFailures];
+        }
+
+        $schedulerFailures = $overview['scheduler_monitoring']['failed_executions_last_24h'] ?? null;
+        if (is_int($schedulerFailures) && $schedulerFailures > 0) {
+            $incidents[] = ['type' => 'scheduler_failures', 'severity' => 'warning', 'count' => $schedulerFailures];
+        }
+
+        foreach (['database' => $overview['health']['database']['status'] ?? null, 'storage' => $overview['storage']['status'] ?? null, 'backups' => $overview['backups']['status'] ?? null] as $type => $status) {
+            if (in_array($status, ['failed', 'unhealthy', 'unavailable'], true)) {
+                $incidents[] = ['type' => $type, 'severity' => 'critical', 'count' => null];
+            }
+        }
+
+        return $incidents;
     }
 
     /**

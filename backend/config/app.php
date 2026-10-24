@@ -103,6 +103,11 @@ return [
 
     'key' => env('APP_KEY'),
 
+    'version' => env('APP_VERSION', env('RELEASE_VERSION')),
+    'release_commit' => env('GITHUB_SHA', env('RELEASE_COMMIT')),
+    'deployed_at' => env('DEPLOYED_AT'),
+    'deployment_provider' => env('DEPLOYMENT_PROVIDER'),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))
