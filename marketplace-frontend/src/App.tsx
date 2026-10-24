@@ -441,7 +441,7 @@ function HomePage({ locale, home, t, addToCart, wishlist, toggleWishlist }: AppS
       <section className="relative isolate overflow-hidden bg-[#0F172A]">
         <div className="absolute -left-40 top-0 -z-10 size-[34rem] rounded-full bg-[#1D4ED8]/35 blur-3xl" />
         <div className="absolute -right-40 bottom-0 -z-10 size-[30rem] rounded-full bg-[#F59E0B]/15 blur-3xl" />
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.04fr_0.96fr] lg:items-center lg:px-8 lg:py-14">
+        <PageWidth className="grid gap-8 py-10 lg:grid-cols-[1.04fr_0.96fr] lg:items-center lg:py-14">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-300/25 bg-blue-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-100"><SparkleIcon /> {t('curatedForYou')}</div>
             <h1 className="max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">{t('discoverTitle')}</h1>
@@ -473,26 +473,26 @@ function HomePage({ locale, home, t, addToCart, wishlist, toggleWishlist }: AppS
               </div>}
             </div>
           </div>
-        </div>
+        </PageWidth>
       </section>
 
-      <section className="relative z-10 -mt-7 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-px overflow-hidden rounded-3xl border border-slate-200 bg-slate-200 shadow-xl shadow-slate-300/30 dark:border-slate-800 dark:bg-slate-800 dark:shadow-black/20 sm:grid-cols-3">
+      <section className="relative z-10 -mt-7">
+        <PageWidth className="grid gap-px overflow-hidden rounded-3xl border border-slate-200 bg-slate-200 shadow-xl shadow-slate-300/30 dark:border-slate-800 dark:bg-slate-800 dark:shadow-black/20 sm:grid-cols-3">
           <TrustItem icon={<ShieldCheck size={21} />} label={t('verifiedBusinesses')} />
           <TrustItem icon={<Truck size={21} />} label={t('thoughtfulDelivery')} />
           <TrustItem icon={<UserRound size={21} />} label={t('builtForCommunity')} />
-        </div>
+        </PageWidth>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12"><SectionHeading eyebrow={t('popularCategories')} title={t('browseCategories')} link="/categories" linkLabel={t('viewAll')} />{status === 'loading' ? <CategorySkeletonGrid /> : status === 'error' ? <CatalogEmpty status={status} t={t} /> : <HomepageCategoryGrid categories={data.categories} t={t} />}</section>
+      <PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('popularCategories')} title={t('browseCategories')} link="/categories" linkLabel={t('viewAll')} />{status === 'loading' ? <CategorySkeletonGrid /> : status === 'error' ? <CatalogEmpty status={status} t={t} /> : <HomepageCategoryGrid categories={data.categories} t={t} />}</PageWidth>
 
-      {data.featuredAvailable && <section className="border-y border-slate-200 bg-white py-10 dark:border-slate-800 dark:bg-slate-900/40 lg:py-12"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('featuredProducts')} title={t('browseCollection')} link="/shop" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : data.featuredProducts.length > 0 ? <ProductGrid compact listings={data.featuredProducts} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <CatalogEmpty status={status} t={t} />}</div></section>}
+      {data.featuredAvailable && <section className="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40"><PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('featuredProducts')} title={t('browseCollection')} link="/shop" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : data.featuredProducts.length > 0 ? <ProductGrid compact listings={data.featuredProducts} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <CatalogEmpty status={status} t={t} />}</PageWidth></section>}
 
-      {(status === 'loading' || data.newArrivals.length > 0) && <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12"><SectionHeading eyebrow={t('newFinds')} title={t('newFinds')} link="/shop?sort=newest" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : <ProductGrid compact listings={data.newArrivals} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} />}</section>}
+      {(status === 'loading' || data.newArrivals.length > 0) && <PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('newFinds')} title={t('newFinds')} link="/shop?sort=newest" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : <ProductGrid compact listings={data.newArrivals} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} />}</PageWidth>}
 
-      {data.bestSellersAvailable && data.bestSellers.length > 0 && <section className="border-y border-slate-200 bg-white py-10 dark:border-slate-800 dark:bg-slate-900/40 lg:py-12"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('bestSellers')} title={t('bestSellers')} link="/shop" linkLabel={t('viewAll')} /><ProductGrid compact listings={data.bestSellers} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></div></section>}
+      {data.bestSellersAvailable && data.bestSellers.length > 0 && <section className="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40"><PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('bestSellers')} title={t('bestSellers')} link="/shop" linkLabel={t('viewAll')} /><ProductGrid compact listings={data.bestSellers} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></PageWidth></section>}
 
-      {data.stores.length > 0 && <section className="border-t border-slate-200 bg-white py-10 dark:border-slate-800 dark:bg-slate-900/40 lg:py-12"><div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"><SectionHeading eyebrow={t('verifiedBusinesses')} title={t('shopByStore')} link="/stores" linkLabel={t('viewAll')} /><SellerSpotlight store={data.stores[0]} t={t} /><div className="mt-6"><StoreGrid stores={data.stores.slice(1)} t={t} /></div></div></section>}
+      {data.stores.length > 0 && <section className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40"><PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('verifiedBusinesses')} title={t('shopByStore')} link="/stores" linkLabel={t('viewAll')} /><SellerSpotlight store={data.stores[0]} t={t} /><div className="mt-6"><StoreGrid stores={data.stores.slice(1)} t={t} /></div></PageWidth></section>}
     </main>
   )
 }
@@ -696,7 +696,7 @@ function formatReviewDate(value: string, locale: Locale): string {
 function CategoriesPage({ catalog, t }: AppServices) {
   const [search, setSearch] = useState('')
   const visibleCategories = catalog.data.categories.filter((category) => `${category.name} ${category.description ?? ''}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()))
-  return <PageContainer>
+  return <PageContainer compact wide>
     <nav aria-label={t('primaryNavigation')} className="mb-7 flex items-center gap-2 text-sm font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{t('home')}</Link><ChevronRight size={15} /><span className="text-slate-700 dark:text-slate-200">{t('categories')}</span></nav>
     <section className="relative overflow-hidden rounded-[2rem] bg-[#0F172A] px-6 py-10 text-white shadow-xl shadow-slate-300/20 sm:px-10 sm:py-14"><div className="absolute -right-20 -top-24 size-72 rounded-full bg-[#1D4ED8]/35 blur-3xl" /><div className="absolute -bottom-28 left-1/3 size-72 rounded-full bg-[#F59E0B]/15 blur-3xl" /><div className="relative max-w-2xl"><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-200">{t('categories')}</p><h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{t('browseCategories')}</h1><p className="mt-5 max-w-xl leading-8 text-slate-300">{t('discoverBody')}</p><div className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-blue-100"><Package size={17} /> {catalog.status === 'ready' ? `${catalog.data.categories.length} ${t('categories')}` : t('loading')}</div></div></section>
     <form onSubmit={(event) => event.preventDefault()} role="search" className="relative z-10 mx-auto -mt-6 flex max-w-3xl items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-300/25 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"><Search size={19} className="ml-3 shrink-0 text-[#1D4ED8]" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" /><span className="hidden rounded-xl bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-200 sm:inline-flex">{t('categories')}</span></form>
@@ -810,7 +810,7 @@ function StoresPage({ locale, t }: AppServices) {
     setParams(next)
   }
 
-  return <PageContainer>
+  return <PageContainer compact wide>
     <nav aria-label={t('primaryNavigation')} className="mb-7 flex items-center gap-2 text-sm font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{t('home')}</Link><ChevronRight size={15} /><span className="text-slate-700 dark:text-slate-200">{t('stores')}</span></nav>
     <section className="relative overflow-hidden rounded-[2rem] bg-[#0F172A] px-6 py-10 text-white shadow-xl shadow-slate-300/20 sm:px-10 sm:py-14"><div className="absolute -right-20 -top-24 size-72 rounded-full bg-[#1D4ED8]/35 blur-3xl" /><div className="absolute -bottom-28 left-1/3 size-72 rounded-full bg-[#F59E0B]/15 blur-3xl" /><div className="relative max-w-2xl"><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-200">{t('stores')}</p><h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{t('exploreStores')}</h1><p className="mt-5 max-w-xl leading-8 text-slate-300">{t('discoverBody')}</p><div className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-bold text-blue-100"><Store size={17} /> {result.status === 'ready' ? `${result.meta.total} ${t('stores')}` : t('loading')}</div></div></section>
     <form key={search} onSubmit={applySearch} role="search" className="relative z-10 mx-auto -mt-6 flex max-w-3xl items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-300/25 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20"><Search size={19} className="ml-3 shrink-0 text-[#1D4ED8]" /><input name="search" defaultValue={search} placeholder={t('searchPlaceholder')} aria-label={t('searchPlaceholder')} className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none" /><button type="submit" className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#1D4ED8] px-5 text-sm font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <ArrowRight size={16} /></button></form>
@@ -1770,6 +1770,10 @@ function ErrorState({ message, t }: { message: string; t: (key: TranslationKey) 
 
 function PageContainer({ children, compact = false, wide = false }: { children: ReactNode; compact?: boolean; wide?: boolean }) {
   return <div className={'mx-auto min-h-[60vh] px-4 sm:px-6 lg:px-8 ' + (wide ? 'max-w-[1440px]' : 'max-w-7xl') + ' ' + (compact ? 'py-5 sm:py-6 lg:py-7' : 'py-14 lg:py-20')}>{children}</div>
+}
+
+function PageWidth({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={'mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 ' + className}>{children}</div>
 }
 
 function PageIntro({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
