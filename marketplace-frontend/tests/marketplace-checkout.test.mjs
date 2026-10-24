@@ -35,8 +35,19 @@ test('checkout address links return safely to the saved addresses section', () =
   assert.match(app, /scrollIntoView/)
 })
 
+test('checkout uses a compact responsive layout with one final action', () => {
+  assert.match(app, /to="\/cart"/)
+  assert.match(app, /backToCart/)
+  assert.match(app, /PageContainer compact/)
+  assert.match(app, /lg:grid-cols-\[minmax\(0,1\.6fr\)_minmax\(300px,0\.9fr\)\]/)
+  assert.match(app, /viewFullDeliveryDetails/)
+  assert.match(app, /showCheckoutAction=\{false\}/)
+  assert.match(app, /showCheckoutAction = true/)
+  assert.match(app, /placeOrder/)
+})
+
 test('checkout delivery and payment copy is translated in both locales', () => {
-  for (const key of ['deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
+  for (const key of ['backToCart', 'checkoutProgress', 'confirmation', 'viewFullDeliveryDetails', 'changeAddress', 'deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
     assert.match(api, new RegExp(`${key}:`))
   }
 })
