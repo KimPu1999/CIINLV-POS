@@ -14,6 +14,7 @@ use App\Http\Resources\MarketplaceVendorOrderResource;
 use App\Http\Resources\MarketplaceVendorSaleResource;
 use App\Http\Resources\StoreResource;
 use App\Models\InventoryBalance;
+use App\Models\InventoryLocation;
 use App\Models\MarketplaceAuditLog;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceListingImage;
@@ -34,6 +35,7 @@ use App\Services\MarketplaceSettingsService;
 use App\Services\PosAccessService;
 use App\Services\ReportScopeService;
 use App\Services\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,55 +49,46 @@ class MarketplaceVendorController
 {
     public function overview(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
     {
+        $filters = $request->validate([
+            'branch_id' => ['nullable', 'string', 'max:80'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'group_by' => ['nullable', 'in:day,week,month'],
+        ]);
         $tenant = $context->tenant();
         $store = $this->getOrCreateStore($context);
+        $currency = strtoupper((string) ($tenant->businessSetting?->currency_code ?: config('pos.default_currency', 'MMK')));
+        $timezone = $tenant->businessSetting?->timezone ?: config('app.timezone');
+        $branchScope = $this->salesHistoryBranchScope($request, $context);
+        $groupBy = $filters['group_by'] ?? 'day';
+        $ordersQuery = $this->marketplaceOverviewOrdersQuery($request, $context);
+        $aggregates = $this->marketplaceOverviewAggregates($ordersQuery, $branchScope, $timezone, $groupBy);
+        $inventory = $this->marketplaceOverviewInventory($tenant->id, $branchScope);
         $publishedProducts = MarketplaceListing::query()
             ->forTenant($tenant->id)
             ->where('status', 'published')
+            ->when($branchScope['requested'] !== null && $inventory['location_ids'] !== [], fn (Builder $query) => $query->whereHas('product.variants.balances', fn (Builder $balance) => $balance->whereIn('inventory_location_id', $inventory['location_ids'])))
+            ->when($branchScope['requested'] !== null && $inventory['location_ids'] === [], fn (Builder $query) => $query->whereRaw('1 = 0'))
             ->count();
 
-        $products = Product::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('status', 'active')
-            ->with(['variants.balances'])
-            ->get();
-        $lowStockProducts = $products
-            ->filter(function (Product $product): bool {
-                if (! $product->track_inventory) {
-                    return false;
-                }
+        $recentOrders = (clone $ordersQuery)
+            ->with(['store', 'tenant', 'items.reservations.balance.location.store', 'order.customer', 'order.payments', 'shipments'])
+            ->latest('marketplace_vendor_orders.created_at')
+            ->limit(8)
+            ->get()
+            ->map(function (MarketplaceVendorOrder $order) use ($request): array {
+                $row = (new MarketplaceVendorOrderResource($order))->resolve($request);
+                $attribution = $order->branchAttributionData();
 
-                $variants = $product->variants->where('status', 'active');
-                if ($variants->isEmpty()) {
-                    return false;
-                }
-
-                $available = $variants->sum(fn ($variant): float => $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity));
-                $reorderLevel = $variants->max(fn ($variant): float => (float) $variant->reorder_level);
-
-                return $available <= $reorderLevel;
-            })
-            ->sortBy('name')
-            ->take(8)
-            ->map(function (Product $product): array {
-                $variants = $product->variants->where('status', 'active');
-                $available = $variants->sum(fn ($variant): float => $variant->balances->sum(fn ($balance): float => (float) $balance->on_hand_quantity - (float) $balance->reserved_quantity));
-
-                return [
-                    'id' => $product->uuid,
-                    'name' => $product->name,
-                    'sku' => $variants->first()?->sku,
-                    'available_stock' => $available,
-                ];
+                return [...$row, 'branch' => $attribution['label'], 'branch_breakdown' => $attribution['branches']];
             })
             ->values()
             ->all();
-
-        $pendingOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereIn('status', ['pending', 'processing'])->count();
-        $completedOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereIn('status', ['delivered'])->count();
-        $revenue = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->whereNotIn('status', ['cancelled', 'refunded'])->sum('total');
-        $recentOrders = MarketplaceVendorOrder::where('tenant_id', $tenant->id)->with(['store', 'order', 'shipments'])->latest()->limit(8)->get();
-        $earnings = $commissions->tenantEarnings($tenant->id);
+        $earningsFilters = [];
+        if (($filters['branch_id'] ?? null) !== null) {
+            $earningsFilters['branch_id'] = $filters['branch_id'] === 'unassigned' ? '__unassigned__' : $filters['branch_id'];
+        }
+        $earnings = $commissions->tenantEarnings($tenant->id, $currency, $earningsFilters);
         $commissionRule = $commissions->effectiveRule($tenant->id);
 
         return response()->json([
@@ -104,13 +97,32 @@ class MarketplaceVendorController
                 'store' => (new MarketplaceStoreResource($store))->resolve($request),
                 'metrics' => [
                     'published_products' => $publishedProducts,
-                    'low_stock_products' => count($lowStockProducts),
-                    'pending_orders' => $pendingOrders,
-                    'completed_orders' => $completedOrders,
-                    'marketplace_revenue' => number_format((float) $revenue, 2, '.', ''),
+                    'low_stock_products' => $inventory['low_stock_products'],
+                    'pending_orders' => $aggregates['pending_orders'],
+                    'completed_orders' => $aggregates['completed_orders'],
+                    'marketplace_revenue' => $aggregates['gross_order_value'],
+                    ...$aggregates['metrics'],
                 ],
-                'low_stock_products' => $lowStockProducts,
-                'recent_orders' => MarketplaceVendorOrderResource::collection($recentOrders),
+                'low_stock_products' => $inventory['rows'],
+                'inventory' => [
+                    'low_stock_products' => $inventory['low_stock_products'],
+                    'out_of_stock_products' => $inventory['out_of_stock_products'],
+                    'available_inventory' => $inventory['available_inventory'],
+                ],
+                'recent_orders' => $recentOrders,
+                'revenue' => ['group_by' => $groupBy, 'currency_code' => $currency, 'points' => array_values($aggregates['revenue_points'])],
+                'order_status_breakdown' => $aggregates['order_status_breakdown'],
+                'payment_overview' => $aggregates['payment_overview'],
+                'fulfillment' => $aggregates['fulfillment'],
+                'top_products' => array_values($aggregates['top_products']),
+                'filters' => [
+                    'branch_id' => $filters['branch_id'] ?? null,
+                    'date_from' => $filters['date_from'] ?? null,
+                    'date_to' => $filters['date_to'] ?? null,
+                    'group_by' => $groupBy,
+                    'timezone' => $timezone,
+                ],
+                'public_url' => rtrim((string) config('app.frontend_url'), '/').'/marketplace/stores/'.rawurlencode((string) $store->slug),
                 'capabilities' => [
                     'orders' => true,
                     'shipping' => false,
@@ -126,6 +138,246 @@ class MarketplaceVendorController
                 ],
             ],
         ]);
+    }
+
+    private function marketplaceOverviewOrdersQuery(Request $request, TenantContext $context): Builder
+    {
+        return MarketplaceVendorOrder::where('tenant_id', $context->tenant()->id)
+            ->where('currency_code', strtoupper((string) ($context->tenant()->businessSetting?->currency_code ?: config('pos.default_currency', 'MMK'))))
+            ->when($request->filled('date_from'), fn (Builder $query) => $query->whereDate('marketplace_vendor_orders.created_at', '>=', $request->string('date_from')->toString()))
+            ->when($request->filled('date_to'), fn (Builder $query) => $query->whereDate('marketplace_vendor_orders.created_at', '<=', $request->string('date_to')->toString()))
+            ->tap(fn (Builder $query) => $this->applySalesHistoryBranchScope($query, $request, $context));
+    }
+
+    private function marketplaceOverviewAggregates(Builder $query, array $branchScope, string $timezone, string $groupBy): array
+    {
+        $selectedKey = $branchScope['requested'] === 'unassigned'
+            ? 'unassigned'
+            : ($branchScope['requested'] !== null ? (string) $branchScope['selected_store_id'] : '__authorized__');
+        $authorizedKeys = $branchScope['store_ids']->map(fn ($id): string => (string) $id)->all();
+        if ($branchScope['include_unassigned']) {
+            $authorizedKeys[] = 'unassigned';
+        }
+        $metrics = [
+            'total_orders' => 0,
+            'gross_order_value' => 0.0,
+            'paid_revenue' => 0.0,
+            'refunds' => 0.0,
+            'vendor_net_earnings' => 0.0,
+            'commission_amount' => 0.0,
+            'pending_cod' => 0.0,
+            'pending_cod_orders' => 0,
+        ];
+        $pendingOrders = 0;
+        $completedOrders = 0;
+        $statusCounts = [];
+        $paymentCounts = ['paid_orders' => 0, 'pending_cod' => 0, 'authorized_payments' => 0, 'failed_payments' => 0, 'refunded_payments' => 0];
+        $fulfillment = ['awaiting_fulfillment' => 0, 'ready_for_dispatch' => 0, 'in_transit' => 0, 'delivered' => 0, 'delivery_failed' => 0, 'returned' => 0];
+        $revenuePoints = [];
+        $topProducts = [];
+
+        $query
+            ->with(['items.product', 'items.variant', 'items.reservations.balance.location.store', 'order.payments', 'order.refundRequests', 'shipments', 'commission'])
+            ->chunkById(250, function ($orders) use (&$metrics, &$pendingOrders, &$completedOrders, &$statusCounts, &$paymentCounts, &$fulfillment, &$revenuePoints, &$topProducts, $selectedKey, $authorizedKeys, $timezone, $groupBy): void {
+                foreach ($orders as $order) {
+                    $weights = $this->salesHistoryAttributionWeights($order);
+                    $weight = $selectedKey === '__authorized__'
+                        ? (float) collect($weights)->only($authorizedKeys)->sum()
+                        : (float) ($weights[$selectedKey] ?? 0);
+                    if ($weight <= 0) {
+                        continue;
+                    }
+
+                    $metrics['total_orders']++;
+                    $status = (string) ($order->order?->status ?: $order->status ?: 'unknown');
+                    $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
+                    if (in_array($status, ['pending', 'confirmed', 'processing', 'partially_shipped', 'shipped'], true)) {
+                        $pendingOrders++;
+                    }
+                    if ($status === 'delivered') {
+                        $completedOrders++;
+                    }
+
+                    $payments = $order->order?->payments ?? collect();
+                    $paidAmount = min((float) $order->total, (float) $payments->where('status', 'paid')->sum(fn ($payment): float => (float) ($payment->amount_received ?: $payment->amount)));
+                    $refundAmount = (float) ($order->order?->refundRequests?->where('status', 'approved')->sum('approved_amount') ?? 0);
+                    $commission = (float) ($order->commission?->commission_amount ?? 0);
+                    $sellerNet = (float) ($order->commission?->seller_net_amount ?? 0);
+                    $gross = in_array($status, ['cancelled', 'refunded'], true) ? 0.0 : (float) $order->total;
+                    $metrics['gross_order_value'] += $gross * $weight;
+                    $metrics['paid_revenue'] += $paidAmount * $weight;
+                    $metrics['refunds'] += $refundAmount * $weight;
+                    $metrics['commission_amount'] += $commission * $weight;
+                    $metrics['vendor_net_earnings'] += $sellerNet * $weight;
+
+                    $isPaid = $payments->contains(fn ($payment): bool => $payment->status === 'paid');
+                    $isAuthorized = $payments->contains(fn ($payment): bool => $payment->status === 'authorized');
+                    $isFailed = $payments->contains(fn ($payment): bool => $payment->status === 'failed');
+                    $isRefunded = $payments->contains(fn ($payment): bool => $payment->status === 'refunded') || $status === 'refunded';
+                    $isPendingCod = $payments->contains(fn ($payment): bool => strtolower((string) $payment->method) === 'cod') && ! $isPaid;
+                    if ($isPaid) {
+                        $paymentCounts['paid_orders']++;
+                    }
+                    if ($isAuthorized) {
+                        $paymentCounts['authorized_payments']++;
+                    }
+                    if ($isFailed) {
+                        $paymentCounts['failed_payments']++;
+                    }
+                    if ($isRefunded) {
+                        $paymentCounts['refunded_payments']++;
+                    }
+                    if ($isPendingCod) {
+                        $paymentCounts['pending_cod']++;
+                        $metrics['pending_cod_orders']++;
+                        $metrics['pending_cod'] += max((float) $order->total - (float) $payments->where('status', 'paid')->sum('amount_received'), 0) * $weight;
+                    }
+
+                    foreach ($order->shipments as $shipment) {
+                        $shipmentStatus = (string) $shipment->status;
+                        if ($shipmentStatus === 'delivered' || $shipmentStatus === 'completed') {
+                            $fulfillment['delivered']++;
+                        } elseif ($shipmentStatus === 'in_transit') {
+                            $fulfillment['in_transit']++;
+                        } elseif ($shipmentStatus === 'delivery_failed') {
+                            $fulfillment['delivery_failed']++;
+                        } elseif ($shipmentStatus === 'returned') {
+                            $fulfillment['returned']++;
+                        } elseif ($shipmentStatus === 'ready') {
+                            $fulfillment['ready_for_dispatch']++;
+                        }
+                    }
+                    if ($order->shipments->isEmpty()) {
+                        $fulfillment['awaiting_fulfillment']++;
+                    }
+
+                    $periodDate = CarbonImmutable::parse($order->created_at)->setTimezone($timezone);
+                    $period = match ($groupBy) {
+                        'week' => $periodDate->startOfWeek()->format('Y-m-d'),
+                        'month' => $periodDate->format('Y-m'),
+                        default => $periodDate->format('Y-m-d'),
+                    };
+                    $revenuePoints[$period] ??= ['period' => $period, 'gross_order_value' => 0.0, 'paid_revenue' => 0.0, 'refunds' => 0.0, 'vendor_net_earnings' => 0.0];
+                    $revenuePoints[$period]['gross_order_value'] += $gross * $weight;
+                    $revenuePoints[$period]['paid_revenue'] += $paidAmount * $weight;
+                    $revenuePoints[$period]['refunds'] += $refundAmount * $weight;
+                    $revenuePoints[$period]['vendor_net_earnings'] += $sellerNet * $weight;
+
+                    if (! in_array($status, ['cancelled', 'refunded'], true)) {
+                        foreach ($order->items as $item) {
+                            $itemWeights = $this->marketplaceOverviewItemWeights($item);
+                            $itemWeight = $selectedKey === '__authorized__'
+                                ? (float) collect($itemWeights)->only($authorizedKeys)->sum()
+                                : (float) ($itemWeights[$selectedKey] ?? 0);
+                            if ($itemWeight <= 0) {
+                                continue;
+                            }
+                            $key = (string) ($item->product_id ?: $item->product_variant_id ?: $item->id);
+                            $topProducts[$key] ??= ['id' => $item->product?->uuid ?: $item->product_variant_id, 'name' => $item->product_name_snapshot ?: $item->product?->name, 'sku' => $item->sku_snapshot ?: $item->variant?->sku, 'units_sold' => 0.0, 'revenue' => 0.0, 'currency_code' => $item->currency_code ?: $order->currency_code];
+                            $topProducts[$key]['units_sold'] += (float) $item->quantity * $itemWeight;
+                            $topProducts[$key]['revenue'] += (float) $item->line_total * $itemWeight;
+                        }
+                    }
+                }
+            }, 'marketplace_vendor_orders.id', 'id');
+
+        foreach ($revenuePoints as &$point) {
+            foreach (['gross_order_value', 'paid_revenue', 'refunds', 'vendor_net_earnings'] as $field) {
+                $point[$field] = number_format($point[$field], 2, '.', '');
+            }
+        }
+        unset($point);
+        uasort($topProducts, fn (array $left, array $right): int => $right['revenue'] <=> $left['revenue']);
+        $topProducts = array_slice(array_map(function (array $product): array {
+            $product['units_sold'] = number_format($product['units_sold'], 3, '.', '');
+            $product['revenue'] = number_format($product['revenue'], 2, '.', '');
+
+            return $product;
+        }, $topProducts), 0, 8);
+
+        return [
+            'pending_orders' => $pendingOrders,
+            'completed_orders' => $completedOrders,
+            'gross_order_value' => number_format($metrics['gross_order_value'], 2, '.', ''),
+            'metrics' => [
+                'total_orders' => $metrics['total_orders'],
+                'gross_order_value' => number_format($metrics['gross_order_value'], 2, '.', ''),
+                'paid_revenue' => number_format($metrics['paid_revenue'], 2, '.', ''),
+                'refunds' => number_format($metrics['refunds'], 2, '.', ''),
+                'vendor_net_earnings' => number_format($metrics['vendor_net_earnings'], 2, '.', ''),
+                'commission_amount' => number_format($metrics['commission_amount'], 2, '.', ''),
+                'pending_cod' => number_format($metrics['pending_cod'], 2, '.', ''),
+                'pending_cod_orders' => $metrics['pending_cod_orders'],
+            ],
+            'order_status_breakdown' => collect($statusCounts)->map(fn (int $count, string $status): array => ['status' => $status, 'count' => $count])->values()->all(),
+            'payment_overview' => $paymentCounts,
+            'fulfillment' => $fulfillment,
+            'revenue_points' => $revenuePoints,
+            'top_products' => $topProducts,
+        ];
+    }
+
+    private function marketplaceOverviewItemWeights($item): array
+    {
+        $weights = [];
+        $quantity = max((float) $item->quantity, 0);
+        foreach ($item->reservations ?? collect() as $reservation) {
+            $key = $reservation->balance?->location?->store_id === null ? 'unassigned' : (string) $reservation->balance->location->store_id;
+            $weights[$key] = ($weights[$key] ?? 0) + max((float) $reservation->quantity, 0);
+        }
+        if ($quantity <= 0 || $weights === []) {
+            return ['unassigned' => 1.0];
+        }
+        $covered = array_sum($weights);
+        if ($covered < $quantity) {
+            $weights['unassigned'] = ($weights['unassigned'] ?? 0) + ($quantity - $covered);
+        }
+        $total = array_sum($weights);
+
+        return array_map(static fn (float $value): float => $value / $total, $weights);
+    }
+
+    private function marketplaceOverviewInventory(int $tenantId, array $branchScope): array
+    {
+        $locationQuery = InventoryLocation::query()->where('tenant_id', $tenantId)->where('status', 'active');
+        if ($branchScope['requested'] === 'unassigned') {
+            $locationQuery->whereNull('store_id');
+        } elseif ($branchScope['requested'] !== null) {
+            $locationQuery->whereIn('store_id', $branchScope['store_ids']->all());
+        } else {
+            $locationQuery->where(function (Builder $location) use ($branchScope): void {
+                $location->whereIn('store_id', $branchScope['store_ids']->all())->orWhereNull('store_id');
+            });
+        }
+        $locationIds = $locationQuery->pluck('id')->all();
+        if ($locationIds === []) {
+            return ['location_ids' => [], 'low_stock_products' => 0, 'out_of_stock_products' => 0, 'available_inventory' => '0.000', 'rows' => []];
+        }
+        $rows = InventoryBalance::query()
+            ->where('inventory_balances.tenant_id', $tenantId)
+            ->whereIn('inventory_location_id', $locationIds)
+            ->whereHas('variant.product', fn (Builder $product) => $product->where('products.status', 'active')->where('products.track_inventory', true))
+            ->select('product_variant_id')
+            ->selectRaw('COALESCE(SUM(on_hand_quantity - reserved_quantity), 0) AS available_stock')
+            ->groupBy('product_variant_id')
+            ->get();
+        $variants = ProductVariant::query()->with('product')->whereIn('id', $rows->pluck('product_variant_id'))->get()->keyBy('id');
+        $products = $rows->map(function ($row) use ($variants): ?array {
+            $variant = $variants->get($row->product_variant_id);
+            if (! $variant?->product) {
+                return null;
+            }
+
+            return ['id' => $variant->product->uuid, 'name' => $variant->product->name, 'sku' => $variant->sku, 'available_stock' => (float) $row->available_stock, 'reorder_level' => (float) $variant->reorder_level];
+        })->filter()->groupBy('id')->map(function ($variants, string $id): array {
+            $first = $variants->first();
+
+            return ['id' => $id, 'name' => $first['name'], 'sku' => $first['sku'], 'available_stock' => $variants->sum('available_stock'), 'reorder_level' => $variants->max('reorder_level')];
+        })->sortBy('name')->values();
+        $lowStock = $products->filter(fn (array $product): bool => $product['available_stock'] <= $product['reorder_level']);
+        $rows = $lowStock->take(8)->map(fn (array $product): array => ['id' => $product['id'], 'name' => $product['name'], 'sku' => $product['sku'], 'available_stock' => $product['available_stock']])->all();
+
+        return ['location_ids' => $locationIds, 'low_stock_products' => $lowStock->count(), 'out_of_stock_products' => $products->filter(fn (array $product): bool => $product['available_stock'] <= 0)->count(), 'available_inventory' => number_format($products->sum('available_stock'), 3, '.', ''), 'rows' => $rows];
     }
 
     public function earnings(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse

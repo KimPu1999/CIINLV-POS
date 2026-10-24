@@ -6,8 +6,11 @@ use App\Models\Category;
 use App\Models\CustomerProfile;
 use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
+use App\Models\MarketplaceInventoryReservation;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceOrder;
+use App\Models\MarketplaceOrderItem;
+use App\Models\MarketplacePayment;
 use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
@@ -304,6 +307,37 @@ class MarketplaceFoundationTest extends TestCase
             ->assertJsonPath('data.metrics.pending_orders', 0)
             ->assertJsonPath('data.metrics.marketplace_revenue', '0.00')
             ->assertJsonPath('data.capabilities.orders', true);
+    }
+
+    public function test_vendor_overview_allocates_mixed_branch_order_once_and_rejects_unauthorized_branch(): void
+    {
+        [$tenant, $admin] = $this->businessWithAdmin('MARKETPLACE-OVERVIEW-BRANCH', 'marketplace-overview-branch@example.com');
+        [$otherTenant, $otherAdmin] = $this->businessWithAdmin('MARKETPLACE-OVERVIEW-OTHER', 'marketplace-overview-other@example.com');
+        $branchA = Store::create(['tenant_id' => $tenant->id, 'name' => 'Overview Branch A', 'code' => 'OV-A', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $admin->id]);
+        $branchB = Store::create(['tenant_id' => $tenant->id, 'name' => 'Overview Branch B', 'code' => 'OV-B', 'status' => 'active', 'currency_code' => 'MMK', 'timezone' => 'Asia/Yangon', 'created_by' => $admin->id]);
+        $locationA = InventoryLocation::create(['tenant_id' => $tenant->id, 'location_type' => 'store', 'store_id' => $branchA->id, 'name' => 'Overview A Stock', 'code' => 'OV-A-STOCK', 'status' => 'active']);
+        $locationB = InventoryLocation::create(['tenant_id' => $tenant->id, 'location_type' => 'store', 'store_id' => $branchB->id, 'name' => 'Overview B Stock', 'code' => 'OV-B-STOCK', 'status' => 'active']);
+        $product = Product::create(['tenant_id' => $tenant->id, 'name' => 'Overview Split Product', 'slug' => 'overview-split-product', 'status' => 'active', 'track_inventory' => true, 'created_by' => $admin->id]);
+        $variant = ProductVariant::create(['tenant_id' => $tenant->id, 'product_id' => $product->id, 'sku' => 'OV-SPLIT', 'selling_price' => 100, 'reorder_level' => 1, 'status' => 'active', 'is_default' => true]);
+        $balanceA = InventoryBalance::create(['tenant_id' => $tenant->id, 'inventory_location_id' => $locationA->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 5, 'reserved_quantity' => 1, 'average_cost' => 50, 'version' => 0]);
+        $balanceB = InventoryBalance::create(['tenant_id' => $tenant->id, 'inventory_location_id' => $locationB->id, 'product_variant_id' => $variant->id, 'on_hand_quantity' => 5, 'reserved_quantity' => 1, 'average_cost' => 50, 'version' => 0]);
+        $marketplaceStore = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Overview Marketplace', 'slug' => 'overview-marketplace', 'approval_status' => 'approved', 'is_active' => true]);
+        $listing = MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $marketplaceStore->id, 'product_id' => $product->id, 'slug' => 'overview-split-product', 'status' => 'published', 'published_at' => now()]);
+        $customer = User::factory()->create(['email' => 'marketplace-overview-customer@example.com']);
+        $order = MarketplaceOrder::create(['customer_user_id' => $customer->id, 'order_number' => 'OVERVIEW-SPLIT-001', 'currency_code' => 'MMK', 'status' => 'delivered', 'payment_status' => 'paid', 'subtotal' => 200, 'grand_total' => 200, 'delivery_address' => [], 'idempotency_key' => 'overview-split-order', 'request_hash' => hash('sha256', 'overview-split-order')]);
+        $vendorOrder = MarketplaceVendorOrder::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_store_id' => $marketplaceStore->id, 'vendor_order_number' => 'V-OVERVIEW-SPLIT-001', 'status' => 'delivered', 'fulfillment_status' => 'delivered', 'subtotal' => 200, 'total' => 200, 'currency_code' => 'MMK']);
+        $item = MarketplaceOrderItem::create(['marketplace_order_id' => $order->id, 'marketplace_vendor_order_id' => $vendorOrder->id, 'tenant_id' => $tenant->id, 'marketplace_listing_id' => $listing->id, 'product_id' => $product->id, 'product_variant_id' => $variant->id, 'product_name_snapshot' => $product->name, 'sku_snapshot' => $variant->sku, 'quantity' => 2, 'unit_price' => 100, 'line_total' => 200, 'currency_code' => 'MMK']);
+        MarketplaceInventoryReservation::create(['marketplace_order_id' => $order->id, 'marketplace_order_item_id' => $item->id, 'tenant_id' => $tenant->id, 'inventory_balance_id' => $balanceA->id, 'inventory_location_id' => $locationA->id, 'product_variant_id' => $variant->id, 'quantity' => 1, 'status' => 'confirmed', 'idempotency_key' => 'overview-split-a', 'expires_at' => now()->addHour()]);
+        MarketplaceInventoryReservation::create(['marketplace_order_id' => $order->id, 'marketplace_order_item_id' => $item->id, 'tenant_id' => $tenant->id, 'inventory_balance_id' => $balanceB->id, 'inventory_location_id' => $locationB->id, 'product_variant_id' => $variant->id, 'quantity' => 1, 'status' => 'confirmed', 'idempotency_key' => 'overview-split-b', 'expires_at' => now()->addHour()]);
+        MarketplacePayment::create(['marketplace_order_id' => $order->id, 'tenant_id' => $tenant->id, 'marketplace_vendor_order_id' => $vendorOrder->id, 'marketplace_store_id' => $marketplaceStore->id, 'method' => 'cod', 'status' => 'paid', 'amount' => 200, 'amount_received' => 200, 'currency_code' => 'MMK', 'idempotency_key' => 'overview-split-payment', 'paid_at' => now()]);
+
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/vendor/marketplace/overview?branch_id='.$branchA->uuid)
+            ->assertOk()->assertJsonPath('data.metrics.total_orders', 1)->assertJsonPath('data.metrics.gross_order_value', '100.00')->assertJsonPath('data.metrics.paid_revenue', '100.00')->assertJsonPath('data.top_products.0.revenue', '100.00');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/vendor/marketplace/overview')
+            ->assertOk()->assertJsonPath('data.metrics.total_orders', 1)->assertJsonPath('data.metrics.gross_order_value', '200.00');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/vendor/marketplace/overview?branch_id='.$otherTenant->uuid)->assertForbidden();
+        $this->actingAs($otherAdmin, 'sanctum')->withHeader('X-Tenant-Id', $otherTenant->uuid)->getJson('/api/v1/vendor/marketplace/overview?branch_id='.$branchA->uuid)->assertForbidden();
     }
 
     public function test_vendor_product_catalog_is_paginated_branch_scoped_and_tenant_safe(): void
