@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Marketplace\CollectMarketplaceCodPaymentRequest;
+use App\Http\Requests\Marketplace\MarketplaceAppearanceUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceApprovalRequest;
 use App\Http\Requests\Marketplace\MarketplaceCommissionRuleRequest;
 use App\Http\Requests\Marketplace\MarketplaceListingModerationRequest;
@@ -652,7 +653,28 @@ class MarketplaceAdminController
             'message' => $current['configured'] ? 'Marketplace settings are persisted.' : 'The reviewed marketplace settings migration is pending; defaults are shown and saving is disabled until it is applied.',
             'history' => $history,
             'financial_capabilities' => $this->financialCapabilities($settings, $commissions),
+            'appearance' => $settings->appearance(),
         ]]);
+    }
+
+    public function appearance(MarketplaceSettingsService $settings): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->appearance()]);
+    }
+
+    public function updateAppearance(MarketplaceAppearanceUpdateRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->updateAppearance($request->validated('appearance'), $request->user(), $audit)]);
+    }
+
+    public function publishAppearance(Request $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->publishAppearance($request->user(), $audit)]);
+    }
+
+    public function resetAppearance(Request $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->resetAppearance($request->user(), $audit)]);
     }
 
     public function updateSettings(MarketplaceSettingsUpdateRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse

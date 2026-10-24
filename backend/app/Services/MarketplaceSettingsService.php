@@ -44,9 +44,84 @@ class MarketplaceSettingsService
         ];
     }
 
+    public function appearanceDefaults(): array
+    {
+        return [
+            'font_family' => 'Inter', 'nav_font_size' => 16, 'nav_font_weight' => '600',
+            'body_font_size' => 16, 'heading_font_size' => 32, 'button_font_size' => 14, 'footer_font_size' => 14,
+            'light' => ['primary' => '#003868', 'secondary' => '#f86820', 'accent' => '#47bfff', 'header_bg' => '#003868', 'nav_text' => '#ffffff', 'nav_hover' => '#164f7d', 'nav_active' => '#1f6ea8', 'button_bg' => '#2563eb', 'button_text' => '#ffffff', 'page_bg' => '#f8fafc', 'card_bg' => '#ffffff', 'border' => '#dbeafe', 'footer_bg' => '#002850', 'footer_text' => '#ffffff'],
+            'dark' => ['primary' => '#47bfff', 'secondary' => '#f86820', 'accent' => '#7dd3fc', 'header_bg' => '#002850', 'nav_text' => '#ffffff', 'nav_hover' => '#164f7d', 'nav_active' => '#1f6ea8', 'button_bg' => '#2563eb', 'button_text' => '#ffffff', 'page_bg' => '#020617', 'card_bg' => '#0f172a', 'border' => '#334155', 'footer_bg' => '#020617', 'footer_text' => '#ffffff'],
+        ];
+    }
+
+    public function appearance(): array
+    {
+        $defaults = $this->appearanceDefaults();
+        if (! $this->appearanceStorageAvailable()) {
+            return ['configured' => false, 'draft' => $defaults, 'published' => $defaults, 'revision' => 1, 'published_at' => null];
+        }
+        $setting = MarketplaceSetting::query()->first();
+        $draft = array_replace_recursive($defaults, $setting?->appearance_draft ?: $defaults);
+        $published = array_replace_recursive($defaults, $setting?->appearance_published ?: $defaults);
+
+        return ['configured' => true, 'draft' => $draft, 'published' => $published, 'revision' => (int) ($setting?->appearance_revision ?: 1), 'published_at' => $setting?->appearance_published_at?->toIso8601String()];
+    }
+
+    public function updateAppearance(array $appearance, User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->appearanceStorageAvailable()) {
+            throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available. Apply the reviewed marketplace settings migration before saving appearance changes.');
+        }
+        $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
+        $setting->forceFill(['appearance_draft' => array_replace_recursive($this->appearanceDefaults(), $appearance), 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        $audit->record('marketplace.appearance_draft_updated', $actor, entity: $setting, metadata: ['appearance_revision' => $setting->appearance_revision]);
+
+        return $this->appearance();
+    }
+
+    public function publishAppearance(User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->appearanceStorageAvailable()) {
+            throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available. Apply the reviewed marketplace settings migration before publishing appearance changes.');
+        }
+        $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
+        $appearance = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_draft ?: $this->appearanceDefaults());
+        $setting->forceFill(['appearance_published' => $appearance, 'appearance_published_at' => now(), 'appearance_published_by' => $actor->id, 'updated_by' => $actor->id])->save();
+        $audit->record('marketplace.appearance_published', $actor, entity: $setting, metadata: ['appearance_revision' => $setting->appearance_revision]);
+
+        return $this->appearance();
+    }
+
+    public function resetAppearance(User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->appearanceStorageAvailable()) {
+            throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available. Apply the reviewed marketplace settings migration before resetting appearance changes.');
+        }
+        $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
+        $setting->forceFill(['appearance_draft' => $this->appearanceDefaults(), 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        $audit->record('marketplace.appearance_draft_reset', $actor, entity: $setting, metadata: ['appearance_revision' => $setting->appearance_revision]);
+
+        return $this->appearance();
+    }
+
     public function storageAvailable(): bool
     {
         return Schema::hasTable('marketplace_settings');
+    }
+
+    public function appearanceStorageAvailable(): bool
+    {
+        if (! $this->storageAvailable()) {
+            return false;
+        }
+
+        foreach (['appearance_draft', 'appearance_published', 'appearance_revision', 'appearance_published_at', 'appearance_published_by'] as $column) {
+            if (! Schema::hasColumn('marketplace_settings', $column)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function current(): array

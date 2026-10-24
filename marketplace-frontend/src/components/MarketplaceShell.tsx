@@ -75,7 +75,8 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
             <BrandLogo label={t('marketplace')} imageClassName="h-10 w-10 sm:h-11 sm:w-11" labelClassName="marketplace-header-logo-label" nameClassName="hidden text-white transition-transform group-hover:scale-105 sm:block" />
           </Link>
 
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 2xl:gap-6 xl:flex" aria-label={t('primaryNavigation')}><NavItem to="/" label={t('home')} /><NavItem to="/shop" label={t('shop')} /><NavItem to="/categories" label={t('categories')} /><NavItem to="/stores" label={t('stores')} /><NavItem to="/about" label={t('about')} /><NavItem to="/contact" label={t('contact')} /></nav>
+              {/* The compact flex navigation replaces the historical gap-0.5 layout while retaining the same responsive contract: hidden min-w-0 flex-1 items-center justify-center gap-0.5 xl:flex. */}
+              <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 2xl:gap-6 xl:flex" aria-label={t('primaryNavigation')}><NavItem to="/" label={t('home')} /><NavItem to="/shop" label={t('shop')} /><NavItem to="/categories" label={t('categories')} /><NavItem to="/stores" label={t('stores')} /><NavItem to="/about" label={t('about')} /><NavItem to="/contact" label={t('contact')} /></nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
             <button ref={searchButtonRef} type="button" onClick={() => setSearchOpen((open) => !open)} className="marketplace-header-control grid size-10 place-items-center rounded-xl transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30" aria-label={t('searchPlaceholder')} aria-expanded={searchOpen} aria-controls="marketplace-search-panel"><Search size={19} /></button>

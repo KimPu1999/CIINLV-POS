@@ -19,6 +19,13 @@ use Illuminate\Support\Str;
 
 class MarketplacePublicController
 {
+    public function appearance(MarketplaceSettingsService $settings): JsonResponse
+    {
+        $appearance = $settings->appearance();
+
+        return response()->json(['success' => true, 'data' => ['appearance' => $appearance['published']]]);
+    }
+
     public function __construct(private readonly MarketplaceSettingsService $settings) {}
 
     public function home(Request $request): JsonResponse

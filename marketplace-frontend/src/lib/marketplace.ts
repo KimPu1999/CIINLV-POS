@@ -1,6 +1,18 @@
 export type Locale = 'en' | 'my'
 export type Theme = 'light' | 'dark'
 
+export interface MarketplaceAppearance {
+  font_family: string
+  nav_font_size: number
+  nav_font_weight: string
+  body_font_size: number
+  heading_font_size: number
+  button_font_size: number
+  footer_font_size: number
+  light: Record<string, string>
+  dark: Record<string, string>
+}
+
 export interface MarketplaceImage {
   id: string
   url: string
@@ -535,6 +547,12 @@ export async function fetchMarketplaceHome(locale: Locale, signal?: AbortSignal)
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     return { status: 'error', data: emptyHome(), message: error instanceof Error ? error.message : 'Unable to load marketplace home.' }
   }
+}
+
+export async function fetchMarketplaceAppearance(locale: Locale, signal?: AbortSignal): Promise<MarketplaceAppearance> {
+  const payload = await requestJson(withQuery('/appearance', {}, locale), { signal }, locale)
+  const data = asRecord(unwrap<unknown>(payload)) ?? {}
+  return (data.appearance || {}) as MarketplaceAppearance
 }
 
 export async function fetchProducts(locale: Locale, query: ProductQuery = {}, signal?: AbortSignal): Promise<ProductPage> {

@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MarketplaceSetting extends Model
 {
-    protected $fillable = ['enabled', 'seller_registration_enabled', 'seller_approval_required', 'listing_approval_required', 'maintenance_mode', 'currency_code', 'default_commission_rate', 'commission_base', 'payout_schedule', 'payout_minimum', 'policies', 'qr_payment_provider', 'qr_payment_account_name', 'qr_payment_phone', 'qr_payment_instructions', 'qr_payment_qr_path', 'qr_payment_enabled', 'revision', 'updated_by'];
+    protected $fillable = ['enabled', 'seller_registration_enabled', 'seller_approval_required', 'listing_approval_required', 'maintenance_mode', 'currency_code', 'default_commission_rate', 'commission_base', 'payout_schedule', 'payout_minimum', 'policies', 'qr_payment_provider', 'qr_payment_account_name', 'qr_payment_phone', 'qr_payment_instructions', 'qr_payment_qr_path', 'qr_payment_enabled', 'revision', 'updated_by', 'appearance_draft', 'appearance_published', 'appearance_revision', 'appearance_published_at', 'appearance_published_by'];
 
     protected function casts(): array
     {
-        return ['enabled' => 'boolean', 'seller_registration_enabled' => 'boolean', 'seller_approval_required' => 'boolean', 'listing_approval_required' => 'boolean', 'maintenance_mode' => 'boolean', 'default_commission_rate' => 'decimal:4', 'payout_minimum' => 'decimal:2', 'policies' => 'array', 'qr_payment_enabled' => 'boolean', 'revision' => 'integer'];
+        return ['enabled' => 'boolean', 'seller_registration_enabled' => 'boolean', 'seller_approval_required' => 'boolean', 'listing_approval_required' => 'boolean', 'maintenance_mode' => 'boolean', 'default_commission_rate' => 'decimal:4', 'payout_minimum' => 'decimal:2', 'policies' => 'array', 'qr_payment_enabled' => 'boolean', 'revision' => 'integer', 'appearance_draft' => 'array', 'appearance_published' => 'array', 'appearance_revision' => 'integer', 'appearance_published_at' => 'datetime'];
     }
 
     public function updatedBy(): BelongsTo

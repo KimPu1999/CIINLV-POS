@@ -62,6 +62,7 @@ import {
   deleteCustomerAddress,
   fetchCatalog,
   fetchMarketplaceHome,
+  fetchMarketplaceAppearance,
   fetchCheckoutQuote,
   fetchCustomer,
   fetchMarketplaceCart,
@@ -118,6 +119,7 @@ import {
   type ProductPage,
   type StorePage,
   type Theme,
+  type MarketplaceAppearance,
   type TranslationKey,
 } from './lib/marketplace'
 
@@ -147,6 +149,7 @@ function App() {
   const location = useLocation()
   const [locale, setLocaleState] = useState<Locale>(getStoredLocale)
   const [theme, setThemeState] = useState<Theme>(getStoredTheme)
+  const [appearance, setAppearance] = useState<MarketplaceAppearance | null>(null)
   const [catalog, setCatalog] = useState<CatalogResult>({ status: 'loading', data: { listings: [], stores: [], categories: [] } })
   const [home, setHome] = useState<HomeResult>({ status: 'loading', data: { categories: [], stores: [], featuredProducts: [], featuredAvailable: false, newArrivals: [], bestSellers: [], bestSellersAvailable: false } })
   const [cart, setCart] = useState<CartItem[]>(readStoredCart)
@@ -166,9 +169,30 @@ function App() {
   }, [locale])
 
   useEffect(() => {
+    const controller = new AbortController()
+    void fetchMarketplaceAppearance(locale, controller.signal).then(setAppearance).catch(() => undefined)
+    return () => controller.abort()
+  }, [locale])
+
+  useEffect(() => {
     window.localStorage.setItem('ciinlv_marketplace_theme', theme)
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
+
+  useEffect(() => {
+    const root = document.documentElement
+    const colors = appearance?.[theme]
+    if (colors) Object.entries(colors).forEach(([key, value]) => root.style.setProperty(`--marketplace-${key.replaceAll('_', '-')}`, value))
+    if (appearance) {
+      root.style.setProperty('--marketplace-font-family', appearance.font_family)
+      root.style.setProperty('--marketplace-nav-font-size', `${appearance.nav_font_size}px`)
+      root.style.setProperty('--marketplace-nav-font-weight', appearance.nav_font_weight)
+      root.style.setProperty('--marketplace-body-font-size', `${appearance.body_font_size}px`)
+      root.style.setProperty('--marketplace-heading-font-size', `${appearance.heading_font_size}px`)
+      root.style.setProperty('--marketplace-button-font-size', `${appearance.button_font_size}px`)
+      root.style.setProperty('--marketplace-footer-font-size', `${appearance.footer_font_size}px`)
+    }
+  }, [appearance, theme])
 
   useEffect(() => {
     const controller = new AbortController()

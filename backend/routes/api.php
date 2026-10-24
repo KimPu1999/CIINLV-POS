@@ -78,6 +78,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::prefix('marketplace')->middleware(['throttle:api', SetApiLocale::class])->group(function (): void {
         Route::get('/home', [MarketplacePublicController::class, 'home']);
+        Route::get('/appearance', [MarketplacePublicController::class, 'appearance']);
         Route::get('/stores', [MarketplacePublicController::class, 'stores']);
         Route::get('/stores/{store:slug}', [MarketplacePublicController::class, 'store']);
         Route::get('/products', [MarketplacePublicController::class, 'products']);
@@ -228,6 +229,10 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reports', [MarketplaceAdminController::class, 'reports']);
             Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
             Route::get('/settings', [MarketplaceAdminController::class, 'settings']);
+            Route::get('/settings/appearance', [MarketplaceAdminController::class, 'appearance']);
+            Route::patch('/settings/appearance', [MarketplaceAdminController::class, 'updateAppearance']);
+            Route::post('/settings/appearance/publish', [MarketplaceAdminController::class, 'publishAppearance']);
+            Route::post('/settings/appearance/reset', [MarketplaceAdminController::class, 'resetAppearance']);
             Route::patch('/settings', [MarketplaceAdminController::class, 'updateSettings']);
             Route::post('/settings/qr-payment-image', [MarketplaceAdminController::class, 'uploadQrPaymentImage']);
             Route::delete('/settings/qr-payment-image', [MarketplaceAdminController::class, 'removeQrPaymentImage']);
