@@ -314,6 +314,27 @@ class MarketplaceFoundationTest extends TestCase
             ->assertJsonPath('data.best_sellers_available', false);
     }
 
+    public function test_public_product_detail_and_related_products_are_bounded_and_publicly_scoped(): void
+    {
+        [$tenant] = $this->businessWithAdmin('MARKETPLACE-DETAIL', 'marketplace-detail@example.com');
+        $store = MarketplaceStore::create(['tenant_id' => $tenant->id, 'name' => 'Marketplace Detail', 'slug' => 'marketplace-detail', 'approval_status' => 'approved', 'is_active' => true]);
+        $product = $this->publicProduct($tenant, 'Detail Product');
+        $relatedProduct = $this->publicProduct($tenant, 'Related Product');
+        $relatedProduct->update(['category_id' => $product->category_id]);
+        $listing = MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $product->id, 'slug' => 'detail-product', 'status' => 'published', 'published_at' => now()]);
+        $relatedListing = MarketplaceListing::create(['tenant_id' => $tenant->id, 'marketplace_store_id' => $store->id, 'product_id' => $relatedProduct->id, 'slug' => 'related-product', 'status' => 'published', 'published_at' => now()->subMinute()]);
+
+        $this->getJson('/api/v1/marketplace/products/detail-product')
+            ->assertOk()
+            ->assertJsonPath('data.id', $listing->uuid)
+            ->assertJsonPath('data.rating_summary.total_reviews', 0)
+            ->assertJsonCount(0, 'data.reviews');
+        $this->getJson('/api/v1/marketplace/products/detail-product/related?per_page=8')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $relatedListing->uuid);
+    }
+
     public function test_vendor_overview_uses_tenant_scoped_listing_and_inventory_data_without_fabricating_orders(): void
     {
         [$tenant, $admin] = $this->businessWithAdmin('MARKETPLACE-G', 'marketplace-g@example.com');

@@ -58,10 +58,12 @@ import {
   fetchMarketplaceInvoice,
   fetchMarketplaceOrders,
   fetchMarketplaceOrdersPage,
+  fetchMarketplaceReviews,
   type MarketplacePaymentMethod,
   fetchMarketplaceTracking,
   fetchMarketplaceReceipt,
   fetchProduct,
+  fetchRelatedProducts,
   fetchProducts,
   fetchStore,
   fetchStores,
@@ -94,6 +96,7 @@ import {
   type Locale,
   type MarketplaceCategory,
   type MarketplaceListing,
+  type MarketplaceReviewPage,
   type MarketplaceStore,
   type MarketplaceVariant,
   type MarketplaceOrder,
@@ -156,7 +159,7 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController()
-    if (location.pathname === '/') return () => controller.abort()
+    if (location.pathname === '/' || location.pathname.startsWith('/product/')) return () => controller.abort()
     void fetchCatalog(locale, controller.signal).then(setCatalog).catch(() => undefined)
     return () => controller.abort()
   }, [locale, location.pathname])
@@ -572,24 +575,83 @@ function ShopFilterPanel({ categories, stores, category, store, minPrice, maxPri
   return <><div className="flex items-center justify-between gap-2"><div><h2 className="text-sm font-black">{t('filters')}</h2><p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">{t('securedByServer')}</p></div><button type="button" onClick={onClear} className="shrink-0 text-xs font-black text-blue-600">{t('clear')}</button></div><form onSubmit={onApply} className="mt-4 grid gap-3"><label className="grid gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('categoryFilter')}</span><select value={category} onChange={(event) => onCategoryChange(event.target.value)} className="h-10 min-w-0 rounded-lg border border-slate-200 bg-[#F8FAFC] px-2.5 text-xs outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('allProducts')}</option>{categories.map((item) => <option key={item.id} value={item.slug ?? item.id}>{item.name}</option>)}</select></label><label className="grid gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('storeFilter')}</span><select value={store} onChange={(event) => onStoreChange(event.target.value)} className="h-10 min-w-0 rounded-lg border border-slate-200 bg-[#F8FAFC] px-2.5 text-xs outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('stores')}</option>{stores.map((item) => <option key={item.id} value={item.slug ?? item.id}>{item.name}</option>)}</select></label><div className="grid grid-cols-2 gap-2"><label className="grid gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('minPrice')}</span><input name="min_price" type="number" min="0" inputMode="decimal" defaultValue={minPrice} className="h-10 min-w-0 rounded-lg border border-slate-200 bg-[#F8FAFC] px-2.5 text-xs outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label><label className="grid gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300"><span>{t('maxPrice')}</span><input name="max_price" type="number" min="0" inputMode="decimal" defaultValue={maxPrice} className="h-10 min-w-0 rounded-lg border border-slate-200 bg-[#F8FAFC] px-2.5 text-xs outline-none transition focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950" /></label></div><div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20"><div className="flex items-center gap-2 text-xs font-black text-emerald-700 dark:text-emerald-300"><ShieldCheck size={15} /> {t('availability')}</div><p className="mt-1.5 text-[11px] font-semibold leading-4 text-emerald-800/80 dark:text-emerald-200/80">{t('securedByServer')}</p></div><button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1D4ED8] text-xs font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{t('applyFilters')} <Search size={15} /></button></form></>
 }
 
-function ProductPage({ catalog, locale, t, addToCart, wishlist, toggleWishlist }: AppServices) {
+function ProductPage({ locale, t, addToCart, wishlist, toggleWishlist }: AppServices) {
   const { slug = '' } = useParams()
-  const fallback = catalog.data.listings.find((item) => item.slug === slug)
-  const [listing, setListing] = useState<MarketplaceListing | null>(fallback ?? null)
-  const [loading, setLoading] = useState(!fallback)
+  const [listing, setListing] = useState<MarketplaceListing | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [variantId, setVariantId] = useState(fallback && !fallback.hasSizes ? preferredVariantId(fallback) : '')
+  const [variantId, setVariantId] = useState('')
+  const [related, setRelated] = useState<ProductPage>({ status: 'loading', listings: [], meta: emptyMeta() })
+  const [reviewPage, setReviewPage] = useState<MarketplaceReviewPage>({ status: 'loading', reviews: [], meta: emptyMeta(), summary: { averageRating: 0, totalReviews: 0, distribution: {} } })
+  const [loadingMoreReviews, setLoadingMoreReviews] = useState(false)
+  const reviewSlugRef = useRef(slug)
   useEffect(() => {
     const controller = new AbortController()
-    void fetchProduct(slug, locale, controller.signal).then((value) => { setListing(value); setVariantId(value.hasSizes ? '' : preferredVariantId(value)) }).catch((reason: unknown) => { if (!(reason instanceof DOMException && reason.name === 'AbortError')) setError(apiErrorMessage(reason)) }).finally(() => setLoading(false))
-    return () => controller.abort()
+    let active = true
+    reviewSlugRef.current = slug
+    setListing(null)
+    setLoading(true)
+    setError('')
+    setVariantId('')
+    setRelated({ status: 'loading', listings: [], meta: emptyMeta() })
+    setReviewPage({ status: 'loading', reviews: [], meta: emptyMeta(), summary: { averageRating: 0, totalReviews: 0, distribution: {} } })
+    void fetchProduct(slug, locale, controller.signal).then((value) => {
+      if (!active) return
+      setListing(value)
+      setVariantId(value.hasSizes ? '' : preferredVariantId(value))
+      void fetchRelatedProducts(slug, locale, controller.signal).then((value) => { if (active) setRelated(value) }).catch(() => undefined)
+      void fetchMarketplaceReviews(slug, locale, 1, 6, controller.signal).then((value) => { if (active) setReviewPage(value) }).catch(() => undefined)
+    }).catch((reason: unknown) => { if (active && !(reason instanceof DOMException && reason.name === 'AbortError')) setError(apiErrorMessage(reason)) }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false; controller.abort() }
   }, [locale, slug])
+  useEffect(() => {
+    if (!listing) return
+    const previousTitle = document.title
+    const description = listing.description?.trim().slice(0, 160) || listing.name
+    document.title = `${listing.name} · ${listing.storeName || translate(locale, 'marketplace')}`
+    const meta = document.querySelector('meta[name="description"]') ?? document.createElement('meta')
+    const createdMeta = !meta.parentNode
+    meta.setAttribute('name', 'description')
+    meta.setAttribute('content', description)
+    if (createdMeta) document.head.appendChild(meta)
+    const canonical = document.querySelector('link[rel="canonical"]') ?? document.createElement('link')
+    const createdCanonical = !canonical.parentNode
+    canonical.setAttribute('rel', 'canonical')
+    canonical.setAttribute('href', `${window.location.origin}/product/${encodeURIComponent(listing.slug ?? listing.id)}`)
+    if (createdCanonical) document.head.appendChild(canonical)
+    return () => {
+      document.title = previousTitle
+      if (createdMeta) meta.remove()
+      if (createdCanonical) canonical.remove()
+    }
+  }, [listing, locale])
+  const loadMoreReviews = () => {
+    if (loadingMoreReviews || reviewPage.meta.currentPage >= reviewPage.meta.lastPage || reviewSlugRef.current !== slug) return
+    setLoadingMoreReviews(true)
+    const nextPage = reviewPage.meta.currentPage + 1
+    const controller = new AbortController()
+    void fetchMarketplaceReviews(slug, locale, nextPage, 6, controller.signal).then((next) => {
+      if (reviewSlugRef.current !== slug) return
+      setReviewPage((current) => ({ ...next, reviews: [...current.reviews, ...next.reviews.filter((review) => !current.reviews.some((item) => item.id === review.id))] }))
+    }).finally(() => setLoadingMoreReviews(false))
+  }
   if (loading && !listing) return <PageContainer><LoadingState t={t} /></PageContainer>
   if (!listing || error) return <PageContainer>{error ? <ErrorState message={error} t={t} /> : <CatalogEmpty status="ready" t={t} />}</PageContainer>
   const selected = listing.variants.find((item) => item.id === variantId) ?? (listing.hasSizes ? undefined : listing.variants[0])
   const available = listing.trackInventory ? selected?.availableStock ?? listing.availableStock : null
-  const related = catalog.data.listings.filter((item) => item.id !== listing.id && item.categoryId === listing.categoryId).slice(0, 4)
-  return <PageContainer><Link to="/shop" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-blue-600"><ArrowLeft size={16} /> {t('backToShop')}</Link><div className="mt-8 grid gap-10 lg:grid-cols-2"><ProductGallery listing={listing} t={t} /><div className="self-center"><p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-600">{listing.storeSlug ? <Link to={`/stores/${listing.storeSlug}`} className="hover:underline">{listing.storeName || t('marketplace')}</Link> : listing.storeName || t('marketplace')}</p><h1 className="mt-3 text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">{listing.name}</h1>{listing.ratingSummary && listing.ratingSummary.totalReviews > 0 && <div className="mt-4 flex items-center gap-2 text-sm font-bold text-amber-500"><Star size={17} fill="currentColor" /> {listing.ratingSummary.averageRating.toFixed(1)} <span className="text-slate-500 dark:text-slate-400">({listing.ratingSummary.totalReviews} {t('reviews')})</span></div>}<p className="mt-5 text-3xl font-black text-blue-600">{formatPrice(selected?.sellingPrice ?? listing.price, listing.currency, locale)}</p><p className="mt-6 max-w-xl text-base leading-8 text-slate-500 dark:text-slate-400">{listing.description || t('discoverBody')}</p>{(listing.hasSizes || listing.variants.length > 1) && <div className="mt-7"><p className="text-sm font-black">{t('selectVariant')}</p><div className="mt-3 flex flex-wrap gap-2">{listing.variants.map((item) => <button key={item.id} type="button" onClick={() => setVariantId(item.id)} disabled={listing.trackInventory && item.availableStock === 0} className={'rounded-xl border px-3 py-2 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (item.id === selected?.id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300') + (listing.trackInventory && item.availableStock === 0 ? ' cursor-not-allowed opacity-40' : '')}>{variantLabel(item, t)}{listing.trackInventory && item.availableStock === 0 && ` · ${t('soldOut')}`}</button>)}</div></div>}<div className="mt-7 flex flex-wrap gap-3"><button type="button" onClick={() => addToCart(listing, selected?.id)} disabled={!selected || (listing.hasSizes && !variantId) || available === 0} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300"><ShoppingBag size={18} /> {t('addToCart')}</button><button type="button" onClick={() => toggleWishlist(listing.id)} className={'inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-sm font-black transition ' + (wishlist.includes(listing.id) ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-700 hover:border-blue-300 dark:border-slate-800 dark:text-slate-200')}><Heart size={18} fill={wishlist.includes(listing.id) ? 'currentColor' : 'none'} /> {wishlist.includes(listing.id) ? t('saved') : t('save')}</button></div><div className="mt-8 grid gap-3 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 dark:text-slate-400"><span className="flex items-center gap-2"><ShieldCheck size={17} className="text-emerald-500" /> {available === 0 ? t('soldOut') : t('available')}</span><span className="flex items-center gap-2"><Truck size={17} className="text-blue-500" /> {t('thoughtfulDelivery')}</span></div></div></div>{listing.reviews && listing.reviews.length > 0 && <section className="mt-16 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">{t('customerReviews')}</p><h2 className="mt-2 text-2xl font-black">{t('whatCustomersSay')}</h2></div><div className="flex items-center gap-2 text-lg font-black text-amber-500"><Star size={18} fill="currentColor" /> {listing.ratingSummary?.averageRating.toFixed(1)}</div></div><div className="mt-6 grid gap-4">{listing.reviews.map((review) => <article key={review.id} className="rounded-2xl border border-slate-100 p-4 dark:border-slate-800"><div className="flex items-center gap-1 text-amber-500">{[1, 2, 3, 4, 5].map((value) => <Star key={value} size={14} fill={value <= review.rating ? 'currentColor' : 'none'} />)}</div>{review.title && <h3 className="mt-2 font-bold">{review.title}</h3>}<p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.comment}</p><p className="mt-3 text-xs font-semibold text-slate-400">{review.customerName || t('customer')} · {review.verifiedPurchase ? t('verifiedPurchase') : ''}</p></article>)}</div></section>}{related.length > 0 && <section className="mt-20"><SectionHeading eyebrow={t('productDetails')} title={t('browseCollection')} /><ProductGrid listings={related} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}</PageContainer>
+  const summary = reviewPage.summary.totalReviews > 0 ? reviewPage.summary : listing.ratingSummary
+  const relatedLink = listing.categorySlug || listing.categoryId ? `/shop?category=${encodeURIComponent(listing.categorySlug ?? listing.categoryId ?? '')}` : '/shop'
+  return <PageContainer compact>
+    <div className="mb-4 flex items-center justify-between gap-3"><Link to="/shop" className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"><ArrowLeft size={15} /> {t('backToShop')}</Link>{listing.categorySlug && <Link to={relatedLink} className="text-xs font-black text-blue-600 hover:underline">{listing.categoryName || t('browseCollection')}</Link>}</div>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)] lg:items-start"><ProductGallery listing={listing} t={t} /><div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{listing.storeSlug ? <Link to={`/stores/${listing.storeSlug}`} className="hover:underline">{listing.storeName || t('marketplace')}</Link> : listing.storeName || t('marketplace')}</p><h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">{listing.name}</h1>{summary && summary.totalReviews > 0 && <div className="mt-3 flex items-center gap-2 text-sm font-bold text-amber-500"><Star size={16} fill="currentColor" /> {summary.averageRating.toFixed(1)} <span className="text-slate-500 dark:text-slate-400">({summary.totalReviews} {t('reviews')})</span></div>}<p className="mt-4 text-2xl font-black text-blue-600">{formatPrice(selected?.sellingPrice ?? listing.price, listing.currency, locale)}</p><p className="mt-4 max-w-xl text-sm leading-7 text-slate-500 dark:text-slate-400">{listing.description || t('discoverBody')}</p>{(listing.categoryName || listing.brand) && <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">{listing.categoryName && <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-800">{listing.categoryName}</span>}{listing.brand && <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-800">{listing.brand}</span>}</div>}{(listing.hasSizes || listing.variants.length > 1) && <div className="mt-5"><p className="text-sm font-black">{t('selectVariant')}</p><div className="mt-2 flex flex-wrap gap-2">{listing.variants.map((item) => <button key={item.id} type="button" onClick={() => setVariantId(item.id)} disabled={listing.trackInventory && item.availableStock === 0} aria-pressed={item.id === selected?.id} className={'rounded-lg border px-3 py-2 text-xs font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (item.id === selected?.id ? 'border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-700 dark:text-slate-300') + (listing.trackInventory && item.availableStock === 0 ? ' cursor-not-allowed opacity-40' : '')}>{variantLabel(item, t)}{listing.trackInventory && item.availableStock === 0 && ` · ${t('soldOut')}`}</button>)}</div></div>}<div className="mt-5 flex flex-wrap gap-2"><button type="button" onClick={() => addToCart(listing, selected?.id)} disabled={!selected || (listing.hasSizes && !variantId) || available === 0} className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-300"><ShoppingBag size={17} /> {t('addToCart')}</button><button type="button" onClick={() => toggleWishlist(listing.id)} aria-pressed={wishlist.includes(listing.id)} className={'inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-black transition ' + (wishlist.includes(listing.id) ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300' : 'border-slate-200 text-slate-700 hover:border-blue-300 dark:border-slate-800 dark:text-slate-200')}><Heart size={17} fill={wishlist.includes(listing.id) ? 'currentColor' : 'none'} /> {wishlist.includes(listing.id) ? t('saved') : t('save')}</button></div><div className="mt-5 grid gap-2 border-t border-slate-200 pt-4 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400"><span className="flex items-center gap-2"><ShieldCheck size={16} className="text-emerald-500" /> {available === 0 ? t('soldOut') : t('available')}</span><span className="flex items-center gap-2"><Truck size={16} className="text-blue-500" /> {t('thoughtfulDelivery')}</span></div></div></div>
+    {reviewPage.status === 'ready' && reviewPage.meta.total > 0 && <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600">{t('customerReviews')}</p><h2 className="mt-1 text-xl font-black">{t('whatCustomersSay')}</h2></div>{summary && <div className="flex items-center gap-2 text-lg font-black text-amber-500"><Star size={17} fill="currentColor" /> {summary.averageRating.toFixed(1)}</div>}</div><div className="mt-4 grid gap-3">{reviewPage.reviews.map((review) => <article key={review.id} className="rounded-xl border border-slate-100 p-3 dark:border-slate-800"><div className="flex items-center gap-1 text-amber-500">{[1, 2, 3, 4, 5].map((value) => <Star key={value} size={13} fill={value <= review.rating ? 'currentColor' : 'none'} />)}</div>{review.title && <h3 className="mt-1.5 text-sm font-bold">{review.title}</h3>}<p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{review.comment}</p><p className="mt-2 text-[11px] font-semibold text-slate-400">{review.customerName || t('customer')}{review.createdAt ? ` · ${formatReviewDate(review.createdAt, locale)}` : ''}{review.verifiedPurchase ? ` · ${t('verifiedPurchase')}` : ''}</p></article>)}</div>{reviewPage.meta.currentPage < reviewPage.meta.lastPage && <button type="button" onClick={loadMoreReviews} disabled={loadingMoreReviews} className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-600 disabled:opacity-50 dark:border-slate-700 dark:text-slate-200">{loadingMoreReviews ? t('loading') : t('loadMore')}</button>}</section>}
+    {related.status === 'ready' && related.listings.length > 0 && <section className="mt-8"><SectionHeading eyebrow={t('relatedProducts')} title={t('browseCollection')} link={relatedLink} linkLabel={t('viewAll')} /><ProductGrid compact listings={related.listings} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /></section>}
+  </PageContainer>
+}
+
+function formatReviewDate(value: string, locale: Locale): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale === 'my' ? 'my-MM' : 'en-US', { dateStyle: 'medium' }).format(date)
 }
 
 function CategoriesPage({ catalog, t }: AppServices) {
@@ -1379,7 +1441,7 @@ function ProductGallery({ listing, t }: { listing: MarketplaceListing; t: (key: 
   const [selected, setSelected] = useState(listing.imageUrl ?? '')
   const [failed, setFailed] = useState(false)
   const images = listing.images.length > 0 ? listing.images : listing.imageUrl ? [{ id: 'primary', url: listing.imageUrl }] : []
-  return <div aria-label={t('imageGallery')}><div className="overflow-hidden rounded-[2rem] border border-slate-200 dark:border-slate-800">{selected && !failed ? <img src={selected} alt={listing.name} className="aspect-square w-full object-cover" onError={() => setFailed(true)} /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400 dark:bg-slate-900"><Package size={86} strokeWidth={1.3} /></div>}</div>{images.length > 1 && <div className="mt-4 flex gap-3 overflow-x-auto pb-1">{images.map((image) => <button type="button" key={image.id} onClick={() => { setSelected(image.url); setFailed(false) }} className={'size-20 shrink-0 overflow-hidden rounded-xl border-2 transition ' + (selected === image.url ? 'border-blue-600' : 'border-transparent')}><img src={image.url} alt="" className="size-full object-cover" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} /></button>)}</div>}</div>
+  return <div aria-label={t('imageGallery')}><div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">{selected && !failed ? <img src={selected} alt={listing.name} fetchPriority="high" decoding="async" className="aspect-square w-full object-cover" onError={() => setFailed(true)} /> : <div className="grid aspect-square place-items-center text-slate-400"><Package size={70} strokeWidth={1.3} /></div>}</div>{images.length > 1 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{images.map((image, index) => <button type="button" key={image.id} onClick={() => { setSelected(image.url); setFailed(false) }} aria-label={`${listing.name} ${index + 1}`} className={'size-16 shrink-0 overflow-hidden rounded-lg border-2 transition ' + (selected === image.url ? 'border-blue-600' : 'border-transparent')}><img src={image.url} alt="" loading="lazy" decoding="async" className="size-full object-cover" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} /></button>)}</div>}</div>
 }
 
 function ProductThumb({ listing, className = 'size-24 shrink-0 rounded-2xl' }: { listing: MarketplaceListing; className?: string }) {

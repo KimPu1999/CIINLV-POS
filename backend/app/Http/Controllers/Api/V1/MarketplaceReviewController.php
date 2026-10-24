@@ -131,11 +131,12 @@ class MarketplaceReviewController
         return response()->json(['success' => true, 'data' => new MarketplaceReviewResource($model)]);
     }
 
-    public function publicIndex(MarketplaceListing $listing): JsonResponse
+    public function publicIndex(Request $request, MarketplaceListing $listing): JsonResponse
     {
         $listing = MarketplaceListing::query()->public()->whereKey($listing->id)->firstOrFail();
         $query = MarketplaceReview::query()->approved()->where('marketplace_listing_id', $listing->id);
-        $reviews = (clone $query)->with(['customer', 'product'])->latest()->paginate(10);
+        $perPage = min(max((int) $request->input('per_page', 10), 5), 10);
+        $reviews = (clone $query)->with(['customer', 'product'])->latest()->paginate($perPage);
         $distribution = collect(range(1, 5))->mapWithKeys(fn (int $rating): array => [$rating => (clone $query)->where('rating', $rating)->count()]);
 
         $meta = $this->meta($reviews);

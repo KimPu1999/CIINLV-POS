@@ -93,6 +93,18 @@ test('home uses a bounded backend payload instead of catalog slices', () => {
   assert.doesNotMatch(app, /listings\.slice\(4, 8\)/)
 })
 
+test('product detail uses bounded related products and paginated reviews', () => {
+  assert.match(api, /fetchRelatedProducts/)
+  assert.match(api, /fetchMarketplaceReviews/)
+  assert.match(api, /\/products\/\$\{encodeURIComponent\(slug\)\}\/related/)
+  assert.match(api, /per_page: perPage/)
+  assert.match(app, /setListing\(null\)/)
+  assert.match(app, /related\.status === 'ready'/)
+  assert.match(app, /loadMoreReviews/)
+  assert.match(app, /document\.title = `\$\{listing\.name\}/)
+  assert.doesNotMatch(app, /const related = catalog\.data\.listings/)
+})
+
 test('checkout delivery and payment copy is translated in both locales', () => {
   for (const key of ['backToCart', 'checkoutProgress', 'confirmation', 'viewFullDeliveryDetails', 'changeAddress', 'cartItems', 'unitPrice', 'lineTotal', 'continueShopping', 'checkoutTotalsNotice', 'deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
     assert.match(api, new RegExp(`${key}:`))

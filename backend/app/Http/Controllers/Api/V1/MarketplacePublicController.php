@@ -111,6 +111,24 @@ class MarketplacePublicController
         return $this->paginated(MarketplaceStoreResource::collection($stores), $stores);
     }
 
+    public function related(Request $request, MarketplaceListing $product): JsonResponse
+    {
+        $this->settings->assertAvailable();
+        $current = $this->publicListings()->with('product')->whereKey($product->getKey())->firstOrFail();
+        $categoryId = $current->product?->category_id;
+        $limit = min(max((int) $request->input('per_page', 8), 4), 8);
+        $related = $this->publicListings()
+            ->where('marketplace_listings.id', '<>', $current->getKey())
+            ->when($categoryId, fn (Builder $query) => $query->whereHas('product', fn (Builder $productQuery) => $productQuery->where('products.category_id', $categoryId)))
+            ->with($this->homeListingRelations())
+            ->orderByDesc('marketplace_listings.published_at')
+            ->orderBy('marketplace_listings.id')
+            ->limit($limit)
+            ->get();
+
+        return response()->json(['success' => true, 'data' => MarketplaceListingResource::collection($related), 'meta' => ['total' => $related->count(), 'per_page' => $limit, 'current_page' => 1, 'last_page' => 1]]);
+    }
+
     public function store(MarketplaceStore $store): JsonResponse
     {
         $this->settings->assertAvailable();
@@ -209,7 +227,10 @@ class MarketplacePublicController
 
     private function publicListings(?Request $request = null): Builder
     {
-        return MarketplaceListing::query()->public();
+        return MarketplaceListing::query()
+            ->public()
+            ->withCount(['approvedReviews as approved_reviews_count'])
+            ->withAvg('approvedReviews as approved_reviews_average', 'rating');
     }
 
     private function listingRelations(): array
@@ -221,7 +242,6 @@ class MarketplacePublicController
             'product.images',
             'product.variants' => fn ($query) => $query->where('product_variants.status', 'active')->orderByDesc('is_default')->orderBy('id')->with('balances'),
             'images',
-            'approvedReviews.customer',
         ];
     }
 

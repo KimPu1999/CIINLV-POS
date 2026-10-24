@@ -79,6 +79,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/stores', [MarketplacePublicController::class, 'stores']);
         Route::get('/stores/{store:slug}', [MarketplacePublicController::class, 'store']);
         Route::get('/products', [MarketplacePublicController::class, 'products']);
+        Route::get('/products/{product:slug}/related', [MarketplacePublicController::class, 'related']);
         Route::get('/products/{product:slug}', [MarketplacePublicController::class, 'product']);
         Route::get('/products/{listing:slug}/reviews', [MarketplaceReviewController::class, 'publicIndex']);
         Route::get('/categories', [MarketplacePublicController::class, 'categories']);
