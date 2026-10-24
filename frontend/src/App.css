@@ -74,6 +74,42 @@
   animation: sidebar-tooltip-fade-in 150ms ease-out both;
 }
 
+/* Marketplace filter popovers stay compact. Only the actual filter-field
+   grid splits 50/50; the panel's outer wrapper remains one full-width column. */
+.sales-filter-popover {
+  width: 560px !important;
+  max-width: calc(100vw - 24px) !important;
+  box-sizing: border-box !important;
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+}
+
+.sales-filter-popover > div.grid.grid-cols-1 {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.sales-filter-popover > div.grid.grid-cols-1 > div.grid.grid-cols-1 {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.sales-filter-popover > .border-b,
+.sales-filter-popover > .border-t {
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+}
+
+@media (max-width: 639px) {
+  .sales-filter-popover > div.grid.grid-cols-1 > div.grid.grid-cols-1 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
 @media print {
   @page { size: A4; margin: 12mm; }
 

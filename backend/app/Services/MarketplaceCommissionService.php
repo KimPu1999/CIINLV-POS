@@ -11,6 +11,8 @@ use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -278,32 +280,176 @@ class MarketplaceCommissionService
         ])->all();
     }
 
-    public function tenantEarnings(int $tenantId, ?string $currency = null): array
+    public function tenantEarnings(int $tenantId, ?string $currency = null, array $filters = []): array
     {
         if (! $this->storageAvailable()) {
             return ['configured' => false, 'pending' => '0.00', 'available' => '0.00', 'reserved' => '0.00', 'paid' => '0.00', 'transactions' => []];
         }
 
-        $entries = MarketplaceSettlementEntry::query()
-            ->where('tenant_id', $tenantId)
-            ->where('entry_type', 'seller_earning')
-            ->when($currency, fn (Builder $builder) => $builder->where('currency_code', strtoupper($currency)))
-            ->with('payoutItem.payout')
-            ->get();
-        $pending = $entries->where('status', 'pending')->sum('amount');
-        $activeReservation = fn (MarketplaceSettlementEntry $entry): bool => in_array($entry->payoutItem?->payout?->status, ['requested', 'approved', 'processing'], true);
-        $available = $entries->where('status', 'available')->reject($activeReservation)->sum('amount');
-        $reserved = $entries->where('status', 'available')->filter($activeReservation)->sum('amount');
-        $paid = MarketplaceSettlementEntry::query()->where('tenant_id', $tenantId)->where('entry_type', 'payout')->where('direction', 'debit')->where('status', 'available')->when($currency, fn (Builder $builder) => $builder->where('currency_code', strtoupper($currency)))->sum('amount');
+        $currency = $currency ? strtoupper($currency) : null;
+        $base = $this->earningsEntryQuery($tenantId, $currency, $filters);
+        $entries = (clone $base)->with($this->earningsRelations())->orderBy('id')->get();
+        $rows = $entries->flatMap(fn (MarketplaceSettlementEntry $entry): array => $this->entryRows($entry));
+        $rows = $this->filterAllocatedRows($rows, $filters['branch_id'] ?? null);
+
+        $balanceRows = (clone $this->earningsEntryQuery($tenantId, $currency, ['branch_id' => $filters['branch_id'] ?? null]))
+            ->with($this->earningsRelations())
+            ->orderBy('id')
+            ->get()
+            ->flatMap(fn (MarketplaceSettlementEntry $entry): array => $this->entryRows($entry));
+        $balanceRows = $this->filterAllocatedRows($balanceRows, $filters['branch_id'] ?? null);
+        $sellerRows = $balanceRows->where('entry_type', 'seller_earning');
+        $pending = $sellerRows->where('status', 'pending')->sum('amount');
+        $available = $sellerRows->where('status', 'available')->reject(fn (array $row): bool => $row['reserved'])->sum('amount');
+        $reserved = $sellerRows->where('status', 'available')->filter(fn (array $row): bool => $row['reserved'])->sum('amount');
+        $paid = $balanceRows->where('entry_type', 'payout')->where('direction', 'debit')->where('status', 'available')->sum('amount');
+        $commission = $balanceRows->where('entry_type', 'platform_commission');
+        $page = max((int) ($filters['page'] ?? 1), 1);
+        $perPage = in_array((int) ($filters['per_page'] ?? 25), [10, 25, 50, 100], true) ? (int) $filters['per_page'] : 25;
+        $transactions = new LengthAwarePaginator($rows->forPage($page, $perPage)->values(), $rows->count(), $perPage, $page, ['path' => request()->url(), 'query' => request()->query()]);
 
         return [
             'configured' => true,
-            'pending' => $this->money($pending),
-            'available' => $this->money($available),
-            'reserved' => $this->money($reserved),
-            'paid' => $this->money($paid),
-            'transactions' => MarketplaceSettlementEntry::query()->where('tenant_id', $tenantId)->latest()->paginate(25),
+            'pending' => $this->money((string) $pending),
+            'available' => $this->money((string) $available),
+            'reserved' => $this->money((string) $reserved),
+            'paid' => $this->money((string) $paid),
+            'commission_amounts' => ['pending' => $this->money((string) $commission->where('status', 'pending')->sum('amount')), 'available' => $this->money((string) $commission->where('status', 'available')->sum('amount')), 'reversed' => $this->money((string) $commission->where('status', 'reversed')->sum('amount'))],
+            'transactions' => $transactions,
         ];
+    }
+
+    private function earningsEntryQuery(int $tenantId, ?string $currency, array $filters): Builder
+    {
+        $query = MarketplaceSettlementEntry::query()
+            ->where('tenant_id', $tenantId)
+            ->when($currency, fn (Builder $builder) => $builder->where('currency_code', $currency))
+            ->when($filters['entry_type'] ?? null, fn (Builder $builder, $value) => $builder->where('entry_type', $value))
+            ->when($filters['direction'] ?? null, fn (Builder $builder, $value) => $builder->where('direction', $value))
+            ->when($filters['status'] ?? null, fn (Builder $builder, $value) => $builder->where('status', $value))
+            ->when($filters['from'] ?? null, fn (Builder $builder, $value) => $builder->where('created_at', '>=', CarbonImmutable::parse($value, $filters['timezone'] ?? config('app.timezone'))->startOfDay()->utc()))
+            ->when($filters['to'] ?? null, fn (Builder $builder, $value) => $builder->where('created_at', '<=', CarbonImmutable::parse($value, $filters['timezone'] ?? config('app.timezone'))->endOfDay()->utc()))
+            ->when($filters['search'] ?? null, function (Builder $builder, $value): void {
+                $term = '%'.mb_strtolower(trim((string) $value)).'%';
+                $builder->where(function (Builder $search) use ($term): void {
+                    $search->whereRaw('LOWER(idempotency_key) LIKE ?', [$term])
+                        ->orWhereHas('order', fn (Builder $order) => $order->whereRaw('LOWER(order_number) LIKE ?', [$term]))
+                        ->orWhereHas('vendorOrder', fn (Builder $order) => $order->whereRaw('LOWER(vendor_order_number) LIKE ?', [$term]));
+                });
+            });
+        if (! empty($filters['branch_id'])) {
+            $query->where(function (Builder $branch) use ($filters): void {
+                if ($filters['branch_id'] === '__unassigned__') {
+                    $branch->whereDoesntHave('vendorOrder')
+                        ->orWhereHas('vendorOrder.items', fn (Builder $item) => $item->whereDoesntHave('reservations')->orWhereHas('reservations.balance.location', fn (Builder $location) => $location->whereNull('store_id')))
+                        ->orWhereHas('payoutItem.payout.items.settlementEntry.vendorOrder.items', fn (Builder $item) => $item->whereDoesntHave('reservations')->orWhereHas('reservations.balance.location', fn (Builder $location) => $location->whereNull('store_id')));
+
+                    return;
+                }
+                $branch->whereHas('vendorOrder.items.reservations.balance.location.store', fn (Builder $store) => $store->where('uuid', $filters['branch_id']))
+                    ->orWhereHas('payoutItem.payout.items.settlementEntry.vendorOrder.items.reservations.balance.location.store', fn (Builder $store) => $store->where('uuid', $filters['branch_id']));
+            });
+        }
+        $sort = $filters['sort'] ?? 'created_at';
+        $direction = ($filters['direction_sort'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
+        return $query->orderBy($sort === 'amount' ? 'amount' : $sort, $direction)->orderBy('id', 'desc');
+    }
+
+    private function earningsRelations(): array
+    {
+        return [
+            'order:id,uuid,order_number',
+            'commission:id,marketplace_vendor_order_id,metadata',
+            'vendorOrder:id,uuid,vendor_order_number,total,currency_code',
+            'vendorOrder.items:id,uuid,marketplace_vendor_order_id,quantity,unit_price,discount_amount',
+            'vendorOrder.items.reservations:id,marketplace_order_item_id,inventory_balance_id,quantity',
+            'vendorOrder.items.reservations.balance:id,inventory_location_id',
+            'vendorOrder.items.reservations.balance.location:id,store_id',
+            'vendorOrder.items.reservations.balance.location.store:id,uuid,name,code',
+            'payoutItem.payout.items.settlementEntry.vendorOrder.items.reservations.balance.location.store:id,uuid,name,code',
+            'payoutItem.payout.items.settlementEntry.commission:id,marketplace_vendor_order_id,metadata',
+            'payoutItem.payout.items.settlementEntry.vendorOrder.items.reservations.balance.location:id,store_id',
+            'payoutItem.payout.items.settlementEntry.vendorOrder.items.reservations.balance:id,inventory_location_id',
+        ];
+    }
+
+    private function entryRows(MarketplaceSettlementEntry $entry): array
+    {
+        if ($entry->entry_type === 'payout') {
+            $sourceRows = collect($entry->payoutItem?->payout?->items ?? [])
+                ->flatMap(fn ($item) => $item->settlementEntry ? $this->entryAllocations($item->settlementEntry) : [])
+                ->values();
+            if ($sourceRows->isNotEmpty()) {
+                $sourceTotal = (string) $sourceRows->sum('amount');
+
+                return $sourceRows->map(fn (array $row): array => $this->ledgerRow($entry, $row['branch'], $this->proportionalAmount((string) $entry->amount, (string) $row['amount'], $sourceTotal), false, $sourceRows->all()))->all();
+            }
+        }
+        $reserved = $entry->payoutItem?->payout && in_array($entry->payoutItem->payout->status, ['requested', 'approved', 'processing'], true);
+        $allocations = collect($this->entryAllocations($entry));
+
+        return $allocations->map(fn (array $allocation): array => $this->ledgerRow($entry, $allocation['branch'], $allocation['amount'], $reserved, $allocations->all()))->all();
+    }
+
+    private function ledgerRow(MarketplaceSettlementEntry $entry, ?array $branch, string $amount, bool $reserved, array $breakdown = []): array
+    {
+        return ['id' => $entry->uuid ?: (string) $entry->id, 'entry_id' => $entry->id, 'entry_type' => $entry->entry_type, 'direction' => $entry->direction, 'amount' => $amount, 'original_amount' => $this->money($entry->amount), 'currency_code' => $entry->currency_code, 'status' => $entry->status, 'created_at' => $entry->created_at?->toIso8601String(), 'reference' => $entry->vendorOrder?->vendor_order_number ?: $entry->order?->order_number ?: $entry->idempotency_key, 'branch' => $branch, 'branch_breakdown' => $breakdown, 'reserved' => $reserved];
+    }
+
+    private function entryAllocations(MarketplaceSettlementEntry $entry): array
+    {
+        $vendorOrder = $entry->vendorOrder;
+        if (! $vendorOrder) {
+            return [['branch' => null, 'amount' => $this->money($entry->amount)]];
+        }
+        $lineRules = collect(($entry->commission?->metadata ?? [])['line_rules'] ?? [])->keyBy('item_id');
+        $parts = [];
+        foreach ($vendorOrder->items as $item) {
+            $rule = $lineRules->get($item->uuid);
+            $base = (string) ($rule['base_amount'] ?? bcsub(bcmul((string) $item->unit_price, (string) $item->quantity, 8), (string) ($item->discount_amount ?? '0'), 8));
+            $lineAmount = $entry->entry_type === 'platform_commission' ? (string) ($rule['commission_amount'] ?? '0') : bcsub($base, (string) ($rule['commission_amount'] ?? '0'), 8);
+            if (bccomp($lineAmount, '0', 8) <= 0) {
+                continue;
+            }
+            $weights = [];
+            $reservedQuantity = '0';
+            foreach ($item->reservations as $reservation) {
+                $store = $reservation->balance?->location?->store;
+                $key = $store?->uuid ?: '__unassigned__';
+                $weights[$key] = ['branch' => $store ? ['id' => $store->uuid, 'name' => $store->name, 'code' => $store->code] : null, 'quantity' => bcadd($weights[$key]['quantity'] ?? '0', (string) $reservation->quantity, 8)];
+                $reservedQuantity = bcadd($reservedQuantity, (string) $reservation->quantity, 8);
+            }
+            $remaining = bcsub((string) $item->quantity, $reservedQuantity, 8);
+            if (bccomp($remaining, '0', 8) > 0 || $weights === []) {
+                $weights['__unassigned__'] = ['branch' => null, 'quantity' => max('0', $remaining)];
+            }
+            $weightTotal = array_reduce($weights, fn (string $carry, array $weight): string => bcadd($carry, $weight['quantity'], 8), '0');
+            foreach ($weights as $weight) {
+                $parts[] = ['branch' => $weight['branch'], 'amount' => $this->proportionalAmount($lineAmount, $weight['quantity'], $weightTotal)];
+            }
+        }
+        if ($parts === []) {
+            return [['branch' => null, 'amount' => $this->money($entry->amount)]];
+        }
+        $total = array_reduce($parts, fn (string $carry, array $part): string => bcadd($carry, $part['amount'], 8), '0');
+        $difference = bcsub((string) $entry->amount, $total, 8);
+        $last = count($parts) - 1;
+        if (bccomp($difference, '0', 8) !== 0) {
+            $parts[$last]['amount'] = $this->money(bcadd($parts[$last]['amount'], $difference, 8));
+        }
+
+        return collect($parts)->groupBy(fn (array $part): string => $part['branch']['id'] ?? '__unassigned__')->map(fn (Collection $group): array => ['branch' => $group->first()['branch'], 'amount' => $this->money((string) $group->sum('amount'))])->values()->all();
+    }
+
+    private function filterAllocatedRows(Collection $rows, ?string $branchId): Collection
+    {
+        return $rows->filter(fn (array $row): bool => ! $branchId || ($row['branch']['id'] ?? null) === $branchId)->values();
+    }
+
+    private function proportionalAmount(string $amount, string $weight, string $total): string
+    {
+        return bccomp($total, '0', 8) === 0 ? '0.00' : $this->money(bcdiv(bcmul($amount, $weight, 8), $total, 8));
     }
 
     public function payoutSummaries(array $filters): array

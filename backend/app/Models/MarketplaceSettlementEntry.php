@@ -31,6 +31,16 @@ class MarketplaceSettlementEntry extends Model
         return $this->belongsTo(MarketplaceOrder::class, 'marketplace_order_id');
     }
 
+    public function vendorOrder(): BelongsTo
+    {
+        return $this->belongsTo(MarketplaceVendorOrder::class, 'marketplace_vendor_order_id');
+    }
+
+    public function commission(): BelongsTo
+    {
+        return $this->belongsTo(MarketplaceOrderCommission::class, 'marketplace_order_commission_id');
+    }
+
     public function payoutItem(): HasOne
     {
         return $this->hasOne(MarketplacePayoutItem::class, 'marketplace_settlement_entry_id');

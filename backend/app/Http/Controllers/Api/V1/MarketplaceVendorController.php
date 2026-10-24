@@ -127,13 +127,33 @@ class MarketplaceVendorController
 
     public function earnings(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
     {
-        $data = $request->validate(['currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/']]);
+        $data = $request->validate([
+            'branch_id' => ['nullable', 'string', 'max:80'],
+            'currency_code' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'entry_type' => ['nullable', 'in:platform_commission,seller_earning,refund,payout,adjustment'],
+            'direction' => ['nullable', 'in:credit,debit'],
+            'status' => ['nullable', 'in:pending,available,reversed'],
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'sort' => ['nullable', 'in:created_at,amount,entry_type'],
+            'direction_sort' => ['nullable', 'in:asc,desc'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
+        ]);
         $tenantId = $context->tenant()->id;
-        $earnings = $commissions->tenantEarnings($tenantId, $data['currency_code'] ?? null);
+        if (! empty($data['branch_id']) && $data['branch_id'] !== '__unassigned__') {
+            $authorized = app(ReportScopeService::class)->storeIds($request->user(), $context->tenant(), $data['branch_id']);
+            abort_if($authorized->isEmpty(), 403, 'You are not authorized to view earnings for this branch.');
+        }
+        $currency = $data['currency_code'] ?? $context->tenant()->businessSetting?->currency_code;
+        $data['timezone'] = $context->tenant()->businessSetting?->timezone ?: config('app.timezone');
+        $earnings = $commissions->tenantEarnings($tenantId, $currency, $data);
         $commissionRule = $commissions->effectiveRule($tenantId);
 
         return response()->json(['success' => true, 'data' => [
             ...$earnings,
+            'currency_code' => $currency,
             'commission' => [
                 'rate' => $commissionRule['rate'],
                 'source' => $commissionRule['source'],

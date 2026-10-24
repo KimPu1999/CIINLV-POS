@@ -124,6 +124,7 @@ const businessNav: NavItem[] = [
   { label: 'Identity & verification', path: '/business/verification', icon: ShieldCheck, roles: ['business'] },
   { label: 'Settings', path: '/business/settings', icon: Settings, roles: ['business'] },
   { label: 'Marketplace overview', path: '/business/marketplace/overview', icon: Store, roles: ['business'], section: 'Marketplace management' },
+  { label: 'Earnings & commissions', path: '/business/marketplace/earnings', icon: BarChart3, roles: ['business'] },
   { label: 'My store', path: '/business/marketplace/store', icon: Building2, roles: ['business'] },
   { label: 'Marketplace products', path: '/business/marketplace/products', icon: Package, roles: ['business'] },
   { label: 'Marketplace orders', path: '/business/marketplace/orders', icon: ShoppingCart, roles: ['business'] },
@@ -131,7 +132,6 @@ const businessNav: NavItem[] = [
   { label: 'Sales history', path: '/business/marketplace/sales-history', icon: History, roles: ['business'] },
   { label: 'Delivery history', path: '/business/marketplace/delivery-history', icon: History, roles: ['business'] },
   { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'] },
-  { label: 'Earnings & commissions', path: '/business/marketplace/earnings', icon: BarChart3, roles: ['business'] },
   { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
 ]
 
