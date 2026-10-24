@@ -76,7 +76,7 @@
     "draft": "Draft",
     "approved": "Approved",
     "received": "Received",
-    "processing": "Processing",
+    "processing": "Processing…",
     "failed": "Failed",
     "rejected": "Rejected",
     "open": "Open",
@@ -183,7 +183,6 @@
     "remove": "Remove",
     "save": "Save",
     "save_profile": "Save profile",
-    "pos_checkout": "POS checkout",
     "pos_checkout_description": "Fast, server-priced checkout for the selected authorized branch and register.",
     "open_cashier_shift": "Open cashier shift",
     "shift_open": "Shift open",
@@ -199,7 +198,7 @@
     "search_products": "Search products",
     "search_products_sku_or_barcode": "Search products, SKU, or barcode",
     "current_cart": "Current cart",
-    "items": "items",
+    "items": "Items",
     "cash_drawer": "Cash drawer",
     "expected_cash": "Expected cash",
     "opening_balance": "Opening balance",
@@ -215,7 +214,6 @@
     "add_to_cart": "Add to cart",
     "confirm_sale": "Confirm sale",
     "next_category": "Next category",
-    "out_of_stock": "Out of stock",
     "item_discount": "Item discount",
     "item_discount_value": "Item discount value",
     "scan_or_select_products_to_begin": "Scan or select products to begin.",
@@ -278,7 +276,6 @@
     "cash_received": "Cash received",
     "enter_tendered_amount": "Enter tendered amount",
     "change": "Change",
-    "processing": "Processing…",
     "complete_cash_sale": "Complete cash sale",
     "open_shift_to_checkout": "Open shift to checkout",
     "open_shift_before_sale": "Open a cashier shift before completing a sale.",
@@ -295,7 +292,6 @@
     "view": "View",
     "submit": "Submit",
     "approve": "Approve",
-    "restore": "Restore",
     "actions": "Actions",
     "name": "Name",
     "code": "Code",
@@ -315,7 +311,6 @@
     "no_purchase_orders_match_these_filters": "No purchase orders match these filters.",
     "no_active_low_stock_alerts_in_this_scope": "No active low-stock alerts in this scope.",
     "search_for_a_product_to_begin": "Search for a product to begin.",
-    "scan_or_select_products_to_begin": "Scan or select products to begin.",
     "all_stock_states": "All stock states",
     "all_authorized_locations": "All authorized locations",
     "active_alerts": "Active alerts",
@@ -394,14 +389,9 @@
     "browser_sessions_only": "Browser sessions only",
     "availability_unknown": "Availability unknown",
     "events": "events",
-    "actions": "Actions",
-    "details": "Details",
     "platform_event": "Platform event",
     "system": "System",
     "platform": "Platform",
-    "previous": "Previous",
-    "next": "Next",
-    "active_alerts": "Active alerts",
     "no_persisted_security_alert_source": "No persisted security-alert source is configured.",
     "ip_unavailable": "IP unavailable",
     "browser_details_unavailable": "Browser details unavailable",
@@ -411,9 +401,7 @@
     "confirm_session_revocation": "I confirm this session should be revoked.",
     "revoking": "Revoking…",
     "confirm_revoke": "Confirm revoke",
-    "cancel": "Cancel",
     "audit_event_details": "Audit event details",
-    "close": "Close",
     "timestamp": "Timestamp",
     "actor_role": "Actor role",
     "resource": "Resource",
@@ -451,7 +439,6 @@
     "receive_transfer": "Receive transfer",
     "post_receipt": "Post receipt",
     "no_sku": "No SKU",
-    "uncategorized": "Uncategorized",
     "product_search": "Product search",
     "search_name_brand_sku_or_barcode": "Search name, brand, SKU, or barcode.",
     "copy": "Copy",
@@ -475,1106 +462,1058 @@
     "camera_unsupported": "This browser or device does not support camera access. Use HTTPS or localhost, or use a USB/manual scanner.",
     "camera_start_failed": "The camera could not be started. Check browser permissions and device availability, then try again.",
     "unable_to_verify_the_session_check_the_laravel_server_and_retry": "Unable to verify the session. Check the Laravel server and retry.",
-    "too_many_login_attempts_try_again_in": "Too many login attempts. Try again in {{time}}."
-    ,"signing_in": "Signing in…"
-    ,"try_again_in": "Try again in {{time}}"
-    ,"hide_password": "Hide password"
-    ,"show_password": "Show password"
-    ,"marketplace_overview": "Marketplace overview"
-    ,"marketplace_overview_description": "Manage your approved customer marketplace presence from one tenant-scoped workspace."
-    ,"manage_store": "Manage store"
-    ,"unable_to_load_marketplace_overview": "Unable to load the marketplace overview."
-    ,"store_visible": "Store visible"
-    ,"store_hidden": "Store hidden"
-    ,"store_visibility_help": "When hidden, the store and its published listings are not shown publicly."
-    ,"published_products": "Published products"
-    ,"marketplace_listings_visible_to_customers": "Marketplace listings visible to customers"
-    ,"pending_marketplace_orders": "Pending marketplace orders"
-    ,"orders_not_available_yet": "Orders are not available yet"
-    ,"awaiting_fulfillment": "Awaiting fulfillment"
-    ,"completed_marketplace_orders": "Completed marketplace orders"
-    ,"fulfilled_orders": "Fulfilled orders"
-    ,"marketplace_revenue": "Marketplace revenue"
-    ,"revenue_not_available_yet": "Revenue is not available yet"
-    ,"net_marketplace_revenue": "Net marketplace revenue"
-    ,"preview_storefront": "Preview storefront"
-    ,"all_authorized_branches": "All authorized branches"
-    ,"unassigned_unknown_branch": "Unassigned / unknown branch"
-    ,"group_day": "Daily"
-    ,"group_week": "Weekly"
-    ,"group_month": "Monthly"
-    ,"dashboard_activity_period_note": "Activity: {{range}} · Business timezone: {{timezone}}. Current balances are not limited by this activity period."
-    ,"total_marketplace_orders": "Total marketplace orders"
-    ,"selected_period": "Selected activity period"
-    ,"paid_revenue": "Paid revenue"
-    ,"verified_paid_orders": "Verified paid payment records"
-    ,"pending_cod": "Pending COD"
-    ,"pending_cod_orders": "{{count}} order(s) awaiting collection"
-    ,"approved_refunds": "Approved refund activity"
-    ,"revenue_analytics": "Revenue analytics"
-    ,"revenue_analytics_description": "Gross order value and verified paid revenue by the selected grouping."
-    ,"current_balances_not_date_activity": "Authoritative settlement balances; date filters affect activity only."
-    ,"earnings_snapshot": "Earnings snapshot"
-    ,"gross_order_value": "Gross order value"
-    ,"order": "Order"
-    ,"view_earnings": "View earnings"
-    ,"order_performance": "Order performance"
-    ,"order_performance_description": "Orders are counted once, even when fulfillment spans branches."
-    ,"payment_overview": "Payment overview"
-    ,"payment_overview_description": "COD is not treated as paid until payment is verified."
-    ,"paid_orders": "Paid orders"
-    ,"authorized_payments": "Authorized payments"
-    ,"failed_payments": "Failed payments"
-    ,"refunded_payments": "Refunded payments"
-    ,"fulfillment_dashboard": "Fulfillment dashboard"
-    ,"fulfillment_dashboard_description": "Shipment activity is separate from order status counts."
-    ,"ready_for_dispatch": "Ready for dispatch"
-    ,"inventory_alerts": "Inventory alerts"
-    ,"out_of_stock_products": "Out-of-stock products"
-    ,"available_inventory": "Available inventory"
-    ,"top_selling_products": "Top-selling products"
-    ,"top_selling_products_description": "Real marketplace order items in the selected activity period."
-    ,"units": "units"
-    ,"recent_orders_bounded": "A bounded view of the most recent activity."
-    ,"view_all_orders": "View all orders"
-    ,"alerts_action_center": "Alerts & action center"
-    ,"alerts_action_center_description": "Operational items that may need attention."
-    ,"new_orders_requiring_review": "New orders requiring review"
-    ,"pending_cod_collection": "Pending COD collection"
-    ,"failed_deliveries": "Failed deliveries"
-    ,"quick_actions": "Quick actions"
-    ,"quick_actions_description": "Open an authorized marketplace management workflow."
-    ,"delivery_fulfillment": "Delivery & fulfillment"
-    ,"earnings_commissions": "Earnings & commissions"
-    ,"low_stock_products": "Low-stock products"
-    ,"marketplace_uses_pos_inventory_availability": "Availability is read from the existing POS inventory source of truth."
-    ,"view_inventory": "View inventory"
-    ,"no_marketplace_low_stock_products": "No marketplace products are currently below their reorder level."
-    ,"recent_marketplace_orders": "Recent marketplace orders"
-    ,"orders_will_appear_after_checkout_is_enabled": "Orders will appear here after marketplace checkout and order services are enabled."
-    ,"no_marketplace_orders_yet": "No marketplace orders yet."
-    ,"my_store": "My store"
-    ,"manage_public_marketplace_store": "Manage the public store profile for this business."
-    ,"unable_to_load_store": "Unable to load the marketplace store."
-    ,"store_profile_saved": "Store profile saved."
-    ,"unable_to_save_store": "Unable to save the store profile."
-    ,"marketplace_image_validation": "Choose a JPG, PNG, or WebP image up to 5 MB."
-    ,"store_image_updated": "Store image updated."
-    ,"unable_to_upload_store_image": "Unable to upload the store image."
-    ,"store_profile": "Store profile"
-    ,"store_profile_description": "These fields are public to marketplace customers after approval."
-    ,"store_name": "Store name"
-    ,"store_slug": "Store slug"
-    ,"store_description": "Store description"
-    ,"public_contact_email": "Public contact email"
-    ,"public_contact_phone": "Public contact phone"
-    ,"notification_preferences": "Notification preferences"
-    ,"order_updates": "Order updates"
-    ,"low_stock_alerts": "Low-stock alerts"
-    ,"fulfillment_preference": "Fulfillment preference"
-    ,"self_delivery": "Self delivery"
-    ,"external_courier": "External courier"
-    ,"store_logo": "Store logo"
-    ,"marketplace_logo_help": "Displayed on your public store and marketplace listings."
-    ,"store_banner": "Store banner"
-    ,"marketplace_banner_help": "Use a wide image for the public store header."
-    ,"saving": "Saving…"
-    ,"approval_required": "Super Admin approval is required"
-    ,"store_approval_help": "Business Admins can update their own store profile, but cannot approve a store or bypass an archived or suspended business."
-    ,"marketplace_products": "Marketplace products"
-    ,"manage_marketplace_product_publishing": "Publish existing POS products without duplicating catalog or inventory records."
-    ,"marketplace_catalog_scope": "Manage marketplace listings against the authorized product catalog and branch inventory."
-    ,"unable_to_load_marketplace_products": "Unable to load marketplace products."
-    ,"publish_selected": "Publish selected"
-    ,"search_products_or_sku": "Search products or SKU"
-    ,"all_products": "All products"
-    ,"published": "Published"
-    ,"unpublished": "Unpublished"
-    ,"unpublished_products": "Unpublished products"
-    ,"draft_archived_not_listed": "Draft, archived, or not listed"
-    ,"all_listing_states": "All listing states"
-    ,"not_listed": "Not listed"
-    ,"marketplace_status": "Marketplace status"
-    ,"view_stock": "View stock"
-    ,"select_current_page": "Select current page"
-    ,"only_selected_page_products": "Only the selected products on this page will be processed. Each listing is checked by the server."
-    ,"authorized_branch_stock": "Authorized branch stock"
-    ,"authorized_branch_stock_help": "Authorized inventory balances for the current branch filter."
-    ,"no_authorized_stock_balances": "No authorized stock balances found."
-    ,"branch_stock_title": "Branch stock · {{name}}"
-    ,"variant_size": "Variant / size"
-    ,"select_all_products": "Select all products"
-    ,"price": "Price"
-    ,"available_stock": "Available stock"
-    ,"category": "Category"
-    ,"not_tracked": "Not tracked"
-    ,"not_published": "Not published"
-    ,"publish": "Publish"
-    ,"unpublish": "Unpublish"
-    ,"images": "Images"
-    ,"select": "Select"
-    ,"no_products_match_filters": "No products match these filters."
-    ,"stock_load_failed": "Unable to load authorized branch stock."
-    ,"publish_product_question": "Publish {{name}}?"
-    ,"unpublish_product_question": "Unpublish {{name}}?"
-    ,"publish_product_help": "This creates a marketplace listing for the existing POS product. Inventory and SKU records remain unchanged."
-    ,"unpublish_product_help": "The listing will stop being publicly visible. The POS product and inventory remain unchanged."
-    ,"publish_product": "Publish product"
-    ,"unpublish_product": "Unpublish product"
-    ,"publish_selected_products_question": "Publish {{count}} selected products?"
-    ,"publish_selected_products_help": "Only products that pass the store approval, status, and inventory rules will be published."
-    ,"product_published": "Product published to the marketplace."
-    ,"product_unpublished": "Product unpublished from the marketplace."
-    ,"unable_to_update_marketplace_product": "Unable to update the marketplace product."
-    ,"listing_images_uploaded": "Marketplace listing images uploaded."
-    ,"unable_to_upload_listing_images": "Unable to upload marketplace listing images."
-    ,"marketplace_orders": "Marketplace orders"
-    ,"order_investigation": "Order investigation"
-    ,"investigate": "Investigate"
-    ,"audit_history": "Audit history"
-    ,"businesses_and_shipments": "Businesses and shipments"
-    ,"order_status": "Order status"
-    ,"on_hold": "On hold"
-    ,"order_on_hold": "Order on hold"
-    ,"intervention_reason": "Reason for intervention"
-    ,"intervention_reason_placeholder": "Explain the verified operational reason."
-    ,"intervention_reason_required": "A reason is required for this intervention."
-    ,"intervention_confirmation": "This action is validated, audited, and will notify affected businesses."
-    ,"place_order_on_hold": "Place order on hold"
-    ,"release_order_hold": "Release order hold"
-    ,"record_investigation_note": "Record investigation note"
-    ,"correct_order_status": "Correct order status"
-    ,"save_correction": "Save correction"
-    ,"cod_amount_received": "COD amount received"
-    ,"confirm_cod_payment": "Confirm COD payment"
-    ,"cod_payment_confirmation_help": "The existing payment service will validate the amount and idempotency key."
-    ,"payment_amount_required": "Enter a valid received amount."
-    ,"marketplace_intervention_saved": "Marketplace intervention saved."
-    ,"unable_to_save_marketplace_intervention": "Unable to save marketplace intervention."
-    ,"unable_to_load_marketplace_order": "Unable to load marketplace order."
-    ,"marketplace_orders_description": "Search, filter, and investigate marketplace orders across authorized businesses."
-    ,"marketplace_operations": "Marketplace operations"
-    ,"marketplace_operations_description": "Oversee marketplace orders, fulfillment exceptions, and customer requests."
-    ,"unable_to_load_marketplace_operations": "Unable to load marketplace operations."
-    ,"no_marketplace_operations": "No marketplace records found."
-    ,"cancellation_requests": "Cancellation requests"
-    ,"return_requests": "Return requests"
-    ,"refund_requests": "Refund requests"
-    ,"vendor_orders": "vendor orders"
-    ,"internal_tracking_id": "Internal tracking ID"
-    ,"requested_amount": "Requested amount"
-    ,"reason": "Reason"
-    ,"server_verified": "Server verified"
-    ,"approve_marketplace_request": "Approve marketplace request?"
-    ,"approve_marketplace_request_help": "This applies the server-side approval workflow and records an audit event."
-    ,"reject_marketplace_request": "Reject marketplace request?"
-    ,"reject_marketplace_request_help": "The request will be rejected and the decision will be recorded."
-    ,"marketplace_request_updated": "Marketplace request updated."
-    ,"unable_to_update_marketplace_request": "Unable to update marketplace request."
-    ,"refunds_blocked_provider": "Real-money refund execution is blocked until a verified provider is configured."
-    ,"reviewed": "Reviewed"
-    ,"unable_to_load_marketplace_orders": "Unable to load marketplace orders."
-    ,"order_number": "Order number"
-    ,"order_date": "Order date"
-    ,"items": "Items"
-    ,"quantity": "Quantity"
-    ,"product": "Product"
-    ,"price": "Price"
-    ,"total": "Total"
-    ,"back": "Back"
-    ,"confirmed": "Confirmed"
-    ,"shipped": "Shipped"
-    ,"delivered": "Delivered"
-    ,"marketplace_order_details": "Marketplace order details"
-    ,"fulfillment_status": "Fulfillment status"
-    ,"shipment_status": "Shipment status"
-    ,"create_shipment": "Create shipment"
-    ,"delivery_type": "Delivery type"
-    ,"self_delivery": "Self delivery"
-    ,"external_courier": "External courier"
-    ,"carrier_name": "Carrier name"
-    ,"tracking_number": "Tracking number"
-    ,"tracking_url": "Tracking URL"
-    ,"delivery_notes": "Delivery notes"
-    ,"save_shipment": "Create shipment"
-    ,"shipment_created": "Shipment created."
-    ,"shipment_updated": "Shipment status updated."
-    ,"unable_to_load_marketplace_order": "Unable to load marketplace order."
-    ,"unable_to_create_shipment": "Unable to create shipment."
-    ,"unable_to_update_shipment": "Unable to update shipment."
-    ,"shipment_not_created": "Shipment has not been created yet."
-    ,"in_transit": "In transit"
-    ,"delivery_failed": "Delivery failed"
-    ,"returned": "Returned"
-    ,"cancelled": "Cancelled"
-    ,"customer_delivery_address": "Customer delivery address"
-    ,"shipping_fulfillment": "Shipping & fulfillment"
-    ,"shipping_fulfillment_description": "Prepare authorized shipment updates for marketplace vendor orders."
-    ,"customer_reviews": "Customer reviews"
-    ,"customer_reviews_description": "Review verified customer feedback for this store."
-    ,"unable_to_load_customer_reviews": "Unable to load customer reviews."
-    ,"total_reviews": "Total reviews"
-    ,"average_rating": "Average rating"
-    ,"pending_reviews": "Pending reviews"
-    ,"approved_reviews": "Approved reviews"
-    ,"rejected_hidden_reviews": "Rejected or hidden"
-    ,"search_reviews": "Search product, customer, or review"
-    ,"review_status": "Review status"
-    ,"rating": "Rating"
-    ,"all_ratings": "All ratings"
-    ,"stars": "stars"
-    ,"review_pending": "Pending"
-    ,"review_approved": "Approved"
-    ,"review_rejected": "Rejected"
-    ,"review_hidden": "Hidden"
-    ,"no_customer_reviews": "No customer reviews found."
-    ,"unknown_product": "Unknown product"
-    ,"customer": "Customer"
-    ,"verified_purchase": "Verified purchase"
-    ,"moderation_reason": "Moderation reason"
-    ,"previous": "Previous"
-    ,"next": "Next"
-    ,"earnings_commissions": "Earnings & commissions"
-    ,"earnings_commissions_description": "Review marketplace sales, fees, refunds, and net earnings."
-    ,"feature_not_available_yet": "This marketplace workflow is not available yet"
-    ,"phase_5_dependency": "Pending marketplace foundation"
-    ,"marketplace_orders_not_available": "Marketplace order and checkout tables are not present in the current backend foundation. This screen will use real vendor sub-orders after the Phase 5 order workflow is implemented."
-    ,"shipping_not_available": "Shipment records and server-enforced fulfillment transitions are not present yet. The UI remains read-only until the authorized shipment workflow exists."
-    ,"reviews_not_available": "Customer review records and moderation APIs are not present yet. No placeholder reviews are shown."
-    ,"earnings_not_available": "Marketplace commission, refund, and payout records are not present yet. POS revenue is intentionally not shown as marketplace revenue."
-    ,"marketplace_settings": "Marketplace settings"
-    ,"marketplace_settings_description": "Control participation and public availability for this business store."
-    ,"qr_payment_settings": "QR / Mobile payment"
-    ,"global_qr_payment_title": "Marketplace-wide QR / Mobile payment"
-    ,"global_qr_payment_help": "This central payment account is controlled by Super Admin and is used for eligible marketplace orders across all sellers."
-    ,"qr_payment_settings_help": "Configure the business-owned payment details customers may use when QR payment is supported by the verified provider."
-    ,"payment_provider": "Payment provider"
-    ,"payment_account_name": "Payment account name"
-    ,"payment_phone_number": "Payment phone number"
-    ,"payment_instructions": "Payment instructions"
-    ,"enable_qr_payment": "Enable QR / Mobile payment details"
-    ,"qr_payment_enable_help": "This only publishes payment instructions. Orders remain pending until the existing provider verification is completed."
-    ,"qr_code_image": "QR code image"
-    ,"qr_code_image_help": "Upload a clear PNG, JPG, JPEG, or WebP image up to 5 MB."
-    ,"qr_code_preview": "QR code preview"
-    ,"no_qr_code_uploaded": "No QR code uploaded"
-    ,"remove_qr_code": "Remove QR code"
-    ,"qr_payment_image_updated": "QR payment image updated."
-    ,"qr_payment_image_removed": "QR payment image removed."
-    ,"marketplace_settings_saved": "Marketplace settings saved."
-    ,"unable_to_save_marketplace_settings": "Unable to save marketplace settings."
-    ,"marketplace_settings_unavailable": "Marketplace settings are unavailable."
-    ,"marketplace_settings_load_help": "The settings request did not complete. Check your administrator session and API availability, then try again."
-    ,"platform_admin_session_required": "This browser session is not signed in as a Platform Super Admin. Sign out and sign in with the intended administrator account."
-    ,"retry": "Retry"
-    ,"marketplace_participation": "Marketplace participation"
-    ,"marketplace_participation_help": "Turn public marketplace availability on or off for this approved store. Approval is still controlled by Super Admin."
-    ,"approval_status": "Approval status"
-    ,"business_status": "Business status"
-    ,"business_verification_status": "Business verification status"
-    ,"suspension_reason": "Suspension reason"
-    ,"suspended_by": "Suspended by"
-    ,"suspended_at": "Suspended at"
-    ,"settings_scope_note": "Current settings scope"
-    ,"notification_and_fulfillment_settings_come_with_later_marketplace_workflows": "Notification preferences, shipping choices, and fulfillment settings will be connected when their backend workflows are available."
-    ,"choose_image": "Choose image"
-    ,"total_vendors": "Total vendors"
-    ,"all_marketplace_stores": "All marketplace stores"
-    ,"approved_marketplace_stores": "Approved marketplace stores"
-    ,"suspended_vendors": "Suspended vendors"
-    ,"inactive_marketplace_stores": "Inactive marketplace stores"
-    ,"search_vendors": "Search vendors, stores or businesses"
-    ,"business_filter": "Business ID or name"
-    ,"all_approval_statuses": "All approval statuses"
-    ,"store_status": "Store status"
-    ,"product_status": "Product status"
-    ,"all_store_statuses": "All store statuses"
-    ,"sort_vendors": "Sort vendors"
-    ,"most_listings": "Most listings"
-    ,"most_orders": "Most orders"
-    ,"registration_date": "Registration date"
-    ,"view_details": "View details"
-    ,"vendors": "vendors"
-    ,"rejection_reason_placeholder": "Explain why this vendor is being rejected"
-    ,"suspension_reason_placeholder": "Explain why this vendor is being suspended"
-    ,"vendor_detail": "Vendor detail"
-    ,"back_to_vendors": "Back to vendors"
-    ,"unable_to_load_vendor_detail": "Unable to load vendor details."
-    ,"vendor_not_found": "Vendor not found."
-    ,"performance": "Performance"
-    ,"financial_summary": "Financial summary"
-    ,"fulfillment": "Fulfillment"
-    ,"vendor_products": "Vendor products"
-    ,"vendor_orders": "Vendor orders"
-    ,"variants": "Variants"
-    ,"no_vendor_products": "No vendor products found."
-    ,"no_vendor_orders": "No vendor orders found."
-    ,"no_vendor_audit_history": "No vendor audit history found."
-    ,"delivered_orders": "Delivered orders"
-    ,"cancelled_orders": "Cancelled orders"
-    ,"completion_rate": "completion rate"
-    ,"cancellation_rate": "cancellation rate"
-    ,"low_stock_listings": "Low-stock listings"
-    ,"inventory_attention": "Inventory attention"
-    ,"operations_summary": "Operations summary"
-    ,"review_audit_history": "Review audit history"
-    ,"authorized_contact_email": "Authorized contact email"
-    ,"authorized_contact_phone": "Authorized contact phone"
-    ,"business_id": "Business ID"
-    ,"eligible_sales": "Eligible sales"
-    ,"platform_commission": "Platform commission"
-    ,"vendor_net_amount": "Vendor net amount"
-    ,"payout_status": "Payout status"
-    ,"financial_summary_unavailable": "Financial settlement data is unavailable for this vendor."
-    ,"review_required": "Review required"
-    ,"marketplace_control_center": "Marketplace Control Center"
-    ,"marketplace_control_center_description": "Oversee approved marketplace vendors, listings, orders, reporting, and security activity from one platform workspace."
-    ,"vendor_management": "Vendor management"
-    ,"product_moderation": "Product moderation"
-    ,"payments_and_refunds": "Payments & refunds"
-    ,"commissions_and_payouts": "Commissions & payouts"
-    ,"disputes": "Disputes"
-    ,"marketplace_reports": "Reports & analytics"
-    ,"marketplace_audit_logs": "Marketplace audit logs"
-    ,"approved_vendors": "Approved vendors"
-    ,"active_marketplace_stores": "Approved and active stores"
-    ,"pending_vendor_approvals": "Pending vendor approvals"
-    ,"requires_review": "Requires Super Admin review"
-    ,"public_marketplace_listings": "Public marketplace listings"
-    ,"orders_in_selected_range": "Orders in selected range"
-    ,"recent_moderation_activity": "Recent moderation activity"
-    ,"no_moderation_activity": "No marketplace moderation activity yet."
-    ,"no_marketplace_data": "No marketplace data found."
-    ,"no_marketplace_vendors": "No marketplace vendors found."
-    ,"vendor_directory": "Vendor directory"
-    ,"no_marketplace_listings": "No marketplace listings found."
-    ,"total_marketplace_listings": "Total marketplace listings"
-    ,"all_marketplace_listings": "All marketplace listings"
-    ,"published_listings": "Published listings"
-    ,"draft_listings": "Draft listings"
-    ,"listings_not_published": "Not published"
-    ,"archived_listings": "Archived listings"
-    ,"listings_hidden_from_marketplace": "Hidden from marketplace"
-    ,"product_moderation_description": "Review real marketplace listings without changing the underlying POS product or inventory."
-    ,"search_marketplace_listings": "Search product, SKU, barcode or store"
-    ,"listing_status": "Listing status"
-    ,"all_listing_statuses": "All listing statuses"
-    ,"marketplace_store_filter": "Search marketplace store"
-    ,"stock_availability": "Stock availability"
-    ,"all_stock_statuses": "All stock statuses"
-    ,"sort_listings": "Sort listings"
-    ,"price_low_to_high": "Price: low to high"
-    ,"price_high_to_low": "Price: high to low"
-    ,"status_a_to_z": "Status A–Z"
-    ,"per_page": "per page"
-    ,"listing_directory": "Marketplace listing directory"
-    ,"review_listing": "Review"
-    ,"unable_to_load_marketplace_listings": "Unable to load marketplace listings."
-    ,"product_moderation_details": "Product moderation details"
-    ,"back_to_listings": "Back to listings"
-    ,"listing_not_found": "Marketplace listing not found."
-    ,"unable_to_load_listing_detail": "Unable to load listing details."
-    ,"moderation_reason": "Moderation reason"
-    ,"moderation_reason_placeholder": "Record the reason for this moderation action"
-    ,"store_approval_status": "Store approval status"
-    ,"publishing_eligible": "Eligible for publishing"
-    ,"publishing_not_eligible": "Not eligible for publishing"
-    ,"product_images": "Product images"
-    ,"no_product_images": "No product images are available."
-    ,"variants_and_inventory": "Variants and inventory"
-    ,"no_product_variants": "No active product variants are available."
-    ,"moderation_history": "Moderation history"
-    ,"no_reason_recorded": "No reason recorded"
-    ,"no_moderation_history": "No moderation history is available."
-    ,"listings": "Listings"
-    ,"stock": "Stock"
-    ,"hide": "Hide"
-    ,"hide_marketplace_listing": "Hide marketplace listing?"
-    ,"hide_marketplace_listing_help": "The original POS product and inventory remain unchanged. Only public marketplace visibility is changed."
-    ,"publish_marketplace_listing": "Publish marketplace listing?"
-    ,"publish_marketplace_listing_help": "The listing will be public only if its store, business, product, and inventory rules pass server validation."
-    ,"marketplace_listing_updated": "Marketplace listing updated."
-    ,"unable_to_update_marketplace_listing": "Unable to update the marketplace listing."
-    ,"approve_marketplace_store": "Approve marketplace store?"
-    ,"approve_marketplace_store_help": "Only active businesses with an approved marketplace store can publish public listings."
-    ,"reject_marketplace_store": "Reject marketplace store?"
-    ,"reject_marketplace_store_help": "The store will remain unavailable for public marketplace publishing."
-    ,"restore_marketplace_store": "Restore marketplace store?"
-    ,"restore_marketplace_store_help": "This re-enables marketplace visibility eligibility. Business approval and listing rules still apply."
-    ,"suspend_marketplace_store": "Suspend marketplace store?"
-    ,"suspend_marketplace_store_help": "This hides the store from the public marketplace without deleting business data."
-    ,"marketplace_store_updated": "Marketplace store updated."
-    ,"unable_to_update_marketplace_store": "Unable to update the marketplace store."
-    ,"suspended": "Suspended"
-    ,"gross_marketplace_sales": "Gross marketplace sales"
-    ,"paid_or_authorized_orders": "Paid or authorized orders"
-    ,"refund_total": "Refund total"
-    ,"approved_refund_requests": "Approved refund requests"
-    ,"orders_by_status": "Orders by status"
-    ,"payments_by_status": "Payments by status"
-    ,"vendor_performance": "Vendor performance"
-    ,"no_vendor_sales": "No vendor sales in this period."
-    ,"no_refund_requests": "No refund requests found."
-    ,"financial_capabilities": "Financial capabilities"
-    ,"commission_rules": "Commission rules"
-    ,"settlement_ledger": "Settlement ledger"
-    ,"payouts": "Vendor payouts"
-    ,"real_money_refunds": "Real-money refunds"
-    ,"configured": "Configured"
-    ,"not_configured": "Not configured"
-    ,"marketplace_finance_not_configured": "Commission, settlement, payout, dispute, and verified refund workflows are not configured in the current backend schema. No financial action is enabled here."
-    ,"no_marketplace_audit_logs": "No marketplace audit logs found."
-    ,"action": "Action"
-    ,"actor": "Actor"
-    ,"entity": "Entity"
-    ,"system": "System"
-    ,"unable_to_load_marketplace_control_center": "Unable to load the marketplace control center."
-    ,"suspend": "Suspend"
-    ,"reject": "Reject"
-    ,"apply_filters": "Apply filters"
-    ,"store": "Store"
-    ,"date": "Date"
-    ,"orders": "Orders"
-    ,"gross_sales": "Gross sales"
-    ,"business_category": "Business category"
-    ,"from_date": "From date"
-    ,"to_date": "To date"
-    ,"no_shipments": "No shipments found."
-    ,"no_marketplace_requests": "No marketplace requests found."
-    ,"platform_monitoring": "Platform monitoring"
-    ,"platform_monitoring_description": "Read-only operational signals for the CIINLV POS platform."
-    ,"system_performance": "System performance"
-    ,"monitoring_response_time": "Monitoring response time"
-    ,"http_error_rate": "HTTP error rate (24h)"
-    ,"performance_metrics_are_read_only": "Historical application error-rate telemetry is not configured; this panel reports only verified runtime signals."
-    ,"deployment_visibility": "Deployment visibility"
-    ,"release_version": "Release version"
-    ,"commit_reference": "Commit reference"
-    ,"deployed_at": "Deployed at"
-    ,"deployment_provider": "Deployment provider"
-    ,"deployment_metadata_source": "Metadata source"
-    ,"operational_incidents": "Operational incidents"
-    ,"no_active_operational_incidents": "No active incidents were found in the available operational signals."
-    ,"incidents_derived_from_verified_signals": "Incidents are derived from bounded queue, scheduler, database, storage and backup signals."
-    ,"review_required": "Review required"
-    ,"incident_queue_failures": "Queue failures in the last 24 hours"
-    ,"incident_scheduler_failures": "Scheduler failures in the last 24 hours"
-    ,"incident_database": "Database health failure"
-    ,"incident_storage": "Storage health failure"
-    ,"incident_backups": "Backup status requires review"
-    ,"sale_details": "Sale details"
-    ,"manage_payment": "Manage payment"
-    ,"payment": "Payment"
-    ,"total": "Total"
-    ,"verified_paid": "Verified paid"
-    ,"outstanding_balance": "Outstanding balance"
-    ,"cash_payment_instruction": "Record the cash actually received. The server will calculate the credited amount and change."
-    ,"cash_received": "Cash received"
-    ,"record_cash_payment": "Record cash payment"
-    ,"verify_external_payment": "Verify external payment"
-    ,"external_payment_verification_notice": "Use the authorized provider reference and verification note. Manual verification remains subject to server policy."
-    ,"provider": "Provider"
-    ,"external_reference": "External reference"
-    ,"verification_note": "Verification note"
-    ,"verify_payment": "Verify payment"
-    ,"payment_requirements_met": "All payment requirements are met."
-    ,"complete_sale": "Complete sale"
-    ,"sale_already_completed": "This sale is already completed or refunded."
-    ,"payment_actions_unavailable": "Payment actions are unavailable for this sale status."
-    ,"payment_history": "Payment history"
-    ,"products_in_scope": "Products in scope"
-    ,"server_total": "Server total"
-    ,"authorized_branch_scope": "Authorized branch scope"
-    ,"bulk_deactivate": "Deactivate"
-    ,"bulk_export": "Export"
-    ,"clear_selection": "Clear selection"
-    ,"all_marketplace_orders": "All marketplace orders"
-    ,"pending_orders": "Pending orders"
-    ,"pending_payment_orders": "Pending-payment orders"
-    ,"processing_orders": "Processing orders"
-    ,"orders_being_fulfilled": "Orders being fulfilled"
-    ,"shipped_orders": "Shipped orders"
-    ,"shipped_or_partially_shipped": "Shipped or partially shipped"
-    ,"completed_deliveries": "Completed deliveries"
-    ,"cancelled_marketplace_orders": "Cancelled marketplace orders"
-    ,"payment_pending_orders": "Payment pending orders"
-    ,"payment_requires_review": "Payment requires review"
-    ,"search_marketplace_orders": "Search order, vendor order, tracking, store, or customer"
-    ,"all_order_statuses": "All order statuses"
-    ,"all_payment_statuses": "All payment statuses"
-    ,"all_fulfillment_statuses": "All fulfillment statuses"
-    ,"all_shipment_statuses": "All shipment statuses"
-    ,"sort_orders": "Sort orders"
-    ,"order_number_a_to_z": "Order number A–Z"
-    ,"total_high_to_low": "Total high to low"
-    ,"total_low_to_high": "Total low to high"
-    ,"vendor_store": "Vendor / store"
-    ,"order_total": "Order total"
-    ,"fulfillment_summary": "Fulfillment"
-    ,"shipment_summary": "Shipment"
-    ,"order_directory": "Order directory"
-    ,"no_marketplace_orders": "No marketplace orders match these filters."
-    ,"order_items_and_vendors": "Order items and vendor orders"
-    ,"no_order_items": "No order items are available."
-    ,"shipment": "Shipment"
-    ,"no_payment_history": "No payment history is available."
-    ,"order_timeline": "Order timeline"
-    ,"no_order_timeline": "No order timeline is available."
-    ,"settings_general": "General"
-    ,"settings_vendor_management": "Vendor Management"
-    ,"settings_product_listing": "Product & Listing Rules"
-    ,"settings_order_checkout": "Order & Checkout"
-    ,"settings_payments": "Payments"
-    ,"settings_shipping_fulfillment": "Shipping & Fulfillment"
-    ,"settings_commissions_payouts": "Commissions & Payouts"
-    ,"settings_notifications": "Notifications"
-    ,"settings_security_audit": "Security & Audit"
-    ,"search_settings": "Search settings"
-    ,"marketplace_enabled": "Marketplace enabled"
-    ,"marketplace_enabled_help": "Allow marketplace catalog, cart, and checkout traffic."
-    ,"maintenance_mode": "Maintenance mode"
-    ,"maintenance_mode_help": "Temporarily block public marketplace and checkout traffic."
-    ,"default_currency": "Default currency"
-    ,"seller_registration_enabled": "Seller registration enabled"
-    ,"seller_registration_enabled_help": "Allow businesses to create marketplace stores. Existing approvals are unchanged."
-    ,"seller_approval_required": "Seller approval required"
-    ,"seller_approval_required_help": "New stores remain pending until a Platform Super Admin approves them."
-    ,"listing_approval_required": "Listing approval required"
-    ,"listing_approval_required_help": "New seller listings remain draft until authorized moderation publishes them."
-    ,"settings_listing_safety_note": "Publishing still follows store, tenant, product, inventory, and authorization checks. This setting does not bypass those safeguards."
-    ,"default_commission_rate": "Default commission rate (%)"
-    ,"commission_base": "Commission base"
-    ,"item_subtotal": "Item subtotal"
-    ,"payout_schedule": "Payout schedule"
-    ,"manual_approval": "Manual approval"
-    ,"weekly": "Weekly"
-    ,"biweekly": "Biweekly"
-    ,"monthly": "Monthly"
-    ,"payout_minimum": "Minimum payout amount"
-    ,"commission_change_impact": "Changes affect future commission snapshots only. Historical vendor earnings and settled liabilities are not recalculated."
-    ,"open_finance_management": "Open Finance Management"
-    ,"last_updated": "Last updated"
-    ,"updated_by": "Updated by"
-    ,"settings_revision": "Settings revision"
-    ,"reason_for_change": "Reason for important change"
-    ,"advanced_policy_json": "Advanced policy JSON"
-    ,"settings_change_history": "Settings change history"
-    ,"no_settings_history": "No settings changes have been recorded."
-    ,"saving": "Saving…"
-    ,"save_changes": "Save changes"
-    ,"cancel_reset": "Cancel / reset"
-    ,"unsaved_changes": "Unsaved changes"
-    ,"settings_policy_json_invalid": "Policies must be a valid JSON object."
-    ,"settings_change_reason_required": "Add a reason before saving this high-impact change."
-    ,"confirm_marketplace_settings_change": "Confirm marketplace settings change"
-    ,"confirm_marketplace_settings_change_help": "This change affects public availability or seller onboarding. Review it carefully before saving."
-    ,"settings_not_configured": "Not configured"
-    ,"settings_order_checkout_unavailable": "Minimum order, reservation timeout, cancellation windows, and unpaid expiration are not settings-backed in the current checkout service."
-    ,"settings_payments_unavailable": "Payment method switches are controlled by verified provider configuration. No payment credential or UI-only enablement is exposed here."
-    ,"settings_shipping_unavailable": "Delivery methods and tracking requirements are validated by the existing shipment workflow and are not global settings-backed controls."
-    ,"settings_notifications_unavailable": "Marketplace notification channels are not globally configured. Existing server-side notifications continue to use their current services."
-    ,"all_authorized_tenant_products": "All authorized tenant products"
-    ,"active_on_page": "Active on page"
-    ,"low_stock_on_page": "Low stock on page"
-    ,"current_page_only": "Current page only"
-    ,"visible_stock_value": "Visible stock value"
-    ,"current_page_estimate": "Current page estimate"
-    ,"search_product_name_brand_sku_barcode": "Search name, brand, SKU, or barcode"
-    ,"branch_location": "Branch / location"
-    ,"all_locations": "All locations"
-    ,"any_brand": "Any brand"
-    ,"min_price": "Min price"
-    ,"max_price": "Max price"
-    ,"previous_page": "Previous page"
-    ,"next_page": "Next page"
-    ,"settings_audit_table": "Marketplace settings audit records"
-    ,"settings_audit_log_description": "Read-only settings and marketplace audit history."
-    ,"clear_search": "Clear search"
-    ,"search_businesses": "Search businesses"
-    ,"search_branches": "Search branches"
-    ,"select_business_first": "Select a business first"
-    ,"no_matching_businesses": "No matching businesses"
-    ,"no_matching_branches": "No matching branches"
-    ,"searching": "Searching..."
-    ,"load_more": "Load more"
-    ,"all_stock_states": "All stock states"
-    ,"minimum_price": "Minimum price"
-    ,"maximum_price": "Maximum price"
-    ,"created_from": "Created from"
-    ,"created_to": "Created to"
-    ,"clear_all_filters": "Clear all filters"
-    ,"inventory_location": "Inventory location"
-    ,"authorized_branch_inventory": "Authorized branch inventory"
-    ,"adjust_stock": "Adjust stock"
-    ,"transfer_stock": "Transfer stock"
-    ,"no_authorized_inventory_balances": "No authorized inventory balances are recorded."
-    ,"recent_movements": "Recent movements"
-    ,"no_movements_recorded": "No movements recorded."
-    ,"select_location": "Select location"
-    ,"select_destination": "Select destination"
-    ,"close_inventory": "Close inventory"
-    ,"source_location": "Source location"
-    ,"destination_location": "Destination location"
-    ,"complete_inventory_action_fields": "Complete all required fields with an authorized location and valid quantity."
-    ,"highest_price_first": "Highest price first"
-    ,"lowest_stock_first": "Lowest stock first"
-    ,"rows_per_page": "Rows per page"
-    ,"showing_orders": "Showing {{from}}–{{to}} of {{total}} orders"
-    ,"showing_products": "Showing {{from}}–{{to}} of {{total}} products"
-    ,"showing_audit_logs": "Showing {{from}}–{{to}} of {{total}} records"
-    ,"action_type": "Action type"
-    ,"business_id": "Business ID"
-    ,"audit_logs_read_only": "Audit logs are read-only historical records."
-    ,"unable_to_load_marketplace_audit_logs": "Unable to load marketplace audit logs."
-    ,"first_page": "First"
-    ,"last_page": "Last"
-    ,"variants": "Variants"
-    ,"actions": "Actions"
-    ,"stock": "Stock"
-    ,"on_hand_short": "OH"
-    ,"reserved_short": "RS"
-    ,"stock_summary": "Stock summary"
-    ,"branch_inventory": "Branch inventory"
-    ,"reorder_level": "Reorder level"
-    ,"inventory_unavailable": "Inventory data is unavailable for this product."
-    ,"no_external_reference": "No external reference"
-    ,"no_payment_records": "No payment records."
-    ,"print_receipt": "Print receipt"
-    ,"unable_to_load_sale_details": "Unable to load sale details."
-    ,"enter_valid_cash_received": "Enter a valid cash amount received."
-    ,"cash_received_below_balance": "Cash received cannot be below the outstanding balance."
-    ,"unable_to_record_payment": "Unable to record payment."
-    ,"complete_verification_fields": "Provider, external reference, and verification note are required."
-    ,"unable_to_verify_payment": "Unable to verify payment."
-    ,"unable_to_complete_sale": "Unable to complete sale."
-    ,"saving": "Saving..."
-    ,"verifying": "Verifying..."
-    ,"completing": "Completing..."
-    ,"business_products": "Business products"
-    ,"all_businesses": "All businesses"
-    ,"name_a_to_z": "Name A to Z"
-    ,"name_z_to_a": "Name Z to A"
-    ,"availability": "Availability"
-    ,"sku": "SKU"
-    ,"size": "Size"
-    ,"business_products_description": "Read-only monitoring of POS products and inventory across businesses."
-    ,"search_business_products": "Search products, brands, SKUs or barcodes"
-    ,"category_brand": "Category / brand"
-    ,"variants_stock": "Variants / stock"
-    ,"no_branch_stock": "No branch stock"
-    ,"no_business_products_found": "No business products found."
-    ,"product_detail": "Product detail"
-    ,"product_detail_description": "Product, pricing, availability and inventory audit information."
-    ,"back_to_products": "Back to business products"
-    ,"variants_inventory": "Variants and inventory"
-    ,"on_hand": "on hand"
-    ,"reserved": "reserved"
-    ,"audit_history": "Audit history"
-    ,"no_audit_history": "No product audit history found."
-    ,"business_products_read_only_notice": "Read-only platform monitoring. Product and inventory changes remain under Business Admin workflows."
-    ,"unable_to_load_business_products": "Unable to load business products."
-    ,"unable_to_load_product_detail": "Unable to load product detail."
-    ,"refresh_platform_monitoring": "Refresh platform monitoring"
-    ,"unable_to_load_platform_monitoring": "Unable to load platform monitoring."
-    ,"api_health": "API health"
-    ,"postgresql_health": "PostgreSQL health"
-    ,"queue_failures": "Queue failures"
-    ,"inventory_anomalies": "Inventory anomalies"
-    ,"api_health_detail": "The authenticated monitoring API is responding."
-    ,"postgresql_health_detail": "Bounded database readiness check."
-    ,"queue_failures_detail": "Failed jobs recorded in the last 24 hours."
-    ,"inventory_anomalies_detail": "Report-only reconciliation findings."
-    ,"queue_monitoring": "Queue monitoring"
-    ,"scheduler_monitoring": "Scheduler monitoring"
-    ,"registered_tasks": "Registered tasks"
-    ,"running_tasks": "Tasks currently running"
-    ,"scheduler_successes_24h": "Successful executions (24h)"
-    ,"scheduler_failures_24h": "Failed executions (24h)"
-    ,"missed_overdue_runs": "Missed / overdue runs"
-    ,"scheduler_task": "Scheduler task"
-    ,"all_scheduler_tasks": "All scheduled tasks"
-    ,"scheduled_tasks": "Scheduled tasks"
-    ,"command_identifier": "Command identifier"
-    ,"schedule_frequency": "Schedule frequency"
-    ,"last_started": "Last started"
-    ,"last_finished": "Last finished"
-    ,"last_success": "Last success"
-    ,"last_failure": "Last failure"
-    ,"next_due": "Next due"
-    ,"no_scheduler_tasks": "No scheduled tasks match the selected filters."
-    ,"scheduler_execution_history": "Execution history"
-    ,"no_scheduler_history": "No scheduler execution history is available for the selected filters."
-    ,"scheduler_errors": "Last scheduler errors"
-    ,"no_scheduler_errors": "No scheduler errors were recorded."
-    ,"reference": "Reference"
-    ,"queue": "Queue"
-    ,"failed_at": "Failed at"
-    ,"no_failed_jobs_in_period": "No failed jobs were recorded in the last 24 hours."
-    ,"all_queues": "All queues"
-    ,"pending_jobs": "Pending jobs"
-    ,"processing_jobs": "Processing jobs"
-    ,"completed_last_24h": "Completed in last 24 hours"
-    ,"failed_last_24h": "Failed in last 24 hours"
-    ,"oldest_waiting_job": "Oldest waiting job"
-    ,"average_processing_duration": "Average processing duration"
-    ,"queue_connection": "Queue connection"
-    ,"queue_driver": "Queue driver"
-    ,"queue_activity": "Queue activity"
-    ,"completed_and_failed": "Completed and failed jobs"
-    ,"queue_activity_unavailable": "Queue activity is unavailable until telemetry is recorded."
-    ,"recent_job_history": "Recent job history"
-    ,"job_type": "Job type"
-    ,"attempts": "Attempts"
-    ,"created_at": "Created"
-    ,"started_at": "Started"
-    ,"finished_at": "Finished / failed"
-    ,"duration": "Duration"
-    ,"no_job_history": "No job history is available for the selected filters."
-    ,"last_successful_heartbeat": "Last successful heartbeat"
-    ,"last_failed_heartbeat": "Last failed heartbeat"
-    ,"last_error": "Last error"
-    ,"not_recorded": "Not recorded"
-    ,"none_recorded": "None recorded"
-    ,"inventory_consistency": "Inventory consistency"
-    ,"balances_checked": "Balances checked"
-    ,"discrepancies": "Discrepancies"
-    ,"mode": "Mode"
-    ,"report_only": "Report only"
-    ,"tenant": "Tenant"
-    ,"variant": "Variant"
-    ,"edit_product": "Edit product"
-    ,"brand": "Brand"
-    ,"enter_brand": "Enter brand"
-    ,"track_inventory": "Track inventory"
-    ,"this_product_has_sizes": "This product has sizes"
-    ,"inventory_location_for_entered_stock": "Inventory location for entered stock"
-    ,"select_an_authorized_location": "Select an authorized location"
-    ,"leave_stock_quantity_blank_to_make_no_inventory_adjustment": "Leave stock quantity blank to make no inventory adjustment."
-    ,"write_product_description": "Write product description"
-    ,"product_variants": "Product variants"
-    ,"use_xs_eu_36_numeric_or_custom_size_label": "Use XS–XXXL, EU 36–46, numeric values or any custom size label."
-    ,"add_variant": "Add variant"
-    ,"size_optional_unless_enabled": "Size (optional unless enabled)"
-    ,"no_size": "No size"
-    ,"selling_price": "Selling price"
-    ,"stock_quantity": "Stock quantity"
-    ,"leave_unchanged": "Leave unchanged"
-    ,"reorder_level": "Reorder level"
-    ,"barcode": "Barcode"
-    ,"optional_barcode": "Optional barcode"
-    ,"remove_variant": "Remove variant"
-    ,"default_variant": "Default variant"
-    ,"uploading_images": "Uploading images…"
-    ,"uploading": "Uploading…"
-    ,"saving": "Saving…"
-    ,"save_product": "Save product"
-    ,"products_without_sizes_keep_existing_variant_workflow": "Products without sizes keep their existing single-variant workflow. Stock quantities are written through the inventory ledger."
-    ,"balance": "Balance"
-    ,"ledger": "Ledger"
-    ,"backup_status": "Backup status"
-    ,"backup_artifacts": "Backup artifacts"
-    ,"latest_backup": "Latest backup"
-    ,"backup_artifacts_detected": "Backup artifacts were found in the configured directory."
-    ,"restore_testing_must_use_separate_environment": "Restore testing must use a separate non-production environment."
-    ,"payment_health": "Payment health"
-    ,"payment_monitoring_unavailable": "Payment provider monitoring is unavailable until a verified provider is configured."
-    ,"no_payment_records_in_period": "No payment records were returned for the period."
-    ,"security_posture": "Security posture"
-    ,"debug": "Debug"
-    ,"https": "HTTPS"
-    ,"secure_sessions": "Secure sessions"
-    ,"enabled": "Enabled"
-    ,"disabled": "Disabled"
-    ,"security_posture_read_only": "These indicators are read-only and do not change application security settings."
-    ,"storage_status": "Storage status"
-    ,"private_storage": "Private storage"
-    ,"storage_probe_status": "Storage probe status"
-    ,"last_checked_at": "Last checked at"
-    ,"unavailable": "Unavailable"
-    ,"platform_dashboard": "Platform dashboard"
-    ,"business_management": "Business management"
-    ,"marketplace_management": "Marketplace management"
-    ,"platform_settings": "Platform settings"
-    ,"manage_business": "Manage business"
-    ,"customer_profile": "Customer profile"
-    ,"send_reset_link": "Send reset link"
-    ,"no_authorized_orders_found": "No authorized orders found."
-    ,"recent_account_activity": "Recent account activity"
-    ,"no_authorized_activity_found": "No authorized activity found."
-    ,"authorized_account_details": "Authorized account details"
-    ,"search_name_or_email": "Search name or email"
-    ,"last_login": "Last login"
-    ,"total_customers": "Total customers"
-    ,"active_customers": "Active customers"
-    ,"suspended_customers": "Suspended customers"
-    ,"new_customers_this_month": "New customers this month"
-    ,"search_customers": "Search customers by name, email, phone or ID"
-    ,"registered": "Registered"
-    ,"unverified": "Unverified"
-    ,"verify_email_manually": "Verify email manually"
-    ,"view_customer": "View customer"
-    ,"verification_reason": "Verification reason"
-    ,"verification_reason_help": "Explain how email ownership was independently confirmed."
-    ,"verification_evidence": "Verification evidence / reference"
-    ,"verification_evidence_help": "Enter a ticket, call record or other auditable reference."
-    ,"confirm_verification": "Confirm verification"
-    ,"email_verification_successful": "Email verification completed successfully."
-    ,"email_verification_failed": "Unable to verify this email address."
-    ,"admin_override": "Admin override"
-    ,"clear_filters": "Clear filters"
-    ,"customers": "customers"
-    ,"unable_to_load_customers": "Unable to load customers."
-    ,"unable_to_load_customer_profile": "Unable to load the customer profile."
-    ,"unable_to_update_customer_status": "Unable to update customer status."
-    ,"unable_to_load_customer_history": "Unable to load customer history."
-    ,"terms": "Terms"
-    ,"no_customer_accounts_match_filters": "No customer accounts match these filters."
-    ,"suspend_customer": "Suspend customer"
-    ,"activate_customer": "Activate customer"
-    ,"activate": "Activate"
-    ,"suspend_customer_confirmation": "Suspend this customer account and revoke its active sessions?"
-    ,"activate_customer_confirmation": "Activate this customer account?"
-    ,"customer_status_updated": "Customer status updated."
-    ,"password_reset_confirmation": "Send password reset instructions to this customer?"
-    ,"password_reset_requested": "Password reset instructions requested."
-    ,"unable_to_send_reset_link": "Unable to send the reset link."
-    ,"authorized_addresses": "Authorized addresses"
-    ,"order_history": "Order history"
-    ,"customer_data_scope_notice": "Only data authorized for the current platform or selected-business scope is shown."
-    ,"customer_error_unauthenticated": "You are not authenticated. Please sign in again."
-    ,"customer_error_forbidden": "You do not have permission to view these customers."
-    ,"customer_error_not_found": "The requested customer was not found."
-    ,"customer_error_invalid_filters": "One or more filters are invalid."
-    ,"customer_error_backend": "The customer service is temporarily unavailable."
-    ,"customer_error_network": "Unable to reach the customer service."
-    ,"registration_from": "Registration from"
-    ,"registration_to": "Registration to"
-    ,"last_login_from": "Last login from"
-    ,"last_login_to": "Last login to"
-    ,"register_management": "Register management"
-    ,"register_management_description": "Create and maintain branch-scoped POS registers used by checkout and cashier shifts."
-    ,"add_register": "Add register"
-    ,"save_register": "Save register"
-    ,"all_accessible_branches": "All accessible branches"
-    ,"cashiers": "Cashiers"
-    ,"register_isolated_to_branch": "Registers remain isolated to the selected branch."
-    ,"edit_register": "Edit register"
-    ,"register_cashiers": "Register cashiers"
-    ,"select_branch_cashier": "Select a branch cashier"
-    ,"assign": "Assign"
-    ,"no_cashier_assigned": "No cashier is assigned to this register."
-    ,"existing_user": "Existing user"
-    ,"select_user": "Select a user"
-    ,"branch_role": "Branch role"
-    ,"sales_staff": "Sales staff"
-    ,"cashier": "Cashier"
-    ,"store_manager": "Store manager"
-    ,"inventory_manager": "Inventory manager"
-    ,"current_branch_staff": "Current branch staff"
-    ,"no_registers_for_branch": "No registers found for this branch."
-    ,"staff_salesperson_management": "Staff & salesperson management"
-    ,"staff_salesperson_management_description": "Assign existing business users to branches. Cashiers remain responsible for shifts; salesperson is recorded on each sale."
-    ,"no_staff_for_branch": "No staff assigned to this branch."
-    ,"confirm_cod_payment_received": "Confirm COD Payment Received"
-    ,"pos_monitoring": "POS Monitoring"
-    ,"pos_monitoring_description": "Read-only oversight of POS transactions across all businesses."
-    ,"all_pos_transactions": "All POS Transactions"
-    ,"refund_void_history": "Refund & Void History"
-    ,"payment_audit": "Payment Audit"
-    ,"completed_sales": "Completed sales"
-    ,"completed_sales_detail": "Completed POS transaction count"
-    ,"verified_revenue": "Verified revenue"
-    ,"verified_revenue_detail": "Paid totals only; split payments counted once"
-    ,"pending_payments": "Pending payments"
-    ,"pending_payments_detail": "Outstanding balances"
-    ,"refunds": "Refunds"
-    ,"refunds_detail": "Recorded refund totals"
-    ,"net_sales": "Net sales"
-    ,"net_sales_detail": "Verified revenue less refunds"
-    ,"refresh": "Refresh"
-    ,"export_csv": "Export CSV"
-    ,"search": "Search"
-    ,"search_pos_transactions": "Search sale, business, branch, cashier or product"
-    ,"all_payment_methods": "All payment methods"
-    ,"all_statuses": "All statuses"
-    ,"from": "From"
-    ,"to": "To"
-    ,"sort": "Sort"
-    ,"newest_first": "Newest first"
-    ,"oldest_first": "Oldest first"
-    ,"sale_number_a_to_z": "Sale number A–Z"
-    ,"highest_total_first": "Highest total first"
-    ,"records": "records"
-    ,"sale_number": "Sale number"
-    ,"business": "Business"
-    ,"branch": "Branch"
-    ,"branch_register": "Branch / register"
-    ,"business_identifier": "Business UUID or ID"
-    ,"branch_identifier": "Branch UUID or ID"
-    ,"cashier_id": "Cashier user ID"
-    ,"method": "Method"
-    ,"amount": "Amount"
-    ,"date": "Date"
-    ,"view": "View"
-    ,"read_only_detail": "Read-only transaction detail"
-    ,"product_details": "Product details"
-    ,"subtotal": "Subtotal"
-    ,"discount": "Discount"
-    ,"tax": "Tax"
-    ,"receipt": "Receipt"
-    ,"not_available": "Not available"
-    ,"pos_monitoring_read_only_notice": "This monitoring view cannot edit sales, payments, inventory, or receipts."
-    ,"no_pos_records_found": "No POS records found."
-    ,"unable_to_load_pos_monitoring": "Unable to load POS monitoring data."
-    ,"unable_to_load_pos_transaction": "Unable to load the POS transaction."
-    ,"page": "Page"
-    ,"of": "of"
-    ,"previous": "Previous"
-    ,"next": "Next"
-    ,"review_verify": "Review / Verify"
-    ,"business_verification": "Business verification"
-    ,"business_verification_description": "Review the applicant, identity documents, verification status, and review history."
-    ,"unable_to_load_verification": "Unable to load business verification details."
-    ,"unable_to_update_verification": "Unable to update the verification status."
-    ,"verification_not_found": "The requested verification was not found."
-    ,"back_to_businesses": "Back to businesses"
-    ,"business_profile": "Business profile"
-    ,"business_email": "Business email"
-    ,"applicant": "Applicant"
-    ,"email_verification": "Email verification"
-    ,"verified": "Verified"
-    ,"pending": "Pending"
-    ,"approval_status": "Approval status"
-    ,"identity_information": "Identity information"
-    ,"preview": "Preview"
-    ,"download": "Download"
-    ,"review_history": "Review history"
-    ,"no_review_history": "No review history is available."
-    ,"approve_business_verification": "Approve verification"
-    ,"approve_business_verification_help": "Approve this business only after reviewing the submitted identity information and documents."
-    ,"business_verification_updated": "Business verification updated."
-    ,"payment_received": "Payment Received"
-    ,"amount_collected": "Amount collected"
-    ,"balance_due": "Balance due"
-    ,"amount_due": "Amount due"
-    ,"payment_already_received": "Payment has already been received. No duplicate collection is allowed."
-    ,"payment_collection_blocked_hold": "Payment collection is blocked while this order is on administrative hold."
-    ,"payment_amount_exceeds_balance": "The received amount cannot exceed the outstanding COD balance."
-    ,"cod_payment_unavailable": "This COD payment is not available for collection."
-    ,"payment_history": "Payment history"
-    ,"unassigned_unknown_branch": "Unassigned / Unknown Branch"
-    ,"branch_revenue_allocation_note": "Branch revenue uses line-value allocation."
-    ,"branch_fulfillment_attribution": "Branch / fulfillment attribution"
-    ,"reservation_record": "Reservation record"
-    ,"attribution_unavailable": "Attribution unavailable"
-    ,"no_historical_fulfillment_branch": "No historical fulfillment branch was recorded for this order."
-    ,"marketplace_sales_pagination": "Marketplace sales pagination"
-    ,"partially_refunded": "Partially refunded"
-    ,"edit_store": "Edit store"
-    ,"public_store_identity": "Public store identity"
-    ,"public_url": "Public URL"
-    ,"store_description_not_set": "Add a short description to introduce your store to marketplace customers."
-    ,"tagline": "Tagline / slogan"
-    ,"active_branches": "Active branches"
-    ,"published_marketplace_products": "Published marketplace products"
-    ,"total_sales": "Total sales"
-    ,"business_information_help": "Keep the legal and operational identity for this business workspace current."
-    ,"select_type": "Select type"
-    ,"registration_number": "Registration number"
-    ,"tax_number": "Tax number"
-    ,"currency": "Currency"
-    ,"timezone": "Timezone"
-    ,"default_language": "Default language"
-    ,"contact_information": "Contact information"
-    ,"contact_information_help": "Public customers can use these channels to contact your business."
-    ,"secondary_phone": "Secondary phone"
-    ,"facebook_page": "Facebook page"
-    ,"messaging_contact": "Messaging contact"
-    ,"full_address": "Full address"
-    ,"state_region": "State / region"
-    ,"postal_code": "Postal code"
-    ,"operating_hours": "Operating hours"
-    ,"operating_hours_help": "Set the regular hours shown on your public store."
-    ,"closed": "Closed"
-    ,"day_monday": "Monday"
-    ,"day_tuesday": "Tuesday"
-    ,"day_wednesday": "Wednesday"
-    ,"day_thursday": "Thursday"
-    ,"day_friday": "Friday"
-    ,"day_saturday": "Saturday"
-    ,"day_sunday": "Sunday"
-    ,"temporary_closure_message": "Temporary closure message"
-    ,"holiday_notice": "Holiday notice"
-    ,"store_policies": "Store policies"
-    ,"store_policies_help": "Explain delivery, returns, refunds, and customer support expectations."
-    ,"shipping_policy": "Shipping policy"
-    ,"return_policy": "Return policy"
-    ,"refund_policy": "Refund policy"
-    ,"support_policy": "Support policy"
-    ,"marketplace_visibility": "Marketplace visibility"
-    ,"shipping_coverage": "Shipping coverage"
-    ,"customer_support_contact": "Customer support contact"
-    ,"delivery_methods": "Delivery methods"
-    ,"cod_available": "Cash on delivery available"
-    ,"cod_available_help": "Show cash on delivery as an available payment option when eligible."
-    ,"preview_storefront": "Preview storefront"
-    ,"branches_overview": "Branches overview"
-    ,"branches_overview_help": "Authorized business branches and their current operating status."
-    ,"main_branch": "Main branch"
-    ,"address_not_set": "Address not set"
-    ,"no_branches": "No branches have been added yet."
-    ,"manage_branches": "Manage branches"
-    ,"activity": "Activity"
-    ,"activity_help": "Recent store profile and branding changes."
-    ,"no_activity": "No store activity has been recorded yet."
-    ,"public_storefront": "Public storefront"
-    ,"published_products": "Published products"
-    ,"no_published_products": "No published products are available yet."
-    ,"no_description": "No description provided."
-    ,"close_filters": "Close filters"
-    ,"marketplace_finance": "Marketplace finance"
-    ,"view_marketplace_earnings_commission_rules_payouts_and_ledger_activity": "View marketplace earnings, commission rules, payouts, and ledger activity."
-    ,"open_earnings_page": "Open earnings page →"
-    ,"search_earnings": "Search earnings"
-    ,"unassigned_unknown": "Unassigned / Unknown"
-    ,"all_entry_types": "All entry types"
-    ,"seller_earning": "Seller earning"
-    ,"refund": "Refund"
-    ,"adjustment": "Adjustment"
-    ,"all_directions": "All directions"
-    ,"credit": "Credit"
-    ,"debit": "Debit"
-    ,"reversed": "Reversed"
-    ,"amount_high_to_low": "Amount high to low"
-    ,"amount_low_to_high": "Amount low to high"
-    ,"date_range_activity": "Date range activity"
-    ,"transaction_date": "Transaction date"
-    ,"reference_order": "Reference / order"
-    ,"entry_type": "Entry type"
-    ,"first": "First"
-    ,"last": "Last"
-    ,"transaction_details": "Transaction details"
-    ,"search_reference_or_order": "Search reference or order"
-    ,"transaction_status": "Transaction status"
-    ,"any_currency": "Any currency"
-    ,"original_ledger_amount": "Original ledger amount"
-    ,"destination_warehouse": "Destination warehouse"
-    ,"all_suppliers": "All suppliers"
-    ,"order_date_from": "Order date from"
-    ,"order_date_to": "Order date to"
-    ,"search_po_number_supplier_code_or_sku": "Search PO number, supplier, code or SKU"
-    ,"reset": "Reset"
-    ,"done": "Done"
-    ,"all_authorized_cashiers": "All authorized cashiers"
-    ,"pending_payment": "Pending payment"
-    ,"all_verified_methods": "All verified methods"
-    ,"any_verification_state": "Any verification state"
-    ,"filter_sales": "Filter Sales"
-    ,"review_authorized_sales_payments_receipts_and_refund_totals_across_your_branches": "Review authorized sales, payments, receipts, and refund totals across your branches."
-    ,"voided": "Voided"
-    ,"search_sale_receipt_or_cashier": "Search sale, receipt, or cashier"
-    ,"sale_status": "Sale status"
-    ,"verification": "Verification"
-    ,"sales_pagination": "Sales pagination"
+    "too_many_login_attempts_try_again_in": "Too many login attempts. Try again in {{time}}.",
+    "signing_in": "Signing in…",
+    "try_again_in": "Try again in {{time}}",
+    "hide_password": "Hide password",
+    "show_password": "Show password",
+    "marketplace_overview": "Marketplace overview",
+    "marketplace_overview_description": "Manage your approved customer marketplace presence from one tenant-scoped workspace.",
+    "manage_store": "Manage store",
+    "unable_to_load_marketplace_overview": "Unable to load the marketplace overview.",
+    "store_visible": "Store visible",
+    "store_hidden": "Store hidden",
+    "store_visibility_help": "When hidden, the store and its published listings are not shown publicly.",
+    "published_products": "Published products",
+    "marketplace_listings_visible_to_customers": "Marketplace listings visible to customers",
+    "pending_marketplace_orders": "Pending marketplace orders",
+    "orders_not_available_yet": "Orders are not available yet",
+    "awaiting_fulfillment": "Awaiting fulfillment",
+    "completed_marketplace_orders": "Completed marketplace orders",
+    "fulfilled_orders": "Fulfilled orders",
+    "marketplace_revenue": "Marketplace revenue",
+    "revenue_not_available_yet": "Revenue is not available yet",
+    "net_marketplace_revenue": "Net marketplace revenue",
+    "preview_storefront": "Preview storefront",
+    "all_authorized_branches": "All authorized branches",
+    "unassigned_unknown_branch": "Unassigned / Unknown Branch",
+    "group_day": "Daily",
+    "group_week": "Weekly",
+    "group_month": "Monthly",
+    "dashboard_activity_period_note": "Activity: {{range}} · Business timezone: {{timezone}}. Current balances are not limited by this activity period.",
+    "total_marketplace_orders": "Total marketplace orders",
+    "selected_period": "Selected activity period",
+    "paid_revenue": "Paid revenue",
+    "verified_paid_orders": "Verified paid payment records",
+    "pending_cod": "Pending COD",
+    "pending_cod_orders": "{{count}} order(s) awaiting collection",
+    "approved_refunds": "Approved refund activity",
+    "revenue_analytics": "Revenue analytics",
+    "revenue_analytics_description": "Gross order value and verified paid revenue by the selected grouping.",
+    "current_balances_not_date_activity": "Authoritative settlement balances; date filters affect activity only.",
+    "earnings_snapshot": "Earnings snapshot",
+    "gross_order_value": "Gross order value",
+    "order": "Order",
+    "view_earnings": "View earnings",
+    "order_performance": "Order performance",
+    "order_performance_description": "Orders are counted once, even when fulfillment spans branches.",
+    "payment_overview": "Payment overview",
+    "payment_overview_description": "COD is not treated as paid until payment is verified.",
+    "paid_orders": "Paid orders",
+    "authorized_payments": "Authorized payments",
+    "failed_payments": "Failed payments",
+    "refunded_payments": "Refunded payments",
+    "fulfillment_dashboard": "Fulfillment dashboard",
+    "fulfillment_dashboard_description": "Shipment activity is separate from order status counts.",
+    "ready_for_dispatch": "Ready for dispatch",
+    "inventory_alerts": "Inventory alerts",
+    "out_of_stock_products": "Out-of-stock products",
+    "available_inventory": "Available inventory",
+    "top_selling_products": "Top-selling products",
+    "top_selling_products_description": "Real marketplace order items in the selected activity period.",
+    "units": "units",
+    "recent_orders_bounded": "A bounded view of the most recent activity.",
+    "view_all_orders": "View all orders",
+    "alerts_action_center": "Alerts & action center",
+    "alerts_action_center_description": "Operational items that may need attention.",
+    "new_orders_requiring_review": "New orders requiring review",
+    "pending_cod_collection": "Pending COD collection",
+    "failed_deliveries": "Failed deliveries",
+    "quick_actions": "Quick actions",
+    "quick_actions_description": "Open an authorized marketplace management workflow.",
+    "delivery_fulfillment": "Delivery & fulfillment",
+    "earnings_commissions": "Earnings & commissions",
+    "low_stock_products": "Low-stock products",
+    "marketplace_uses_pos_inventory_availability": "Availability is read from the existing POS inventory source of truth.",
+    "view_inventory": "View inventory",
+    "no_marketplace_low_stock_products": "No marketplace products are currently below their reorder level.",
+    "recent_marketplace_orders": "Recent marketplace orders",
+    "orders_will_appear_after_checkout_is_enabled": "Orders will appear here after marketplace checkout and order services are enabled.",
+    "no_marketplace_orders_yet": "No marketplace orders yet.",
+    "my_store": "My store",
+    "manage_public_marketplace_store": "Manage the public store profile for this business.",
+    "unable_to_load_store": "Unable to load the marketplace store.",
+    "store_profile_saved": "Store profile saved.",
+    "unable_to_save_store": "Unable to save the store profile.",
+    "marketplace_image_validation": "Choose a JPG, PNG, or WebP image up to 5 MB.",
+    "store_image_updated": "Store image updated.",
+    "unable_to_upload_store_image": "Unable to upload the store image.",
+    "store_profile": "Store profile",
+    "store_profile_description": "These fields are public to marketplace customers after approval.",
+    "store_name": "Store name",
+    "store_slug": "Store slug",
+    "store_description": "Store description",
+    "public_contact_email": "Public contact email",
+    "public_contact_phone": "Public contact phone",
+    "notification_preferences": "Notification preferences",
+    "order_updates": "Order updates",
+    "fulfillment_preference": "Fulfillment preference",
+    "self_delivery": "Self delivery",
+    "external_courier": "External courier",
+    "store_logo": "Store logo",
+    "marketplace_logo_help": "Displayed on your public store and marketplace listings.",
+    "store_banner": "Store banner",
+    "marketplace_banner_help": "Use a wide image for the public store header.",
+    "saving": "Saving…",
+    "approval_required": "Super Admin approval is required",
+    "store_approval_help": "Business Admins can update their own store profile, but cannot approve a store or bypass an archived or suspended business.",
+    "marketplace_products": "Marketplace products",
+    "manage_marketplace_product_publishing": "Publish existing POS products without duplicating catalog or inventory records.",
+    "marketplace_catalog_scope": "Manage marketplace listings against the authorized product catalog and branch inventory.",
+    "unable_to_load_marketplace_products": "Unable to load marketplace products.",
+    "publish_selected": "Publish selected",
+    "search_products_or_sku": "Search products or SKU",
+    "all_products": "All products",
+    "published": "Published",
+    "unpublished": "Unpublished",
+    "unpublished_products": "Unpublished products",
+    "draft_archived_not_listed": "Draft, archived, or not listed",
+    "all_listing_states": "All listing states",
+    "not_listed": "Not listed",
+    "marketplace_status": "Marketplace status",
+    "view_stock": "View stock",
+    "select_current_page": "Select current page",
+    "only_selected_page_products": "Only the selected products on this page will be processed. Each listing is checked by the server.",
+    "authorized_branch_stock": "Authorized branch stock",
+    "authorized_branch_stock_help": "Authorized inventory balances for the current branch filter.",
+    "no_authorized_stock_balances": "No authorized stock balances found.",
+    "branch_stock_title": "Branch stock · {{name}}",
+    "variant_size": "Variant / size",
+    "select_all_products": "Select all products",
+    "price": "Price",
+    "available_stock": "Available stock",
+    "category": "Category",
+    "not_tracked": "Not tracked",
+    "not_published": "Not published",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "images": "Images",
+    "select": "Select",
+    "no_products_match_filters": "No products match these filters.",
+    "stock_load_failed": "Unable to load authorized branch stock.",
+    "publish_product_question": "Publish {{name}}?",
+    "unpublish_product_question": "Unpublish {{name}}?",
+    "publish_product_help": "This creates a marketplace listing for the existing POS product. Inventory and SKU records remain unchanged.",
+    "unpublish_product_help": "The listing will stop being publicly visible. The POS product and inventory remain unchanged.",
+    "publish_product": "Publish product",
+    "unpublish_product": "Unpublish product",
+    "publish_selected_products_question": "Publish {{count}} selected products?",
+    "publish_selected_products_help": "Only products that pass the store approval, status, and inventory rules will be published.",
+    "product_published": "Product published to the marketplace.",
+    "product_unpublished": "Product unpublished from the marketplace.",
+    "unable_to_update_marketplace_product": "Unable to update the marketplace product.",
+    "listing_images_uploaded": "Marketplace listing images uploaded.",
+    "unable_to_upload_listing_images": "Unable to upload marketplace listing images.",
+    "marketplace_orders": "Marketplace orders",
+    "order_investigation": "Order investigation",
+    "investigate": "Investigate",
+    "audit_history": "Audit history",
+    "businesses_and_shipments": "Businesses and shipments",
+    "order_status": "Order status",
+    "on_hold": "On hold",
+    "order_on_hold": "Order on hold",
+    "intervention_reason": "Reason for intervention",
+    "intervention_reason_placeholder": "Explain the verified operational reason.",
+    "intervention_reason_required": "A reason is required for this intervention.",
+    "intervention_confirmation": "This action is validated, audited, and will notify affected businesses.",
+    "place_order_on_hold": "Place order on hold",
+    "release_order_hold": "Release order hold",
+    "record_investigation_note": "Record investigation note",
+    "correct_order_status": "Correct order status",
+    "save_correction": "Save correction",
+    "cod_amount_received": "COD amount received",
+    "confirm_cod_payment": "Confirm COD payment",
+    "cod_payment_confirmation_help": "The existing payment service will validate the amount and idempotency key.",
+    "payment_amount_required": "Enter a valid received amount.",
+    "marketplace_intervention_saved": "Marketplace intervention saved.",
+    "unable_to_save_marketplace_intervention": "Unable to save marketplace intervention.",
+    "unable_to_load_marketplace_order": "Unable to load marketplace order.",
+    "marketplace_orders_description": "Search, filter, and investigate marketplace orders across authorized businesses.",
+    "marketplace_operations": "Marketplace operations",
+    "marketplace_operations_description": "Oversee marketplace orders, fulfillment exceptions, and customer requests.",
+    "unable_to_load_marketplace_operations": "Unable to load marketplace operations.",
+    "no_marketplace_operations": "No marketplace records found.",
+    "cancellation_requests": "Cancellation requests",
+    "return_requests": "Return requests",
+    "refund_requests": "Refund requests",
+    "vendor_orders": "Vendor orders",
+    "internal_tracking_id": "Internal tracking ID",
+    "requested_amount": "Requested amount",
+    "reason": "Reason",
+    "server_verified": "Server verified",
+    "approve_marketplace_request": "Approve marketplace request?",
+    "approve_marketplace_request_help": "This applies the server-side approval workflow and records an audit event.",
+    "reject_marketplace_request": "Reject marketplace request?",
+    "reject_marketplace_request_help": "The request will be rejected and the decision will be recorded.",
+    "marketplace_request_updated": "Marketplace request updated.",
+    "unable_to_update_marketplace_request": "Unable to update marketplace request.",
+    "refunds_blocked_provider": "Real-money refund execution is blocked until a verified provider is configured.",
+    "reviewed": "Reviewed",
+    "unable_to_load_marketplace_orders": "Unable to load marketplace orders.",
+    "order_number": "Order number",
+    "order_date": "Order date",
+    "quantity": "Quantity",
+    "back": "Back",
+    "confirmed": "Confirmed",
+    "shipped": "Shipped",
+    "delivered": "Delivered",
+    "marketplace_order_details": "Marketplace order details",
+    "fulfillment_status": "Fulfillment status",
+    "shipment_status": "Shipment status",
+    "create_shipment": "Create shipment",
+    "delivery_type": "Delivery type",
+    "carrier_name": "Carrier name",
+    "tracking_number": "Tracking number",
+    "tracking_url": "Tracking URL",
+    "delivery_notes": "Delivery notes",
+    "save_shipment": "Create shipment",
+    "shipment_created": "Shipment created.",
+    "shipment_updated": "Shipment status updated.",
+    "unable_to_create_shipment": "Unable to create shipment.",
+    "unable_to_update_shipment": "Unable to update shipment.",
+    "shipment_not_created": "Shipment has not been created yet.",
+    "delivery_failed": "Delivery failed",
+    "returned": "Returned",
+    "customer_delivery_address": "Customer delivery address",
+    "shipping_fulfillment": "Shipping & fulfillment",
+    "shipping_fulfillment_description": "Prepare authorized shipment updates for marketplace vendor orders.",
+    "customer_reviews": "Customer reviews",
+    "customer_reviews_description": "Review verified customer feedback for this store.",
+    "unable_to_load_customer_reviews": "Unable to load customer reviews.",
+    "total_reviews": "Total reviews",
+    "average_rating": "Average rating",
+    "pending_reviews": "Pending reviews",
+    "approved_reviews": "Approved reviews",
+    "rejected_hidden_reviews": "Rejected or hidden",
+    "search_reviews": "Search product, customer, or review",
+    "review_status": "Review status",
+    "rating": "Rating",
+    "all_ratings": "All ratings",
+    "stars": "stars",
+    "review_pending": "Pending",
+    "review_approved": "Approved",
+    "review_rejected": "Rejected",
+    "review_hidden": "Hidden",
+    "no_customer_reviews": "No customer reviews found.",
+    "unknown_product": "Unknown product",
+    "customer": "Customer",
+    "verified_purchase": "Verified purchase",
+    "moderation_reason": "Moderation reason",
+    "earnings_commissions_description": "Review marketplace sales, fees, refunds, and net earnings.",
+    "feature_not_available_yet": "This marketplace workflow is not available yet",
+    "phase_5_dependency": "Pending marketplace foundation",
+    "marketplace_orders_not_available": "Marketplace order and checkout tables are not present in the current backend foundation. This screen will use real vendor sub-orders after the Phase 5 order workflow is implemented.",
+    "shipping_not_available": "Shipment records and server-enforced fulfillment transitions are not present yet. The UI remains read-only until the authorized shipment workflow exists.",
+    "reviews_not_available": "Customer review records and moderation APIs are not present yet. No placeholder reviews are shown.",
+    "earnings_not_available": "Marketplace commission, refund, and payout records are not present yet. POS revenue is intentionally not shown as marketplace revenue.",
+    "marketplace_settings": "Marketplace settings",
+    "marketplace_settings_description": "Control participation and public availability for this business store.",
+    "qr_payment_settings": "QR / Mobile payment",
+    "global_qr_payment_title": "Marketplace-wide QR / Mobile payment",
+    "global_qr_payment_help": "This central payment account is controlled by Super Admin and is used for eligible marketplace orders across all sellers.",
+    "qr_payment_settings_help": "Configure the business-owned payment details customers may use when QR payment is supported by the verified provider.",
+    "payment_provider": "Payment provider",
+    "payment_account_name": "Payment account name",
+    "payment_phone_number": "Payment phone number",
+    "payment_instructions": "Payment instructions",
+    "enable_qr_payment": "Enable QR / Mobile payment details",
+    "qr_payment_enable_help": "This only publishes payment instructions. Orders remain pending until the existing provider verification is completed.",
+    "qr_code_image": "QR code image",
+    "qr_code_image_help": "Upload a clear PNG, JPG, JPEG, or WebP image up to 5 MB.",
+    "qr_code_preview": "QR code preview",
+    "no_qr_code_uploaded": "No QR code uploaded",
+    "remove_qr_code": "Remove QR code",
+    "qr_payment_image_updated": "QR payment image updated.",
+    "qr_payment_image_removed": "QR payment image removed.",
+    "marketplace_settings_saved": "Marketplace settings saved.",
+    "unable_to_save_marketplace_settings": "Unable to save marketplace settings.",
+    "marketplace_settings_unavailable": "Marketplace settings are unavailable.",
+    "marketplace_settings_load_help": "The settings request did not complete. Check your administrator session and API availability, then try again.",
+    "platform_admin_session_required": "This browser session is not signed in as a Platform Super Admin. Sign out and sign in with the intended administrator account.",
+    "retry": "Retry",
+    "marketplace_participation": "Marketplace participation",
+    "marketplace_participation_help": "Turn public marketplace availability on or off for this approved store. Approval is still controlled by Super Admin.",
+    "approval_status": "Approval status",
+    "business_status": "Business status",
+    "business_verification_status": "Business verification status",
+    "suspension_reason": "Suspension reason",
+    "suspended_by": "Suspended by",
+    "suspended_at": "Suspended at",
+    "settings_scope_note": "Current settings scope",
+    "notification_and_fulfillment_settings_come_with_later_marketplace_workflows": "Notification preferences, shipping choices, and fulfillment settings will be connected when their backend workflows are available.",
+    "total_vendors": "Total vendors",
+    "all_marketplace_stores": "All marketplace stores",
+    "approved_marketplace_stores": "Approved marketplace stores",
+    "suspended_vendors": "Suspended vendors",
+    "inactive_marketplace_stores": "Inactive marketplace stores",
+    "search_vendors": "Search vendors, stores or businesses",
+    "business_filter": "Business ID or name",
+    "all_approval_statuses": "All approval statuses",
+    "store_status": "Store status",
+    "product_status": "Product status",
+    "all_store_statuses": "All store statuses",
+    "sort_vendors": "Sort vendors",
+    "most_listings": "Most listings",
+    "most_orders": "Most orders",
+    "registration_date": "Registration date",
+    "view_details": "View details",
+    "vendors": "vendors",
+    "rejection_reason_placeholder": "Explain why this vendor is being rejected",
+    "suspension_reason_placeholder": "Explain why this vendor is being suspended",
+    "vendor_detail": "Vendor detail",
+    "back_to_vendors": "Back to vendors",
+    "unable_to_load_vendor_detail": "Unable to load vendor details.",
+    "vendor_not_found": "Vendor not found.",
+    "performance": "Performance",
+    "financial_summary": "Financial summary",
+    "fulfillment": "Fulfillment",
+    "vendor_products": "Vendor products",
+    "variants": "Variants",
+    "no_vendor_products": "No vendor products found.",
+    "no_vendor_orders": "No vendor orders found.",
+    "no_vendor_audit_history": "No vendor audit history found.",
+    "delivered_orders": "Delivered orders",
+    "cancelled_orders": "Cancelled orders",
+    "completion_rate": "completion rate",
+    "cancellation_rate": "cancellation rate",
+    "low_stock_listings": "Low-stock listings",
+    "inventory_attention": "Inventory attention",
+    "operations_summary": "Operations summary",
+    "review_audit_history": "Review audit history",
+    "authorized_contact_email": "Authorized contact email",
+    "authorized_contact_phone": "Authorized contact phone",
+    "business_id": "Business ID",
+    "eligible_sales": "Eligible sales",
+    "platform_commission": "Platform commission",
+    "vendor_net_amount": "Vendor net amount",
+    "payout_status": "Payout status",
+    "financial_summary_unavailable": "Financial settlement data is unavailable for this vendor.",
+    "review_required": "Review required",
+    "marketplace_control_center": "Marketplace Control Center",
+    "marketplace_control_center_description": "Oversee approved marketplace vendors, listings, orders, reporting, and security activity from one platform workspace.",
+    "vendor_management": "Vendor management",
+    "product_moderation": "Product moderation",
+    "payments_and_refunds": "Payments & refunds",
+    "commissions_and_payouts": "Commissions & payouts",
+    "disputes": "Disputes",
+    "marketplace_reports": "Reports & analytics",
+    "marketplace_audit_logs": "Marketplace audit logs",
+    "approved_vendors": "Approved vendors",
+    "active_marketplace_stores": "Approved and active stores",
+    "pending_vendor_approvals": "Pending vendor approvals",
+    "requires_review": "Requires Super Admin review",
+    "public_marketplace_listings": "Public marketplace listings",
+    "orders_in_selected_range": "Orders in selected range",
+    "recent_moderation_activity": "Recent moderation activity",
+    "no_moderation_activity": "No marketplace moderation activity yet.",
+    "no_marketplace_data": "No marketplace data found.",
+    "no_marketplace_vendors": "No marketplace vendors found.",
+    "vendor_directory": "Vendor directory",
+    "no_marketplace_listings": "No marketplace listings found.",
+    "total_marketplace_listings": "Total marketplace listings",
+    "all_marketplace_listings": "All marketplace listings",
+    "published_listings": "Published listings",
+    "draft_listings": "Draft listings",
+    "listings_not_published": "Not published",
+    "archived_listings": "Archived listings",
+    "listings_hidden_from_marketplace": "Hidden from marketplace",
+    "product_moderation_description": "Review real marketplace listings without changing the underlying POS product or inventory.",
+    "search_marketplace_listings": "Search product, SKU, barcode or store",
+    "listing_status": "Listing status",
+    "all_listing_statuses": "All listing statuses",
+    "marketplace_store_filter": "Search marketplace store",
+    "stock_availability": "Stock availability",
+    "all_stock_statuses": "All stock statuses",
+    "sort_listings": "Sort listings",
+    "price_low_to_high": "Price: low to high",
+    "price_high_to_low": "Price: high to low",
+    "status_a_to_z": "Status A–Z",
+    "per_page": "per page",
+    "listing_directory": "Marketplace listing directory",
+    "review_listing": "Review",
+    "unable_to_load_marketplace_listings": "Unable to load marketplace listings.",
+    "product_moderation_details": "Product moderation details",
+    "back_to_listings": "Back to listings",
+    "listing_not_found": "Marketplace listing not found.",
+    "unable_to_load_listing_detail": "Unable to load listing details.",
+    "moderation_reason_placeholder": "Record the reason for this moderation action",
+    "store_approval_status": "Store approval status",
+    "publishing_eligible": "Eligible for publishing",
+    "publishing_not_eligible": "Not eligible for publishing",
+    "product_images": "Product images",
+    "no_product_images": "No product images are available.",
+    "variants_and_inventory": "Variants and inventory",
+    "no_product_variants": "No active product variants are available.",
+    "moderation_history": "Moderation history",
+    "no_reason_recorded": "No reason recorded",
+    "no_moderation_history": "No moderation history is available.",
+    "listings": "Listings",
+    "stock": "Stock",
+    "hide": "Hide",
+    "hide_marketplace_listing": "Hide marketplace listing?",
+    "hide_marketplace_listing_help": "The original POS product and inventory remain unchanged. Only public marketplace visibility is changed.",
+    "publish_marketplace_listing": "Publish marketplace listing?",
+    "publish_marketplace_listing_help": "The listing will be public only if its store, business, product, and inventory rules pass server validation.",
+    "marketplace_listing_updated": "Marketplace listing updated.",
+    "unable_to_update_marketplace_listing": "Unable to update the marketplace listing.",
+    "approve_marketplace_store": "Approve marketplace store?",
+    "approve_marketplace_store_help": "Only active businesses with an approved marketplace store can publish public listings.",
+    "reject_marketplace_store": "Reject marketplace store?",
+    "reject_marketplace_store_help": "The store will remain unavailable for public marketplace publishing.",
+    "restore_marketplace_store": "Restore marketplace store?",
+    "restore_marketplace_store_help": "This re-enables marketplace visibility eligibility. Business approval and listing rules still apply.",
+    "suspend_marketplace_store": "Suspend marketplace store?",
+    "suspend_marketplace_store_help": "This hides the store from the public marketplace without deleting business data.",
+    "marketplace_store_updated": "Marketplace store updated.",
+    "unable_to_update_marketplace_store": "Unable to update the marketplace store.",
+    "suspended": "Suspended",
+    "gross_marketplace_sales": "Gross marketplace sales",
+    "paid_or_authorized_orders": "Paid or authorized orders",
+    "refund_total": "Refund total",
+    "approved_refund_requests": "Approved refund requests",
+    "orders_by_status": "Orders by status",
+    "payments_by_status": "Payments by status",
+    "vendor_performance": "Vendor performance",
+    "no_vendor_sales": "No vendor sales in this period.",
+    "no_refund_requests": "No refund requests found.",
+    "financial_capabilities": "Financial capabilities",
+    "commission_rules": "Commission rules",
+    "settlement_ledger": "Settlement ledger",
+    "payouts": "Vendor payouts",
+    "real_money_refunds": "Real-money refunds",
+    "configured": "Configured",
+    "not_configured": "Not configured",
+    "marketplace_finance_not_configured": "Commission, settlement, payout, dispute, and verified refund workflows are not configured in the current backend schema. No financial action is enabled here.",
+    "no_marketplace_audit_logs": "No marketplace audit logs found.",
+    "entity": "Entity",
+    "unable_to_load_marketplace_control_center": "Unable to load the marketplace control center.",
+    "suspend": "Suspend",
+    "reject": "Reject",
+    "apply_filters": "Apply filters",
+    "store": "Store",
+    "date": "Date",
+    "orders": "Orders",
+    "gross_sales": "Gross sales",
+    "business_category": "Business category",
+    "from_date": "From date",
+    "to_date": "To date",
+    "no_shipments": "No shipments found.",
+    "no_marketplace_requests": "No marketplace requests found.",
+    "platform_monitoring": "Platform monitoring",
+    "platform_monitoring_description": "Read-only operational signals for the CIINLV POS platform.",
+    "system_performance": "System performance",
+    "monitoring_response_time": "Monitoring response time",
+    "http_error_rate": "HTTP error rate (24h)",
+    "performance_metrics_are_read_only": "Historical application error-rate telemetry is not configured; this panel reports only verified runtime signals.",
+    "deployment_visibility": "Deployment visibility",
+    "release_version": "Release version",
+    "commit_reference": "Commit reference",
+    "deployed_at": "Deployed at",
+    "deployment_provider": "Deployment provider",
+    "deployment_metadata_source": "Metadata source",
+    "operational_incidents": "Operational incidents",
+    "no_active_operational_incidents": "No active incidents were found in the available operational signals.",
+    "incidents_derived_from_verified_signals": "Incidents are derived from bounded queue, scheduler, database, storage and backup signals.",
+    "incident_queue_failures": "Queue failures in the last 24 hours",
+    "incident_scheduler_failures": "Scheduler failures in the last 24 hours",
+    "incident_database": "Database health failure",
+    "incident_storage": "Storage health failure",
+    "incident_backups": "Backup status requires review",
+    "sale_details": "Sale details",
+    "manage_payment": "Manage payment",
+    "payment": "Payment",
+    "verified_paid": "Verified paid",
+    "outstanding_balance": "Outstanding balance",
+    "cash_payment_instruction": "Record the cash actually received. The server will calculate the credited amount and change.",
+    "record_cash_payment": "Record cash payment",
+    "verify_external_payment": "Verify external payment",
+    "external_payment_verification_notice": "Use the authorized provider reference and verification note. Manual verification remains subject to server policy.",
+    "provider": "Provider",
+    "external_reference": "External reference",
+    "verification_note": "Verification note",
+    "verify_payment": "Verify payment",
+    "payment_requirements_met": "All payment requirements are met.",
+    "complete_sale": "Complete sale",
+    "sale_already_completed": "This sale is already completed or refunded.",
+    "payment_actions_unavailable": "Payment actions are unavailable for this sale status.",
+    "payment_history": "Payment history",
+    "products_in_scope": "Products in scope",
+    "server_total": "Server total",
+    "authorized_branch_scope": "Authorized branch scope",
+    "bulk_deactivate": "Deactivate",
+    "bulk_export": "Export",
+    "clear_selection": "Clear selection",
+    "all_marketplace_orders": "All marketplace orders",
+    "pending_orders": "Pending orders",
+    "pending_payment_orders": "Pending-payment orders",
+    "processing_orders": "Processing orders",
+    "orders_being_fulfilled": "Orders being fulfilled",
+    "shipped_orders": "Shipped orders",
+    "shipped_or_partially_shipped": "Shipped or partially shipped",
+    "completed_deliveries": "Completed deliveries",
+    "cancelled_marketplace_orders": "Cancelled marketplace orders",
+    "payment_pending_orders": "Payment pending orders",
+    "payment_requires_review": "Payment requires review",
+    "search_marketplace_orders": "Search order, vendor order, tracking, store, or customer",
+    "all_order_statuses": "All order statuses",
+    "all_payment_statuses": "All payment statuses",
+    "all_fulfillment_statuses": "All fulfillment statuses",
+    "all_shipment_statuses": "All shipment statuses",
+    "sort_orders": "Sort orders",
+    "order_number_a_to_z": "Order number A–Z",
+    "total_high_to_low": "Total high to low",
+    "total_low_to_high": "Total low to high",
+    "vendor_store": "Vendor / store",
+    "order_total": "Order total",
+    "fulfillment_summary": "Fulfillment",
+    "shipment_summary": "Shipment",
+    "order_directory": "Order directory",
+    "no_marketplace_orders": "No marketplace orders match these filters.",
+    "order_items_and_vendors": "Order items and vendor orders",
+    "no_order_items": "No order items are available.",
+    "shipment": "Shipment",
+    "no_payment_history": "No payment history is available.",
+    "order_timeline": "Order timeline",
+    "no_order_timeline": "No order timeline is available.",
+    "settings_general": "General",
+    "settings_vendor_management": "Vendor Management",
+    "settings_product_listing": "Product & Listing Rules",
+    "settings_order_checkout": "Order & Checkout",
+    "settings_payments": "Payments",
+    "settings_shipping_fulfillment": "Shipping & Fulfillment",
+    "settings_commissions_payouts": "Commissions & Payouts",
+    "settings_notifications": "Notifications",
+    "settings_security_audit": "Security & Audit",
+    "search_settings": "Search settings",
+    "marketplace_enabled": "Marketplace enabled",
+    "marketplace_enabled_help": "Allow marketplace catalog, cart, and checkout traffic.",
+    "maintenance_mode": "Maintenance mode",
+    "maintenance_mode_help": "Temporarily block public marketplace and checkout traffic.",
+    "default_currency": "Default currency",
+    "seller_registration_enabled": "Seller registration enabled",
+    "seller_registration_enabled_help": "Allow businesses to create marketplace stores. Existing approvals are unchanged.",
+    "seller_approval_required": "Seller approval required",
+    "seller_approval_required_help": "New stores remain pending until a Platform Super Admin approves them.",
+    "listing_approval_required": "Listing approval required",
+    "listing_approval_required_help": "New seller listings remain draft until authorized moderation publishes them.",
+    "settings_listing_safety_note": "Publishing still follows store, tenant, product, inventory, and authorization checks. This setting does not bypass those safeguards.",
+    "default_commission_rate": "Default commission rate (%)",
+    "commission_base": "Commission base",
+    "item_subtotal": "Item subtotal",
+    "payout_schedule": "Payout schedule",
+    "manual_approval": "Manual approval",
+    "weekly": "Weekly",
+    "biweekly": "Biweekly",
+    "monthly": "Monthly",
+    "payout_minimum": "Minimum payout amount",
+    "commission_change_impact": "Changes affect future commission snapshots only. Historical vendor earnings and settled liabilities are not recalculated.",
+    "open_finance_management": "Open Finance Management",
+    "last_updated": "Last updated",
+    "updated_by": "Updated by",
+    "settings_revision": "Settings revision",
+    "reason_for_change": "Reason for important change",
+    "advanced_policy_json": "Advanced policy JSON",
+    "settings_change_history": "Settings change history",
+    "no_settings_history": "No settings changes have been recorded.",
+    "cancel_reset": "Cancel / reset",
+    "unsaved_changes": "Unsaved changes",
+    "settings_policy_json_invalid": "Policies must be a valid JSON object.",
+    "settings_change_reason_required": "Add a reason before saving this high-impact change.",
+    "confirm_marketplace_settings_change": "Confirm marketplace settings change",
+    "confirm_marketplace_settings_change_help": "This change affects public availability or seller onboarding. Review it carefully before saving.",
+    "settings_not_configured": "Not configured",
+    "settings_order_checkout_unavailable": "Minimum order, reservation timeout, cancellation windows, and unpaid expiration are not settings-backed in the current checkout service.",
+    "settings_payments_unavailable": "Payment method switches are controlled by verified provider configuration. No payment credential or UI-only enablement is exposed here.",
+    "settings_shipping_unavailable": "Delivery methods and tracking requirements are validated by the existing shipment workflow and are not global settings-backed controls.",
+    "settings_notifications_unavailable": "Marketplace notification channels are not globally configured. Existing server-side notifications continue to use their current services.",
+    "all_authorized_tenant_products": "All authorized tenant products",
+    "active_on_page": "Active on page",
+    "low_stock_on_page": "Low stock on page",
+    "current_page_only": "Current page only",
+    "visible_stock_value": "Visible stock value",
+    "current_page_estimate": "Current page estimate",
+    "search_product_name_brand_sku_barcode": "Search name, brand, SKU, or barcode",
+    "branch_location": "Branch / location",
+    "all_locations": "All locations",
+    "any_brand": "Any brand",
+    "min_price": "Min price",
+    "max_price": "Max price",
+    "previous_page": "Previous page",
+    "next_page": "Next page",
+    "settings_audit_table": "Marketplace settings audit records",
+    "settings_audit_log_description": "Read-only settings and marketplace audit history.",
+    "clear_search": "Clear search",
+    "search_businesses": "Search businesses",
+    "search_branches": "Search branches",
+    "select_business_first": "Select a business first",
+    "no_matching_businesses": "No matching businesses",
+    "no_matching_branches": "No matching branches",
+    "searching": "Searching...",
+    "load_more": "Load more",
+    "minimum_price": "Minimum price",
+    "maximum_price": "Maximum price",
+    "created_from": "Created from",
+    "created_to": "Created to",
+    "clear_all_filters": "Clear all filters",
+    "inventory_location": "Inventory location",
+    "authorized_branch_inventory": "Authorized branch inventory",
+    "adjust_stock": "Adjust stock",
+    "transfer_stock": "Transfer stock",
+    "no_authorized_inventory_balances": "No authorized inventory balances are recorded.",
+    "recent_movements": "Recent movements",
+    "no_movements_recorded": "No movements recorded.",
+    "select_location": "Select location",
+    "select_destination": "Select destination",
+    "close_inventory": "Close inventory",
+    "source_location": "Source location",
+    "destination_location": "Destination location",
+    "complete_inventory_action_fields": "Complete all required fields with an authorized location and valid quantity.",
+    "highest_price_first": "Highest price first",
+    "lowest_stock_first": "Lowest stock first",
+    "rows_per_page": "Rows per page",
+    "showing_orders": "Showing {{from}}–{{to}} of {{total}} orders",
+    "showing_products": "Showing {{from}}–{{to}} of {{total}} products",
+    "showing_audit_logs": "Showing {{from}}–{{to}} of {{total}} records",
+    "action_type": "Action type",
+    "audit_logs_read_only": "Audit logs are read-only historical records.",
+    "unable_to_load_marketplace_audit_logs": "Unable to load marketplace audit logs.",
+    "first_page": "First",
+    "last_page": "Last",
+    "on_hand_short": "OH",
+    "reserved_short": "RS",
+    "stock_summary": "Stock summary",
+    "branch_inventory": "Branch inventory",
+    "reorder_level": "Reorder level",
+    "inventory_unavailable": "Inventory data is unavailable for this product.",
+    "no_external_reference": "No external reference",
+    "no_payment_records": "No payment records.",
+    "unable_to_load_sale_details": "Unable to load sale details.",
+    "enter_valid_cash_received": "Enter a valid cash amount received.",
+    "cash_received_below_balance": "Cash received cannot be below the outstanding balance.",
+    "unable_to_record_payment": "Unable to record payment.",
+    "complete_verification_fields": "Provider, external reference, and verification note are required.",
+    "unable_to_verify_payment": "Unable to verify payment.",
+    "unable_to_complete_sale": "Unable to complete sale.",
+    "verifying": "Verifying...",
+    "completing": "Completing...",
+    "business_products": "Business products",
+    "all_businesses": "All businesses",
+    "name_a_to_z": "Name A to Z",
+    "name_z_to_a": "Name Z to A",
+    "availability": "Availability",
+    "sku": "SKU",
+    "size": "Size",
+    "business_products_description": "Read-only monitoring of POS products and inventory across businesses.",
+    "search_business_products": "Search products, brands, SKUs or barcodes",
+    "category_brand": "Category / brand",
+    "variants_stock": "Variants / stock",
+    "no_branch_stock": "No branch stock",
+    "no_business_products_found": "No business products found.",
+    "product_detail": "Product detail",
+    "product_detail_description": "Product, pricing, availability and inventory audit information.",
+    "back_to_products": "Back to business products",
+    "variants_inventory": "Variants and inventory",
+    "on_hand": "on hand",
+    "reserved": "reserved",
+    "no_audit_history": "No product audit history found.",
+    "business_products_read_only_notice": "Read-only platform monitoring. Product and inventory changes remain under Business Admin workflows.",
+    "unable_to_load_business_products": "Unable to load business products.",
+    "unable_to_load_product_detail": "Unable to load product detail.",
+    "refresh_platform_monitoring": "Refresh platform monitoring",
+    "unable_to_load_platform_monitoring": "Unable to load platform monitoring.",
+    "api_health": "API health",
+    "postgresql_health": "PostgreSQL health",
+    "queue_failures": "Queue failures",
+    "inventory_anomalies": "Inventory anomalies",
+    "api_health_detail": "The authenticated monitoring API is responding.",
+    "postgresql_health_detail": "Bounded database readiness check.",
+    "queue_failures_detail": "Failed jobs recorded in the last 24 hours.",
+    "inventory_anomalies_detail": "Report-only reconciliation findings.",
+    "queue_monitoring": "Queue monitoring",
+    "scheduler_monitoring": "Scheduler monitoring",
+    "registered_tasks": "Registered tasks",
+    "running_tasks": "Tasks currently running",
+    "scheduler_successes_24h": "Successful executions (24h)",
+    "scheduler_failures_24h": "Failed executions (24h)",
+    "missed_overdue_runs": "Missed / overdue runs",
+    "scheduler_task": "Scheduler task",
+    "all_scheduler_tasks": "All scheduled tasks",
+    "scheduled_tasks": "Scheduled tasks",
+    "command_identifier": "Command identifier",
+    "schedule_frequency": "Schedule frequency",
+    "last_started": "Last started",
+    "last_finished": "Last finished",
+    "last_success": "Last success",
+    "last_failure": "Last failure",
+    "next_due": "Next due",
+    "no_scheduler_tasks": "No scheduled tasks match the selected filters.",
+    "scheduler_execution_history": "Execution history",
+    "no_scheduler_history": "No scheduler execution history is available for the selected filters.",
+    "scheduler_errors": "Last scheduler errors",
+    "no_scheduler_errors": "No scheduler errors were recorded.",
+    "reference": "Reference",
+    "queue": "Queue",
+    "failed_at": "Failed at",
+    "no_failed_jobs_in_period": "No failed jobs were recorded in the last 24 hours.",
+    "all_queues": "All queues",
+    "pending_jobs": "Pending jobs",
+    "processing_jobs": "Processing jobs",
+    "completed_last_24h": "Completed in last 24 hours",
+    "failed_last_24h": "Failed in last 24 hours",
+    "oldest_waiting_job": "Oldest waiting job",
+    "average_processing_duration": "Average processing duration",
+    "queue_connection": "Queue connection",
+    "queue_driver": "Queue driver",
+    "queue_activity": "Queue activity",
+    "completed_and_failed": "Completed and failed jobs",
+    "queue_activity_unavailable": "Queue activity is unavailable until telemetry is recorded.",
+    "recent_job_history": "Recent job history",
+    "job_type": "Job type",
+    "attempts": "Attempts",
+    "created_at": "Created",
+    "started_at": "Started",
+    "finished_at": "Finished / failed",
+    "duration": "Duration",
+    "no_job_history": "No job history is available for the selected filters.",
+    "last_successful_heartbeat": "Last successful heartbeat",
+    "last_failed_heartbeat": "Last failed heartbeat",
+    "last_error": "Last error",
+    "none_recorded": "None recorded",
+    "inventory_consistency": "Inventory consistency",
+    "balances_checked": "Balances checked",
+    "mode": "Mode",
+    "report_only": "Report only",
+    "tenant": "Tenant",
+    "variant": "Variant",
+    "edit_product": "Edit product",
+    "brand": "Brand",
+    "enter_brand": "Enter brand",
+    "track_inventory": "Track inventory",
+    "this_product_has_sizes": "This product has sizes",
+    "inventory_location_for_entered_stock": "Inventory location for entered stock",
+    "select_an_authorized_location": "Select an authorized location",
+    "leave_stock_quantity_blank_to_make_no_inventory_adjustment": "Leave stock quantity blank to make no inventory adjustment.",
+    "write_product_description": "Write product description",
+    "product_variants": "Product variants",
+    "use_xs_eu_36_numeric_or_custom_size_label": "Use XS–XXXL, EU 36–46, numeric values or any custom size label.",
+    "add_variant": "Add variant",
+    "size_optional_unless_enabled": "Size (optional unless enabled)",
+    "no_size": "No size",
+    "selling_price": "Selling price",
+    "stock_quantity": "Stock quantity",
+    "leave_unchanged": "Leave unchanged",
+    "barcode": "Barcode",
+    "optional_barcode": "Optional barcode",
+    "remove_variant": "Remove variant",
+    "default_variant": "Default variant",
+    "uploading_images": "Uploading images…",
+    "uploading": "Uploading…",
+    "save_product": "Save product",
+    "products_without_sizes_keep_existing_variant_workflow": "Products without sizes keep their existing single-variant workflow. Stock quantities are written through the inventory ledger.",
+    "balance": "Balance",
+    "ledger": "Ledger",
+    "backup_status": "Backup status",
+    "backup_artifacts": "Backup artifacts",
+    "latest_backup": "Latest backup",
+    "backup_artifacts_detected": "Backup artifacts were found in the configured directory.",
+    "restore_testing_must_use_separate_environment": "Restore testing must use a separate non-production environment.",
+    "payment_health": "Payment health",
+    "payment_monitoring_unavailable": "Payment provider monitoring is unavailable until a verified provider is configured.",
+    "no_payment_records_in_period": "No payment records were returned for the period.",
+    "security_posture": "Security posture",
+    "debug": "Debug",
+    "https": "HTTPS",
+    "secure_sessions": "Secure sessions",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "security_posture_read_only": "These indicators are read-only and do not change application security settings.",
+    "storage_status": "Storage status",
+    "private_storage": "Private storage",
+    "storage_probe_status": "Storage probe status",
+    "last_checked_at": "Last checked at",
+    "unavailable": "Unavailable",
+    "platform_dashboard": "Platform dashboard",
+    "business_management": "Business management",
+    "marketplace_management": "Marketplace management",
+    "platform_settings": "Platform settings",
+    "manage_business": "Manage business",
+    "customer_profile": "Customer profile",
+    "send_reset_link": "Send reset link",
+    "no_authorized_orders_found": "No authorized orders found.",
+    "recent_account_activity": "Recent account activity",
+    "no_authorized_activity_found": "No authorized activity found.",
+    "authorized_account_details": "Authorized account details",
+    "search_name_or_email": "Search name or email",
+    "last_login": "Last login",
+    "total_customers": "Total customers",
+    "active_customers": "Active customers",
+    "suspended_customers": "Suspended customers",
+    "new_customers_this_month": "New customers this month",
+    "search_customers": "Search customers by name, email, phone or ID",
+    "registered": "Registered",
+    "unverified": "Unverified",
+    "verify_email_manually": "Verify email manually",
+    "view_customer": "View customer",
+    "verification_reason": "Verification reason",
+    "verification_reason_help": "Explain how email ownership was independently confirmed.",
+    "verification_evidence": "Verification evidence / reference",
+    "verification_evidence_help": "Enter a ticket, call record or other auditable reference.",
+    "confirm_verification": "Confirm verification",
+    "email_verification_successful": "Email verification completed successfully.",
+    "email_verification_failed": "Unable to verify this email address.",
+    "admin_override": "Admin override",
+    "clear_filters": "Clear filters",
+    "customers": "customers",
+    "unable_to_load_customers": "Unable to load customers.",
+    "unable_to_load_customer_profile": "Unable to load the customer profile.",
+    "unable_to_update_customer_status": "Unable to update customer status.",
+    "unable_to_load_customer_history": "Unable to load customer history.",
+    "terms": "Terms",
+    "no_customer_accounts_match_filters": "No customer accounts match these filters.",
+    "suspend_customer": "Suspend customer",
+    "activate_customer": "Activate customer",
+    "activate": "Activate",
+    "suspend_customer_confirmation": "Suspend this customer account and revoke its active sessions?",
+    "activate_customer_confirmation": "Activate this customer account?",
+    "customer_status_updated": "Customer status updated.",
+    "password_reset_confirmation": "Send password reset instructions to this customer?",
+    "password_reset_requested": "Password reset instructions requested.",
+    "unable_to_send_reset_link": "Unable to send the reset link.",
+    "authorized_addresses": "Authorized addresses",
+    "order_history": "Order history",
+    "customer_data_scope_notice": "Only data authorized for the current platform or selected-business scope is shown.",
+    "customer_error_unauthenticated": "You are not authenticated. Please sign in again.",
+    "customer_error_forbidden": "You do not have permission to view these customers.",
+    "customer_error_not_found": "The requested customer was not found.",
+    "customer_error_invalid_filters": "One or more filters are invalid.",
+    "customer_error_backend": "The customer service is temporarily unavailable.",
+    "customer_error_network": "Unable to reach the customer service.",
+    "registration_from": "Registration from",
+    "registration_to": "Registration to",
+    "last_login_from": "Last login from",
+    "last_login_to": "Last login to",
+    "register_management": "Register management",
+    "register_management_description": "Create and maintain branch-scoped POS registers used by checkout and cashier shifts.",
+    "add_register": "Add register",
+    "save_register": "Save register",
+    "all_accessible_branches": "All accessible branches",
+    "cashiers": "Cashiers",
+    "register_isolated_to_branch": "Registers remain isolated to the selected branch.",
+    "edit_register": "Edit register",
+    "register_cashiers": "Register cashiers",
+    "select_branch_cashier": "Select a branch cashier",
+    "assign": "Assign",
+    "no_cashier_assigned": "No cashier is assigned to this register.",
+    "existing_user": "Existing user",
+    "select_user": "Select a user",
+    "branch_role": "Branch role",
+    "sales_staff": "Sales staff",
+    "cashier": "Cashier",
+    "store_manager": "Store manager",
+    "inventory_manager": "Inventory manager",
+    "current_branch_staff": "Current branch staff",
+    "no_registers_for_branch": "No registers found for this branch.",
+    "staff_salesperson_management": "Staff & salesperson management",
+    "staff_salesperson_management_description": "Assign existing business users to branches. Cashiers remain responsible for shifts; salesperson is recorded on each sale.",
+    "no_staff_for_branch": "No staff assigned to this branch.",
+    "confirm_cod_payment_received": "Confirm COD Payment Received",
+    "pos_monitoring": "POS Monitoring",
+    "pos_monitoring_description": "Read-only oversight of POS transactions across all businesses.",
+    "all_pos_transactions": "All POS Transactions",
+    "refund_void_history": "Refund & Void History",
+    "payment_audit": "Payment Audit",
+    "completed_sales": "Completed sales",
+    "completed_sales_detail": "Completed POS transaction count",
+    "verified_revenue": "Verified revenue",
+    "verified_revenue_detail": "Paid totals only; split payments counted once",
+    "pending_payments": "Pending payments",
+    "pending_payments_detail": "Outstanding balances",
+    "refunds": "Refunds",
+    "refunds_detail": "Recorded refund totals",
+    "net_sales": "Net sales",
+    "net_sales_detail": "Verified revenue less refunds",
+    "export_csv": "Export CSV",
+    "search_pos_transactions": "Search sale, business, branch, cashier or product",
+    "all_payment_methods": "All payment methods",
+    "from": "From",
+    "to": "To",
+    "sort": "Sort",
+    "newest_first": "Newest first",
+    "oldest_first": "Oldest first",
+    "sale_number_a_to_z": "Sale number A–Z",
+    "highest_total_first": "Highest total first",
+    "records": "records",
+    "sale_number": "Sale number",
+    "branch_register": "Branch / register",
+    "business_identifier": "Business UUID or ID",
+    "branch_identifier": "Branch UUID or ID",
+    "cashier_id": "Cashier user ID",
+    "method": "Method",
+    "amount": "Amount",
+    "read_only_detail": "Read-only transaction detail",
+    "product_details": "Product details",
+    "receipt": "Receipt",
+    "not_available": "Not available",
+    "pos_monitoring_read_only_notice": "This monitoring view cannot edit sales, payments, inventory, or receipts.",
+    "no_pos_records_found": "No POS records found.",
+    "unable_to_load_pos_monitoring": "Unable to load POS monitoring data.",
+    "unable_to_load_pos_transaction": "Unable to load the POS transaction.",
+    "of": "of",
+    "review_verify": "Review / Verify",
+    "business_verification": "Business verification",
+    "business_verification_description": "Review the applicant, identity documents, verification status, and review history.",
+    "unable_to_load_verification": "Unable to load business verification details.",
+    "unable_to_update_verification": "Unable to update the verification status.",
+    "verification_not_found": "The requested verification was not found.",
+    "back_to_businesses": "Back to businesses",
+    "applicant": "Applicant",
+    "email_verification": "Email verification",
+    "verified": "Verified",
+    "preview": "Preview",
+    "download": "Download",
+    "review_history": "Review history",
+    "no_review_history": "No review history is available.",
+    "approve_business_verification": "Approve verification",
+    "approve_business_verification_help": "Approve this business only after reviewing the submitted identity information and documents.",
+    "business_verification_updated": "Business verification updated.",
+    "payment_received": "Payment Received",
+    "amount_collected": "Amount collected",
+    "amount_due": "Amount due",
+    "payment_already_received": "Payment has already been received. No duplicate collection is allowed.",
+    "payment_collection_blocked_hold": "Payment collection is blocked while this order is on administrative hold.",
+    "payment_amount_exceeds_balance": "The received amount cannot exceed the outstanding COD balance.",
+    "cod_payment_unavailable": "This COD payment is not available for collection.",
+    "branch_revenue_allocation_note": "Branch revenue uses line-value allocation.",
+    "branch_fulfillment_attribution": "Branch / fulfillment attribution",
+    "reservation_record": "Reservation record",
+    "attribution_unavailable": "Attribution unavailable",
+    "no_historical_fulfillment_branch": "No historical fulfillment branch was recorded for this order.",
+    "marketplace_sales_pagination": "Marketplace sales pagination",
+    "partially_refunded": "Partially refunded",
+    "edit_store": "Edit store",
+    "public_store_identity": "Public store identity",
+    "public_url": "Public URL",
+    "store_description_not_set": "Add a short description to introduce your store to marketplace customers.",
+    "tagline": "Tagline / slogan",
+    "active_branches": "Active branches",
+    "published_marketplace_products": "Published marketplace products",
+    "total_sales": "Total sales",
+    "business_information_help": "Keep the legal and operational identity for this business workspace current.",
+    "select_type": "Select type",
+    "registration_number": "Registration number",
+    "tax_number": "Tax number",
+    "currency": "Currency",
+    "timezone": "Timezone",
+    "default_language": "Default language",
+    "contact_information": "Contact information",
+    "contact_information_help": "Public customers can use these channels to contact your business.",
+    "secondary_phone": "Secondary phone",
+    "facebook_page": "Facebook page",
+    "messaging_contact": "Messaging contact",
+    "full_address": "Full address",
+    "state_region": "State / region",
+    "postal_code": "Postal code",
+    "operating_hours": "Operating hours",
+    "operating_hours_help": "Set the regular hours shown on your public store.",
+    "closed": "Closed",
+    "day_monday": "Monday",
+    "day_tuesday": "Tuesday",
+    "day_wednesday": "Wednesday",
+    "day_thursday": "Thursday",
+    "day_friday": "Friday",
+    "day_saturday": "Saturday",
+    "day_sunday": "Sunday",
+    "temporary_closure_message": "Temporary closure message",
+    "holiday_notice": "Holiday notice",
+    "store_policies": "Store policies",
+    "store_policies_help": "Explain delivery, returns, refunds, and customer support expectations.",
+    "shipping_policy": "Shipping policy",
+    "return_policy": "Return policy",
+    "refund_policy": "Refund policy",
+    "support_policy": "Support policy",
+    "marketplace_visibility": "Marketplace visibility",
+    "shipping_coverage": "Shipping coverage",
+    "customer_support_contact": "Customer support contact",
+    "delivery_methods": "Delivery methods",
+    "cod_available": "Cash on delivery available",
+    "cod_available_help": "Show cash on delivery as an available payment option when eligible.",
+    "branches_overview": "Branches overview",
+    "branches_overview_help": "Authorized business branches and their current operating status.",
+    "main_branch": "Main branch",
+    "address_not_set": "Address not set",
+    "no_branches": "No branches have been added yet.",
+    "manage_branches": "Manage branches",
+    "activity": "Activity",
+    "activity_help": "Recent store profile and branding changes.",
+    "no_activity": "No store activity has been recorded yet.",
+    "public_storefront": "Public storefront",
+    "no_published_products": "No published products are available yet.",
+    "no_description": "No description provided.",
+    "close_filters": "Close filters",
+    "marketplace_finance": "Marketplace finance",
+    "view_marketplace_earnings_commission_rules_payouts_and_ledger_activity": "View marketplace earnings, commission rules, payouts, and ledger activity.",
+    "open_earnings_page": "Open earnings page →",
+    "search_earnings": "Search earnings",
+    "unassigned_unknown": "Unassigned / Unknown",
+    "all_entry_types": "All entry types",
+    "seller_earning": "Seller earning",
+    "refund": "Refund",
+    "adjustment": "Adjustment",
+    "all_directions": "All directions",
+    "credit": "Credit",
+    "debit": "Debit",
+    "reversed": "Reversed",
+    "amount_high_to_low": "Amount high to low",
+    "amount_low_to_high": "Amount low to high",
+    "date_range_activity": "Date range activity",
+    "transaction_date": "Transaction date",
+    "reference_order": "Reference / order",
+    "entry_type": "Entry type",
+    "first": "First",
+    "last": "Last",
+    "transaction_details": "Transaction details",
+    "search_reference_or_order": "Search reference or order",
+    "transaction_status": "Transaction status",
+    "any_currency": "Any currency",
+    "original_ledger_amount": "Original ledger amount",
+    "destination_warehouse": "Destination warehouse",
+    "all_suppliers": "All suppliers",
+    "order_date_from": "Order date from",
+    "order_date_to": "Order date to",
+    "search_po_number_supplier_code_or_sku": "Search PO number, supplier, code or SKU",
+    "reset": "Reset",
+    "done": "Done",
+    "all_authorized_cashiers": "All authorized cashiers",
+    "pending_payment": "Pending payment",
+    "all_verified_methods": "All verified methods",
+    "any_verification_state": "Any verification state",
+    "filter_sales": "Filter Sales",
+    "review_authorized_sales_payments_receipts_and_refund_totals_across_your_branches": "Review authorized sales, payments, receipts, and refund totals across your branches.",
+    "voided": "Voided",
+    "search_sale_receipt_or_cashier": "Search sale, receipt, or cashier",
+    "sale_status": "Sale status",
+    "verification": "Verification",
+    "sales_pagination": "Sales pagination",
+    "help_policies": "Help & Policies",
+    "help_intro": "A central place for administrator guidance and policies. Content pages will be added in the next phase.",
+    "help_privacy": "Privacy Policy",
+    "help_privacy_desc": "Read how platform and customer information is handled once the approved admin policy is available.",
+    "help_terms": "Terms & Conditions",
+    "help_terms_desc": "Review the platform rules applicable to your administrator role.",
+    "help_faq": "Frequently Asked Questions",
+    "help_faq_desc": "Find answers about accounts, products, orders, payments and marketplace operations.",
+    "help_support": "Help & Support",
+    "help_support_desc": "Find approved help resources and support contact methods.",
+    "help_next_phase": "Content available in Phase 2"
   }
 }
