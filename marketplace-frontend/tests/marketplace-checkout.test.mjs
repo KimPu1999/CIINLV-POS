@@ -243,6 +243,18 @@ test('shared marketplace footer uses the official logo palette and keeps custome
   assert.match(marketplaceCss, /--brand-footer-bg: var\(--brand-primary-deep\)/)
 })
 
+test('marketplace header keeps search hidden until toggled', () => {
+  assert.match(marketplaceShell, /const \[searchOpen, setSearchOpen\] = useState\(false\)/)
+  assert.match(marketplaceShell, /aria-expanded=\{searchOpen\}/)
+  assert.match(marketplaceShell, /marketplace-search-panel/)
+  assert.match(marketplaceShell, /searchInputRef\.current\?\.focus\(\)/)
+  assert.match(marketplaceShell, /closeSearchOnEscape/)
+  assert.match(marketplaceShell, /encodeURIComponent\(query\)/)
+  assert.match(marketplaceShell, /whitespace-nowrap/)
+  assert.match(marketplaceShell, /hidden min-w-0 flex-1 items-center justify-center gap-0\.5 xl:flex/)
+  assert.match(marketplaceShell, /xl:hidden.*aria-label=\{mobileOpen \? t\('closeMenu'\)/)
+})
+
 test('about and contact pages are bilingual and contact submission is server-backed', () => {
   assert.match(app, /<Route path="\/about" element={<AboutUsPage/)
   assert.match(app, /<Route path="\/contact" element={<ContactUsPage/)
