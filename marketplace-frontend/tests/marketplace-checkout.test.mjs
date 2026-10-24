@@ -9,6 +9,7 @@ const marketplaceShell = await readFile(new URL('../src/components/MarketplaceSh
 const marketplaceCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = await readFile(new URL('../src/lib/marketplace.ts', import.meta.url), 'utf8')
 const policy = await readFile(new URL('../src/privacy-policy.ts', import.meta.url), 'utf8')
+const terms = await readFile(new URL('../src/terms-and-conditions.ts', import.meta.url), 'utf8')
 
 test('checkout page uses server quote and idempotent COD checkout', () => {
   assert.match(app, /fetchCheckoutQuote\(/)
@@ -106,14 +107,25 @@ test('product detail uses bounded related products and paginated reviews', () =>
   assert.doesNotMatch(app, /const related = catalog\.data\.listings/)
 })
 
-test('privacy has a dedicated bilingual policy page while terms keeps the shared info page', () => {
+test('privacy and terms have dedicated bilingual legal pages', () => {
   assert.match(app, /<Route path="\/privacy" element={<PrivacyPolicyPage/)
-  assert.match(app, /<Route path="\/terms" element={<InfoPage/)
+  assert.match(app, /<Route path="\/terms" element={<TermsAndConditionsPage/)
   assert.match(app, /function PrivacyPolicyPage/)
   assert.match(app, /privacyPolicyContent\(locale\)/)
   assert.match(policy, /const englishSections/)
   assert.match(policy, /const burmeseSections/)
   for (const id of ['introduction', 'payment', 'sharing', 'choices', 'contact']) assert.match(policy, new RegExp(`id: '${id}'`))
+})
+
+test('terms has a dedicated bilingual page with verified workflow boundaries', () => {
+  assert.match(app, /<Route path="\/terms" element={<TermsAndConditionsPage/)
+  assert.match(app, /function TermsAndConditionsPage/)
+  assert.match(app, /termsAndConditionsContent\(locale\)/)
+  assert.match(terms, /const englishSections/)
+  assert.match(terms, /const burmeseSections/)
+  for (const id of ['acceptance', 'payment', 'returns', 'privacy', 'disputes', 'contact']) assert.match(terms, new RegExp(`id: '${id}'`))
+  assert.match(terms, /href: '\/privacy'/)
+  assert.match(terms, /does not automatically establish a Paid status/)
 })
 
 test('checkout delivery and payment copy is translated in both locales', () => {

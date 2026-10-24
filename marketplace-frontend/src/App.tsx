@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -45,6 +45,7 @@ import { BrandLogo } from './components/BrandLogo'
 import { CompactSummaryCard } from './components/CompactSummaryCard'
 import { MarketplaceShell, StoreMark } from './components/MarketplaceShell'
 import { privacyPolicyContent } from './privacy-policy'
+import { termsAndConditionsContent } from './terms-and-conditions'
 import {
   apiErrorMessage,
   addMarketplaceCartItem,
@@ -381,7 +382,7 @@ function App() {
         <Route path="/tracking/:id" element={<ProtectedRoute {...services}><TrackingPage {...services} /></ProtectedRoute>} />
         <Route path="/tracking" element={<ProtectedRoute {...services}><TrackingPage {...services} /></ProtectedRoute>} />
         <Route path="/privacy" element={<PrivacyPolicyPage {...services} />} />
-        <Route path="/terms" element={<InfoPage {...services} title={services.t('terms')} />} />
+        <Route path="/terms" element={<TermsAndConditionsPage {...services} />} />
         <Route path="*" element={<NotFoundPage {...services} />} />
       </Routes>
     </MarketplaceShell>
@@ -1414,10 +1415,6 @@ function ShipmentTimeline({ shipment, locale, t }: { shipment: import('./lib/mar
   return <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/40"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-black">{t('shipmentTimeline')}</h3><p className="mt-1 text-xs font-semibold text-slate-500">{shipment.storeName || t('vendor')} · {trackingStatusLabel(shipment.status, t)}</p></div><span className="text-xs font-bold text-slate-400">{shipment.createdAt ? new Date(shipment.createdAt).toLocaleString(locale === 'my' ? 'my-MM' : 'en-US') : '—'}</span></div><div className="mt-3 grid gap-2 text-sm">{[[t('deliveryType'), shipment.deliveryType === 'external_courier' ? t('externalCourier') : t('selfDelivery')], [t('carrier'), shipment.carrierName], [t('trackingNumber'), shipment.trackingNumber], [t('internalTrackingId'), shipment.internalTrackingId]].filter(([, value]) => value).map(([label, value]) => <div key={label} className="flex flex-wrap justify-between gap-3"><span className="font-semibold text-slate-500">{label}</span>{shipment.trackingUrl && label === t('trackingNumber') ? <a href={shipment.trackingUrl} target="_blank" rel="noreferrer" className="font-black text-blue-600 hover:underline">{String(value)}</a> : <span className="font-black">{String(value)}</span>}</div>)}</div>{shipment.events.length > 0 && <ol className="mt-4 grid gap-3 border-l-2 border-blue-100 pl-4 dark:border-blue-900/50">{shipment.events.map((event) => <li key={event.id} className="relative"><span className="absolute -left-[1.35rem] top-1 size-2.5 rounded-full bg-blue-600 ring-4 ring-white dark:ring-slate-950" /><p className="text-sm font-black">{trackingStatusLabel(event.status, t)}</p><p className="mt-1 text-xs leading-5 text-slate-500">{event.description || '—'}{event.eventTime ? ` · ${new Date(event.eventTime).toLocaleString(locale === 'my' ? 'my-MM' : 'en-US')}` : ''}</p></li>)}</ol>}</div>
 }
 
-function InfoPage({ title, t }: AppServices & { title: string }) {
-  return <PageContainer><PageIntro eyebrow={t('marketplace')} title={title} body={t('footerBody')} /><div className="mt-10 max-w-3xl rounded-3xl border border-slate-200 bg-white p-7 text-sm leading-8 text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"><p>{t('footerBody')}</p></div></PageContainer>
-}
-
 function PrivacyPolicyPage({ locale }: AppServices) {
   const policy = privacyPolicyContent(locale)
   const [contentsOpen, setContentsOpen] = useState(false)
@@ -1454,6 +1451,78 @@ function PrivacyPolicyPage({ locale }: AppServices) {
       <aside className="hidden lg:sticky lg:top-24 lg:block"><div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="mb-2 flex items-center gap-2 px-2.5 text-sm font-black text-slate-950 dark:text-white"><BookOpen size={16} className="text-blue-600" />{policy.contents}</div>{contents}</div></aside>
       <div className="lg:hidden"><button type="button" onClick={() => setContentsOpen((open) => !open)} aria-expanded={contentsOpen} aria-controls="privacy-mobile-contents" className="flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-800 shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"><span className="inline-flex items-center gap-2"><BookOpen size={16} className="text-blue-600" />{policy.contents}</span><ChevronDown size={17} className={'transition ' + (contentsOpen ? 'rotate-180' : '')} /></button>{contentsOpen && <div id="privacy-mobile-contents" className="mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">{contents}</div>}</div>
       <article className="mt-4 min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7 lg:mt-0"><div className="prose prose-slate max-w-none dark:prose-invert">{policy.sections.map((section) => <section key={section.id} id={section.id} className="scroll-mt-28 border-b border-slate-100 pb-6 pt-1 first:pt-0 last:border-b-0 last:pb-0 dark:border-slate-800"><div className="flex items-start gap-3"><span className="pt-1 text-xs font-black tracking-wider text-blue-600 dark:text-blue-300">{section.number}</span><h2 className="m-0 text-lg font-black tracking-tight text-slate-950 dark:text-white sm:text-xl">{section.title}</h2></div><div className="mt-3 grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{section.paragraphs.map((paragraph) => <p key={paragraph} className="m-0">{paragraph}</p>)}{section.bullets && <ul className="m-0 grid gap-2 pl-5">{section.bullets.map((bullet) => <li key={bullet} className="pl-1">{bullet}</li>)}</ul>}{section.note && <p className="m-0 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs font-bold leading-6 text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-100">{section.note}</p>}</div></section>)}</div><section className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-start gap-3"><Mail size={18} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-300" /><div><h2 className="text-base font-black text-slate-950 dark:text-white">{policy.contactTitle}</h2><p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-blue-700 dark:text-blue-300">{policy.contactLabel}</p><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{policy.contactBody}</p><p className="mt-2 text-xs font-bold leading-5 text-slate-500 dark:text-slate-400">{policy.contactNote}</p></div></div></section></article>
+    </div>
+  </PageContainer>
+}
+
+function TermsAndConditionsPage({ locale }: AppServices) {
+  const terms = useMemo(() => termsAndConditionsContent(locale), [locale])
+  const [contentsOpen, setContentsOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState(terms.sections[0]?.id ?? '')
+
+  useEffect(() => {
+    const previousTitle = document.title
+    const metaDescription = document.querySelector('meta[name="description"]') ?? document.createElement('meta')
+    const createdMeta = !metaDescription.parentNode
+    metaDescription.setAttribute('name', 'description')
+    metaDescription.setAttribute('content', terms.introduction)
+    if (createdMeta) document.head.appendChild(metaDescription)
+    const canonical = document.querySelector('link[rel="canonical"]') ?? document.createElement('link')
+    const createdCanonical = !canonical.parentNode
+    canonical.setAttribute('rel', 'canonical')
+    canonical.setAttribute('href', `${window.location.origin}/terms`)
+    if (createdCanonical) document.head.appendChild(canonical)
+    document.title = `${terms.title} · CIINLV Marketplace`
+    return () => {
+      document.title = previousTitle
+      if (createdMeta) metaDescription.remove()
+      if (createdCanonical) canonical.remove()
+    }
+  }, [locale, terms.introduction, terms.title])
+
+  useEffect(() => {
+    setActiveSection(terms.sections[0]?.id ?? '')
+    const sections = terms.sections.map((section) => document.getElementById(section.id)).filter((section): section is HTMLElement => Boolean(section))
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+      if (visible?.target.id) setActiveSection(visible.target.id)
+    }, { rootMargin: '-112px 0px -65% 0px', threshold: 0 })
+    sections.forEach((section) => observer.observe(section))
+    return () => observer.disconnect()
+  }, [locale, terms.sections])
+
+  useEffect(() => {
+    const scrollToHash = () => {
+      const id = decodeURIComponent(window.location.hash.replace(/^#/, ''))
+      if (!id) return
+      window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
+    window.addEventListener('hashchange', scrollToHash)
+    window.addEventListener('popstate', scrollToHash)
+    scrollToHash()
+    return () => { window.removeEventListener('hashchange', scrollToHash); window.removeEventListener('popstate', scrollToHash) }
+  }, [locale])
+
+  const navigateToSection = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
+    event.preventDefault()
+    window.history.pushState(null, '', `#${id}`)
+    setActiveSection(id)
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setContentsOpen(false)
+  }
+
+  const contents = <nav aria-label={terms.contents} className="grid gap-1.5">
+    {terms.sections.map((section) => <a key={section.id} href={`#${section.id}`} onClick={(event) => navigateToSection(event, section.id)} aria-current={activeSection === section.id ? 'location' : undefined} className={'group flex items-start gap-2 rounded-lg px-2.5 py-2 text-xs font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-500/20 ' + (activeSection === section.id ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-200' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-blue-950/30 dark:hover:text-blue-200')}><span className="font-black text-blue-600 dark:text-blue-300">{section.number}</span><span className="leading-5">{section.title}</span></a>)}
+  </nav>
+
+  return <PageContainer compact wide>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><nav aria-label={terms.contents} className="flex items-center gap-2 text-xs font-bold text-slate-400"><Link to="/" className="transition hover:text-blue-600">{terms.home}</Link><ChevronRight size={14} /><span className="text-slate-700 dark:text-slate-200">{terms.terms}</span></nav><Link to="/" className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"><ArrowLeft size={15} /> {terms.backToHome}</Link></div>
+    <header className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-5 shadow-sm dark:border-blue-950/60 dark:from-blue-950/30 dark:via-slate-900 dark:to-slate-900 sm:p-7"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20"><BookOpen size={23} /></span><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">{terms.eyebrow}</p><h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-4xl">{terms.title}</h1></div></div><p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">{terms.introduction}</p><div className="mt-5 flex flex-wrap gap-2 text-xs font-bold text-slate-600 dark:text-slate-300"><span className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-slate-950/60">{terms.effectiveDate}</span><span className="rounded-lg bg-white px-3 py-2 shadow-sm dark:bg-slate-950/60">{terms.lastUpdated}</span></div></header>
+    <div role="note" className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100"><CircleAlert size={16} className="mt-0.5 shrink-0" /> <span>{terms.reviewNotice}</span></div>
+    <div className="mt-5 lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <aside className="hidden lg:sticky lg:top-24 lg:block"><div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="mb-2 flex items-center gap-2 px-2.5 text-sm font-black text-slate-950 dark:text-white"><BookOpen size={16} className="text-blue-600" />{terms.contents}</div>{contents}</div></aside>
+      <div className="lg:hidden"><button type="button" onClick={() => setContentsOpen((open) => !open)} aria-expanded={contentsOpen} aria-controls="terms-mobile-contents" className="flex h-11 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-800 shadow-sm transition hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"><span className="inline-flex items-center gap-2"><BookOpen size={16} className="text-blue-600" />{terms.contents}</span><ChevronDown size={17} className={'transition ' + (contentsOpen ? 'rotate-180' : '')} /></button>{contentsOpen && <div id="terms-mobile-contents" className="mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">{contents}</div>}</div>
+      <article className="mt-4 min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7 lg:mt-0"><div className="prose prose-slate max-w-none dark:prose-invert">{terms.sections.map((section) => <section key={section.id} id={section.id} className="scroll-mt-28 border-b border-slate-100 pb-6 pt-1 first:pt-0 last:border-b-0 last:pb-0 dark:border-slate-800"><div className="flex items-start gap-3"><span className="pt-1 text-xs font-black tracking-wider text-blue-600 dark:text-blue-300">{section.number}</span><h2 className="m-0 text-lg font-black tracking-tight text-slate-950 dark:text-white sm:text-xl">{section.title}</h2></div><div className="mt-3 grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{section.paragraphs.map((paragraph) => <p key={paragraph} className="m-0">{paragraph}</p>)}{section.bullets && <ul className="m-0 grid gap-2 pl-5">{section.bullets.map((bullet) => <li key={bullet} className="pl-1">{bullet}</li>)}</ul>}{section.link && <Link to={section.link.href} className="inline-flex w-fit items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20">{section.link.label} <ArrowRight size={15} /></Link>}{section.note && <p className="m-0 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs font-bold leading-6 text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-100">{section.note}</p>}</div></section>)}</div><section className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-start gap-3"><Mail size={18} className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-300" /><div><h2 className="text-base font-black text-slate-950 dark:text-white">{terms.contactTitle}</h2><p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-blue-700 dark:text-blue-300">{terms.contactLabel}</p><p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{terms.contactBody}</p><p className="mt-2 text-xs font-bold leading-5 text-slate-500 dark:text-slate-400">{terms.contactNote}</p></div></div></section></article>
     </div>
   </PageContainer>
 }
