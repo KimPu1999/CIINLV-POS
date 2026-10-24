@@ -9,12 +9,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class HelpPolicyController
 {
     public function policies(Request $request): JsonResponse
     {
+        if (! Schema::hasTable('policy_documents')) {
+            return response()->json(['success' => false, 'code' => 'help_policy_storage_unavailable', 'message' => 'Help policy storage is not available until the reviewed migration is applied.'], 503);
+        }
         $request->validate(['locale' => ['nullable', 'in:en,my'], 'type' => ['nullable', 'string', 'max:80']]);
         $query = PolicyDocument::query()->with('publisher:id,name')->when($request->filled('locale'), fn (Builder $query) => $query->where('locale', $request->string('locale')))->when($request->filled('type'), fn (Builder $query) => $query->where('type', $request->string('type')));
         if (! $request->user()->isSuperAdmin()) {
@@ -58,6 +62,9 @@ class HelpPolicyController
 
     public function faqs(Request $request): JsonResponse
     {
+        if (! Schema::hasTable('faq_entries')) {
+            return response()->json(['success' => false, 'code' => 'help_faq_storage_unavailable', 'message' => 'FAQ storage is not available until the reviewed migration is applied.'], 503);
+        }
         $request->validate(['locale' => ['nullable', 'in:en,my'], 'category' => ['nullable', 'string', 'max:80'], 'search' => ['nullable', 'string', 'max:120']]);
         $query = FaqEntry::query()->when($request->filled('locale'), fn (Builder $query) => $query->where('locale', $request->string('locale')))->when($request->filled('category'), fn (Builder $query) => $query->where('category', $request->string('category')))->when($request->filled('search'), fn (Builder $query) => $query->where(fn (Builder $search) => $search->where('question', 'ilike', '%'.$request->string('search').'%')->orWhere('answer', 'ilike', '%'.$request->string('search').'%')));
         if (! $request->user()->isSuperAdmin()) {

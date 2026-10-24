@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { BookOpen, ChevronDown, FileText, HelpCircle, LifeBuoy, Plus, Search, ShieldCheck, Upload } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import { ErrorState, LoadingState, PageHeader, StatusBadge } from '../components/ui'
@@ -32,6 +32,16 @@ export function HelpPoliciesPage({ platform = false }: { platform?: boolean }) {
 
   const policyEndpoint = platform ? '/api/v1/platform/help/policies' : '/api/v1/business/help/policies'
   const faqEndpoint = platform ? '/api/v1/platform/help/faqs' : '/api/v1/business/help/faqs'
+  const loadErrorMessage = useCallback((reason: unknown) => {
+    if (!axios.isAxiosError(reason)) return t('text.help_policies_network_error')
+    const status = reason.response?.status
+    if (status === 401) return t('text.help_policies_unauthorized')
+    if (status === 403) return t('text.help_policies_forbidden')
+    if (status === 404) return t('text.help_policies_not_found')
+    if (status === 503) return t('text.help_policies_storage_unavailable')
+    if (status && status >= 500) return t('text.help_policies_server_error')
+    return t('text.help_policies_load_error')
+  }, [t])
 
   useEffect(() => {
     if (tab !== 'policies' && tab !== 'faq') return
@@ -47,9 +57,9 @@ export function HelpPoliciesPage({ platform = false }: { platform?: boolean }) {
       } else {
         setFaqs((response.data as Page<Faq>).data || [])
       }
-    }).catch((reason: unknown) => { if (!axios.isCancel(reason)) setError(t('text.help_policies_load_error')) }).finally(() => setLoading(false))
+    }).catch((reason: unknown) => { if (!axios.isCancel(reason)) setError(loadErrorMessage(reason)) }).finally(() => setLoading(false))
     return () => controller.abort()
-  }, [category, faqEndpoint, locale, policyEndpoint, search, tab, t])
+  }, [category, faqEndpoint, locale, loadErrorMessage, policyEndpoint, search, tab])
 
   const visiblePolicies = useMemo(() => policies.filter((policy) => policy.locale === locale), [locale, policies])
   const saveDraft = async (event: FormEvent) => {

@@ -337,8 +337,6 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/customers', [CustomerManagementController::class, 'businessIndex']);
             Route::get('/customers/{customer}/orders', [CustomerManagementController::class, 'businessOrders']);
             Route::get('/customers/{customer}', [CustomerManagementController::class, 'businessShow']);
-            Route::get('/help/policies', [HelpPolicyController::class, 'policies']);
-            Route::get('/help/faqs', [HelpPolicyController::class, 'faqs']);
         });
 
         Route::prefix('business')->middleware('tenant.context.any')->group(function (): void {
@@ -360,6 +358,8 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/stores/{store}/dashboard/layout', [StoreDashboardLayoutController::class, 'update']);
             Route::get('/stores/{store}/dashboard/widgets', [StoreDashboardController::class, 'widgets']);
             Route::put('/stores/{store}/dashboard/widgets', [StoreDashboardLayoutController::class, 'updateWidgets']);
+            Route::get('/help/policies', [HelpPolicyController::class, 'policies']);
+            Route::get('/help/faqs', [HelpPolicyController::class, 'faqs']);
         });
 
         Route::middleware('tenant.context.any')->group(function (): void {
