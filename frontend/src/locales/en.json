@@ -1663,5 +1663,18 @@
     ,"appearance_color_border": "Border color"
     ,"appearance_color_footer": "Footer background"
     ,"appearance_color_footer_text": "Footer text"
+    ,"footer_social_links": "Footer & Social Links"
+    ,"footer_social_help": "Configure the published footer description and approved social profiles. Links must use HTTPS and an approved social domain."
+    ,"footer_show_social_icons": "Show configured social media icons"
+    ,"footer_facebook_url": "Facebook URL"
+    ,"footer_instagram_url": "Instagram URL"
+    ,"footer_youtube_url": "YouTube URL"
+    ,"footer_tiktok_url": "TikTok URL"
+    ,"footer_description_en": "Footer description (English)"
+    ,"footer_description_my": "Footer description (Burmese)"
+    ,"footer_preview_facebook": "Facebook"
+    ,"footer_preview_instagram": "Instagram"
+    ,"footer_preview_youtube": "YouTube"
+    ,"footer_preview_tiktok": "TikTok"
   }
 }

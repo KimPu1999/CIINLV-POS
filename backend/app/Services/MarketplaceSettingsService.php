@@ -51,6 +51,15 @@ class MarketplaceSettingsService
             'body_font_size' => 16, 'heading_font_size' => 32, 'button_font_size' => 14, 'footer_font_size' => 14,
             'light' => ['primary' => '#003868', 'secondary' => '#f86820', 'accent' => '#47bfff', 'header_bg' => '#003868', 'nav_text' => '#ffffff', 'nav_hover' => '#164f7d', 'nav_active' => '#1f6ea8', 'button_bg' => '#2563eb', 'button_text' => '#ffffff', 'page_bg' => '#f8fafc', 'card_bg' => '#ffffff', 'border' => '#dbeafe', 'footer_bg' => '#002850', 'footer_text' => '#ffffff'],
             'dark' => ['primary' => '#47bfff', 'secondary' => '#f86820', 'accent' => '#7dd3fc', 'header_bg' => '#002850', 'nav_text' => '#ffffff', 'nav_hover' => '#164f7d', 'nav_active' => '#1f6ea8', 'button_bg' => '#2563eb', 'button_text' => '#ffffff', 'page_bg' => '#020617', 'card_bg' => '#0f172a', 'border' => '#334155', 'footer_bg' => '#020617', 'footer_text' => '#ffffff'],
+            'footer' => [
+                'show_social_icons' => false,
+                'facebook_url' => null,
+                'instagram_url' => null,
+                'youtube_url' => null,
+                'tiktok_url' => null,
+                'description_en' => 'A customer-first marketplace for CIINLV POS businesses.',
+                'description_my' => 'CIINLV POS လုပ်ငန်းများအတွက် ဖောက်သည်ကို ဦးစားပေးထားသော Marketplace။',
+            ],
         ];
     }
 

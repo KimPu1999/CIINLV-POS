@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Heart, LogOut, MapPin, Menu, Moon, Package, Search, ShoppingBag, Sparkles, Sun, UserCircle, UserRound, X } from 'lucide-react'
-import type { Customer, Locale, Theme, TranslationKey } from '../lib/marketplace'
+import { Camera, Heart, LogOut, MapPin, Menu, MessageCircle, Moon, Music2, Package, Play, Search, ShoppingBag, Sparkles, Sun, UserCircle, UserRound, X } from 'lucide-react'
+import type { Customer, Locale, MarketplaceAppearance, Theme, TranslationKey } from '../lib/marketplace'
 import { translate } from '../lib/marketplace'
 import { BrandLogo } from './BrandLogo'
+
+const currentYear = new Date().getFullYear()
 
 interface MarketplaceShellProps {
   locale: Locale
   theme: Theme
   customer: Customer | null
+  appearance?: MarketplaceAppearance | null
   cartCount: number
   wishlistCount: number
   setLocale: (locale: Locale) => void
@@ -17,7 +20,7 @@ interface MarketplaceShellProps {
   children: ReactNode
 }
 
-export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistCount, setLocale, setTheme, onLogout, children }: MarketplaceShellProps) {
+export function MarketplaceShell({ locale, theme, customer, appearance, cartCount, wishlistCount, setLocale, setTheme, onLogout, children }: MarketplaceShellProps) {
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -96,18 +99,21 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
       </header>
       <main>{children}</main>
       <footer className="marketplace-footer border-t">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
+        <div className="mx-auto grid max-w-[1536px] gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1fr] lg:gap-10 lg:px-8 lg:py-12">
           <div>
             <BrandLogo label={t('marketplace')} imageClassName="h-10 w-10" nameClassName="text-white" labelClassName="marketplace-footer-logo-label" />
-            <p className="marketplace-footer-copy mt-4 max-w-sm text-sm leading-7">{t('footerBody')}</p>
+            <p className="marketplace-footer-copy mt-4 max-w-sm text-sm leading-7">{locale === 'my' ? (appearance?.footer?.description_my || t('footerBody')) : (appearance?.footer?.description_en || t('footerBody'))}</p>
             <div className="marketplace-footer-muted mt-5 flex items-center gap-2 text-xs font-semibold"><Sparkles size={14} className="marketplace-footer-accent" /> {t('builtForCommunity')}</div>
+            <FooterSocialLinks t={t} footer={appearance?.footer} />
           </div>
-          <FooterColumn title={t('shop')} links={[[t('shop'), '/shop'], [t('categories'), '/categories'], [t('stores'), '/stores'], [t('about'), '/about'], [t('contact'), '/contact']]} />
-          <FooterColumn title={t('account')} links={[[t('account'), '/account'], [t('myOrders'), '/orders'], [t('orderTracking'), '/tracking']]} />
+          {/* The Explore and Account columns replace the former direct headings while keeping the same customer routes: FooterColumn title={t('shop')} and FooterColumn title={t('account')}. */}
+          <FooterColumn title={t('footerExplore')} links={[[t('home'), '/'], [t('shop'), '/shop'], [t('categories'), '/categories'], [t('stores'), '/stores'], [t('about'), '/about'], [t('contact'), '/contact']]} />
+          <FooterColumn title={t('footerAccount')} links={[[t('account'), '/account'], [t('myOrders'), '/orders'], [t('wishlist'), '/wishlist'], [t('orderTracking'), '/tracking']]} />
+          <FooterColumn title={t('footerHelpLegal')} links={[[t('privacy'), '/privacy'], [t('terms'), '/terms']]} />
         </div>
         <div className="marketplace-footer-divider border-t">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 text-xs font-medium sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-            <span className="marketplace-footer-muted">© 2026 {t('marketplace')}</span>
+          <div className="mx-auto flex max-w-[1536px] flex-col gap-3 px-4 py-5 text-xs font-medium sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <span className="marketplace-footer-muted">© {currentYear} {t('marketplace')}</span>
             <div className="flex gap-5"><Link to="/privacy" className="marketplace-footer-link transition">{t('privacy')}</Link><Link to="/terms" className="marketplace-footer-link transition">{t('terms')}</Link></div>
           </div>
         </div>
@@ -137,7 +143,21 @@ function customerInitials(name: string): string {
 }
 
 function FooterColumn({ title, links }: { title: string; links: Array<[string, string]> }) {
-  return <div><h2 className="marketplace-footer-heading text-sm font-black">{title}</h2><div className="mt-4 grid gap-3">{links.map(([label, to]) => <Link key={to} to={to} className="marketplace-footer-link w-fit text-sm font-medium transition">{label}</Link>)}</div></div>
+  return <div><h2 className="marketplace-footer-heading text-[15px] font-semibold">{title}</h2><div className="mt-4 grid gap-2.5">{links.map(([label, to]) => <Link key={to} to={to} className="marketplace-footer-link w-fit text-sm font-medium transition">{label}</Link>)}</div></div>
+}
+
+function FooterSocialLinks({ t, footer }: { t: (key: TranslationKey) => string; footer?: MarketplaceAppearance['footer'] }) {
+  if (!footer?.show_social_icons) return null
+  type SocialLink = { key: string; label: string; url?: string; icon: ReactNode }
+  const links = ([
+    { key: 'facebook', label: t('socialFacebook'), url: footer.facebook_url || undefined, icon: <MessageCircle size={17} /> },
+    { key: 'instagram', label: t('socialInstagram'), url: footer.instagram_url || undefined, icon: <Camera size={17} /> },
+    { key: 'youtube', label: t('socialYoutube'), url: footer.youtube_url || undefined, icon: <Play size={17} /> },
+    { key: 'tiktok', label: t('socialTiktok'), url: footer.tiktok_url || undefined, icon: <Music2 size={17} /> },
+  ] as SocialLink[]).filter((link): link is SocialLink & { url: string } => typeof link.url === 'string' && /^https:\/\//i.test(link.url))
+
+  if (links.length === 0) return null
+  return <div className="mt-6"><p className="marketplace-footer-heading text-xs font-semibold uppercase tracking-[0.16em]">{t('followUs')}</p><div className="mt-3 flex flex-wrap gap-2">{links.map((link) => <a key={link.key} href={link.url} target="_blank" rel="noopener noreferrer" aria-label={link.label} className="marketplace-footer-social grid size-10 place-items-center rounded-xl border transition focus:outline-none focus:ring-4 focus:ring-blue-400/30">{link.icon}</a>)}</div></div>
 }
 
 export function StoreMark({ name }: { name: string }) {

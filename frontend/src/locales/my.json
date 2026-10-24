@@ -1662,5 +1662,18 @@
     ,"appearance_color_border": "ဘောင်အရောင်"
     ,"appearance_color_footer": "Footer နောက်ခံ"
     ,"appearance_color_footer_text": "Footer စာသား"
+    ,"footer_social_links": "Footer နှင့် Social Links"
+    ,"footer_social_help": "ထုတ်ပြန်မည့် Footer ဖော်ပြချက်နှင့် ခွင့်ပြုထားသော Social profile များကို သတ်မှတ်ပါ။ Link များသည် HTTPS နှင့် ခွင့်ပြုထားသော social domain ဖြစ်ရမည်။"
+    ,"footer_show_social_icons": "သတ်မှတ်ထားသော Social icon များ ပြရန်"
+    ,"footer_facebook_url": "Facebook URL"
+    ,"footer_instagram_url": "Instagram URL"
+    ,"footer_youtube_url": "YouTube URL"
+    ,"footer_tiktok_url": "TikTok URL"
+    ,"footer_description_en": "Footer ဖော်ပြချက် (အင်္ဂလိပ်)"
+    ,"footer_description_my": "Footer ဖော်ပြချက် (မြန်မာ)"
+    ,"footer_preview_facebook": "Facebook"
+    ,"footer_preview_instagram": "Instagram"
+    ,"footer_preview_youtube": "YouTube"
+    ,"footer_preview_tiktok": "TikTok"
   }
 }
