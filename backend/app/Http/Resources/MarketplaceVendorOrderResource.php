@@ -11,6 +11,8 @@ class MarketplaceVendorOrderResource extends JsonResource
     {
         $payment = $this->order?->payments?->sortByDesc('id')->first();
         $amountReceived = $payment?->amount_received ?: ($payment?->status === 'paid' ? $payment?->amount : '0.00');
+        $itemsHaveReservations = $this->relationLoaded('items') && ($this->items->isEmpty() || $this->items->first()->relationLoaded('reservations'));
+        $attribution = $itemsHaveReservations ? $this->branchAttributionData() : null;
 
         return [
             'id' => $this->uuid,
@@ -23,6 +25,13 @@ class MarketplaceVendorOrderResource extends JsonResource
             'store_id' => $this->store?->uuid,
             'store_name' => $this->store?->name,
             'tenant_id' => $this->tenant?->uuid,
+            'branch' => $attribution ? [
+                'id' => $attribution['branch_count'] === 1 ? $attribution['branches'][0]['id'] : null,
+                'name' => $attribution['label'],
+                'count' => $attribution['branch_count'],
+                'branches' => $attribution['branches'],
+                'locations' => $attribution['locations'],
+            ] : null,
             'status' => $this->status,
             'order_status' => $this->order?->status,
             'payment_status' => $this->order?->payment_status,

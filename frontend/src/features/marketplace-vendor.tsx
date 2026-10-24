@@ -143,6 +143,7 @@ type VendorOrder = {
   amount_due?: string | number | null
   receipt_available?: boolean
   currency_code?: string | null
+  branch?: { id?: string | null; name?: string | null; count?: number; branches?: { id?: string; name?: string; code?: string | null }[] } | null
   delivery_address?: Record<string, unknown> | null
   items?: { id?: string; name?: string | null; sku?: string | null; quantity?: string | number | null; unit_price?: string | number | null; line_total?: string | number | null }[]
   shipments?: VendorShipment[]
@@ -625,62 +626,99 @@ export function MarketplaceProductsPage() {
 export function MarketplaceOrdersPage() {
   const { t } = useTranslation()
   const [orders, setOrders] = useState<VendorOrder[]>([])
+  const [branches, setBranches] = useState<MarketplaceBranch[]>([])
+  const [summary, setSummary] = useState({ total: 0, pending: 0, processing: 0, shipped: 0, delivered: 0, pending_payment: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
+  const [branchId, setBranchId] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [sort, setSort] = useState('newest')
   const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(25)
   const [lastPage, setLastPage] = useState(1)
+  const requestSequence = useRef(0)
 
   const load = useCallback(async () => {
+    const sequence = ++requestSequence.current
     setLoading(true)
     setError('')
     try {
-      const response = await request<{ data?: VendorOrder[]; meta?: { last_page?: number } }>({ method: 'get', url: '/api/v1/vendor/marketplace/orders', params: { per_page: 20, page, search: search || undefined, status: status || undefined, payment_status: paymentStatus || undefined } })
-      setOrders(Array.isArray(response) ? response : Array.isArray(response.data) ? response.data : [])
-      if (!Array.isArray(response)) setLastPage(Number(response.meta?.last_page || 1))
+      const response = await api.get<{ data: VendorOrder[]; meta?: { total?: number; per_page?: number; current_page?: number; last_page?: number; summary?: typeof summary } }>('/api/v1/vendor/marketplace/orders', { params: { per_page: perPage, page, branch_id: branchId || undefined, search: search || undefined, status: status || undefined, payment_status: paymentStatus || undefined, from: from || undefined, to: to || undefined, sort }, signal: new AbortController().signal })
+      if (sequence !== requestSequence.current) return
+      setOrders(response.data.data || [])
+      setSummary({ total: response.data.meta?.summary?.total || 0, pending: response.data.meta?.summary?.pending || 0, processing: response.data.meta?.summary?.processing || 0, shipped: response.data.meta?.summary?.shipped || 0, delivered: response.data.meta?.summary?.delivered || 0, pending_payment: response.data.meta?.summary?.pending_payment || 0 })
+      setLastPage(Number(response.data.meta?.last_page || 1))
     } catch (err) {
-      setError(errorMessage(err, t('text.unable_to_load_marketplace_orders')))
+      if (sequence === requestSequence.current) setError(errorMessage(err, t('text.unable_to_load_marketplace_orders')))
     } finally {
-      setLoading(false)
+      if (sequence === requestSequence.current) setLoading(false)
     }
-  }, [page, paymentStatus, search, status, t])
+  }, [branchId, from, page, paymentStatus, perPage, search, sort, status, t, to])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => { void api.get<{ data: MarketplaceBranch[] }>('/api/v1/business/stores').then((response) => setBranches(response.data.data || [])).catch(() => undefined) }, [])
+
+  const resetPage = <T,>(setter: (value: T) => void, value: T) => { setPage(1); setter(value) }
+  const pages = marketplacePageNumbers(page, lastPage)
+  const firstResult = summary.total === 0 ? 0 : (page - 1) * perPage + 1
+  const lastResult = Math.min(summary.total, page * perPage)
+  const branchLabel = (order: VendorOrder) => order.branch?.name || t('text.unassigned_unknown_branch')
 
   if (loading) return <><PageHeader title={t('text.marketplace_orders')} description={t('text.marketplace_orders_description')} /><LoadingState /></>
 
   return <>
     <PageHeader title={t('text.marketplace_orders')} description={t('text.marketplace_orders_description')} action={<RefreshButton onClick={load} />} />
     {error && <div className="mb-5"><ErrorState message={error} /></div>}
-    <section className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 lg:flex-row"><input value={search} onChange={(event) => { setPage(1); setSearch(event.target.value) }} placeholder="Search order or customer" className="compact-field min-w-0 flex-1" /><select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value) }} className="compact-field lg:w-44"><option value="">All fulfillment statuses</option><option value="pending">Pending</option><option value="processing">Processing</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="cancelled">Cancelled</option></select><select value={paymentStatus} onChange={(event) => { setPage(1); setPaymentStatus(event.target.value) }} className="compact-field lg:w-40"><option value="">All payment statuses</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></section>
+    <div className="mb-5 grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 xl:grid-cols-6">
+      <StatCard compact label={t('text.total_orders')} value={summary.total} detail={t('text.all_marketplace_orders')} icon={ShoppingBag} tone="blue" />
+      <StatCard compact label={t('text.pending_orders')} value={summary.pending} detail={t('text.orders_being_fulfilled')} icon={Clock3} tone="amber" />
+      <StatCard compact label={t('text.processing_orders')} value={summary.processing} detail={t('text.orders_being_fulfilled')} icon={Activity} tone="violet" />
+      <StatCard compact label={t('text.shipped_orders')} value={summary.shipped} detail={t('text.shipped_or_partially_shipped')} icon={Truck} tone="blue" />
+      <StatCard compact label={t('text.delivered_orders')} value={summary.delivered} detail={t('text.completed_deliveries')} icon={Check} tone="emerald" />
+      <StatCard compact label={t('text.pending_payment')} value={summary.pending_payment} detail={t('text.payment_requires_review')} icon={WalletCards} tone="amber" />
+    </div>
+    <section className="mb-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 lg:grid-cols-[minmax(220px,1fr)_repeat(2,minmax(150px,0.55fr))_repeat(2,minmax(140px,0.5fr))_minmax(130px,0.45fr)]">
+      <label className="compact-label"><span>{t('text.search')}</span><input value={search} onChange={(event) => resetPage(setSearch, event.target.value)} placeholder={t('text.search_marketplace_orders')} className="compact-field h-10 w-full" /></label>
+      <label className="compact-label"><span>{t('text.branch')}</span><select value={branchId} onChange={(event) => resetPage(setBranchId, event.target.value)} className="compact-field h-10 w-full"><option value="">{t('text.all_authorized_branches')}</option><option value="__unassigned__">{t('text.unassigned_unknown_branch')}</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}{branch.store_code ? ` · ${branch.store_code}` : ''}</option>)}</select></label>
+      <label className="compact-label"><span>{t('text.order_status')}</span><select value={status} onChange={(event) => resetPage(setStatus, event.target.value)} className="compact-field h-10 w-full"><option value="">{t('text.all_order_statuses')}</option><option value="pending">{t('text.pending_orders')}</option><option value="processing">{t('text.processing_orders')}</option><option value="shipped">{t('text.shipped_orders')}</option><option value="delivered">{t('text.delivered_orders')}</option><option value="cancelled">{t('text.cancelled_marketplace_orders')}</option></select></label>
+      <label className="compact-label"><span>{t('text.payment_status')}</span><select value={paymentStatus} onChange={(event) => resetPage(setPaymentStatus, event.target.value)} className="compact-field h-10 w-full"><option value="">{t('text.all_payment_statuses')}</option><option value="pending">{t('text.pending_payment')}</option><option value="authorized">{t('text.authorized_payments')}</option><option value="paid">{t('text.paid')}</option><option value="failed">{t('text.failed')}</option><option value="refunded">{t('text.refunded_payments')}</option></select></label>
+      <label className="compact-label"><span>{t('text.from_date')}</span><input type="date" value={from} onChange={(event) => resetPage(setFrom, event.target.value)} className="compact-field h-10 w-full" /></label>
+      <label className="compact-label"><span>{t('text.to_date')}</span><input type="date" value={to} onChange={(event) => resetPage(setTo, event.target.value)} className="compact-field h-10 w-full" /></label>
+      <label className="compact-label"><span>{t('text.sort')}</span><select value={sort} onChange={(event) => resetPage(setSort, event.target.value)} className="compact-field h-10 w-full"><option value="newest">{t('text.newest_first')}</option><option value="oldest">{t('text.oldest_first')}</option></select></label>
+    </section>
     {orders.length === 0 ? (error ? null : <EmptyState label={t('text.no_marketplace_orders_yet')} />) : <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[1020px] text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800/60">
             <tr>
               <th className="px-5 py-4">{t('text.order_number')}</th>
-              <th className="px-5 py-4">Customer</th><th className="px-5 py-4">{t('text.order_date')}</th>
+              <th className="px-5 py-4">{t('text.customer')}</th><th className="px-5 py-4">{t('text.order_date')}</th>
+              <th className="px-5 py-4">{t('text.branch')}</th>
               <th className="px-5 py-4">{t('text.items')}</th>
-              <th className="px-5 py-4">Payment method</th><th className="px-5 py-4">{t('text.payment_status')}</th>
+              <th className="px-5 py-4">{t('text.payment_method')}</th><th className="px-5 py-4">{t('text.payment_status')}</th>
               <th className="px-5 py-4">{t('text.status')}</th>
-              <th className="px-5 py-4 text-right">{t('text.total')}</th>
+              <th className="px-5 py-4 text-right">{t('text.total')}</th><th className="px-5 py-4 text-right">{t('text.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {orders.map((order) => <tr key={order.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
               <td className="px-5 py-4"><Link to={`${marketplaceBase}/orders/${order.id}`} className="font-semibold text-blue-700 hover:underline dark:text-blue-300">{order.vendor_order_number}</Link><p className="mt-1 text-xs text-slate-500">{order.order_number || '—'}</p></td>
               <td className="px-5 py-4"><p className="font-semibold">{order.customer_name || '—'}</p><p className="text-xs text-slate-500">{order.customer_email || ''}</p></td><td className="whitespace-nowrap px-5 py-4 text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</td>
+              <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{branchLabel(order)}</td>
               <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{order.items?.length ?? 0}</td>
               <td className="px-5 py-4 capitalize">{(order.payment_method || '—').replaceAll('_', ' ')}</td><td className="px-5 py-4"><StatusBadge status={order.payment_status || 'pending'} /></td>
               <td className="px-5 py-4"><StatusBadge status={order.status} /></td>
-              <td className="whitespace-nowrap px-5 py-4 text-right font-semibold text-slate-900 dark:text-white">{order.total ?? '—'} {order.currency_code || ''}</td>
+              <td className="whitespace-nowrap px-5 py-4 text-right font-semibold text-slate-900 dark:text-white">{order.total ?? '—'} {order.currency_code || ''}</td><td className="px-5 py-4 text-right"><Link to={`${marketplaceBase}/orders/${order.id}`} className="font-semibold text-blue-700 hover:underline dark:text-blue-300">{t('text.view_details')}</Link></td>
             </tr>)}
           </tbody>
         </table>
       </div>
-    </section>}{lastPage > 1 && <div className="mt-4 flex items-center justify-between"><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-40">Previous</button><span className="text-sm font-semibold text-slate-500">Page {page} of {lastPage}</span><button type="button" disabled={page >= lastPage} onClick={() => setPage((value) => value + 1)} className="rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-40">Next</button></div>}
+    </section>}
+    <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>{t('text.showing_orders', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: summary.total.toLocaleString() })}</span><span>{t('text.page_of', { current: page, total: lastPage })}</span><label className="flex items-center gap-2"><span>{t('text.rows_per_page')}</span><select value={String(perPage)} onChange={(event) => { setPerPage(Number(event.target.value)); setPage(1) }} aria-label={t('text.rows_per_page')} className="compact-field h-9 w-20"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div><div className="flex items-center justify-between gap-1 sm:justify-end"><button type="button" disabled={page <= 1} onClick={() => setPage(1)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.first_page')}</button><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)} className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40">{t('text.previous')}</button><div className="hidden items-center gap-1 md:flex">{pages.map((item, index) => item === 'ellipsis' ? <span key={`ellipsis-${index}`} className="px-1">…</span> : <button type="button" key={item} aria-current={item === page ? 'page' : undefined} onClick={() => setPage(item)} className={item === page ? 'min-w-8 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white' : 'min-w-8 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold dark:border-slate-700'}>{item}</button>)}</div><button type="button" disabled={page >= lastPage} onClick={() => setPage((value) => value + 1)} className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40">{t('text.next')}</button><button type="button" disabled={page >= lastPage} onClick={() => setPage(lastPage)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.last_page')}</button></div></div>
   </>
 }
 

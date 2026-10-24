@@ -420,45 +420,91 @@ class MarketplaceVendorController
 
     public function orders(Request $request, TenantContext $context): JsonResponse
     {
-        $orders = MarketplaceVendorOrder::query()
-            ->where('tenant_id', $context->tenant()->id)
-            ->with(['store', 'tenant', 'items', 'order.customer', 'order.payments', 'shipments.events'])
-            ->when($request->boolean('active_shipping'), function (Builder $query): void {
-                // Shipping is an operational queue. Completed shipment records remain
-                // queryable through Sales History and are never deleted here.
-                $query->where(function (Builder $active): void {
-                    $active->whereDoesntHave('shipments')
-                        ->orWhereHas('shipments', fn (Builder $shipment) => $shipment->whereNotIn('status', ['delivered', 'completed', 'returned', 'cancelled']));
-                });
-            })
-            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('shipment_status'), function (Builder $query) use ($request): void {
+        $filters = $request->validate([
+            'branch_id' => ['nullable', 'string', 'max:80'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'string', 'in:pending,processing,shipped,delivered,cancelled,refunded'],
+            'payment_status' => ['nullable', 'string', 'in:pending,authorized,paid,failed,refunded,cancelled'],
+            'active_shipping' => ['nullable', 'in:true,false,1,0'],
+            'shipment_status' => ['nullable', 'string', 'in:ready,shipped,in_transit,delivered,delivery_failed,returned,cancelled'],
+            'delivery_type' => ['nullable', 'string', 'in:self_delivery,external_courier'],
+            'carrier' => ['nullable', 'string', 'max:120'],
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'sort' => ['nullable', 'in:newest,oldest'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
+        ]);
+        $tenant = $context->tenant();
+        $query = MarketplaceVendorOrder::query()->where('tenant_id', $tenant->id);
+        $branchId = $filters['branch_id'] ?? null;
+        if ($branchId !== null) {
+            if ($branchId === '__unassigned__') {
+                // Reservations are the only reliable historical branch attribution.
+                $query->whereDoesntHave('items.reservations.balance.location.store');
+            } else {
+                $locationIds = app(ReportScopeService::class)->locationIds($request->user(), $tenant, $branchId);
+                abort_if($locationIds->isEmpty(), 403, 'You are not authorized to view orders for this branch.');
+                $query->whereHas('items.reservations', fn (Builder $reservation): Builder => $reservation->whereIn('inventory_location_id', $locationIds->all()));
+            }
+        }
+        if ($request->boolean('active_shipping')) {
+            // Shipping is an operational queue. The general Orders page omits this
+            // parameter and therefore includes every vendor order, including orders
+            // that do not have a shipment yet.
+            $query->where(function (Builder $active): void {
+                $active->whereDoesntHave('shipments')
+                    ->orWhereHas('shipments', fn (Builder $shipment): Builder => $shipment->whereNotIn('status', ['delivered', 'completed', 'returned', 'cancelled']));
+            });
+        }
+        $this->applyMarketplaceVendorOrderFilters($query, $request);
+
+        $summaryQuery = clone $query;
+        $summary = [
+            'total' => (clone $summaryQuery)->count(),
+            'pending' => (clone $summaryQuery)->where('status', 'pending')->count(),
+            'processing' => (clone $summaryQuery)->where('status', 'processing')->count(),
+            'shipped' => (clone $summaryQuery)->where('status', 'shipped')->count(),
+            'delivered' => (clone $summaryQuery)->where('status', 'delivered')->count(),
+            'pending_payment' => (clone $summaryQuery)->whereHas('order', fn (Builder $order): Builder => $order->where('payment_status', 'pending'))->count(),
+        ];
+
+        $orders = $query
+            ->with(['store', 'tenant', 'items.reservations.balance.location.store', 'order.customer', 'order.payments', 'shipments.events'])
+            ->when(($filters['sort'] ?? 'newest') === 'oldest', fn (Builder $builder): Builder => $builder->orderBy('created_at')->orderBy('id'))
+            ->when(($filters['sort'] ?? 'newest') !== 'oldest', fn (Builder $builder): Builder => $builder->orderByDesc('created_at')->orderByDesc('id'))
+            ->paginate((int) ($filters['per_page'] ?? 25));
+
+        return response()->json(['success' => true, 'data' => MarketplaceVendorOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage(), 'summary' => $summary]]);
+    }
+
+    private function applyMarketplaceVendorOrderFilters(Builder $query, Request $request): void
+    {
+        $query
+            ->when($request->filled('status'), fn (Builder $builder): Builder => $builder->where('status', $request->string('status')->toString()))
+            ->when($request->filled('payment_status'), fn (Builder $builder): Builder => $builder->whereHas('order', fn (Builder $order): Builder => $order->where('payment_status', $request->string('payment_status')->toString())))
+            ->when($request->filled('shipment_status'), function (Builder $builder) use ($request): void {
                 $status = $request->string('shipment_status')->toString();
                 if ($status === 'ready') {
-                    $query->where(function (Builder $ready): void {
-                        $ready->whereDoesntHave('shipments')->orWhereHas('shipments', fn (Builder $shipment) => $shipment->where('status', 'ready'));
+                    $builder->where(function (Builder $ready): void {
+                        $ready->whereDoesntHave('shipments')->orWhereHas('shipments', fn (Builder $shipment): Builder => $shipment->where('status', 'ready'));
                     });
                 } else {
-                    $query->whereHas('shipments', fn (Builder $shipment) => $shipment->where('status', $status));
+                    $builder->whereHas('shipments', fn (Builder $shipment): Builder => $shipment->where('status', $status));
                 }
             })
-            ->when($request->filled('delivery_type'), fn (Builder $query) => $query->whereHas('shipments', fn (Builder $shipment) => $shipment->where('delivery_type', $request->string('delivery_type')->toString())))
-            ->when($request->filled('carrier'), fn (Builder $query) => $query->whereHas('shipments', fn (Builder $shipment) => $shipment->where('carrier_name', 'ilike', '%'.$request->string('carrier')->toString().'%')))
-            ->when($request->filled('payment_status'), fn (Builder $query) => $query->whereHas('order', fn (Builder $order) => $order->where('payment_status', $request->string('payment_status')->toString())))
-            ->when($request->filled('search'), function (Builder $query) use ($request): void {
+            ->when($request->filled('delivery_type'), fn (Builder $builder): Builder => $builder->whereHas('shipments', fn (Builder $shipment): Builder => $shipment->where('delivery_type', $request->string('delivery_type')->toString())))
+            ->when($request->filled('carrier'), fn (Builder $builder): Builder => $builder->whereHas('shipments', fn (Builder $shipment): Builder => $shipment->where('carrier_name', 'ilike', '%'.$request->string('carrier')->toString().'%')))
+            ->when($request->filled('search'), function (Builder $builder) use ($request): void {
                 $term = '%'.$request->string('search')->toString().'%';
-                $query->where(function (Builder $search) use ($term): void {
+                $builder->where(function (Builder $search) use ($term): void {
                     $search->where('vendor_order_number', 'ilike', $term)
-                        ->orWhereHas('order', fn (Builder $order) => $order->where('order_number', 'ilike', $term)->orWhereHas('customer', fn (Builder $customer) => $customer->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)));
-                    $search->orWhereHas('shipments', fn (Builder $shipment) => $shipment->where('tracking_number', 'ilike', $term)->orWhere('internal_tracking_id', 'ilike', $term));
+                        ->orWhereHas('order', fn (Builder $order): Builder => $order->where('order_number', 'ilike', $term)->orWhereHas('customer', fn (Builder $customer): Builder => $customer->where('name', 'ilike', $term)->orWhere('email', 'ilike', $term)))
+                        ->orWhereHas('shipments', fn (Builder $shipment): Builder => $shipment->where('tracking_number', 'ilike', $term)->orWhere('internal_tracking_id', 'ilike', $term));
                 });
             })
-            ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('created_at', '>=', $request->date('from')))
-            ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('created_at', '<=', $request->date('to')))
-            ->latest()
-            ->paginate(min(max((int) $request->input('per_page', 20), 1), 100));
-
-        return response()->json(['success' => true, 'data' => MarketplaceVendorOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);
+            ->when($request->filled('from'), fn (Builder $builder): Builder => $builder->whereDate('created_at', '>=', $request->date('from')))
+            ->when($request->filled('to'), fn (Builder $builder): Builder => $builder->whereDate('created_at', '<=', $request->date('to')));
     }
 
     public function salesHistory(Request $request, TenantContext $context, MarketplaceCommissionService $commissions): JsonResponse
