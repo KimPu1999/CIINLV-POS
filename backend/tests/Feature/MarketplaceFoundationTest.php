@@ -270,9 +270,11 @@ class MarketplaceFoundationTest extends TestCase
             'published_at' => now(),
         ]);
 
-        $this->getJson('/api/v1/marketplace/products?search=FILTER-SKU-001&min_price=2000&sort=price-high')
+        $this->getJson('/api/v1/marketplace/products?search=FILTER-SKU-001&min_price=2000&sort=price-high&per_page=12&page=1')
             ->assertOk()
             ->assertJsonCount(1, 'data')
+            ->assertJsonPath('meta.per_page', 12)
+            ->assertJsonPath('meta.current_page', 1)
             ->assertJsonPath('data.0.id', $listing->uuid)
             ->assertJsonPath('data.0.store_slug', 'marketplace-f')
             ->assertJsonPath('data.0.category_slug', 'marketplace-f-general');

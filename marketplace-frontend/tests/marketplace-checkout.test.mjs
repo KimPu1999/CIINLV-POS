@@ -59,6 +59,29 @@ test('cart uses a compact full-width layout with safe shopping navigation', () =
   assert.match(app, /cartItems/)
 })
 
+test('shop page uses a compact wide catalog layout with safe home navigation', () => {
+  assert.match(app, /function ShopPage/)
+  assert.match(app, /PageContainer compact wide/)
+  assert.match(app, /backToHome/)
+  assert.match(app, /lg:grid-cols-\[230px_minmax\(0,1fr\)\]/)
+  assert.match(app, /ProductGrid compact/)
+  assert.match(app, /ProductSkeletonGrid compact/)
+  assert.match(app, /aspect-\[4\/3\]/)
+  assert.match(app, /fetchProducts\(locale, \{ search, category, store, minPrice, maxPrice, sort, page, perPage \}/)
+})
+
+test('shop pagination and search remain server-side and scalable', () => {
+  assert.match(app, /requestedPerPage/)
+  assert.match(app, /\[12, 24, 48\]/)
+  assert.match(app, /setPerPage/)
+  assert.match(app, /setTimeout\(\(\) => updateParam\('search'/)
+  assert.match(app, /new AbortController\(\)/)
+  assert.match(app, /Pagination advanced/)
+  assert.match(app, /paginationPages/)
+  assert.match(app, /loading=\{lazy \? 'lazy' : undefined\}/)
+  assert.match(api, /per_page: query\.perPage \?\? 24/)
+})
+
 test('checkout delivery and payment copy is translated in both locales', () => {
   for (const key of ['backToCart', 'checkoutProgress', 'confirmation', 'viewFullDeliveryDetails', 'changeAddress', 'cartItems', 'unitPrice', 'lineTotal', 'continueShopping', 'checkoutTotalsNotice', 'deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
     assert.match(api, new RegExp(`${key}:`))

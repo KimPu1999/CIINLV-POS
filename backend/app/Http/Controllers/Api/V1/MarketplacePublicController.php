@@ -95,7 +95,8 @@ class MarketplacePublicController
         $query->when($sort === 'oldest', fn (Builder $listing) => $listing->orderBy('marketplace_listings.created_at'))
             ->when($sort === 'name', fn (Builder $listing) => $listing->orderBy(Product::query()->select('name')->whereColumn('products.id', 'marketplace_listings.product_id')->limit(1)))
             ->when($sort === 'price-low' || $sort === 'price-high', fn (Builder $listing) => $listing->orderBy(ProductVariant::query()->select('selling_price')->whereColumn('product_variants.product_id', 'marketplace_listings.product_id')->where('product_variants.status', 'active')->orderBy('product_variants.id')->limit(1), $sort === 'price-high' ? 'desc' : 'asc'))
-            ->when(! in_array($sort, ['oldest', 'name', 'price-low', 'price-high'], true), fn (Builder $listing) => $listing->orderByDesc('marketplace_listings.published_at'));
+            ->when(! in_array($sort, ['oldest', 'name', 'price-low', 'price-high'], true), fn (Builder $listing) => $listing->orderByDesc('marketplace_listings.published_at'))
+            ->orderBy('marketplace_listings.id');
 
         $listings = $query
             ->with($this->listingRelations())
