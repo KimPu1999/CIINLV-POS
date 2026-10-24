@@ -68,14 +68,14 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
-      <div className="marketplace-announcement px-4 py-2 text-center text-xs font-semibold tracking-wide"><span className="marketplace-announcement-accent">{t('tagline')}</span></div>
+      <div className="marketplace-announcement px-4 py-1 text-center text-xs font-semibold tracking-wide"><span className="marketplace-announcement-accent">{t('tagline')}</span></div>
       <header className="marketplace-header sticky top-0 z-40 border-b backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1536px] flex-wrap items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6 lg:flex-nowrap lg:px-8">
+        <div className="mx-auto flex max-w-[1536px] flex-wrap items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6 lg:flex-nowrap lg:px-8">
           <Link to="/" onClick={closeMobile} className="group flex min-w-0 shrink-0 items-center" aria-label={t('marketplace')}>
             <BrandLogo label={t('marketplace')} imageClassName="h-10 w-10 sm:h-11 sm:w-11" labelClassName="marketplace-header-logo-label" nameClassName="hidden text-white transition-transform group-hover:scale-105 sm:block" />
           </Link>
 
-          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 xl:flex" aria-label={t('primaryNavigation')}><NavItem to="/" label={t('home')} /><NavItem to="/shop" label={t('shop')} /><NavItem to="/categories" label={t('categories')} /><NavItem to="/stores" label={t('stores')} /><NavItem to="/about" label={t('about')} /><NavItem to="/contact" label={t('contact')} /></nav>
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 2xl:gap-6 xl:flex" aria-label={t('primaryNavigation')}><NavItem to="/" label={t('home')} /><NavItem to="/shop" label={t('shop')} /><NavItem to="/categories" label={t('categories')} /><NavItem to="/stores" label={t('stores')} /><NavItem to="/about" label={t('about')} /><NavItem to="/contact" label={t('contact')} /></nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
             <button ref={searchButtonRef} type="button" onClick={() => setSearchOpen((open) => !open)} className="marketplace-header-control grid size-10 place-items-center rounded-xl transition focus:outline-none focus:ring-4 focus:ring-cyan-300/30" aria-label={t('searchPlaceholder')} aria-expanded={searchOpen} aria-controls="marketplace-search-panel"><Search size={19} /></button>
@@ -116,7 +116,7 @@ export function MarketplaceShell({ locale, theme, customer, cartCount, wishlistC
 }
 
 function NavItem({ to, label }: { to: string; label: string }) {
-  return <NavLink to={to} end={to === '/'} className={({ isActive }) => 'marketplace-header-nav whitespace-nowrap rounded-xl px-2.5 py-2 text-[13px] font-bold transition ' + (isActive ? 'marketplace-header-nav-active' : '')}>{label}</NavLink>
+  return <NavLink to={to} end={to === '/'} className={({ isActive }) => 'marketplace-header-nav whitespace-nowrap rounded-xl px-1.5 py-2 text-base font-semibold transition ' + (isActive ? 'marketplace-header-nav-active' : '')}>{label}</NavLink>
 }
 
 function MobileNavItem({ to, label, onClick }: { to: string; label: string; onClick: () => void }) {
