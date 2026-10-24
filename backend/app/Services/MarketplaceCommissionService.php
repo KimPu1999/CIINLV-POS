@@ -305,7 +305,7 @@ class MarketplaceCommissionService
         $paid = $balanceRows->where('entry_type', 'payout')->where('direction', 'debit')->where('status', 'available')->sum('amount');
         $commission = $balanceRows->where('entry_type', 'platform_commission');
         $page = max((int) ($filters['page'] ?? 1), 1);
-        $perPage = in_array((int) ($filters['per_page'] ?? 25), [10, 25, 50, 100], true) ? (int) $filters['per_page'] : 25;
+        $perPage = in_array((int) ($filters['per_page'] ?? 25), [10, 25, 50, 100], true) ? (int) ($filters['per_page'] ?? 25) : 25;
         $transactions = new LengthAwarePaginator($rows->forPage($page, $perPage)->values(), $rows->count(), $perPage, $page, ['path' => request()->url(), 'query' => request()->query()]);
 
         return [

@@ -24,6 +24,7 @@ class UpdateBusinessProfileRequest extends FormRequest
             'id_number' => ['sometimes', 'nullable', 'string', 'max:150'],
             'company_registration_number' => ['sometimes', 'nullable', 'string', 'max:150', 'required_if:business_type,company'],
             'personal_registration_number' => ['sometimes', 'nullable', 'string', 'max:150', 'required_if:business_type,personal'],
+            'tax_registration_number' => ['sometimes', 'nullable', 'string', 'max:150'],
             'verification_status' => ['prohibited'],
             'email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
             'website' => ['sometimes', 'nullable', 'url:http,https', 'max:255'],

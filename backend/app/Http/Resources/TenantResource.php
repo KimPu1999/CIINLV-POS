@@ -33,6 +33,7 @@ class TenantResource extends JsonResource
             'id_number' => $this->id_number,
             'company_registration_number' => $this->company_registration_number,
             'personal_registration_number' => $this->personal_registration_number,
+            'tax_registration_number' => $this->tax_registration_number,
             'verification_status' => $this->verification_status,
             'locale' => $locale,
             'translation_status' => $translations->translationStatus($this->resource, $locale),

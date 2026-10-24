@@ -11,9 +11,11 @@ use Illuminate\Support\Str;
 class MarketplaceStore extends Model
 {
     protected $fillable = [
-        'tenant_id', 'name', 'slug', 'description', 'public_contact_email', 'public_contact_phone',
-        'business_category', 'logo_path', 'banner_path', 'approval_status', 'is_active',
-        'notification_preferences', 'fulfillment_preferences', 'approved_at', 'approved_by',
+        'tenant_id', 'name', 'slug', 'description', 'tagline', 'public_contact_email', 'public_contact_phone',
+        'secondary_contact_phone', 'business_category', 'website', 'facebook_url', 'messaging_contact',
+        'shipping_coverage', 'support_contact', 'cod_available', 'delivery_methods', 'operating_hours',
+        'temporary_closure_message', 'holiday_notice', 'policies', 'logo_path', 'banner_path',
+        'approval_status', 'is_active', 'notification_preferences', 'fulfillment_preferences', 'approved_at', 'approved_by',
     ];
 
     protected static function booted(): void
@@ -25,9 +27,13 @@ class MarketplaceStore extends Model
     {
         return [
             'is_active' => 'boolean',
+            'cod_available' => 'boolean',
             'approved_at' => 'datetime',
             'notification_preferences' => 'array',
             'fulfillment_preferences' => 'array',
+            'delivery_methods' => 'array',
+            'operating_hours' => 'array',
+            'policies' => 'array',
         ];
     }
 

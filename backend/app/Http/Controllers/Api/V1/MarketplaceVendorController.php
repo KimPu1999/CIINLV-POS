@@ -12,9 +12,12 @@ use App\Http\Resources\MarketplaceProductResource;
 use App\Http\Resources\MarketplaceStoreResource;
 use App\Http\Resources\MarketplaceVendorOrderResource;
 use App\Http\Resources\MarketplaceVendorSaleResource;
+use App\Http\Resources\StoreResource;
 use App\Models\InventoryBalance;
+use App\Models\MarketplaceAuditLog;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceListingImage;
+use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceOrderCommission;
 use App\Models\MarketplacePayment;
 use App\Models\MarketplaceRefundRequest;
@@ -327,7 +330,7 @@ class MarketplaceVendorController
     {
         $store = $this->getOrCreateStore($context);
 
-        return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->load('tenant'))]);
+        return response()->json(['success' => true, 'data' => $this->storeManagementPayload($request, $store)]);
     }
 
     public function updateStore(UpdateMarketplaceStoreRequest $request, TenantContext $context, MarketplaceAuditLogger $audit): JsonResponse
@@ -342,7 +345,7 @@ class MarketplaceVendorController
         $store->update($data);
         $audit->record('marketplace.store_updated', $request->user(), $context->tenant(), $store);
 
-        return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
+        return response()->json(['success' => true, 'data' => $this->storeManagementPayload($request, $store->refresh())]);
     }
 
     public function uploadStoreMedia(UploadMarketplaceStoreMediaRequest $request, TenantContext $context, MarketplaceAuditLogger $audit): JsonResponse
@@ -368,7 +371,7 @@ class MarketplaceVendorController
 
         $audit->record('marketplace.store_media_updated', $request->user(), $tenant, $store, ['media_type' => $type]);
 
-        return response()->json(['success' => true, 'data' => new MarketplaceStoreResource($store->refresh()->load('tenant'))]);
+        return response()->json(['success' => true, 'data' => $this->storeManagementPayload($request, $store->refresh())]);
     }
 
     public function listings(Request $request, TenantContext $context): JsonResponse
@@ -953,6 +956,83 @@ class MarketplaceVendorController
         $value = is_scalar($value) || $value === null ? (string) $value : json_encode($value);
 
         return preg_match('/^[=+\-@\t\r]/', $value) === 1 ? "'".$value : $value;
+    }
+
+    private function storeManagementPayload(Request $request, MarketplaceStore $store): array
+    {
+        $store->load(['tenant.businessSetting']);
+        $tenant = $store->tenant;
+        $branches = $tenant->stores()->orderByDesc('is_main')->orderBy('name')->get();
+        $latestActivity = MarketplaceAuditLog::query()
+            ->with('actor:id,name,email')
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('action', [
+                'marketplace.store_updated',
+                'marketplace.store_media_updated',
+                'marketplace.store_status_updated',
+                'marketplace.store_approval_updated',
+            ])
+            ->latest('created_at')
+            ->limit(8)
+            ->get();
+        $currency = $tenant->businessSetting?->currency_code ?: 'MMK';
+        $vendorOrders = MarketplaceVendorOrder::query()->where('tenant_id', $tenant->id);
+        $totalSales = (clone $vendorOrders)->whereNotIn('status', ['cancelled', 'refunded'])->sum('total');
+        $totalCustomers = MarketplaceOrder::query()
+            ->whereNotNull('customer_user_id')
+            ->whereHas('vendorOrders', fn (Builder $query) => $query->where('tenant_id', $tenant->id))
+            ->distinct('customer_user_id')
+            ->count('customer_user_id');
+        $settings = $tenant->businessSetting;
+
+        return [
+            ...(new MarketplaceStoreResource($store))->resolve($request),
+            'business' => [
+                'name' => $tenant->name,
+                'display_name' => $tenant->display_name,
+                'business_type' => $tenant->business_type,
+                'business_code' => $tenant->business_code,
+                'company_registration_number' => $tenant->company_registration_number,
+                'personal_registration_number' => $tenant->personal_registration_number,
+                'tax_registration_number' => $tenant->tax_registration_number,
+                'email' => $tenant->email,
+                'phone' => $tenant->phone,
+                'website' => $tenant->website,
+                'address' => $tenant->address,
+                'city' => $tenant->city,
+                'state' => $tenant->state,
+                'postal_code' => $tenant->postal_code,
+                'country' => $tenant->country,
+                'status' => $tenant->status,
+                'approval_status' => $tenant->approval_status,
+                'verification_status' => $tenant->verification_status,
+                'created_at' => $tenant->created_at,
+            ],
+            'public_url' => rtrim((string) config('app.frontend_url'), '/').'/marketplace/stores/'.rawurlencode((string) $store->slug),
+            'summary' => [
+                'total_products' => (int) $tenant->products()->where('status', 'active')->count(),
+                'total_orders' => (int) (clone $vendorOrders)->count(),
+                'total_customers' => (int) $totalCustomers,
+                'total_sales' => number_format((float) $totalSales, 2, '.', ''),
+                'currency_code' => $currency,
+                'active_branches' => (int) $branches->where('status', 'active')->count(),
+                'published_marketplace_products' => (int) $store->listings()->where('status', 'published')->count(),
+            ],
+            'business_settings' => [
+                'currency_code' => $currency,
+                'timezone' => $settings?->timezone ?: config('app.timezone'),
+                'locale' => $settings?->locale ?: 'en',
+                'language' => data_get($settings?->receipt_configuration, 'language', $settings?->locale ?: 'en'),
+            ],
+            'branches' => $branches->map(fn ($branch): array => (new StoreResource($branch))->resolve($request))->values()->all(),
+            'activity' => $latestActivity->map(fn (MarketplaceAuditLog $log): array => [
+                'id' => $log->id,
+                'action' => $log->action,
+                'actor' => $log->actor?->name,
+                'created_at' => $log->created_at?->toIso8601String(),
+            ])->values()->all(),
+            'updated_by' => $latestActivity->first()?->actor?->name,
+        ];
     }
 
     private function getOrCreateStore(TenantContext $context): MarketplaceStore

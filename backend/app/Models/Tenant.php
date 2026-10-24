@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 class Tenant extends Model
 {
     protected $fillable = [
-        'name', 'display_name', 'description', 'business_type', 'id_type', 'id_number', 'company_registration_number', 'personal_registration_number', 'slug', 'business_code', 'email', 'website', 'phone', 'address', 'city', 'state', 'postal_code', 'country', 'status', 'subscription_status', 'approval_status', 'verification_status', 'email_verification_status', 'email_verified_at', 'approved_at', 'approved_by', 'settings', 'created_by', 'archived_at', 'archived_by', 'archived_previous_status', 'logo_path', 'id_front_image_path', 'id_back_image_path', 'company_certificate_image_path',
+        'name', 'display_name', 'description', 'business_type', 'id_type', 'id_number', 'company_registration_number', 'personal_registration_number', 'tax_registration_number', 'slug', 'business_code', 'email', 'website', 'phone', 'address', 'city', 'state', 'postal_code', 'country', 'status', 'subscription_status', 'approval_status', 'verification_status', 'email_verification_status', 'email_verified_at', 'approved_at', 'approved_by', 'settings', 'created_by', 'archived_at', 'archived_by', 'archived_previous_status', 'logo_path', 'id_front_image_path', 'id_back_image_path', 'company_certificate_image_path',
     ];
 
     protected static function booted(): void

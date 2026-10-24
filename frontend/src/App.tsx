@@ -55,6 +55,7 @@ const EmailVerificationPendingPage = lazy(() => import('./features/email-verific
 const EmailVerificationSuccessPage = lazy(() => import('./features/email-verification').then(({ EmailVerificationSuccessPage: Page }) => ({ default: Page })))
 const MarketplaceOverviewPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOverviewPage: Page }) => ({ default: Page })))
 const MarketplaceStorePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceStorePage: Page }) => ({ default: Page })))
+const MarketplaceStorePreviewPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceStorePreviewPage: Page }) => ({ default: Page })))
 const MarketplaceProductsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceProductsPage: Page }) => ({ default: Page })))
 const MarketplaceOrdersPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrdersPage: Page }) => ({ default: Page })))
 const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceBillingOrderDetailPage: Page }) => ({ default: Page })))
@@ -165,6 +166,7 @@ function AppRoutes() {
     <Route path="/email-verification/success" element={<EmailVerificationSuccessPage />} />
     <Route path="/email-verification/invalid" element={<EmailVerificationInvalidPage />} />
     <Route path="/accept-invitation/:token" element={<InvitationAcceptancePage />} />
+    <Route path="/marketplace/stores/:slug" element={<MarketplaceStorePreviewPage />} />
     <Route path="/access-denied" element={<AccessDeniedPage />} />
     <Route path="/platform/*" element={<ProtectedRoute allow={(authenticatedUser) => authenticatedUser.platform_role === 'super_admin'}><Shell user={user!} onLogout={() => { void signOut() }} /></ProtectedRoute>} />
     <Route path="/business/*" element={<ProtectedRoute allow={hasBusinessWorkspaceAccess}><Shell user={user!} onLogout={() => { void signOut() }} /></ProtectedRoute>} />
