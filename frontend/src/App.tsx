@@ -1,7 +1,7 @@
 import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, AlertTriangle, BarChart3, BookOpen, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, FileText, History, HelpCircle, LayoutDashboard, LifeBuoy, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, History, HelpCircle, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
@@ -103,11 +103,6 @@ const platformNav: NavItem[] = [
   { label: 'Marketplace audit logs', path: '/platform/marketplace/audit', icon: Activity, roles: ['super_admin'] },
   { label: 'Marketplace settings', path: '/platform/marketplace/settings', icon: Settings, roles: ['super_admin'] },
   { label: 'Help Center', path: '/platform/help', icon: HelpCircle, roles: ['super_admin'], section: 'Help & Policies' },
-  { label: 'FAQ', path: '/platform/help/faq', icon: BookOpen, roles: ['super_admin'] },
-  { label: 'Privacy Policy', path: '/platform/help/policies', icon: FileText, roles: ['super_admin'] },
-  { label: 'Terms & Conditions', path: '/platform/help/policies', icon: FileText, roles: ['super_admin'] },
-  { label: 'Business / Seller Policies', path: '/platform/help/policies', icon: ShieldCheck, roles: ['super_admin'] },
-  { label: 'Support', path: '/platform/help/support', icon: LifeBuoy, roles: ['super_admin'] },
 ]
 
 const businessNav: NavItem[] = [
@@ -142,11 +137,6 @@ const businessNav: NavItem[] = [
   { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'] },
   { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
   { label: 'Help Center', path: '/business/help', icon: HelpCircle, roles: ['business'], section: 'Help & Policies' },
-  { label: 'FAQ', path: '/business/help/faq', icon: BookOpen, roles: ['business'] },
-  { label: 'Privacy Policy', path: '/business/help/policies', icon: FileText, roles: ['business'] },
-  { label: 'Terms & Conditions', path: '/business/help/policies', icon: FileText, roles: ['business'] },
-  { label: 'Business / Seller Policies', path: '/business/help/policies', icon: ShieldCheck, roles: ['business'] },
-  { label: 'Support', path: '/business/help/support', icon: LifeBuoy, roles: ['business'] },
 ]
 
 const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
@@ -159,9 +149,6 @@ const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
   '/business/sales',
   '/business/reports',
   '/business/help',
-  '/business/help/faq',
-  '/business/help/policies',
-  '/business/help/support',
 ].includes(path))
 
 function App() {
