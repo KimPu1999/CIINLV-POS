@@ -8,6 +8,7 @@ const brandLogo = await readFile(new URL('../src/components/BrandLogo.tsx', impo
 const marketplaceShell = await readFile(new URL('../src/components/MarketplaceShell.tsx', import.meta.url), 'utf8')
 const marketplaceCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = await readFile(new URL('../src/lib/marketplace.ts', import.meta.url), 'utf8')
+const policy = await readFile(new URL('../src/privacy-policy.ts', import.meta.url), 'utf8')
 
 test('checkout page uses server quote and idempotent COD checkout', () => {
   assert.match(app, /fetchCheckoutQuote\(/)
@@ -103,6 +104,16 @@ test('product detail uses bounded related products and paginated reviews', () =>
   assert.match(app, /loadMoreReviews/)
   assert.match(app, /document\.title = `\$\{listing\.name\}/)
   assert.doesNotMatch(app, /const related = catalog\.data\.listings/)
+})
+
+test('privacy has a dedicated bilingual policy page while terms keeps the shared info page', () => {
+  assert.match(app, /<Route path="\/privacy" element={<PrivacyPolicyPage/)
+  assert.match(app, /<Route path="\/terms" element={<InfoPage/)
+  assert.match(app, /function PrivacyPolicyPage/)
+  assert.match(app, /privacyPolicyContent\(locale\)/)
+  assert.match(policy, /const englishSections/)
+  assert.match(policy, /const burmeseSections/)
+  for (const id of ['introduction', 'payment', 'sharing', 'choices', 'contact']) assert.match(policy, new RegExp(`id: '${id}'`))
 })
 
 test('checkout delivery and payment copy is translated in both locales', () => {
