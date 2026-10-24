@@ -778,39 +778,42 @@ function WishlistPage({ catalog, locale, t, wishlist, toggleWishlist, addToCart 
 
 function CartPage({ cart, locale, t, updateQuantity, updateVariant, removeFromCart, cartServer }: AppServices) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  return <PageContainer>
-    <PageIntro eyebrow={t('cart')} title={t('cart')} body={t('discoverBody')} />
-    <div className={'mt-8 rounded-2xl border p-4 text-sm font-semibold leading-6 ' + (cartServer ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200')}>
-      {t(cartServer ? 'serverCart' : 'localCartNotice')}
+  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+  return <PageContainer compact>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <Link to="/shop" className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"><ArrowLeft size={15} /> {t('backToShop')}</Link>
+      {cart.length > 0 && <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">{itemCount} {t('cartItems')}</p>}
     </div>
-    <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
-      {cart.length > 0 ? <>
-        <div className="grid gap-3">
-          {cart.map((item) => <div key={item.cartKey} className="flex gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <ProductThumb listing={item} />
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600">{t('cart')}</p><h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">{t('cart')}</h1></div>
+      {cart.length > 0 && <p className="max-w-sm text-right text-sm font-semibold text-slate-500 dark:text-slate-400">{cartServer ? t('serverCart') : t('localCartNotice')}</p>}
+    </div>
+    {cart.length > 0 ? <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.85fr)]">
+      <section aria-labelledby="cart-items-title" className="min-w-0">
+        <h2 id="cart-items-title" className="sr-only">{t('cart')}</h2>
+        <div className="grid gap-2.5">
+          {cart.map((item) => <article key={item.cartKey} className="flex min-w-0 gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-blue-200 dark:border-slate-800 dark:bg-slate-900 sm:gap-4 sm:p-4">
+            <ProductThumb listing={item} className="size-20 shrink-0 rounded-xl bg-slate-100 sm:size-[88px] dark:bg-slate-950" />
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <Link to={`/product/${item.slug ?? item.id}`} className="font-black text-slate-950 hover:text-blue-600 dark:text-white">{item.name}</Link>
-                  <p className="mt-1 text-xs font-semibold text-slate-400">{item.storeName || t('marketplace')}{cartVariantLabel(item, t)}</p>
-                  {item.variants.length > 1 && <label className="mt-2 inline-flex items-center gap-2 text-xs font-black text-blue-600"><span className="sr-only">{t('variant')} {item.name}</span><select value={item.variantId ?? ''} onChange={(event) => updateVariant(item.cartKey, event.target.value)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">{item.variants.map((variant) => <option key={variant.id} value={variant.id} disabled={item.trackInventory && variant.availableStock === 0}>{variantLabel(variant, t)}{item.trackInventory && variant.availableStock === 0 ? ` · ${t('soldOut')}` : ''}</option>)}</select></label>}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <Link to={`/product/${item.slug ?? item.id}`} className="line-clamp-2 text-sm font-black text-slate-950 hover:text-blue-600 dark:text-white sm:text-base">{item.name}</Link>
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-400">{item.storeName || t('marketplace')}{cartVariantLabel(item, t)}</p>
+                  {item.variants.length > 1 && <label className="mt-2 inline-flex max-w-full items-center gap-2 text-xs font-black text-blue-600"><span className="sr-only">{t('variant')} {item.name}</span><select value={item.variantId ?? ''} onChange={(event) => updateVariant(item.cartKey, event.target.value)} className="max-w-full rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">{item.variants.map((variant) => <option key={variant.id} value={variant.id} disabled={item.trackInventory && variant.availableStock === 0}>{variantLabel(variant, t)}{item.trackInventory && variant.availableStock === 0 ? ` · ${t('soldOut')}` : ''}</option>)}</select></label>}
                 </div>
-                <button type="button" onClick={() => removeFromCart(item.cartKey)} className="grid size-9 place-items-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-500" aria-label={t('removeItem')}><TrashIcon /></button>
+                <button type="button" onClick={() => removeFromCart(item.cartKey)} className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-red-50 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/30" aria-label={t('removeItem')}><TrashIcon /></button>
               </div>
-              <div className="mt-5 flex items-center justify-between">
-                <span className="font-black text-blue-600">{formatPrice(item.price, item.currency, locale)}</span>
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 p-1 dark:border-slate-700">
-                  <button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity - 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('decreaseQuantity')}><Minus size={14} /></button>
-                  <span className="w-7 text-center text-sm font-black">{item.quantity}</span>
-                  <button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('increaseQuantity')}><Plus size={14} /></button>
-                </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{t('unitPrice')}</p><p className="mt-0.5 text-sm font-black text-blue-600">{formatPrice(item.price, item.currency, locale)}</p></div>
+                <div className="flex items-center gap-1 rounded-xl border border-slate-200 p-1 dark:border-slate-700"><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity - 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('decreaseQuantity')}><Minus size={14} /></button><span className="w-7 text-center text-sm font-black">{item.quantity}</span><button type="button" onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={t('increaseQuantity')}><Plus size={14} /></button></div>
+                <div className="ml-auto text-right"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{t('lineTotal')}</p><p className="mt-0.5 text-sm font-black text-slate-950 dark:text-white">{formatPrice(item.price * item.quantity, item.currency, locale)}</p></div>
               </div>
             </div>
-          </div>)}
+          </article>)}
         </div>
-        <OrderSummary subtotal={subtotal} currency={cart[0]?.currency ?? 'MMK'} locale={locale} t={t} />
-      </> : <div className="lg:col-span-2"><EmptyState icon={<ShoppingBag size={28} />} title={t('cartEmpty')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white">{t('startShopping')} <ArrowRight size={16} /></Link>} /></div>}
-    </div>
+      </section>
+      <div className="lg:sticky lg:top-24 lg:self-start"><OrderSummary subtotal={subtotal} currency={cart[0]?.currency ?? 'MMK'} locale={locale} t={t} showContinueShopping /></div>
+    </div> : <EmptyState icon={<ShoppingBag size={28} />} title={t('cartEmpty')} body={t('cartEmptyBody')} action={<Link to="/shop" className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white"><ArrowLeft size={16} /> {t('backToShop')}</Link>} />}
   </PageContainer>
 }
 
@@ -1344,8 +1347,8 @@ function ProductGallery({ listing, t }: { listing: MarketplaceListing; t: (key: 
   return <div aria-label={t('imageGallery')}><div className="overflow-hidden rounded-[2rem] border border-slate-200 dark:border-slate-800">{selected && !failed ? <img src={selected} alt={listing.name} className="aspect-square w-full object-cover" onError={() => setFailed(true)} /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400 dark:bg-slate-900"><Package size={86} strokeWidth={1.3} /></div>}</div>{images.length > 1 && <div className="mt-4 flex gap-3 overflow-x-auto pb-1">{images.map((image) => <button type="button" key={image.id} onClick={() => { setSelected(image.url); setFailed(false) }} className={'size-20 shrink-0 overflow-hidden rounded-xl border-2 transition ' + (selected === image.url ? 'border-blue-600' : 'border-transparent')}><img src={image.url} alt="" className="size-full object-cover" onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} /></button>)}</div>}</div>
 }
 
-function ProductThumb({ listing }: { listing: MarketplaceListing }) {
-  return <div className="size-24 shrink-0 overflow-hidden rounded-2xl"><ProductVisual listing={listing} compact /></div>
+function ProductThumb({ listing, className = 'size-24 shrink-0 rounded-2xl' }: { listing: MarketplaceListing; className?: string }) {
+  return <div className={'overflow-hidden ' + className}><ProductVisual listing={listing} compact /></div>
 }
 
 function CategoryGrid({ categories, t, large = false }: { categories: MarketplaceCategory[]; t: (key: TranslationKey) => string; large?: boolean }) {
@@ -1368,8 +1371,8 @@ function CatalogEmpty({ status, t }: { status: CatalogResult['status']; t: (key:
   return <EmptyState icon={status === 'error' ? <CircleAlert size={28} /> : <Package size={28} />} title={status === 'error' ? t('catalogUnavailable') : t('noListings')} body={status === 'error' ? t('catalogUnavailableBody') : t('noListingsBody')} />
 }
 
-function OrderSummary({ subtotal, currency = 'MMK', quote, locale, t, showCheckoutAction = true }: { subtotal: number; currency?: string; quote?: CheckoutQuote | null; locale: Locale; t: (key: TranslationKey) => string; showCheckoutAction?: boolean }) {
-  return <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"><h2 className="text-lg font-black">{t('orderSummary')}</h2><div className="mt-4 grid gap-3 text-sm"><div className="flex justify-between font-semibold text-slate-500"><span>{t('subtotal')}</span><span className="text-slate-900 dark:text-white">{formatPrice(subtotal, currency, locale)}</span></div>{quote && <><div className="flex justify-between font-semibold text-slate-500"><span>{t('discount')}</span><span>{formatPrice(Number(quote.discountTotal), currency, locale)}</span></div><div className="flex justify-between font-semibold text-slate-500"><span>{t('tax')}</span><span>{formatPrice(Number(quote.taxTotal), currency, locale)}</span></div><div className="flex justify-between font-semibold text-slate-500"><span>{t('shipping')}</span><span>{formatPrice(Number(quote.shippingTotal), currency, locale)}</span></div></>} {!quote && <div className="flex justify-between font-semibold text-slate-500"><span>{t('shipping')}</span><span>{subtotal > 0 ? t('shippingPending') : '—'}</span></div>}<div className="border-t border-slate-200 pt-3 dark:border-slate-800"><div className="flex justify-between text-base font-black"><span>{t('total')}</span><span className="text-blue-600">{formatPrice(quote ? Number(quote.grandTotal) : subtotal, currency, locale)}</span></div></div></div>{quote?.vendors && quote.vendors.length > 0 && <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800"><h3 className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t('vendor')}</h3><div className="mt-3 grid gap-2">{quote.vendors.map((vendor) => <div key={vendor.storeId} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex justify-between gap-3 text-sm font-black"><span className="min-w-0 break-words">{vendor.storeName}</span><span className="shrink-0">{formatPrice(Number(vendor.total), vendor.currencyCode, locale)}</span></div><p className="mt-1 text-xs font-semibold text-slate-500">{vendor.items.length} {t('products')} · {t('standardDelivery')}</p></div>)}</div></div>}{showCheckoutAction && <Link to="/checkout" className={'mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-500 ' + (subtotal === 0 ? 'pointer-events-none opacity-50' : '')}>{t('proceedCheckout')} <ArrowRight size={17} /></Link>}</aside>
+function OrderSummary({ subtotal, currency = 'MMK', quote, locale, t, showCheckoutAction = true, showContinueShopping = false }: { subtotal: number; currency?: string; quote?: CheckoutQuote | null; locale: Locale; t: (key: TranslationKey) => string; showCheckoutAction?: boolean; showContinueShopping?: boolean }) {
+  return <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5"><h2 className="text-lg font-black">{t('orderSummary')}</h2><div className="mt-4 grid gap-3 text-sm"><div className="flex justify-between font-semibold text-slate-500"><span>{t('subtotal')}</span><span className="text-slate-900 dark:text-white">{formatPrice(subtotal, currency, locale)}</span></div>{quote && <><div className="flex justify-between font-semibold text-slate-500"><span>{t('discount')}</span><span>{formatPrice(Number(quote.discountTotal), currency, locale)}</span></div><div className="flex justify-between font-semibold text-slate-500"><span>{t('tax')}</span><span>{formatPrice(Number(quote.taxTotal), currency, locale)}</span></div><div className="flex justify-between font-semibold text-slate-500"><span>{t('shipping')}</span><span>{formatPrice(Number(quote.shippingTotal), currency, locale)}</span></div></>} {!quote && <div className="flex justify-between font-semibold text-slate-500"><span>{t('shipping')}</span><span>{subtotal > 0 ? t('shippingPending') : '—'}</span></div>}<div className="border-t border-slate-200 pt-3 dark:border-slate-800"><div className="flex justify-between text-base font-black"><span>{t('total')}</span><span className="text-blue-600">{formatPrice(quote ? Number(quote.grandTotal) : subtotal, currency, locale)}</span></div></div></div>{!quote && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-500 dark:bg-slate-950 dark:text-slate-400">{t('checkoutTotalsNotice')}</p>}{quote?.vendors && quote.vendors.length > 0 && <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800"><h3 className="text-xs font-black uppercase tracking-[0.12em] text-slate-400">{t('vendor')}</h3><div className="mt-3 grid gap-2">{quote.vendors.map((vendor) => <div key={vendor.storeId} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex justify-between gap-3 text-sm font-black"><span className="min-w-0 break-words">{vendor.storeName}</span><span className="shrink-0">{formatPrice(Number(vendor.total), vendor.currencyCode, locale)}</span></div><p className="mt-1 text-xs font-semibold text-slate-500">{vendor.items.length} {t('products')} · {t('standardDelivery')}</p></div>)}</div></div>}{showCheckoutAction && <Link to="/checkout" className={'mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-500 ' + (subtotal === 0 ? 'pointer-events-none opacity-50' : '')}>{t('proceedCheckout')} <ArrowRight size={17} /></Link>}{showContinueShopping && <Link to="/shop" className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-600 dark:border-slate-700 dark:text-slate-200"><ArrowLeft size={16} /> {t('continueShopping')}</Link>}</aside>
 }
 
 function Pagination({ meta, t, onPage }: { meta: PaginationMeta; t: (key: TranslationKey) => string; onPage: (page: number) => void }) {

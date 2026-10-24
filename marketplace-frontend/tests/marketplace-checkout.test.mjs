@@ -46,8 +46,19 @@ test('checkout uses a compact responsive layout with one final action', () => {
   assert.match(app, /placeOrder/)
 })
 
+test('cart uses a compact full-width layout with safe shopping navigation', () => {
+  assert.match(app, /function CartPage/)
+  assert.match(app, /PageContainer compact/)
+  assert.match(app, /to="\/shop"/)
+  assert.match(app, /lg:grid-cols-\[minmax\(0,1\.7fr\)_minmax\(300px,0\.85fr\)\]/)
+  assert.match(app, /showContinueShopping/)
+  assert.match(app, /unitPrice/)
+  assert.match(app, /lineTotal/)
+  assert.match(app, /cartItems/)
+})
+
 test('checkout delivery and payment copy is translated in both locales', () => {
-  for (const key of ['backToCart', 'checkoutProgress', 'confirmation', 'viewFullDeliveryDetails', 'changeAddress', 'deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
+  for (const key of ['backToCart', 'checkoutProgress', 'confirmation', 'viewFullDeliveryDetails', 'changeAddress', 'cartItems', 'unitPrice', 'lineTotal', 'continueShopping', 'checkoutTotalsNotice', 'deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
     assert.match(api, new RegExp(`${key}:`))
   }
 })
