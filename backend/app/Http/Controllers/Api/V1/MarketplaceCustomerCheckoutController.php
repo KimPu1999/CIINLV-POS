@@ -60,10 +60,21 @@ class MarketplaceCustomerCheckoutController
 
     public function orders(Request $request): JsonResponse
     {
+        $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'string', 'max:40'],
+            'payment_status' => ['nullable', 'string', 'max:40'],
+            'sort' => ['nullable', 'in:newest,oldest'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
         $orders = MarketplaceOrder::query()
             ->where('customer_user_id', $request->user()->id)
+            ->when($request->filled('search'), fn ($query) => $query->where('order_number', 'ilike', '%'.trim((string) $request->input('search')).'%'))
+            ->when($request->filled('status'), fn ($query) => $query->where('status', (string) $request->input('status')))
+            ->when($request->filled('payment_status'), fn ($query) => $query->where('payment_status', (string) $request->input('payment_status')))
             ->with(['payments', 'vendorOrders.order', 'vendorOrders.store', 'vendorOrders.items.variant', 'vendorOrders.shipments.events.actor', 'events'])
-            ->latest()
+            ->when($request->input('sort', 'newest') === 'oldest', fn ($query) => $query->oldest())
+            ->when($request->input('sort', 'newest') !== 'oldest', fn ($query) => $query->latest())
             ->paginate(min(max((int) $request->input('per_page', 20), 1), 50));
 
         return response()->json(['success' => true, 'data' => MarketplaceOrderResource::collection($orders), 'meta' => ['total' => $orders->total(), 'per_page' => $orders->perPage(), 'current_page' => $orders->currentPage(), 'last_page' => $orders->lastPage()]]);

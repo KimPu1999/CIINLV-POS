@@ -144,7 +144,17 @@ class MarketplacePublicController
     public function products(Request $request): JsonResponse
     {
         $this->settings->assertAvailable();
+        $request->validate([
+            'ids' => ['nullable', 'string', 'max:5000'],
+        ]);
+        $listingIds = collect(explode(',', (string) $request->input('ids')))
+            ->map(fn (string $id): string => trim($id))
+            ->filter(fn (string $id): bool => Str::isUuid($id))
+            ->unique()
+            ->take(100)
+            ->values();
         $query = $this->publicListings($request)
+            ->when($listingIds->isNotEmpty(), fn (Builder $query) => $query->whereIn('marketplace_listings.uuid', $listingIds->all()))
             ->when($request->filled('search'), function (Builder $query) use ($request): void {
                 $term = '%'.$request->string('search').'%';
                 $query->where(function (Builder $search) use ($term): void {
