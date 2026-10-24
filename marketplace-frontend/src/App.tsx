@@ -819,6 +819,42 @@ function CheckoutPage({ cart, locale, customer, t }: AppServices) {
   return <CheckoutForm cart={cart} locale={locale} customer={customer} subtotal={subtotal} t={t} />
 }
 
+function addressHasRequiredDetails(address: CustomerAddress | undefined): boolean {
+  return Boolean(address?.recipientName.trim() && address.addressLine1.trim() && address.city.trim() && address.country.trim())
+}
+
+function CheckoutDeliveryInformation({ address, t }: { address?: CustomerAddress; t: (key: TranslationKey) => string }) {
+  const manageAddressPath = address ? `/account?returnTo=%2Fcheckout&address_id=${encodeURIComponent(String(address.id))}#addresses` : '/account?returnTo=%2Fcheckout#addresses'
+  const value = (field: string | null | undefined) => field?.trim() || t('notAvailable')
+  const details = address ? [
+    [t('recipientName'), value(address.recipientName)],
+    [t('phoneNumber'), value(address.phone)],
+    [t('addressLine1'), value(address.addressLine1)],
+    [t('addressLine2'), value(address.addressLine2)],
+    [t('city'), value(address.city)],
+    [t('region'), value(address.region)],
+    [t('postalCode'), value(address.postalCode)],
+    [t('country'), value(address.country)],
+  ] : []
+
+  return <section className="mt-7 overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-white p-5 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-slate-900 sm:p-6" aria-labelledby="delivery-information-title">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex items-start gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm"><Truck size={19} /></span>
+        <div><h2 id="delivery-information-title" className="text-base font-black text-slate-950 dark:text-white">{t('deliveryInformation')}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{t('deliveryInformationHelp')}</p></div>
+      </div>
+      {address?.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"><Check size={13} /> {t('defaultAddressBadge')}</span>}
+    </div>
+    {address ? <>
+      <div className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+        {details.map(([label, fieldValue]) => <div key={label} className="min-w-0"><p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">{label}</p><p className="mt-1 break-words text-sm font-bold text-slate-800 dark:text-slate-200">{fieldValue}</p></div>)}
+      </div>
+      {!addressHasRequiredDetails(address) && <div role="alert" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">{t('addressNeedsDetails')}</div>}
+      <Link to={manageAddressPath} className="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-700 hover:underline dark:text-blue-300"><MapPin size={16} /> {t('editDeliveryInformation')}</Link>
+    </> : <div className="mt-5 rounded-xl border border-dashed border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/20"><p className="font-black text-amber-900 dark:text-amber-100">{t('deliveryInformationRequired')}</p><p className="mt-1 text-sm leading-6 text-amber-800/80 dark:text-amber-200/80">{t('noSavedAddresses')}</p><Link to={manageAddressPath} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white hover:bg-blue-500"><Plus size={15} /> {t('addDeliveryInformation')}</Link></div>}
+  </section>
+}
+
 function CheckoutForm({ cart, locale, customer, subtotal, t }: { cart: CartItem[]; locale: Locale; customer: Customer; subtotal: number; t: (key: TranslationKey) => string }) {
   const navigate = useNavigate()
   const [addressId, setAddressId] = useState<number | undefined>(customer.addresses.find((address) => address.isDefault)?.id ?? customer.addresses[0]?.id)
@@ -828,6 +864,15 @@ function CheckoutForm({ cart, locale, customer, subtotal, t }: { cart: CartItem[
   const [quoteBusy, setQuoteBusy] = useState(false)
   const [error, setError] = useState('')
   const [idempotencyKey] = useState(() => `marketplace-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+  const cartSignature = cart.map((item) => `${item.cartKey}:${item.quantity}`).join('|')
+  const selectedAddress = customer.addresses.find((address) => address.id === addressId)
+  const selectedAddressIsComplete = addressHasRequiredDetails(selectedAddress)
+  const manageAddressPath = selectedAddress ? `/account?returnTo=%2Fcheckout&address_id=${encodeURIComponent(String(selectedAddress.id))}#addresses` : '/account?returnTo=%2Fcheckout#addresses'
+
+  useEffect(() => {
+    if (addressId && customer.addresses.some((address) => address.id === addressId)) return
+    setAddressId(customer.addresses.find((address) => address.isDefault)?.id ?? customer.addresses[0]?.id)
+  }, [addressId, customer.addresses])
 
   useEffect(() => {
     if (!addressId) { setQuote(null); return }
@@ -835,11 +880,12 @@ function CheckoutForm({ cart, locale, customer, subtotal, t }: { cart: CartItem[
     setQuoteBusy(true); setError('')
     void fetchCheckoutQuote(addressId, locale, paymentMethod).then((value) => { if (active) setQuote(value) }).catch((reason: unknown) => { if (active) { setQuote(null); setError(apiErrorMessage(reason, t('errorGeneric'))) } }).finally(() => { if (active) setQuoteBusy(false) })
     return () => { active = false }
-  }, [addressId, cart.length, locale, paymentMethod])
+  }, [addressId, cartSignature, locale, paymentMethod])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!addressId) { setError(t('selectAddress')); return }
+    if (!addressId || !selectedAddress) { setError(t('deliveryInformationRequired')); return }
+    if (!selectedAddressIsComplete) { setError(t('addressNeedsDetails')); return }
     setBusy(true); setError('')
     try {
       const order = await checkoutMarketplace(addressId, locale, idempotencyKey, paymentMethod)
@@ -847,7 +893,7 @@ function CheckoutForm({ cart, locale, customer, subtotal, t }: { cart: CartItem[
     } catch (reason: unknown) { setError(apiErrorMessage(reason, t('errorGeneric'))) } finally { setBusy(false) }
   }
 
-  return <PageContainer><PageIntro eyebrow={t('secureCheckout')} title={t('checkout')} body={t('securedByServer')} /><div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]"><form onSubmit={submit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-black">{t('customerDetails')}</h2><p className="mt-2 text-sm text-slate-500">{t('signedInAs')} {customer.name}</p></div><MapPin className="text-blue-600" size={22} /></div>{error && <div role="alert" className="mt-6 flex gap-2 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200"><CircleAlert className="shrink-0" size={18} />{error}</div>}<div className="mt-7"><label className="text-sm font-black">{t('selectAddress')}</label>{customer.addresses.length ? <select value={addressId ?? ''} onChange={(event) => setAddressId(event.target.value ? Number(event.target.value) : undefined)} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('selectAddress')}</option>{customer.addresses.map((address) => <option key={address.id} value={address.id}>{address.recipientName} · {address.addressLine1}, {address.city}</option>)}</select> : <div className="mt-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noSavedAddresses')} <Link to="/account" className="text-blue-600 hover:underline">{t('account')}</Link></div>}</div><div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-center gap-2 text-sm font-black text-blue-900 dark:text-blue-100"><ShieldCheck size={18} />{t('paymentMethod')}</div><div className="mt-4 grid gap-2">{([['cod', t('cashOnDelivery')], ['card', 'Card payment'], ['qr', 'QR / mobile payment'], ['bank_transfer', 'Bank transfer']] as const).map(([value, label]) => <label key={value} className="flex cursor-pointer items-start gap-3 rounded-xl border border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-slate-900"><input type="radio" name="payment_method" value={value} checked={paymentMethod === value} onChange={() => setPaymentMethod(value)} className="mt-1 accent-blue-600" /><span><span className="block text-sm font-black">{label}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{value === 'cod' ? t('orderPendingPayment') : 'Payment remains pending until the provider callback is verified.'}</span></span></label>)}</div>{quote?.onlinePaymentStatus !== 'configured' && paymentMethod !== 'cod' && <p className="mt-3 text-xs font-semibold text-amber-700">Online payment provider setup is required before this method can be used.</p>}</div><div className="mt-7 rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><h3 className="font-black">{t('orderSummary')}</h3><div className="mt-4 grid gap-3">{quote?.vendors.map((vendor) => <div key={vendor.storeId} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex justify-between gap-3 text-sm font-black"><span>{vendor.storeName}</span><span>{formatPrice(Number(vendor.total), vendor.currencyCode, locale)}</span></div><p className="mt-1 text-xs font-semibold text-slate-500">{vendor.items.length} {t('products')} · {t('standardDelivery')}</p></div>)}</div>{quoteBusy && <p className="mt-4 text-sm font-semibold text-slate-500">{t('quoteLoading')}</p>}</div><button type="submit" disabled={busy || quoteBusy || !quote || !addressId || (paymentMethod !== 'cod' && quote?.onlinePaymentStatus !== 'configured')} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={18} /> : <ShieldCheck size={17} />} {t('placeOrder')}</button></form><OrderSummary subtotal={quote ? Number(quote.subtotal) : subtotal} currency={quote?.currencyCode ?? cart[0]?.currency ?? 'MMK'} quote={quote} locale={locale} t={t} /></div></PageContainer>
+  return <PageContainer><PageIntro eyebrow={t('secureCheckout')} title={t('checkout')} body={t('securedByServer')} /><div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]"><form onSubmit={submit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-black">{t('customerDetails')}</h2><p className="mt-2 text-sm text-slate-500">{t('signedInAs')} {customer.name}</p></div><MapPin className="text-blue-600" size={22} /></div>{error && <div role="alert" className="mt-6 flex gap-2 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-800 dark:bg-red-950/30 dark:text-red-200"><CircleAlert className="shrink-0" size={18} />{error}</div>}<div className="mt-7"><label className="text-sm font-black">{t('selectAddress')}</label>{customer.addresses.length ? <select value={addressId ?? ''} onChange={(event) => setAddressId(event.target.value ? Number(event.target.value) : undefined)} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-950"><option value="">{t('selectAddress')}</option>{customer.addresses.map((address) => <option key={address.id} value={address.id}>{address.recipientName} · {address.addressLine1}, {address.city}</option>)}</select> : <div className="mt-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noSavedAddresses')} <Link to={manageAddressPath} className="text-blue-600 hover:underline">{t('addDeliveryInformation')}</Link></div>}</div><CheckoutDeliveryInformation address={selectedAddress} t={t} /><div className="mt-7 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20"><div className="flex items-center gap-2 text-sm font-black text-blue-900 dark:text-blue-100"><ShieldCheck size={18} />{t('paymentMethod')}</div><div className="mt-4 grid gap-2">{([['cod', t('cashOnDelivery')], ['card', t('cardPayment')], ['qr', t('qrPayment')], ['bank_transfer', t('bankTransfer')]] as const).map(([value, label]) => <label key={value} className="flex cursor-pointer items-start gap-3 rounded-xl border border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-slate-900"><input type="radio" name="payment_method" value={value} checked={paymentMethod === value} onChange={() => setPaymentMethod(value)} className="mt-1 accent-blue-600" /><span><span className="block text-sm font-black">{label}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{value === 'cod' ? t('orderPendingPayment') : t('onlinePaymentPending')}</span></span></label>)}</div>{quote?.onlinePaymentStatus !== 'configured' && paymentMethod !== 'cod' && <p className="mt-3 text-xs font-semibold text-amber-700">{t('onlinePaymentSetupRequired')}</p>}</div><div className="mt-7 rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><h3 className="font-black">{t('orderSummary')}</h3><div className="mt-4 grid gap-3">{quote?.vendors.map((vendor) => <div key={vendor.storeId} className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"><div className="flex justify-between gap-3 text-sm font-black"><span>{vendor.storeName}</span><span>{formatPrice(Number(vendor.total), vendor.currencyCode, locale)}</span></div><p className="mt-1 text-xs font-semibold text-slate-500">{vendor.items.length} {t('products')} · {t('standardDelivery')}</p></div>)}</div>{quoteBusy && <p className="mt-4 text-sm font-semibold text-slate-500">{t('quoteLoading')}</p>}</div><button type="submit" disabled={busy || quoteBusy || !quote || !addressId || !selectedAddressIsComplete || (paymentMethod !== 'cod' && quote?.onlinePaymentStatus !== 'configured')} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60">{busy ? <LoaderCircle className="animate-spin" size={18} /> : <ShieldCheck size={17} />} {t('placeOrder')}</button></form><OrderSummary subtotal={quote ? Number(quote.subtotal) : subtotal} currency={quote?.currencyCode ?? cart[0]?.currency ?? 'MMK'} quote={quote} locale={locale} t={t} /></div></PageContainer>
 }
 
 function AuthPage({ locale, t, customer, setCustomer, mode = 'login' }: AppServices & { mode?: 'login' | 'register' }) {
@@ -934,6 +980,9 @@ function ProtectedRoute({ customer, authLoading, t, children }: AppServices & { 
 }
 
 function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: AppServices) {
+  const [searchParams] = useSearchParams()
+  const returnToCheckout = searchParams.get('returnTo') === '/checkout'
+  const requestedAddressId = Number(searchParams.get('address_id'))
   const [name, setName] = useState(customer?.name ?? '')
   const [phone, setPhone] = useState(customer?.phone ?? '')
   const [address, setAddress] = useState<CustomerAddressInput>(emptyAddress(customer?.name ?? ''))
@@ -941,12 +990,27 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
   const [busy, setBusy] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [notice, setNotice] = useState('')
+  const [savedForCheckout, setSavedForCheckout] = useState(false)
   const [error, setError] = useState('')
   const [orders, setOrders] = useState<MarketplaceOrder[]>([])
   const [ordersMeta, setOrdersMeta] = useState<PaginationMeta | null>(null)
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [ordersError, setOrdersError] = useState('')
   const genericError = t('errorGeneric')
+
+  useEffect(() => {
+    if (window.location.hash !== '#addresses') return
+    const timer = window.setTimeout(() => document.getElementById('addresses')?.scrollIntoView({ block: 'start' }), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!customer || !Number.isInteger(requestedAddressId) || requestedAddressId <= 0) return
+    const requestedAddress = customer.addresses.find((item) => item.id === requestedAddressId)
+    if (!requestedAddress) return
+    setEditing(requestedAddress.id)
+    setAddress(addressFromCustomer(requestedAddress))
+  }, [customer, requestedAddressId])
 
   useEffect(() => {
     let active = true
@@ -974,7 +1038,7 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
       const saved = editing ? await updateCustomerAddress(editing, address, locale) : await createCustomerAddress(address, locale)
       const nextAddresses = editing ? customer!.addresses.map((item) => item.id === saved.id ? saved : item) : [...customer!.addresses, saved]
       setCustomer({ ...customer!, addresses: address.is_default ? nextAddresses.map((item) => ({ ...item, isDefault: item.id === saved.id })) : nextAddresses })
-      setAddress(emptyAddress(customer!.name)); setEditing(null); setNotice(t('addressSaved'))
+      setAddress(emptyAddress(customer!.name)); setEditing(null); setNotice(t('addressSaved')); setSavedForCheckout(returnToCheckout)
     } catch (reason: unknown) { setError(apiErrorMessage(reason, t('errorGeneric'))) } finally { setBusy(false) }
   }
   const removeAddress = async (id: number) => {
@@ -1068,7 +1132,8 @@ function AccountPage({ customer, locale, t, setCustomer, wishlist, signOut }: Ap
           </form>
 
           <section id="addresses" className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('addresses')}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{t('address')}</p></div><MapPin className="text-blue-600" size={22} /></div>
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">{t('account')}</p><h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">{t('addresses')}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{t('address')}</p></div><div className="flex items-center gap-3"><MapPin className="text-blue-600" size={22} />{(returnToCheckout || savedForCheckout) && <Link to="/checkout" className="inline-flex items-center gap-1 text-sm font-black text-blue-600 hover:underline">{t('returnToCheckout')} <ArrowRight size={15} /></Link>}</div></div>
+            {savedForCheckout && <div role="status" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"><span>{t('addressSavedForCheckout')}</span><Link to="/checkout" className="font-black underline">{t('returnToCheckout')}</Link></div>}
             <div className="mt-6 grid gap-3">{customer.addresses.length ? customer.addresses.map((item) => <div key={item.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700"><div className="flex items-start justify-between gap-4"><div><p className="font-black text-slate-950 dark:text-white">{item.recipientName}</p><p className="mt-1 text-sm leading-6 text-slate-500">{item.addressLine1}{item.addressLine2 ? `, ${item.addressLine2}` : ''}, {item.city}{item.region ? `, ${item.region}` : ''}</p>{item.phone && <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-slate-400"><Phone size={13} /> {item.phone}</p>}</div>{item.isDefault && <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{t('defaultAddress')}</span>}</div><div className="mt-4 flex gap-2"><button type="button" onClick={() => { setEditing(item.id); setAddress(addressFromCustomer(item)) }} className="rounded-lg px-3 py-2 text-xs font-black text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">{t('edit')}</button><button type="button" onClick={() => void removeAddress(item.id)} disabled={busy} className="rounded-lg px-3 py-2 text-xs font-black text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">{t('delete')}</button></div></div>) : <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-slate-950">{t('noSavedAddresses')}</p>}</div>
             <form onSubmit={submitAddress} className="mt-6 border-t border-slate-100 pt-6 dark:border-slate-800"><h3 className="text-lg font-black text-slate-950 dark:text-white">{editing ? t('edit') : t('saveAddress')}</h3><div className="mt-5 grid gap-4 sm:grid-cols-2"><AddressField label={t('fullName')} value={address.recipient_name} onChange={(value) => setAddress({ ...address, recipient_name: value })} required /><AddressField label={t('phoneOptional')} value={address.phone ?? ''} onChange={(value) => setAddress({ ...address, phone: value })} /><AddressField label={t('addressLine1')} value={address.address_line_1} onChange={(value) => setAddress({ ...address, address_line_1: value })} wide required /><AddressField label={t('addressLine2')} value={address.address_line_2 ?? ''} onChange={(value) => setAddress({ ...address, address_line_2: value })} wide /><AddressField label={t('city')} value={address.city} onChange={(value) => setAddress({ ...address, city: value })} required /><AddressField label={t('region')} value={address.region ?? ''} onChange={(value) => setAddress({ ...address, region: value })} /><AddressField label={t('postalCode')} value={address.postal_code ?? ''} onChange={(value) => setAddress({ ...address, postal_code: value })} /><AddressField label={t('country')} value={address.country} onChange={(value) => setAddress({ ...address, country: value.toUpperCase() })} required /></div><label className="mt-4 flex items-center gap-2 text-sm font-semibold text-slate-500"><input type="checkbox" checked={Boolean(address.is_default)} onChange={(event) => setAddress({ ...address, is_default: event.target.checked })} className="accent-blue-600" /> {t('defaultAddress')}</label><div className="mt-5 flex flex-wrap gap-3"><button type="submit" disabled={busy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white disabled:opacity-60">{busy && <LoaderCircle className="animate-spin" size={17} />} {t('saveAddress')}</button>{editing && <button type="button" onClick={() => { setEditing(null); setAddress(emptyAddress(customer.name)) }} className="rounded-xl border border-slate-200 px-4 text-sm font-black dark:border-slate-700">{t('clear')}</button>}</div></form>
           </section>

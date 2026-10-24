@@ -16,6 +16,31 @@ test('checkout page uses server quote and idempotent COD checkout', () => {
   assert.match(app, /cashOnDelivery/)
 })
 
+test('checkout renders complete delivery information and blocks incomplete addresses', () => {
+  assert.match(app, /CheckoutDeliveryInformation/)
+  assert.match(app, /recipientName/)
+  assert.match(app, /addressLine1/)
+  assert.match(app, /addressLine2/)
+  assert.match(app, /postalCode/)
+  assert.match(app, /addressHasRequiredDetails/)
+  assert.match(app, /!selectedAddressIsComplete/)
+  assert.match(app, /deliveryInformationRequired/)
+})
+
+test('checkout address links return safely to the saved addresses section', () => {
+  assert.match(app, /returnTo=%2Fcheckout#addresses/)
+  assert.match(app, /returnTo=%2Fcheckout&address_id=/)
+  assert.match(app, /searchParams\.get\('returnTo'\) === '\/checkout'/)
+  assert.match(app, /returnToCheckout/)
+  assert.match(app, /scrollIntoView/)
+})
+
+test('checkout delivery and payment copy is translated in both locales', () => {
+  for (const key of ['deliveryInformation', 'addDeliveryInformation', 'editDeliveryInformation', 'returnToCheckout', 'cardPayment', 'qrPayment', 'bankTransfer', 'onlinePaymentPending']) {
+    assert.match(api, new RegExp(`${key}:`))
+  }
+})
+
 test('authenticated cart mutations call marketplace APIs instead of trusting browser totals', () => {
   assert.match(api, /fetchMarketplaceCart/)
   assert.match(api, /addMarketplaceCartItem/)
