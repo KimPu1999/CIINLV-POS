@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\CurrentUserStoreController;
 use App\Http\Controllers\Api\V1\CustomerManagementController;
 use App\Http\Controllers\Api\V1\DashboardOverviewController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\HelpPolicyController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\InventoryReportController;
 use App\Http\Controllers\Api\V1\InvoiceController;
@@ -180,6 +181,14 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/customers/{customer}/status', [CustomerManagementController::class, 'updateStatus']);
             Route::patch('/customers/{customer}/email-verification', [CustomerManagementController::class, 'manuallyVerifyEmail']);
             Route::post('/customers/{customer}/password-reset', [CustomerManagementController::class, 'sendPasswordReset'])->middleware('throttle:password-reset');
+            Route::get('/help/policies', [HelpPolicyController::class, 'policies']);
+            Route::post('/help/policies', [HelpPolicyController::class, 'storePolicy']);
+            Route::patch('/help/policies/{policy}', [HelpPolicyController::class, 'updatePolicy']);
+            Route::post('/help/policies/{policy}/publish', [HelpPolicyController::class, 'publishPolicy']);
+            Route::get('/help/faqs', [HelpPolicyController::class, 'faqs']);
+            Route::post('/help/faqs', [HelpPolicyController::class, 'storeFaq']);
+            Route::patch('/help/faqs/{faq}', [HelpPolicyController::class, 'updateFaq']);
+            Route::delete('/help/faqs/{faq}', [HelpPolicyController::class, 'destroyFaq']);
 
             Route::apiResource('tenants', PlatformTenantController::class)->only(['index', 'store', 'show', 'update']);
             Route::post('/tenants/{tenant}/suspend', [PlatformTenantController::class, 'suspend']);
@@ -328,6 +337,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/customers', [CustomerManagementController::class, 'businessIndex']);
             Route::get('/customers/{customer}/orders', [CustomerManagementController::class, 'businessOrders']);
             Route::get('/customers/{customer}', [CustomerManagementController::class, 'businessShow']);
+            Route::get('/help/policies', [HelpPolicyController::class, 'policies']);
+            Route::get('/help/faqs', [HelpPolicyController::class, 'faqs']);
         });
 
         Route::prefix('business')->middleware('tenant.context.any')->group(function (): void {

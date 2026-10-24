@@ -1,7 +1,7 @@
 import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, AlertTriangle, BarChart3, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, History, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, BookOpen, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, FileText, History, HelpCircle, LayoutDashboard, LifeBuoy, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
@@ -69,6 +69,7 @@ const MarketplaceReviewsPage = lazy(() => import('./features/marketplace-vendor'
 const MarketplaceEarningsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceEarningsPage: Page }) => ({ default: Page })))
 const MarketplaceSettingsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceSettingsPage: Page }) => ({ default: Page })))
 const CustomerManagementPage = lazy(() => import('./features/customer-management').then(({ CustomerManagementPage: Page }) => ({ default: Page })))
+const HelpPoliciesPage = lazy(() => import('./features/help-policies').then(({ HelpPoliciesPage: Page }) => ({ default: Page })))
 
 type Icon = React.ComponentType<{ size?: number; className?: string }>
 type NavItem = { label: string; path: string; icon: Icon; roles?: ('super_admin' | 'business')[]; section?: string; end?: boolean }
@@ -101,6 +102,12 @@ const platformNav: NavItem[] = [
   { label: 'Reports & analytics', path: '/platform/marketplace/reports', icon: BarChart3, roles: ['super_admin'] },
   { label: 'Marketplace audit logs', path: '/platform/marketplace/audit', icon: Activity, roles: ['super_admin'] },
   { label: 'Marketplace settings', path: '/platform/marketplace/settings', icon: Settings, roles: ['super_admin'] },
+  { label: 'Help Center', path: '/platform/help', icon: HelpCircle, roles: ['super_admin'], section: 'Help & Policies' },
+  { label: 'FAQ', path: '/platform/help/faq', icon: BookOpen, roles: ['super_admin'] },
+  { label: 'Privacy Policy', path: '/platform/help/policies', icon: FileText, roles: ['super_admin'] },
+  { label: 'Terms & Conditions', path: '/platform/help/policies', icon: FileText, roles: ['super_admin'] },
+  { label: 'Business / Seller Policies', path: '/platform/help/policies', icon: ShieldCheck, roles: ['super_admin'] },
+  { label: 'Support', path: '/platform/help/support', icon: LifeBuoy, roles: ['super_admin'] },
 ]
 
 const businessNav: NavItem[] = [
@@ -134,6 +141,12 @@ const businessNav: NavItem[] = [
   { label: 'Delivery history', path: '/business/marketplace/delivery-history', icon: History, roles: ['business'] },
   { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'] },
   { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
+  { label: 'Help Center', path: '/business/help', icon: HelpCircle, roles: ['business'], section: 'Help & Policies' },
+  { label: 'FAQ', path: '/business/help/faq', icon: BookOpen, roles: ['business'] },
+  { label: 'Privacy Policy', path: '/business/help/policies', icon: FileText, roles: ['business'] },
+  { label: 'Terms & Conditions', path: '/business/help/policies', icon: FileText, roles: ['business'] },
+  { label: 'Business / Seller Policies', path: '/business/help/policies', icon: ShieldCheck, roles: ['business'] },
+  { label: 'Support', path: '/business/help/support', icon: LifeBuoy, roles: ['business'] },
 ]
 
 const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
@@ -145,6 +158,10 @@ const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
   '/business/inventory',
   '/business/sales',
   '/business/reports',
+  '/business/help',
+  '/business/help/faq',
+  '/business/help/policies',
+  '/business/help/support',
 ].includes(path))
 
 function App() {
@@ -322,6 +339,10 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="business-products" element={<PlatformBusinessProductsPage />} />
           <Route path="businesses" element={<BusinessListPage />} />
           <Route path="customers" element={<CustomerManagementPage platform />} />
+          <Route path="help" element={<HelpPoliciesPage platform />} />
+          <Route path="help/faq" element={<HelpPoliciesPage platform />} />
+          <Route path="help/policies" element={<HelpPoliciesPage platform />} />
+          <Route path="help/support" element={<HelpPoliciesPage platform />} />
           <Route path="businesses/new" element={<BusinessRegistrationScreen />} />
           <Route path="businesses/:id/edit" element={<BusinessEditPage />} />
           <Route path="businesses/:id/verification" element={<PlatformBusinessVerificationPage />} />
@@ -363,6 +384,10 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="alerts" element={<ResourcePage title="Low-stock alerts" description="Live inventory alerts from the backend." endpoint="/api/v1/alerts" columns={['alert_type', 'status', 'available_quantity']} />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="customers" element={<CustomerManagementPage />} />
+          <Route path="help" element={<HelpPoliciesPage />} />
+          <Route path="help/faq" element={<HelpPoliciesPage />} />
+          <Route path="help/policies" element={<HelpPoliciesPage />} />
+          <Route path="help/support" element={<HelpPoliciesPage />} />
           <Route path="verification" element={<BusinessVerificationPage />} />
           <Route path="marketplace/overview" element={<MarketplaceOverviewPage />} />
           <Route path="marketplace/store" element={<MarketplaceStorePage />} />
