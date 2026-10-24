@@ -18,7 +18,9 @@ use App\Models\TenantMembership;
 use App\Models\User;
 use App\Services\MarketplaceInventoryReservationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MarketplaceCheckoutTest extends TestCase
@@ -212,6 +214,36 @@ class MarketplaceCheckoutTest extends TestCase
         $this->assertDatabaseHas('marketplace_orders', ['payment_status' => 'paid']);
         $this->assertDatabaseHas('marketplace_payments', ['method' => 'qr', 'status' => 'paid', 'provider' => 'qr']);
         $this->actingAs($customer, 'sanctum')->getJson('/api/v1/marketplace/orders/'.$orderId.'/receipt')->assertOk()->assertJsonPath('data.payment_status', 'paid');
+    }
+
+    public function test_global_qr_payment_details_are_available_for_single_and_multi_vendor_orders(): void
+    {
+        config(['marketplace.online_payments_enabled' => true]);
+        [, , $listingA, $variantA] = $this->vendor('CHECKOUT-QR-A', 1000, 4);
+        [, , $listingB, $variantB] = $this->vendor('CHECKOUT-QR-B', 2000, 4);
+        Storage::fake('public');
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', [
+            'qr_payment_provider' => 'Central Mobile Payment',
+            'qr_payment_account_name' => 'Marketplace Account',
+            'qr_payment_phone' => '0912345678',
+            'qr_payment_instructions' => 'Pay the exact amount shown.',
+            'qr_payment_enabled' => true,
+            'revision' => 1,
+        ])->assertOk();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/settings/qr-payment-image', ['image' => UploadedFile::fake()->image('qr-payment.png')])->assertOk();
+        $customer = $this->customer('buyer-qr-details@example.com');
+        $address = $this->address($customer);
+
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listingA->uuid, 'variant_id' => $variantA->uuid, 'quantity' => 1])->assertCreated();
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/checkout/quote', ['address_id' => $address->id, 'payment_method' => 'qr'])
+            ->assertOk()->assertJsonPath('data.qr_payment.available', true)->assertJsonPath('data.qr_payment.provider', 'Central Mobile Payment')->assertJsonPath('data.qr_payment.account_name', 'Marketplace Account')->assertJsonPath('data.qr_payment.phone', '0912345678')->assertJsonPath('data.qr_payment.scope', 'marketplace');
+
+        $this->actingAs($customer, 'sanctum')->deleteJson('/api/v1/marketplace/cart')->assertOk();
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listingA->uuid, 'variant_id' => $variantA->uuid, 'quantity' => 1])->assertCreated();
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listingB->uuid, 'variant_id' => $variantB->uuid, 'quantity' => 1])->assertCreated();
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/checkout/quote', ['address_id' => $address->id, 'payment_method' => 'qr'])
+            ->assertOk()->assertJsonPath('data.qr_payment.available', true)->assertJsonPath('data.qr_payment.scope', 'marketplace');
     }
 
     public function test_business_admin_order_list_shows_its_checkout_and_is_tenant_scoped(): void

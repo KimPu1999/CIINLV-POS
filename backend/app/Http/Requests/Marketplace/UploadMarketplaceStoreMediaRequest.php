@@ -15,7 +15,7 @@ class UploadMarketplaceStoreMediaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'media_type' => ['required', Rule::in(['logo', 'banner'])],
+            'media_type' => ['required', Rule::in(['logo', 'banner', 'qr'])],
             'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }

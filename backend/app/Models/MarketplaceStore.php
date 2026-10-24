@@ -15,6 +15,7 @@ class MarketplaceStore extends Model
         'secondary_contact_phone', 'business_category', 'website', 'facebook_url', 'messaging_contact',
         'shipping_coverage', 'support_contact', 'cod_available', 'delivery_methods', 'operating_hours',
         'temporary_closure_message', 'holiday_notice', 'policies', 'logo_path', 'banner_path',
+        'qr_payment_provider', 'qr_payment_account_name', 'qr_payment_phone', 'qr_payment_instructions', 'qr_payment_qr_path', 'qr_payment_enabled',
         'approval_status', 'is_active', 'notification_preferences', 'fulfillment_preferences', 'approved_at', 'approved_by',
     ];
 
@@ -28,6 +29,7 @@ class MarketplaceStore extends Model
         return [
             'is_active' => 'boolean',
             'cod_available' => 'boolean',
+            'qr_payment_enabled' => 'boolean',
             'approved_at' => 'datetime',
             'notification_preferences' => 'array',
             'fulfillment_preferences' => 'array',

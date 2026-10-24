@@ -27,6 +27,11 @@ class MarketplaceSettingsUpdateRequest extends FormRequest
             'payout_minimum' => ['sometimes', 'numeric', 'min:0'],
             'reason' => ['nullable', 'string', 'max:255'],
             'policies' => ['sometimes', 'array'],
+            'qr_payment_provider' => ['sometimes', 'nullable', 'string', 'max:80'],
+            'qr_payment_account_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'qr_payment_phone' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'qr_payment_instructions' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'qr_payment_enabled' => ['sometimes', 'boolean'],
             'revision' => ['sometimes', 'integer', 'min:1'],
         ];
     }

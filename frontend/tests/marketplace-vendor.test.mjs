@@ -69,3 +69,12 @@ test('vendor UI includes responsive controls, confirmation flow, and listing med
   assert.match(feature, /accept="image\/jpeg,image\/png,image\/webp"/)
   assert.match(feature, /marketplace\/listings/)
 })
+
+test('business marketplace settings expose tenant-owned QR payment configuration and media removal', () => {
+  for (const key of ['qr_payment_provider', 'qr_payment_account_name', 'qr_payment_phone', 'qr_payment_instructions', 'qr_payment_enabled']) assert.match(feature, new RegExp(key))
+  assert.match(feature, /media_type', 'qr'/)
+  assert.match(feature, /store\/media\/qr/)
+  assert.match(routes, /Route::delete\('\/store\/media\/{mediaType}'/)
+  assert.match(controller, /qr_payment_qr_path/)
+  assert.match(controller, /store_media_removed/)
+})

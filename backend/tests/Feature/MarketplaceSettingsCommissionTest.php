@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\MarketplaceOrder;
+use App\Models\MarketplaceSetting;
 use App\Models\MarketplaceStore;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\Product;
@@ -15,7 +16,9 @@ use App\Models\User;
 use App\Services\MarketplaceCommissionService;
 use App\Services\MarketplaceSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MarketplaceSettingsCommissionTest extends TestCase
@@ -61,6 +64,31 @@ class MarketplaceSettingsCommissionTest extends TestCase
 
         $this->actingAs($businessAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', ['enabled' => false])->assertForbidden();
         $this->getJson('/api/v1/admin/marketplace/settings')->assertForbidden();
+    }
+
+    public function test_super_admin_controls_global_qr_payment_configuration_and_media(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', [
+            'qr_payment_provider' => 'Central Mobile Payment',
+            'qr_payment_account_name' => 'THAWNG KIM PIANG',
+            'qr_payment_phone' => '09954060717',
+            'qr_payment_enabled' => true,
+            'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.qr_payment_account_name', 'THAWNG KIM PIANG');
+
+        $uploaded = $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/settings/qr-payment-image', ['image' => UploadedFile::fake()->image('qr-payment.png')])->assertOk();
+        $path = MarketplaceSetting::query()->firstOrFail()->qr_payment_qr_path;
+        Storage::disk('public')->assertExists($path);
+        $uploaded->assertJsonPath('data.qr_payment_enabled', true)->assertJsonPath('data.qr_payment_qr_url', Storage::disk('public')->url($path));
+
+        [, $businessAdmin] = $this->businessWithAdmin('GLOBAL-QR-BUSINESS', 'global-qr@example.com');
+        $this->actingAs($businessAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', ['qr_payment_enabled' => false])->assertForbidden();
+
+        $this->actingAs($admin, 'sanctum')->deleteJson('/api/v1/admin/marketplace/settings/qr-payment-image')->assertOk();
+        Storage::disk('public')->assertMissing($path);
     }
 
     public function test_settings_revision_conflicts_are_rejected_and_history_is_returned(): void

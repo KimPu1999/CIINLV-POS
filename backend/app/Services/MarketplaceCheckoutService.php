@@ -263,10 +263,16 @@ class MarketplaceCheckoutService
             'delivery_address' => $address,
             'payment_methods' => ['cod', 'card', 'qr', 'bank_transfer'],
             'online_payment_status' => config('marketplace.online_payments_enabled', false) ? 'configured' : 'not_configured',
+            'qr_payment' => $this->qrPaymentInformation($calculation),
             'vendors' => array_map(static function (array $vendor): array {
                 return ['store_id' => $vendor['store_uuid'], 'store_name' => $vendor['store_name'], 'currency_code' => $vendor['currency_code'], 'subtotal' => $vendor['subtotal'], 'shipping_total' => $vendor['shipping_total'], 'tax_total' => $vendor['tax_total'], 'total' => $vendor['total'], 'delivery_options' => $vendor['delivery_options'], 'items' => array_map(static fn (array $item): array => ['listing_id' => $item['listing_id'], 'variant_id' => $item['variant_id'], 'name' => $item['name'], 'sku' => $item['sku'], 'quantity' => $item['quantity'], 'unit_price' => $item['unit_price'], 'tax_amount' => $item['tax_amount'], 'line_total' => $item['line_total'], 'currency_code' => $item['currency_code']], $vendor['items'])];
             }, $calculation['vendors']),
         ];
+    }
+
+    private function qrPaymentInformation(array $calculation): array
+    {
+        return $this->settings->qrPaymentInformation();
     }
 
     private function address(User $customer, int $addressId): array

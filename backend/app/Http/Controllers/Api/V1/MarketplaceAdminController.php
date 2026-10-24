@@ -9,6 +9,7 @@ use App\Http\Requests\Marketplace\MarketplaceListingModerationRequest;
 use App\Http\Requests\Marketplace\MarketplaceRequestDecisionRequest;
 use App\Http\Requests\Marketplace\MarketplaceSettingsUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceStoreStatusRequest;
+use App\Http\Requests\Marketplace\UploadMarketplaceQrPaymentImageRequest;
 use App\Http\Resources\MarketplaceCancellationRequestResource;
 use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceOrderListResource;
@@ -662,6 +663,16 @@ class MarketplaceAdminController
         $saved = $settings->update($data, $request->user(), $audit, $expectedRevision);
 
         return response()->json(['success' => true, 'data' => $settings->current()['settings']]);
+    }
+
+    public function uploadQrPaymentImage(UploadMarketplaceQrPaymentImageRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->uploadQrPaymentImage($request->file('image'), $request->user(), $audit)]);
+    }
+
+    public function removeQrPaymentImage(Request $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->removeQrPaymentImage($request->user(), $audit)]);
     }
 
     public function commissionRules(Request $request, MarketplaceSettingsService $settings): JsonResponse

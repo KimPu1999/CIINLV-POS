@@ -215,6 +215,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/audit-logs', [MarketplaceAdminController::class, 'auditLogs']);
             Route::get('/settings', [MarketplaceAdminController::class, 'settings']);
             Route::patch('/settings', [MarketplaceAdminController::class, 'updateSettings']);
+            Route::post('/settings/qr-payment-image', [MarketplaceAdminController::class, 'uploadQrPaymentImage']);
+            Route::delete('/settings/qr-payment-image', [MarketplaceAdminController::class, 'removeQrPaymentImage']);
             Route::get('/commission-businesses', [MarketplaceAdminController::class, 'commissionBusinesses']);
             Route::get('/commission-categories', [MarketplaceAdminController::class, 'commissionCategories']);
             Route::get('/commission-rules', [MarketplaceAdminController::class, 'commissionRules']);
@@ -251,6 +253,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reviews/{review}', [MarketplaceReviewController::class, 'businessShow']);
             Route::patch('/store', [MarketplaceVendorController::class, 'updateStore']);
             Route::post('/store/media', [MarketplaceVendorController::class, 'uploadStoreMedia']);
+            Route::delete('/store/media/{mediaType}', [MarketplaceVendorController::class, 'deleteStoreMedia']);
             Route::get('/listings', [MarketplaceVendorController::class, 'listings']);
             Route::post('/listings', [MarketplaceVendorController::class, 'createListing']);
             Route::patch('/listings/{listing}', [MarketplaceVendorController::class, 'updateListing']);

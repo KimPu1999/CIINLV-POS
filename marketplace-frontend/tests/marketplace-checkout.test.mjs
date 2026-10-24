@@ -41,6 +41,16 @@ test('checkout delivery and payment copy is translated in both locales', () => {
   }
 })
 
+test('QR checkout displays configured payment details without changing pending verification', () => {
+  assert.match(app, /CheckoutQrPayment/)
+  assert.match(app, /payment\.available/)
+  assert.match(app, /qrPaymentPendingNotice/)
+  assert.match(app, /copyAccountName/)
+  assert.match(app, /qrPaymentAmount/)
+  assert.match(api, /qrPayment/)
+  assert.match(api, /qr_code_url/)
+})
+
 test('authenticated cart mutations call marketplace APIs instead of trusting browser totals', () => {
   assert.match(api, /fetchMarketplaceCart/)
   assert.match(api, /addMarketplaceCartItem/)

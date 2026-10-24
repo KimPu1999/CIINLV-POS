@@ -416,6 +416,30 @@ class MarketplaceFoundationTest extends TestCase
         $this->assertDatabaseHas('marketplace_audit_logs', ['action' => 'marketplace.store_media_updated', 'tenant_id' => $tenant->id]);
     }
 
+    public function test_vendor_qr_payment_configuration_is_tenant_scoped_and_removable(): void
+    {
+        Storage::fake('public');
+        [$tenantA, $adminA] = $this->businessWithAdmin('MARKETPLACE-QR-A', 'marketplace-qr-a@example.com');
+        [$tenantB] = $this->businessWithAdmin('MARKETPLACE-QR-B', 'marketplace-qr-b@example.com');
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)
+            ->patchJson('/api/v1/vendor/marketplace/store', ['qr_payment_provider' => 'KBZPay', 'qr_payment_account_name' => 'QR Business A', 'qr_payment_phone' => '0912345678', 'qr_payment_instructions' => 'Pay exact amount.', 'qr_payment_enabled' => true])
+            ->assertOk()->assertJsonPath('data.qr_payment_provider', 'KBZPay')->assertJsonPath('data.qr_payment_enabled', true);
+
+        $response = $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)
+            ->post('/api/v1/vendor/marketplace/store/media', ['media_type' => 'qr', 'image' => UploadedFile::fake()->image('payment-qr.png')]);
+        $path = $tenantA->marketplaceStore()->firstOrFail()->qr_payment_qr_path;
+        $response->assertOk()->assertJsonPath('data.qr_payment_qr_url', '/storage/'.$path);
+        Storage::disk('public')->assertExists($path);
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantB->uuid)
+            ->patchJson('/api/v1/vendor/marketplace/store', ['qr_payment_account_name' => 'Should not change'])->assertForbidden();
+
+        $this->actingAs($adminA, 'sanctum')->withHeader('X-Tenant-Id', $tenantA->uuid)
+            ->deleteJson('/api/v1/vendor/marketplace/store/media/qr')->assertOk()->assertJsonPath('data.qr_payment_qr_url', null);
+        Storage::disk('public')->assertMissing($path);
+    }
+
     public function test_vendor_listing_images_are_tenant_scoped_and_validated(): void
     {
         Storage::fake('public');

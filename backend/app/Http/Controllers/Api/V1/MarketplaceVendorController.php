@@ -651,7 +651,7 @@ class MarketplaceVendorController
         $tenant = $context->tenant();
         $store = $this->getOrCreateStore($context);
         $type = $request->string('media_type')->toString();
-        $column = $type.'_path';
+        $column = $type === 'qr' ? 'qr_payment_qr_path' : $type.'_path';
         $file = $request->file('image');
         $path = $file->storeAs('marketplace/stores/'.$tenant->uuid, Str::uuid().'.'.$file->extension(), 'public');
         $oldPath = $store->{$column};
@@ -668,6 +668,25 @@ class MarketplaceVendorController
         }
 
         $audit->record('marketplace.store_media_updated', $request->user(), $tenant, $store, ['media_type' => $type]);
+
+        return response()->json(['success' => true, 'data' => $this->storeManagementPayload($request, $store->refresh())]);
+    }
+
+    public function deleteStoreMedia(string $mediaType, Request $request, TenantContext $context, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        if (! in_array($mediaType, ['logo', 'banner', 'qr'], true)) {
+            throw ValidationException::withMessages(['media_type' => ['This store media type is not supported.']]);
+        }
+
+        $tenant = $context->tenant();
+        $store = $this->getOrCreateStore($context);
+        $column = $mediaType === 'qr' ? 'qr_payment_qr_path' : $mediaType.'_path';
+        $oldPath = $store->{$column};
+        $store->forceFill([$column => null])->save();
+        if ($oldPath) {
+            Storage::disk('public')->delete($oldPath);
+        }
+        $audit->record('marketplace.store_media_removed', $request->user(), $tenant, $store, ['media_type' => $mediaType]);
 
         return response()->json(['success' => true, 'data' => $this->storeManagementPayload($request, $store->refresh())]);
     }

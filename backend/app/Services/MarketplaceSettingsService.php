@@ -6,8 +6,11 @@ use App\Models\MarketplaceCommissionRule;
 use App\Models\MarketplaceSetting;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
@@ -29,6 +32,12 @@ class MarketplaceSettingsService
             'payout_schedule' => 'manual',
             'payout_minimum' => '0.00',
             'policies' => [],
+            'qr_payment_provider' => null,
+            'qr_payment_account_name' => null,
+            'qr_payment_phone' => null,
+            'qr_payment_instructions' => null,
+            'qr_payment_qr_path' => null,
+            'qr_payment_enabled' => false,
             'revision' => 1,
             'updated_at' => null,
             'updated_by' => null,
@@ -66,11 +75,83 @@ class MarketplaceSettingsService
                 'payout_schedule' => $setting->payout_schedule ?: $defaults['payout_schedule'],
                 'payout_minimum' => (string) ($setting->payout_minimum ?? $defaults['payout_minimum']),
                 'policies' => $setting->policies ?: [],
+                'qr_payment_provider' => $setting->qr_payment_provider,
+                'qr_payment_account_name' => $setting->qr_payment_account_name,
+                'qr_payment_phone' => $setting->qr_payment_phone,
+                'qr_payment_instructions' => $setting->qr_payment_instructions,
+                'qr_payment_qr_path' => $setting->qr_payment_qr_path,
+                'qr_payment_qr_url' => $setting->qr_payment_qr_path ? Storage::disk('public')->url($setting->qr_payment_qr_path) : null,
+                'qr_payment_enabled' => (bool) $setting->qr_payment_enabled,
                 'revision' => (int) $setting->revision,
                 'updated_at' => $setting->updated_at?->toIso8601String(),
                 'updated_by' => $setting->updatedBy ? ['name' => $setting->updatedBy->name, 'email' => $setting->updatedBy->email] : null,
             ]),
         ];
+    }
+
+    public function qrPaymentInformation(): array
+    {
+        $settings = $this->current()['settings'];
+        $configured = $settings['qr_payment_enabled'] === true
+            && filled($settings['qr_payment_account_name'])
+            && filled($settings['qr_payment_phone'])
+            && filled($settings['qr_payment_qr_url']);
+
+        if (! $configured) {
+            return ['available' => false, 'reason' => 'not_configured'];
+        }
+
+        return [
+            'available' => true,
+            'reason' => null,
+            'provider' => $settings['qr_payment_provider'],
+            'account_name' => $settings['qr_payment_account_name'],
+            'phone' => $settings['qr_payment_phone'],
+            'qr_code_url' => $settings['qr_payment_qr_url'],
+            'instructions' => $settings['qr_payment_instructions'],
+            'scope' => 'marketplace',
+        ];
+    }
+
+    public function uploadQrPaymentImage(UploadedFile $file, User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->storageAvailable()) {
+            throw new ServiceUnavailableHttpException(null, 'Marketplace settings storage is not available. Apply the reviewed marketplace settings migration before saving settings.');
+        }
+
+        $path = $file->storeAs('marketplace/payment', Str::uuid().'.'.$file->extension(), 'public');
+        $setting = MarketplaceSetting::query()->first();
+        $oldPath = $setting?->qr_payment_qr_path;
+        if (! $setting) {
+            $setting = MarketplaceSetting::create(array_merge($this->defaults(), [
+                'qr_payment_qr_path' => $path,
+                'updated_by' => $actor->id,
+            ]));
+        } else {
+            $setting->forceFill(['qr_payment_qr_path' => $path, 'revision' => (int) $setting->revision + 1, 'updated_by' => $actor->id])->save();
+        }
+        if ($oldPath && $oldPath !== $path) {
+            Storage::disk('public')->delete($oldPath);
+        }
+        $audit->record('marketplace.global_qr_payment_image_updated', $actor, entity: $setting, metadata: ['changed_fields' => ['qr_payment_qr_path']]);
+
+        return $this->current()['settings'];
+    }
+
+    public function removeQrPaymentImage(User $actor, MarketplaceAuditLogger $audit): array
+    {
+        $setting = MarketplaceSetting::query()->first();
+        if (! $setting) {
+            return $this->current()['settings'];
+        }
+        $oldPath = $setting->qr_payment_qr_path;
+        $setting->forceFill(['qr_payment_qr_path' => null, 'revision' => (int) $setting->revision + 1, 'updated_by' => $actor->id])->save();
+        if ($oldPath) {
+            Storage::disk('public')->delete($oldPath);
+        }
+        $audit->record('marketplace.global_qr_payment_image_removed', $actor, entity: $setting, metadata: ['changed_fields' => ['qr_payment_qr_path']]);
+
+        return $this->current()['settings'];
     }
 
     public function update(array $data, User $actor, MarketplaceAuditLogger $audit, ?int $expectedRevision = null): MarketplaceSetting
@@ -87,14 +168,17 @@ class MarketplaceSettingsService
             $oldRate = $setting?->default_commission_rate;
             $reason = $data['reason'] ?? null;
             unset($data['reason']);
-            $attributes = array_merge($this->defaults(), $data, ['updated_by' => $actor->id]);
-            if (! Schema::hasColumn('marketplace_settings', 'payout_schedule')) {
-                unset($attributes['payout_schedule'], $attributes['payout_minimum']);
-            }
             if ($setting) {
-                $attributes['revision'] = (int) $setting->revision + 1;
+                $attributes = array_merge($data, ['updated_by' => $actor->id, 'revision' => (int) $setting->revision + 1]);
+                if (! Schema::hasColumn('marketplace_settings', 'payout_schedule')) {
+                    unset($attributes['payout_schedule'], $attributes['payout_minimum']);
+                }
                 $setting->forceFill($attributes)->save();
             } else {
+                $attributes = array_merge($this->defaults(), $data, ['updated_by' => $actor->id]);
+                if (! Schema::hasColumn('marketplace_settings', 'payout_schedule')) {
+                    unset($attributes['payout_schedule'], $attributes['payout_minimum']);
+                }
                 $setting = MarketplaceSetting::create($attributes);
             }
 
