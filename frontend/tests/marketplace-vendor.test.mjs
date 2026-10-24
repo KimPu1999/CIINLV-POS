@@ -52,7 +52,8 @@ test('marketplace products use authorized branch-scoped server pagination and la
 
 test('vendor fulfillment uses tenant-scoped order details, shipment creation, and server status transitions', () => {
   assert.match(app, /marketplace\/orders\/:order/)
-  assert.match(feature, /MarketplaceOrderDetailPage/)
+  assert.match(app, /MarketplaceOrderDetailPage: Page/)
+  assert.match(feature, /export function MarketplaceOrderDetailPage\(\)/)
   assert.match(feature, /\/api\/v1\/vendor\/marketplace\/orders\/\$\{encodeURIComponent\(orderId\)\}\/shipments/)
   assert.match(feature, /\/api\/v1\/vendor\/marketplace\/shipments\/\$\{encodeURIComponent\(shipment\.id\)\}\/status/)
   assert.match(feature, /delivery_type/)

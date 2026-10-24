@@ -44,7 +44,7 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { refreshUser, logout } = useAuth()
+  const { user, refreshUser, logout } = useAuth()
   const { requestConfirmation } = useConfirmation()
   const [rows, setRows] = useState<unknown[]>([])
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
@@ -67,6 +67,12 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
 
   const load = useCallback(async () => {
     setLoading(true); setError(''); setSessionMismatch(false)
+    if (user?.platform_role !== 'super_admin') {
+      setLoading(false)
+      setSessionMismatch(true)
+      setError(t('text.platform_admin_session_required'))
+      return
+    }
     try {
       if (tab === 'overview') setDashboard(await request<Dashboard>({ method: 'get', url: '/api/v1/admin/marketplace/dashboard' }))
       else if (tab === 'reports') setReport(await request<Report>({ method: 'get', url: '/api/v1/admin/marketplace/reports', params: { from: from || undefined, to: to || undefined } }))
@@ -99,7 +105,7 @@ export function MarketplaceAdminPage({ tab }: { tab: MarketplaceAdminTab }) {
       }
       setError(errorMessage(err, t('text.unable_to_load_marketplace_control_center')))
     } finally { setLoading(false) }
-  }, [from, refreshUser, search, status, t, tab, to, vendorActive, vendorBusiness, vendorDirection, vendorPage, vendorSort])
+  }, [from, refreshUser, search, status, t, tab, to, user?.platform_role, vendorActive, vendorBusiness, vendorDirection, vendorPage, vendorSort])
 
   useEffect(() => { void load() }, [load])
 

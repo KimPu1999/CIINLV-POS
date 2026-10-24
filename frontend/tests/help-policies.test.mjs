@@ -17,6 +17,9 @@ test('Help & Policies routes are registered for both workspaces', () => {
 test('Help & Policies uses protected platform management and read-only business APIs', () => {
   assert.match(feature, /\/api\/v1\/platform\/help\/policies/)
   assert.match(feature, /\/api\/v1\/business\/help\/policies/)
+  assert.match(feature, /user\?\.platform_role === 'super_admin'/)
+  assert.match(feature, /const policyEndpoint = platformWorkspace/)
+  assert.match(feature, /const faqEndpoint = platformWorkspace/)
   assert.match(feature, /onPublish=/)
   assert.match(feature, /platform && <form onSubmit=/)
 })

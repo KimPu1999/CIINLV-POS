@@ -425,6 +425,7 @@ class MarketplaceVendorController
             'search' => ['nullable', 'string', 'max:120'],
             'status' => ['nullable', 'string', 'in:pending,processing,shipped,delivered,cancelled,refunded'],
             'payment_status' => ['nullable', 'string', 'in:pending,authorized,paid,failed,refunded,cancelled'],
+            'payment_method' => ['nullable', 'string', 'in:cod,online,card,qr,bank_transfer'],
             'active_shipping' => ['nullable', 'in:true,false,1,0'],
             'shipment_status' => ['nullable', 'string', 'in:ready,shipped,in_transit,delivered,delivery_failed,returned,cancelled'],
             'delivery_type' => ['nullable', 'string', 'in:self_delivery,external_courier'],
@@ -483,6 +484,7 @@ class MarketplaceVendorController
         $query
             ->when($request->filled('status'), fn (Builder $builder): Builder => $builder->where('status', $request->string('status')->toString()))
             ->when($request->filled('payment_status'), fn (Builder $builder): Builder => $builder->whereHas('order', fn (Builder $order): Builder => $order->where('payment_status', $request->string('payment_status')->toString())))
+            ->when($request->filled('payment_method'), fn (Builder $builder): Builder => $builder->whereHas('order.payments', fn (Builder $payment): Builder => $payment->where('method', $request->string('payment_method')->toString())))
             ->when($request->filled('shipment_status'), function (Builder $builder) use ($request): void {
                 $status = $request->string('shipment_status')->toString();
                 if ($status === 'ready') {

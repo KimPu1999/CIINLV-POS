@@ -58,7 +58,7 @@ const MarketplaceStorePage = lazy(() => import('./features/marketplace-vendor').
 const MarketplaceStorePreviewPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceStorePreviewPage: Page }) => ({ default: Page })))
 const MarketplaceProductsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceProductsPage: Page }) => ({ default: Page })))
 const MarketplaceOrdersPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrdersPage: Page }) => ({ default: Page })))
-const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceBillingOrderDetailPage: Page }) => ({ default: Page })))
+const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrderDetailPage: Page }) => ({ default: Page })))
 const MarketplaceInvoicePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceInvoicePage: Page }) => ({ default: Page })))
 const MarketplaceReceiptPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReceiptPage: Page }) => ({ default: Page })))
 const MarketplaceShippingPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceShippingPage: Page }) => ({ default: Page })))
@@ -293,6 +293,20 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const { t } = useTranslation()
   const { refreshUser } = useAuth()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (role !== 'business') return
+    const authorizedTenantIds = memberships.map((membership) => membership.business.id)
+    const currentTenantId = window.localStorage.getItem('ciinlv_tenant_id')
+    if (currentTenantId && authorizedTenantIds.includes(currentTenantId)) return
+    if (authorizedTenantIds.length === 1) {
+      window.localStorage.setItem('ciinlv_tenant_id', authorizedTenantIds[0])
+      setSelectedTenant(authorizedTenantIds[0])
+    } else if (currentTenantId) {
+      window.localStorage.removeItem('ciinlv_tenant_id')
+      setSelectedTenant(null)
+    }
+  }, [memberships, role])
 
   useEffect(() => {
     const handleProfileUpdated = () => { void refreshUser() }

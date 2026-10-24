@@ -446,6 +446,10 @@ class MarketplaceFoundationTest extends TestCase
         [$tenant, $admin] = $this->businessWithAdmin('MARKETPLACE-H', 'marketplace-h@example.com');
 
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/store')
+            ->assertOk()->assertJsonPath('data.business_name', 'MARKETPLACE-H');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->patchJson('/api/v1/vendor/marketplace/store', ['name' => 'Updated Marketplace H', 'description' => 'Public store description', 'is_active' => false])
             ->assertOk()->assertJsonPath('data.name', 'Updated Marketplace H')->assertJsonPath('data.is_active', false);
 

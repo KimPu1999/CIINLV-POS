@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import { ErrorState, LoadingState, PageHeader, StatusBadge } from '../components/ui'
 import { api } from '../lib/api'
+import { useAuth } from '../lib/useAuth'
 
 type Policy = { id: number; type: string; version: string; locale: string; title: string; content: string; status: string; effective_at?: string | null; published_at?: string | null; published_by?: { id: number; name: string } | null; updated_at?: string | null }
 type Faq = { id: number; category: string; question: string; answer: string; locale: string; status: string; display_order: number }
@@ -16,8 +17,10 @@ const faqCategories = ['getting_started', 'business_registration', 'products', '
 
 export function HelpPoliciesPage({ platform = false }: { platform?: boolean }) {
   const { t, i18n } = useTranslation()
+  const { user } = useAuth()
   const location = useLocation()
   const locale = i18n.language === 'my' ? 'my' : 'en'
+  const platformWorkspace = platform && user?.platform_role === 'super_admin'
   const [tab, setTab] = useState<Tab>(() => location.pathname.endsWith('/faq') ? 'faq' : location.pathname.endsWith('/policies') ? 'policies' : location.pathname.endsWith('/support') ? 'support' : 'help')
   const [policies, setPolicies] = useState<Policy[]>([])
   const [faqs, setFaqs] = useState<Faq[]>([])
@@ -30,8 +33,8 @@ export function HelpPoliciesPage({ platform = false }: { platform?: boolean }) {
   const [faqDraft, setFaqDraft] = useState({ id: 0, category: faqCategories[0], question: '', answer: '', status: 'draft', display_order: 0 })
   const [saving, setSaving] = useState(false)
 
-  const policyEndpoint = platform ? '/api/v1/platform/help/policies' : '/api/v1/business/help/policies'
-  const faqEndpoint = platform ? '/api/v1/platform/help/faqs' : '/api/v1/business/help/faqs'
+  const policyEndpoint = platformWorkspace ? '/api/v1/platform/help/policies' : '/api/v1/business/help/policies'
+  const faqEndpoint = platformWorkspace ? '/api/v1/platform/help/faqs' : '/api/v1/business/help/faqs'
   const loadErrorMessage = useCallback((reason: unknown) => {
     if (!axios.isAxiosError(reason)) return t('text.help_policies_network_error')
     const status = reason.response?.status
@@ -100,7 +103,7 @@ export function HelpPoliciesPage({ platform = false }: { platform?: boolean }) {
   }
 
   const tabs: Array<[Tab, typeof HelpCircle, string]> = [['help', HelpCircle, t('text.help_center')], ['faq', BookOpen, t('text.faq')], ['policies', FileText, t('text.policies')], ['support', LifeBuoy, t('text.support')]]
-  return <><PageHeader title={t('text.help_policies')} description={t('text.help_policies_description')} /><div className="grid gap-5 lg:grid-cols-[210px_minmax(0,1fr)]"><aside className="h-fit rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{t('text.help_policies')}</p>{tabs.map(([key, Icon, label]) => <button type="button" key={key} onClick={() => setTab(key)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${tab === key ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-800'}`}><Icon size={17} />{label}</button>)}</aside><section className="min-w-0">{error && <div className="mb-4"><ErrorState message={error} /></div>}{tab === 'help' && <HelpPanel t={t} />}{tab === 'support' && <SupportPanel t={t} />}{tab === 'faq' && <FaqPanel faqs={faqs} loading={loading} platform={platform} faqDraft={faqDraft} saving={saving} search={search} category={category} openFaq={openFaq} onSearch={setSearch} onCategory={setCategory} onDraft={setFaqDraft} onSave={(event) => void saveFaq(event)} onDelete={(faq) => void deleteFaq(faq)} onToggle={(id) => setOpenFaq(openFaq === id ? null : id)} t={t} />}{tab === 'policies' && <PolicyPanel policies={visiblePolicies} loading={loading} platform={platform} draft={draft} saving={saving} onDraft={setDraft} onSave={(event) => void saveDraft(event)} onPublish={(policy) => void publish(policy)} t={t} />}</section></div></>
+  return <><PageHeader title={t('text.help_policies')} description={t('text.help_policies_description')} /><div className="grid gap-5 lg:grid-cols-[210px_minmax(0,1fr)]"><aside className="h-fit rounded-2xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900"><p className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{t('text.help_policies')}</p>{tabs.map(([key, Icon, label]) => <button type="button" key={key} onClick={() => setTab(key)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 ${tab === key ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-slate-800'}`}><Icon size={17} />{label}</button>)}</aside><section className="min-w-0">{error && <div className="mb-4"><ErrorState message={error} /></div>}{tab === 'help' && <HelpPanel t={t} />}{tab === 'support' && <SupportPanel t={t} />}{tab === 'faq' && <FaqPanel faqs={faqs} loading={loading} platform={platformWorkspace} faqDraft={faqDraft} saving={saving} search={search} category={category} openFaq={openFaq} onSearch={setSearch} onCategory={setCategory} onDraft={setFaqDraft} onSave={(event) => void saveFaq(event)} onDelete={(faq) => void deleteFaq(faq)} onToggle={(id) => setOpenFaq(openFaq === id ? null : id)} t={t} />}{tab === 'policies' && <PolicyPanel policies={visiblePolicies} loading={loading} platform={platformWorkspace} draft={draft} saving={saving} onDraft={setDraft} onSave={(event) => void saveDraft(event)} onPublish={(policy) => void publish(policy)} t={t} />}</section></div></>
 }
 
 function HelpPanel({ t }: { t: (key: string) => string }) { return <div className="grid gap-4 sm:grid-cols-2"><InfoCard icon={HelpCircle} title={t('text.help_getting_started')} body={t('text.help_getting_started_body')} /><InfoCard icon={ShieldCheck} title={t('text.help_security')} body={t('text.help_security_body')} /><InfoCard icon={FileText} title={t('text.help_policy_review')} body={t('text.help_policy_review_body')} /><InfoCard icon={BookOpen} title={t('text.help_operations')} body={t('text.help_operations_body')} /></div> }
