@@ -463,12 +463,16 @@ Route::prefix('v1')->group(function (): void {
 
             Route::get('/inventory', [InventoryController::class, 'index']);
             Route::get('/inventory/statistics', [InventoryController::class, 'statistics']);
+            Route::get('/inventory/filters', [InventoryController::class, 'filters']);
             Route::get('/inventory/locations/{location}', [InventoryController::class, 'location']);
             Route::get('/inventory/movements', [InventoryController::class, 'movements']);
             Route::get('/inventory/low-stock', [InventoryController::class, 'lowStock']);
             Route::get('/inventory/out-of-stock', [InventoryController::class, 'outOfStock']);
             Route::post('/inventory/opening-stock', [InventoryController::class, 'opening']);
             Route::post('/inventory/adjustments', [InventoryController::class, 'adjustment']);
+            Route::post('/inventory/quantity', [InventoryController::class, 'quantity']);
+            Route::post('/inventory/thresholds', [InventoryController::class, 'bulkThreshold']);
+            Route::post('/inventory/import', [InventoryController::class, 'import']);
             Route::get('/inventory/adjustments', [InventoryController::class, 'adjustments']);
 
             Route::get('/purchase-orders', [PurchaseOrderController::class, 'index']);

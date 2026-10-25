@@ -1,121 +1,208 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useTranslation } from 'react-i18next'
-import { ArrowDownToLine, ArrowUpFromLine, Boxes, History, Package, RefreshCw, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Archive, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Boxes, Download, Edit3, FileSpreadsheet, History, Package, RefreshCw, Search, SlidersHorizontal, Upload, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { api, request } from '../lib/api'
-import { EmptyState, ErrorState, LoadingState, PageHeader, StatCard, StatusBadge } from '../components/ui'
-import { CollapsibleSearch, FilterPanel, FilterToggle, IconActionButton, PageToolbar, ToolbarMenu } from '../components/toolbar'
+import { EmptyState, ErrorState, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
 
-type Balance = { location: { id: string; name: string; code?: string }; branch?: { name?: string } | null; variant: { id: string; sku: string; product: string }; on_hand_quantity: string; reserved_quantity: string; available_quantity: string; average_cost: string }
-type Location = { id: string; name: string; code: string; location_type: string; status: string }
-type Variant = { id: string; sku: string; barcode?: string | null; product_name?: string; name?: string }
-type Stats = { total_products: number; total_stock_units: string; available_stock: string; reserved_stock: string; total_inventory_value: string; low_stock_products: number; out_of_stock_products: number; recent_movements: Array<{ id: string; movement_type: string; quantity_delta: string; sku?: string; product?: string; location?: string; created_at?: string }> }
+type Row = {
+  location: { id: string; name: string; code?: string }
+  branch?: { id: string; name?: string; code?: string } | null
+  product: { id: string; name?: string | null; brand?: string | null; category?: string | null; status?: string | null; image_url?: string | null }
+  variant: { id: string; sku: string; barcode?: string | null; product?: string | null; reorder_level?: string | number | null; size?: string | null; attributes?: Record<string, unknown> | null }
+  on_hand_quantity: string
+  reserved_quantity: string
+  available_quantity: string
+  average_cost: string
+  updated_at?: string
+}
+type Location = { id: string; name: string; code?: string; location_type?: string; status?: string; branch?: string | null }
+type FilterData = { brands: string[]; categories: Array<{ id: string; name: string }>; locations: Location[] }
+type Stats = { total_products: number; total_stock_units: string; available_stock: string; reserved_stock: string; total_inventory_value: string; low_stock_products: number; out_of_stock_products: number }
+type PageMeta = { total: number; current_page: number; last_page: number; per_page: number; from?: number | null; to?: number | null }
+type Paginated<T> = { data: T[]; total: number; current_page: number; last_page: number; per_page: number; from?: number | null; to?: number | null }
+type Operation = 'in' | 'out' | 'count'
 
-export function InventoryManagementPage() { const { t } = useTranslation()
-  const [rows, setRows] = useState<Balance[]>([]); const [locations, setLocations] = useState<Location[]>([]); const [branches, setBranches] = useState<Array<{ id: string; name: string; code?: string }>>([]); const [variants, setVariants] = useState<Variant[]>([]); const [stats, setStats] = useState<Stats | null>(null); const [search, setSearch] = useState(''); const [searchInput, setSearchInput] = useState(''); const [location, setLocation] = useState(''); const [branch, setBranch] = useState(''); const [pageNumber, setPageNumber] = useState(1); const [perPage, setPerPage] = useState(25); const [meta, setMeta] = useState({ total: 0, current_page: 1, last_page: 1, per_page: 25 }); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [refresh, setRefresh] = useState(0); const [operation, setOperation] = useState<'in' | 'out' | null>(null); const [filtersOpen, setFiltersOpen] = useState(false); const requestSequence = useRef(0)
-  const load = async () => { const sequence = ++requestSequence.current; setLoading(true); setError(''); try { const [inventory, summary, locationResponse, branchResponse, products] = await Promise.all([api.get<{ data: { data: Balance[]; meta?: typeof meta } }>('/api/v1/inventory', { params: { search: search || undefined, location_id: location || undefined, store_id: branch || undefined, per_page: perPage, page: pageNumber } }), api.get<{ data: Stats }>('/api/v1/inventory/statistics', { params: { location_id: location || undefined, store_id: branch || undefined } }), api.get<{ data: Location[] }>('/api/v1/stock-transfers/locations'), api.get<{ data: Array<{ id: string; name: string; code?: string }> }>('/api/v1/business/stores'), api.get<{ data: Array<{ name: string; variants?: Variant[] }> }>('/api/v1/products', { params: { per_page: 100, status: 'active' } })]); if (sequence !== requestSequence.current) return; const pageData = inventory.data.data; setRows(pageData.data || []); setMeta(pageData.meta || { total: 0, current_page: pageNumber, last_page: 1, per_page: perPage }); setStats(summary.data.data); setLocations(locationResponse.data.data); setBranches(branchResponse.data.data); setVariants(products.data.data.flatMap((product) => (product.variants || []).map((variant) => ({ ...variant, product_name: product.name })))) } catch (err) { if (sequence === requestSequence.current) setError(message(err, 'Unable to load inventory.')) } finally { if (sequence === requestSequence.current) setLoading(false) } }
-  useEffect(() => { const timer = window.setTimeout(() => { setSearch(searchInput.trim()); setPageNumber(1) }, 350); return () => window.clearTimeout(timer) }, [searchInput]); useEffect(() => { void load() }, [search, location, branch, pageNumber, perPage, refresh])
-  const first = meta.total === 0 ? 0 : (meta.current_page - 1) * meta.per_page + 1; const last = Math.min(meta.total, meta.current_page * meta.per_page); return <><PageHeader title="Inventory management" description="Monitor authorized stock locations and post audited stock movements through the existing inventory ledger." action={<PageToolbar><IconActionButton icon={RefreshCw} label="Refresh inventory" onClick={() => { void load() }} /><ToolbarMenu label="Inventory actions" items={[{ label: 'Stock out', icon: ArrowUpFromLine, onClick: () => setOperation('out') }, { label: 'Stock in', icon: ArrowDownToLine, onClick: () => setOperation('in') }]} /></PageToolbar>} /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><StatCard label="Total products" value={stats?.total_products ?? '—'} detail="Authorized catalog" icon={Package} /><StatCard label="Total stock units" value={stats?.total_stock_units ?? '—'} detail={`${stats?.available_stock ?? '—'} available`} icon={Boxes} /><StatCard label="Reserved stock" value={stats?.reserved_stock ?? '—'} detail="Protected from manual stock out" icon={Package} tone="violet" /><StatCard label="Low stock" value={stats?.low_stock_products ?? '—'} detail={`${stats?.out_of_stock_products ?? '—'} out of stock`} icon={Package} tone="amber" /><StatCard label="Inventory value" value={stats ? money(stats.total_inventory_value) : '—'} detail="Weighted average cost" icon={Boxes} tone="emerald" /></div><div className="mt-3"><PageToolbar><CollapsibleSearch value={searchInput} onChange={setSearchInput} placeholder="Search product or SKU" /><FilterToggle open={filtersOpen} activeCount={Number(Boolean(location)) + Number(Boolean(branch))} onClick={() => setFiltersOpen((value) => !value)} /><label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500" title="Rows per page"><span>Rows per page</span><select aria-label="Rows per page" value={perPage} onChange={(event) => { setPerPage(Number(event.target.value)); setPageNumber(1) }} className="compact-field h-8 py-1 text-xs">{[10, 25, 50, 100].map((value) => <option key={value} value={value}>{value}</option>)}</select></label></PageToolbar><FilterPanel open={filtersOpen}><label className="compact-label">Branch<select value={branch} onChange={(event) => { setBranch(event.target.value); setPageNumber(1) }} className="compact-field w-full"><option value="">All authorized branches</option>{branches.map((item) => <option key={item.id} value={item.id}>{item.name}{item.code ? ` · ${item.code}` : ''}</option>)}</select></label><label className="compact-label">{t('text.inventory_location')}<select value={location} onChange={(event) => { setLocation(event.target.value); setPageNumber(1) }} className="compact-field w-full"><option value="">All authorized locations</option>{locations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></FilterPanel></div>{error && <div className="mt-4"><ErrorState message={error} /></div>}{loading ? <div className="mt-6"><LoadingState /></div> : !rows.length ? <div className="mt-6"><EmptyState label="No inventory balances match this view." /></div> : <div className="mt-6 overflow-x-auto rounded-2xl border bg-white shadow-sm"><table className="w-full min-w-[950px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>{['Product', 'SKU', 'Branch', 'Location', 'On hand', 'Reserved', 'Available', 'Average cost', 'Status'].map((heading) => <th key={heading} className="px-5 py-4">{heading}</th>)}</tr></thead><tbody className="divide-y">{rows.map((row) => <tr key={`${row.location.id}-${row.variant.id}`} className="hover:bg-slate-50/70"><td className="px-5 py-4 font-semibold text-slate-900">{row.variant.product}</td><td className="px-5 py-4 text-slate-500">{row.variant.sku}</td><td className="px-5 py-4 text-slate-600">{row.branch?.name || 'Warehouse'}</td><td className="px-5 py-4 text-slate-600">{row.location.name}</td><td className="px-5 py-4">{row.on_hand_quantity}</td><td className="px-5 py-4 text-violet-700">{row.reserved_quantity}</td><td className="px-5 py-4 font-semibold">{row.available_quantity}</td><td className="px-5 py-4">{money(row.average_cost)}</td><td className="px-5 py-4"><StatusBadge status={Number(row.available_quantity) <= 0 ? 'out_of_stock' : 'available'} /></td></tr>)}</tbody></table></div>}<InventoryPager meta={meta} perPage={perPage} onPerPageChange={(value) => { setPerPage(value); setPageNumber(1) }} onPageChange={setPageNumber} first={first} last={last} /><div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><History className="text-blue-600" size={19} /><h2 className="font-semibold">Recent stock movements</h2></div><div className="mt-4 grid gap-3 md:grid-cols-2">{(stats?.recent_movements || []).map((movement) => <div key={movement.id} className="rounded-xl bg-slate-50 p-3 text-sm"><div className="flex justify-between"><span className="font-semibold">{movement.product || movement.sku || 'Inventory item'}</span><span className={Number(movement.quantity_delta) >= 0 ? 'text-emerald-700' : 'text-amber-700'}>{Number(movement.quantity_delta) >= 0 ? '+' : ''}{movement.quantity_delta}</span></div><p className="mt-1 text-xs text-slate-500">{movement.movement_type.replaceAll('_', ' ')} · {movement.location || 'Location'}</p></div>)}{!stats?.recent_movements?.length && <p className="text-sm text-slate-500">No recent movements.</p>}</div></div>{operation && <StockOperation type={operation} locations={locations} variants={variants} onClose={() => setOperation(null)} onDone={() => { setOperation(null); setRefresh((value) => value + 1) }} />}</>
+const pageSizes = [10, 25, 50, 100, 250]
+
+export function InventoryManagementPage() {
+  const [rows, setRows] = useState<Row[]>([])
+  const [filters, setFilters] = useState<FilterData>({ brands: [], categories: [], locations: [] })
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [meta, setMeta] = useState<PageMeta>({ total: 0, current_page: 1, last_page: 1, per_page: 25 })
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(25)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [brand, setBrand] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [locationId, setLocationId] = useState('')
+  const [stockStatus, setStockStatus] = useState('')
+  const [productStatus, setProductStatus] = useState('active')
+  const [sort, setSort] = useState('updated_at')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [operation, setOperation] = useState<{ kind: Operation; row?: Row } | null>(null)
+  const [transferRow, setTransferRow] = useState<Row | null>(null)
+  const [historyRow, setHistoryRow] = useState<Row | null>(null)
+  const [thresholdOpen, setThresholdOpen] = useState(false)
+  const [csvFile, setCsvFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { requestConfirmation } = useConfirmation()
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { setSearch(searchInput.trim()); setPage(1) }, 350)
+    return () => window.clearTimeout(timer)
+  }, [searchInput])
+
+  const load = useCallback(async (refreshToken = 0) => {
+    void refreshToken
+    setLoading(true)
+    setError('')
+    try {
+      const params = { page, per_page: perPage, search: search || undefined, brand: brand || undefined, category_id: categoryId || undefined, location_id: locationId || undefined, stock_status: stockStatus || undefined, product_status: productStatus || undefined, sort }
+      const [inventoryResponse, statsResponse, filterResponse] = await Promise.all([
+        api.get<{ data: Paginated<Row> }>('/api/v1/inventory', { params }),
+        api.get<{ data: Stats }>('/api/v1/inventory/statistics', { params: { location_id: locationId || undefined } }),
+        api.get<{ data: FilterData }>('/api/v1/inventory/filters'),
+      ])
+      const pageData = inventoryResponse.data.data
+      setRows(pageData.data || [])
+      setMeta({ total: pageData.total || 0, current_page: pageData.current_page || page, last_page: pageData.last_page || 1, per_page: pageData.per_page || perPage, from: pageData.from, to: pageData.to })
+      setStats(statsResponse.data.data)
+      setFilters(filterResponse.data.data)
+      setSelected((current) => new Set([...current].filter((id) => (pageData.data || []).some((row) => row.variant.id === id))))
+    } catch (err) {
+      setError(errorMessage(err, 'Unable to load inventory.'))
+    } finally {
+      setLoading(false)
+    }
+  }, [brand, categoryId, locationId, page, perPage, productStatus, search, sort, stockStatus])
+
+  useEffect(() => { void load(refreshKey) }, [load, refreshKey])
+
+  const selectedRows = useMemo(() => rows.filter((row) => selected.has(row.variant.id)), [rows, selected])
+  const allCurrentSelected = rows.length > 0 && rows.every((row) => selected.has(row.variant.id))
+  const activeFilterCount = [brand, categoryId, locationId, stockStatus, productStatus !== 'active' ? productStatus : ''].filter(Boolean).length
+  const first = meta.total === 0 ? 0 : (meta.current_page - 1) * meta.per_page + 1
+  const last = Math.min(meta.total, meta.current_page * meta.per_page)
+
+  const refresh = () => setRefreshKey((value) => value + 1)
+  const clearSelection = () => setSelected(new Set())
+  const selectCurrentPage = (checked: boolean) => setSelected(checked ? new Set(rows.map((row) => row.variant.id)) : new Set())
+  const toggleRow = (id: string, checked: boolean) => setSelected((current) => { const next = new Set(current); if (checked) next.add(id); else next.delete(id); return next })
+
+  const archiveRow = (row: Row) => requestConfirmation({ title: `Archive ${row.product.name || 'this product'}?`, description: 'The product will be hidden from active listings while historical sales, stock movements, and barcode records remain preserved.', confirmLabel: 'Archive product', tone: 'warning', successMessage: 'Product archived.' }, async () => {
+    try { await api.delete(`/api/v1/products/${row.product.id}`); refresh() } catch (err) { return errorMessage(err, 'Unable to archive product.') }
+  })
+
+  const bulkArchive = () => {
+    const productIds = [...new Set(selectedRows.map((row) => row.product.id))]
+    if (!productIds.length) return
+    requestConfirmation({ title: `Archive ${productIds.length} product${productIds.length === 1 ? '' : 's'}?`, description: 'Existing sales and inventory history will be preserved.', confirmLabel: 'Archive selected', tone: 'warning' }, async () => {
+      try { await Promise.all(productIds.map((id) => api.delete(`/api/v1/products/${id}`))); clearSelection(); refresh() } catch (err) { return errorMessage(err, 'Some products could not be archived.') }
+    })
+  }
+
+  const exportCsv = () => {
+    const lines = [['Product', 'Brand', 'Category', 'SKU', 'Barcode', 'Location', 'Available', 'Reserved', 'Total', 'Threshold', 'Status'], ...rows.map((row) => [row.product.name || '', row.product.brand || '', row.product.category || '', row.variant.sku, row.variant.barcode || '', row.location.name, row.available_quantity, row.reserved_quantity, row.on_hand_quantity, String(row.variant.reorder_level ?? 0), statusFor(row)])]
+    const csv = lines.map((line) => line.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'inventory-page.csv'; anchor.click(); URL.revokeObjectURL(url)
+  }
+
+  return <>
+    <PageHeader title="Inventory management" description="Manage authorized stock locations with audited, concurrency-safe inventory operations." action={<div className="flex flex-wrap items-center gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><Upload size={16} />Import thresholds<input type="file" accept=".csv,text/csv" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) setCsvFile(file); event.target.value = '' }} /></label><button type="button" onClick={exportCsv} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><Download size={16} />Export page</button><button type="button" onClick={refresh} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><RefreshCw size={16} />Refresh</button></div>} />
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><StatCard label="Total products" value={stats?.total_products ?? '—'} detail="Authorized catalog" icon={Package} /><StatCard label="Available stock" value={stats?.available_stock ?? '—'} detail={`${stats?.total_stock_units ?? '—'} total units`} icon={Boxes} tone="emerald" /><StatCard label="Reserved stock" value={stats?.reserved_stock ?? '—'} detail="Protected from manual stock out" icon={Boxes} tone="violet" /><StatCard label="Low / out of stock" value={stats ? `${stats.low_stock_products} / ${stats.out_of_stock_products}` : '—'} detail="Actual available quantity" icon={Package} tone="amber" /><StatCard label="Inventory value" value={stats ? money(stats.total_inventory_value) : '—'} detail="Weighted average cost" icon={Boxes} /></div>
+
+    <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="flex flex-col gap-3 xl:flex-row xl:items-center"><label className="relative min-w-0 flex-1"><span className="sr-only">Search inventory</span><Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search product name, SKU, barcode..." className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-blue-950" /></label><button type="button" onClick={() => setFiltersOpen((open) => !open)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"><SlidersHorizontal size={16} />Filters{activeFilterCount > 0 && <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs text-white">{activeFilterCount}</span>}</button><label className="flex shrink-0 items-center gap-2 text-xs font-semibold text-slate-500">Rows<select aria-label="Rows per page" value={perPage} onChange={(event) => { setPerPage(Number(event.target.value)); setPage(1) }} className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">{pageSizes.map((size) => <option key={size} value={size}>{size}</option>)}</select></label></div>{filtersOpen && <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 xl:grid-cols-5 dark:border-slate-800"><FilterSelect label="Brand" value={brand} onChange={(value) => { setBrand(value); setPage(1) }} options={[{ value: '', label: 'All brands' }, { value: '__unbranded__', label: 'Unbranded' }, ...filters.brands.map((item) => ({ value: item, label: item }))]} /><FilterSelect label="Category" value={categoryId} onChange={(value) => { setCategoryId(value); setPage(1) }} options={[{ value: '', label: 'All categories' }, ...filters.categories.map((item) => ({ value: item.id, label: item.name }))]} /><FilterSelect label="Branch / location" value={locationId} onChange={(value) => { setLocationId(value); setPage(1) }} options={[{ value: '', label: 'All locations' }, ...filters.locations.map((item) => ({ value: item.id, label: item.branch ? `${item.branch} · ${item.name}` : item.name }))]} /><FilterSelect label="Stock status" value={stockStatus} onChange={(value) => { setStockStatus(value); setPage(1) }} options={[{ value: '', label: 'All stock statuses' }, { value: 'in_stock', label: 'In stock' }, { value: 'low_stock', label: 'Low stock' }, { value: 'out_of_stock', label: 'Out of stock' }, { value: 'archived', label: 'Archived' }]} /><FilterSelect label="Sort by" value={sort} onChange={setSort} options={[{ value: 'updated_at', label: 'Recently updated' }, { value: 'product_name', label: 'Product name' }, { value: 'sku', label: 'SKU' }, { value: 'available_quantity', label: 'Available quantity' }]} /><FilterSelect label="Product status" value={productStatus} onChange={(value) => { setProductStatus(value); setPage(1) }} options={[{ value: '', label: 'All products' }, { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'archived', label: 'Archived' }]} /></div>}</section>
+
+    {selectedRows.length > 0 && <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm dark:border-blue-900/60 dark:bg-blue-950/30"><strong>{selectedRows.length}</strong><span className="text-blue-800 dark:text-blue-100">selected on this page</span><button type="button" onClick={() => setOperation({ kind: 'in' })} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white">Bulk stock in</button><button type="button" onClick={() => setOperation({ kind: 'out' })} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">Bulk stock out</button><button type="button" onClick={() => setThresholdOpen(true)} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 dark:border-blue-800 dark:text-blue-200">Bulk threshold</button><button type="button" onClick={bulkArchive} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 dark:border-red-900/60 dark:text-red-300">Archive products</button><button type="button" onClick={clearSelection} className="ml-auto rounded-lg px-2 py-2 text-xs font-semibold text-slate-500 hover:bg-white dark:hover:bg-slate-900">Clear</button></div>}
+
+    {error && <div className="mt-4"><ErrorState message={error} /></div>}
+    {loading ? <div className="mt-6"><LoadingState /></div> : rows.length === 0 ? <div className="mt-6"><EmptyState label="No inventory records match these filters." /></div> : <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="overflow-x-auto"><table className="w-full min-w-[1500px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400"><tr><th className="w-12 px-4 py-3"><input type="checkbox" aria-label="Select current page" checked={allCurrentSelected} onChange={(event) => selectCurrentPage(event.target.checked)} /></th>{['Product', 'Brand', 'Category', 'SKU / barcode', 'Variant', 'Branch / location', 'Available', 'Reserved', 'Total', 'Threshold', 'Status', 'Updated', 'Actions'].map((heading) => <th key={heading} className="px-4 py-3 font-bold">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row) => <InventoryTableRow key={`${row.location.id}-${row.variant.id}`} row={row} selected={selected.has(row.variant.id)} onSelect={(checked) => toggleRow(row.variant.id, checked)} onOperation={(kind) => setOperation({ kind, row })} onTransfer={() => setTransferRow(row)} onHistory={() => setHistoryRow(row)} onArchive={() => archiveRow(row)} />)}</tbody></table></div></section>}
+    <Pagination meta={meta} first={first} last={last} onPageChange={setPage} />
+
+    {operation && <StockOperation type={operation.kind} row={operation.row} selectedRows={selectedRows} locations={filters.locations} onClose={() => setOperation(null)} onDone={() => { setOperation(null); clearSelection(); refresh() }} />}
+    {transferRow && <TransferDialog row={transferRow} locations={filters.locations} onClose={() => setTransferRow(null)} onDone={() => { setTransferRow(null); refresh() }} />}
+    {historyRow && <HistoryDialog row={historyRow} onClose={() => setHistoryRow(null)} />}
+    {thresholdOpen && <ThresholdDialog rows={selectedRows} onClose={() => setThresholdOpen(false)} onDone={() => { setThresholdOpen(false); clearSelection(); refresh() }} />}
+    {csvFile && <CsvImportDialog file={csvFile} onClose={() => setCsvFile(null)} onDone={() => { setCsvFile(null); refresh() }} />}
+  </>
 }
 
-function StockOperation({ type, locations, variants, onClose, onDone }: { type: 'in' | 'out'; locations: Location[]; variants: Variant[]; onClose: () => void; onDone: () => void }) {
-  const [form, setForm] = useState({ location_id: '', variant_id: '', quantity: '', unit_cost: '', reason: type === 'in' ? 'Manual receiving' : 'Damaged / loss' })
+function InventoryTableRow({ row, selected, onSelect, onOperation, onTransfer, onHistory, onArchive }: { row: Row; selected: boolean; onSelect: (checked: boolean) => void; onOperation: (kind: Operation) => void; onTransfer: () => void; onHistory: () => void; onArchive: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  return <tr className="group align-middle transition hover:bg-blue-50/70 dark:hover:bg-blue-950/20"><td className="px-4 py-3"><input type="checkbox" aria-label={`Select ${row.product.name || row.variant.sku}`} checked={selected} onChange={(event) => onSelect(event.target.checked)} /></td><td className="px-4 py-3"><div className="flex min-w-[220px] items-center gap-3"><div className="inventory-product-thumbnail flex shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">{row.product.image_url ? <img src={row.product.image_url} alt="" loading="lazy" className="inventory-product-thumbnail-image block h-full w-full max-h-full max-w-full object-cover" /> : <Package size={18} className="text-slate-400" />}</div><div className="min-w-0"><p className="truncate font-bold text-slate-900 dark:text-slate-100">{row.product.name || 'Unnamed product'}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{row.product.status || 'active'}</p></div></div></td><td className="px-4 py-3 text-slate-700 dark:text-slate-200">{row.product.brand || <span className="text-slate-400">Unbranded</span>}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.product.category || 'Uncategorized'}</td><td className="px-4 py-3"><p className="font-mono text-xs font-bold text-slate-800 dark:text-slate-100">{row.variant.sku || '—'}</p><p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">{row.variant.barcode || 'No barcode'}</p></td><td className="px-4 py-3 text-slate-700 dark:text-slate-200">{row.variant.size || variantLabel(row.variant.attributes)}</td><td className="px-4 py-3"><p className="font-semibold text-slate-800 dark:text-slate-100">{row.branch?.name || 'Warehouse'}</p><p className="text-xs text-slate-500 dark:text-slate-400">{row.location.name}{row.location.code ? ` · ${row.location.code}` : ''}</p></td><td className="px-4 py-3 font-bold text-slate-900 dark:text-slate-100">{row.available_quantity}</td><td className="px-4 py-3 text-violet-700 dark:text-violet-300">{row.reserved_quantity}</td><td className="px-4 py-3 text-slate-700 dark:text-slate-200">{row.on_hand_quantity}</td><td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.variant.reorder_level ?? 0}</td><td className="px-4 py-3"><StatusBadge status={statusFor(row)} /></td><td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{row.updated_at ? new Date(row.updated_at).toLocaleDateString() : '—'}</td><td className="relative px-4 py-3"><button type="button" aria-label={`Actions for ${row.product.name || row.variant.sku}`} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Actions</button>{menuOpen && <div className="absolute right-4 top-12 z-20 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-900"><Link to={`/business/products?search=${encodeURIComponent(row.variant.sku)}`} className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"><Edit3 size={14} />Edit product</Link><ActionMenuItem icon={ArrowDownToLine} label="Stock in" onClick={() => { setMenuOpen(false); onOperation('in') }} /><ActionMenuItem icon={ArrowUpFromLine} label="Stock out" onClick={() => { setMenuOpen(false); onOperation('out') }} /><ActionMenuItem icon={Boxes} label="Adjust count" onClick={() => { setMenuOpen(false); onOperation('count') }} /><ActionMenuItem icon={ArrowLeftRight} label="Transfer" onClick={() => { setMenuOpen(false); onTransfer() }} /><ActionMenuItem icon={History} label="Stock history" onClick={() => { setMenuOpen(false); onHistory() }} /><ActionMenuItem icon={Archive} label="Archive product" danger onClick={() => { setMenuOpen(false); onArchive() }} /></div>}</td></tr>
+}
+
+function ActionMenuItem({ icon: Icon, label, onClick, danger = false }: { icon: typeof Boxes; label: string; onClick: () => void; danger?: boolean }) { return <button type="button" onClick={onClick} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold ${danger ? 'text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30' : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800'}`}><Icon size={14} />{label}</button> }
+
+function StockOperation({ type, row, selectedRows, locations, onClose, onDone }: { type: Operation; row?: Row; selectedRows: Row[]; locations: Location[]; onClose: () => void; onDone: () => void }) {
+  const isBulk = !row && selectedRows.length > 0
+  const [locationId, setLocationId] = useState(row?.location.id || '')
+  const [quantity, setQuantity] = useState('')
+  const [unitCost, setUnitCost] = useState('')
+  const [reason, setReason] = useState(type === 'in' ? 'Supplier receipt' : type === 'out' ? 'Damaged / loss' : 'Physical stock count')
+  const [reference, setReference] = useState('')
+  const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [idempotencyKey] = useState(() => newIdempotencyKey(type))
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError('')
-
-    const quantity = Number(form.quantity)
-    if (!form.location_id || !form.variant_id) {
-      setError('Select a location and product variant.')
-      return
-    }
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setError('Quantity must be greater than zero.')
-      return
-    }
-    if (!form.reason.trim()) {
-      setError('Enter a reason for this movement.')
-      return
-    }
-
+  const label = type === 'in' ? 'Stock in' : type === 'out' ? 'Stock out' : 'Set counted quantity'
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setError('')
+    const numeric = Number(quantity)
+    if (!Number.isFinite(numeric) || (type === 'count' ? numeric < 0 : numeric <= 0)) { setError(type === 'count' ? 'Counted quantity cannot be negative.' : 'Quantity must be greater than zero.'); return }
+    if (!reason.trim()) { setError('Enter a reason for this movement.'); return }
+    const targets = isBulk ? selectedRows : row ? [row] : []
+    if (!targets.length || (!locationId && !isBulk)) { setError('Select an inventory location.'); return }
     setSaving(true)
     try {
-      if (type === 'in') {
-        await request({
-          method: 'POST',
-          url: '/api/v1/inventory/opening-stock',
-          data: {
-            location_id: form.location_id,
-            variant_id: form.variant_id,
-            quantity,
-            unit_cost: form.unit_cost ? Number(form.unit_cost) : null,
-            reason: form.reason.trim(),
-          },
-          headers: { 'Idempotency-Key': idempotencyKey },
-        })
-      } else {
-        await request({
-          method: 'POST',
-          url: '/api/v1/inventory/adjustments',
-          data: {
-            location_id: form.location_id,
-            variant_id: form.variant_id,
-            quantity_delta: -Math.abs(quantity),
-            reason: form.reason.trim(),
-          },
-          headers: { 'Idempotency-Key': idempotencyKey },
-        })
-      }
+      await Promise.all(targets.map((target, index) => {
+        const targetLocation = isBulk ? target.location.id : locationId
+        const key = idempotencyKey(`${type}-${target.variant.id}-${targetLocation}-${index}`)
+        const data = { location_id: targetLocation, variant_id: target.variant.id, quantity: numeric, quantity_delta: type === 'out' ? -Math.abs(numeric) : numeric, unit_cost: unitCost ? Number(unitCost) : undefined, reason: reason.trim(), reference_number: reference.trim() || undefined, notes: notes.trim() || undefined }
+        return request({ method: 'POST', url: type === 'in' ? '/api/v1/inventory/opening-stock' : type === 'count' ? '/api/v1/inventory/quantity' : '/api/v1/inventory/adjustments', data, headers: { 'Idempotency-Key': key } })
+      }))
       onDone()
-    } catch (err) {
-      setError(message(err, 'Unable to post the stock movement.'))
-    } finally {
-      setSaving(false)
-    }
+    } catch (err) { setError(errorMessage(err, 'Unable to post the inventory operation.')) } finally { setSaving(false) }
   }
-
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-    <form onSubmit={(event) => { void submit(event) }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">{type === 'in' ? 'Post stock in' : 'Post stock out'}</h2>
-        <button type="button" onClick={onClose} aria-label="Close"><X /></button>
-      </div>
-      <p className="mt-2 text-sm text-slate-500">This posts an auditable movement and uses row locking to protect inventory consistency.</p>
-      {error && <div className="mt-4"><ErrorState message={error} /></div>}
-      <div className="mt-5 space-y-4">
-        <select required aria-label="Location" value={form.location_id} onChange={(event) => setForm({ ...form, location_id: event.target.value })} className="w-full rounded-xl border px-3 py-3">
-          <option value="">Select a location...</option>
-          {locations.filter((item) => item.status === 'active').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-        <select required aria-label="Product variant" value={form.variant_id} onChange={(event) => setForm({ ...form, variant_id: event.target.value })} className="w-full rounded-xl border px-3 py-3">
-          <option value="">Select a product variant...</option>
-          {variants.map((item) => <option key={item.id} value={item.id}>{item.product_name || item.name || 'Product'} · {item.sku}</option>)}
-        </select>
-        <input required aria-label="Quantity" type="number" min="0.001" step="0.001" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} placeholder="Enter quantity..." className="w-full rounded-xl border px-3 py-3" />
-        {type === 'in' && <input aria-label="Unit cost" type="number" min="0" step="0.0001" value={form.unit_cost} onChange={(event) => setForm({ ...form, unit_cost: event.target.value })} placeholder="Enter unit cost (optional)..." className="w-full rounded-xl border px-3 py-3" />}
-        <input required aria-label="Reason" value={form.reason} onChange={(event) => setForm({ ...form, reason: event.target.value })} placeholder="Write movement reason..." className="w-full rounded-xl border px-3 py-3" />
-      </div>
-      <div className="mt-6 flex justify-end gap-3">
-        <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2.5 font-semibold">Cancel</button>
-        <button type="submit" disabled={saving || !form.location_id || !form.variant_id || !form.quantity || !form.reason.trim()} className="rounded-xl bg-blue-600 px-4 py-2.5 font-semibold text-white disabled:opacity-50">
-          {saving ? 'Posting…' : 'Post movement'}
-        </button>
-      </div>
-    </form>
-  </div>
+  return <Dialog title={label} onClose={onClose}><form onSubmit={(event) => { void submit(event) }} className="space-y-4"><p className="text-sm text-slate-500 dark:text-slate-400">{isBulk ? `${selectedRows.length} variants on the current page will be updated.` : 'The existing inventory ledger will record the actor, quantity change and idempotency key.'}</p>{!isBulk && <Field label="Location"><select required value={locationId} onChange={(event) => setLocationId(event.target.value)} className={fieldClass}><option value="">Select a location...</option>{locations.filter((item) => item.status !== 'inactive').map((item) => <option key={item.id} value={item.id}>{item.branch ? `${item.branch} · ` : ''}{item.name}</option>)}</select></Field>}<Field label={type === 'count' ? 'Counted quantity' : 'Quantity'}><input required min={type === 'count' ? 0 : 0.001} step="0.001" type="number" value={quantity} onChange={(event) => setQuantity(event.target.value)} className={fieldClass} /></Field>{type === 'in' && <Field label="Purchase cost (optional)"><input min="0" step="0.0001" type="number" value={unitCost} onChange={(event) => setUnitCost(event.target.value)} className={fieldClass} /></Field>}<Field label="Reason"><input required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} className={fieldClass} /></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Reference number (optional)"><input value={reference} onChange={(event) => setReference(event.target.value)} className={fieldClass} /></Field><Field label="Notes (optional)"><input value={notes} onChange={(event) => setNotes(event.target.value)} className={fieldClass} /></Field></div>{error && <ErrorState message={error} />}<DialogActions saving={saving} submitLabel={isBulk ? `Apply to ${selectedRows.length}` : label} onClose={onClose} /></form></Dialog>
 }
 
-function newIdempotencyKey(type: 'in' | 'out'): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-
-  return 'inventory-' + type + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
+function TransferDialog({ row, locations, onClose, onDone }: { row: Row; locations: Location[]; onClose: () => void; onDone: () => void }) {
+  const [destinationId, setDestinationId] = useState(''); const [quantity, setQuantity] = useState(''); const [reference, setReference] = useState('TR-'); const [notes, setNotes] = useState(''); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
+  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(''); try { await request({ method: 'POST', url: '/api/v1/stock-transfers', data: { source_location_id: row.location.id, destination_location_id: destinationId, transfer_number: reference, items: [{ variant_id: row.variant.id, requested_quantity: Number(quantity) }], notes: notes || undefined } }); onDone() } catch (err) { setError(errorMessage(err, 'Unable to create the stock transfer.')) } finally { setSaving(false) } }
+  return <Dialog title="Transfer stock" onClose={onClose}><form onSubmit={(event) => { void submit(event) }} className="space-y-4"><div className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-slate-800"><p className="font-bold text-slate-900 dark:text-slate-100">{row.product.name || row.variant.sku}</p><p className="mt-1 text-slate-500 dark:text-slate-400">{row.location.name} · {row.variant.sku} · {row.available_quantity} available</p></div><Field label="Destination location"><select required value={destinationId} onChange={(event) => setDestinationId(event.target.value)} className={fieldClass}><option value="">Select destination...</option>{locations.filter((item) => item.id !== row.location.id && item.status !== 'inactive').map((item) => <option key={item.id} value={item.id}>{item.branch ? `${item.branch} · ` : ''}{item.name}</option>)}</select></Field><Field label="Quantity"><input required min="0.001" step="0.001" type="number" value={quantity} onChange={(event) => setQuantity(event.target.value)} className={fieldClass} /></Field><Field label="Transfer reference"><input required value={reference} onChange={(event) => setReference(event.target.value)} className={fieldClass} /></Field><Field label="Notes (optional)"><input value={notes} onChange={(event) => setNotes(event.target.value)} className={fieldClass} /></Field>{error && <ErrorState message={error} />}<DialogActions saving={saving} submitLabel="Create transfer" onClose={onClose} /></form></Dialog>
 }
-function money(value: string): string { return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'MMK', maximumFractionDigits: 2 }).format(Number(value)) }
-function message(error: unknown, fallback: string): string { const value = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }; return value?.response?.data?.message || Object.values(value?.response?.data?.errors || {})[0]?.[0] || fallback }
-function InventoryPager({ meta, onPageChange, first, last }: { meta: { total: number; current_page: number; last_page: number; per_page: number }; perPage: number; onPerPageChange: (value: number) => void; onPageChange: (value: number) => void; first: number; last: number }) { const { t } = useTranslation(); const pages = pageNumbers(meta.current_page, meta.last_page); return <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-3"><span>Showing {first}–{last} of {meta.total} records</span><span>Page {meta.current_page} of {meta.last_page}</span></div><div className="flex items-center gap-1"><button type="button" disabled={meta.current_page <= 1} onClick={() => onPageChange(1)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.first_page')}</button><button type="button" disabled={meta.current_page <= 1} onClick={() => onPageChange(meta.current_page - 1)} className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40">Previous</button><div className="hidden items-center gap-1 md:flex">{pages.map((page, index) => page === 'ellipsis' ? <span key={index} className="px-1">…</span> : <button type="button" key={page} aria-current={page === meta.current_page ? 'page' : undefined} onClick={() => onPageChange(page)} className={page === meta.current_page ? 'min-w-8 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white' : 'min-w-8 rounded-lg border px-2.5 py-1.5 text-xs font-semibold'}>{page}</button>)}</div><span className="px-2 text-xs font-semibold md:hidden">{meta.current_page}</span><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => onPageChange(meta.current_page + 1)} className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40">Next</button><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => onPageChange(meta.last_page)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.last_page')}</button></div></div> }
-function pageNumbers(current: number, last: number): Array<number | 'ellipsis'> { if (last <= 7) return Array.from({ length: Math.max(last, 1) }, (_, index) => index + 1); const values = new Set([1, last, current, current - 1, current + 1]); const sorted = [...values].filter((value) => value > 0 && value <= last).sort((a, b) => a - b); const result: Array<number | 'ellipsis'> = []; sorted.forEach((value, index) => { if (index && value - sorted[index - 1] > 1) result.push('ellipsis'); result.push(value) }); return result }
+
+function HistoryDialog({ row, onClose }: { row: Row; onClose: () => void }) { const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [movements, setMovements] = useState<Array<{ id: string; movement_type: string; quantity_delta: string; quantity_before: string; quantity_after: string; reason?: string; reference_id?: string | null; created_at?: string; actor?: { name?: string } }>>([]); useEffect(() => { void (async () => { try { const response = await api.get<{ data: { data: typeof movements } }>('/api/v1/inventory/movements', { params: { variant_id: row.variant.id, location_id: row.location.id, per_page: 100 } }); setMovements(response.data.data.data || []) } catch (err) { setError(errorMessage(err, 'Unable to load stock history.')) } finally { setLoading(false) } })() }, [row.location.id, row.variant.id]); return <Dialog title="Stock history" onClose={onClose}><p className="text-sm text-slate-500 dark:text-slate-400">{row.product.name || row.variant.sku} · {row.location.name}</p>{error && <div className="mt-4"><ErrorState message={error} /></div>}{loading ? <div className="py-8"><LoadingState /></div> : movements.length === 0 ? <div className="py-8"><EmptyState label="No stock movements recorded." /></div> : <div className="mt-4 max-h-[55vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700"><table className="w-full text-left text-sm"><thead className="sticky top-0 bg-slate-50 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"><tr><th className="px-3 py-3">Date</th><th className="px-3 py-3">Movement</th><th className="px-3 py-3">Before → after</th><th className="px-3 py-3">Reason / reference / actor</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{movements.map((movement) => <tr key={movement.id}><td className="px-3 py-3 text-xs text-slate-500">{movement.created_at ? new Date(movement.created_at).toLocaleString() : '—'}</td><td className={`px-3 py-3 font-bold ${Number(movement.quantity_delta) >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>{Number(movement.quantity_delta) >= 0 ? '+' : ''}{movement.quantity_delta} · {movement.movement_type.replaceAll('_', ' ')}</td><td className="px-3 py-3 text-slate-700 dark:text-slate-200">{movement.quantity_before} → {movement.quantity_after}</td><td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-300">{movement.reason || '—'}{movement.reference_id ? ` · ${movement.reference_id}` : ''}{movement.actor?.name ? ` · ${movement.actor.name}` : ''}</td></tr>)}</tbody></table></div>}</Dialog> }
+
+function ThresholdDialog({ rows, onClose, onDone }: { rows: Row[]; onClose: () => void; onDone: () => void }) {
+  const [threshold, setThreshold] = useState(''); const [reason, setReason] = useState('Bulk inventory policy update'); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
+  const submit = async (event: FormEvent) => { event.preventDefault(); const numeric = Number(threshold); if (!Number.isFinite(numeric) || numeric < 0) { setError('Enter a non-negative threshold.'); return } setSaving(true); setError(''); try { await request({ method: 'POST', url: '/api/v1/inventory/thresholds', data: { variant_ids: rows.map((row) => row.variant.id), reorder_level: numeric, reason }, headers: { 'Idempotency-Key': idempotencyKey('threshold') } }); onDone() } catch (err) { setError(errorMessage(err, 'Unable to update thresholds.')) } finally { setSaving(false) } }
+  return <Dialog title="Bulk low-stock threshold" onClose={onClose}><form onSubmit={(event) => { void submit(event) }} className="space-y-4"><p className="text-sm text-slate-500 dark:text-slate-400">Set one threshold for {rows.length} selected variants. Existing stock quantities are not changed.</p><Field label="Low-stock threshold"><input required min="0" step="0.001" type="number" value={threshold} onChange={(event) => setThreshold(event.target.value)} className={fieldClass} /></Field><Field label="Reason"><input required value={reason} onChange={(event) => setReason(event.target.value)} className={fieldClass} /></Field>{error && <ErrorState message={error} />}<DialogActions saving={saving} submitLabel="Update thresholds" onClose={onClose} /></form></Dialog>
+}
+
+type CsvPreview = { valid_count: number; error_count: number; rows: Array<{ variant_id: string; sku: string; product?: string; reorder_level: string }>; errors: Array<{ row: number; message: string; identifier?: string }> }
+function CsvImportDialog({ file, onClose, onDone }: { file: File; onClose: () => void; onDone: () => void }) {
+  const [preview, setPreview] = useState<CsvPreview | null>(null); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
+  useEffect(() => { void (async () => { const form = new FormData(); form.append('file', file); form.append('preview', '1'); try { const response = await api.post<{ data: CsvPreview }>('/api/v1/inventory/import', form); setPreview(response.data.data) } catch (err) { setError(errorMessage(err, 'Unable to validate the CSV file.')) } finally { setLoading(false) } })() }, [file])
+  const commitImport = async () => { setSaving(true); setError(''); const form = new FormData(); form.append('file', file); form.append('preview', '0'); form.append('confirm', '1'); try { await api.post('/api/v1/inventory/import', form); onDone() } catch (err) { setError(errorMessage(err, 'Unable to import thresholds.')) } finally { setSaving(false) } }
+  return <Dialog title="Review threshold import" onClose={onClose}>{loading ? <LoadingState /> : error ? <><ErrorState message={error} /><DialogActions saving={false} submitLabel="Close" onClose={onClose} /></> : preview ? <><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"><FileSpreadsheet size={16} className="mb-1" />Valid rows<strong className="mt-1 block text-xl">{preview.valid_count}</strong></div><div className="rounded-xl bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200"><FileSpreadsheet size={16} className="mb-1" />Errors<strong className="mt-1 block text-xl">{preview.error_count}</strong></div><div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200"><FileSpreadsheet size={16} className="mb-1" />File<strong className="mt-1 block truncate">{file.name}</strong></div></div>{preview.errors.length > 0 && <div className="mt-4 max-h-40 overflow-y-auto rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-200">{preview.errors.map((item) => <p key={`${item.row}-${item.identifier}`}>Row {item.row}: {item.message}</p>)}</div>}<div className="mt-4 max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700"><table className="w-full text-left text-xs"><thead className="bg-slate-50 dark:bg-slate-800"><tr><th className="px-3 py-2">SKU</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Threshold</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{preview.rows.slice(0, 100).map((row) => <tr key={row.variant_id}><td className="px-3 py-2 font-mono">{row.sku}</td><td className="px-3 py-2">{row.product || '—'}</td><td className="px-3 py-2">{row.reorder_level}</td></tr>)}</tbody></table></div>{error && <div className="mt-4"><ErrorState message={error} /></div>}<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} disabled={saving} className={pageButton}>Cancel</button><button type="button" onClick={() => { void commitImport() }} disabled={saving || preview.valid_count === 0 || preview.error_count > 0} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? 'Importing…' : `Import ${preview.valid_count} rows`}</button></div></> : null}</Dialog>
+}
+
+function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) { return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"><div role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-6"><div className="flex items-start justify-between gap-4"><h2 className="text-xl font-bold text-slate-950 dark:text-white">{title}</h2><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={19} /></button></div><div className="mt-5">{children}</div></div></div> }
+function DialogActions({ saving, submitLabel, onClose }: { saving: boolean; submitLabel: string; onClose: () => void }) { return <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">Cancel</button><button type="submit" disabled={saving} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? 'Saving…' : submitLabel}</button></div> }
+function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200"><span className="mb-1.5 block text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</span>{children}</label> }
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) { return <Field label={label}><select value={value} onChange={(event) => onChange(event.target.value)} className={fieldClass}>{options.map((option) => <option key={`${option.value}-${option.label}`} value={option.value}>{option.label}</option>)}</select></Field> }
+function Pagination({ meta, first, last, onPageChange }: { meta: PageMeta; first: number; last: number; onPageChange: (page: number) => void }) { return <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between"><span>Showing {first}–{last} of {meta.total} records</span><div className="flex items-center gap-1"><button type="button" disabled={meta.current_page <= 1} onClick={() => onPageChange(1)} className={pageButton}>First</button><button type="button" disabled={meta.current_page <= 1} onClick={() => onPageChange(meta.current_page - 1)} className={pageButton}>Previous</button><span className="px-3 text-xs font-bold">Page {meta.current_page} of {Math.max(meta.last_page, 1)}</span><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => onPageChange(meta.current_page + 1)} className={pageButton}>Next</button><button type="button" disabled={meta.current_page >= meta.last_page} onClick={() => onPageChange(meta.last_page)} className={pageButton}>Last</button></div></div> }
+
+const fieldClass = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-950'
+const pageButton = 'rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'
+function statusFor(row: Row): string { if (row.product.status === 'archived') return 'archived'; const available = Number(row.available_quantity); const threshold = Number(row.variant.reorder_level || 0); if (available <= 0) return 'out_of_stock'; if (threshold > 0 && available <= threshold) return 'low_stock'; return 'in_stock' }
+function variantLabel(attributes?: Record<string, unknown> | null): string { if (!attributes) return 'Default variant'; return Object.entries(attributes).filter(([, value]) => value !== null && value !== '').map(([key, value]) => `${key}: ${String(value)}`).join(' · ') || 'Default variant' }
+function idempotencyKey(seed: string): string { const safeSeed = seed.slice(0, 40); if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return `${crypto.randomUUID()}-${safeSeed}`; return `inventory-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}-${safeSeed}` }
+function money(value: string): string { return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'MMK', maximumFractionDigits: 2 }).format(Number(value || 0)) }
+function errorMessage(error: unknown, fallback: string): string { const value = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }; return value?.response?.data?.message || Object.values(value?.response?.data?.errors || {})[0]?.[0] || fallback }

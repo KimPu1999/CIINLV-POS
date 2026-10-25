@@ -1412,6 +1412,28 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   display: none !important;
 }
 
+/* Inventory table thumbnails stay inside their cell even when a global image
+   rule or an oversized source asset is present. */
+.inventory-product-thumbnail {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  flex: 0 0 48px;
+  overflow: hidden;
+}
+
+.inventory-product-thumbnail-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
 /* Dashboard table tokens. Keep row text independent from hover backgrounds;
    status badges and other semantic descendants retain their own colors. */
 :root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table {
