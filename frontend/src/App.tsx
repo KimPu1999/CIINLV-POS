@@ -6,6 +6,7 @@ import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
 import { DataTable, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard } from './components/ui'
+import { NavigationHistoryProvider } from './components/BackButton'
 import { SidebarNavItem } from './components/SidebarNavItem'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { LegacyStaticTextLocalizer } from './components/LegacyStaticTextLocalizer'
@@ -318,7 +319,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
     return () => window.removeEventListener('ciinlv:profile-updated', handleProfileUpdated)
   }, [refreshUser])
 
-  return <div className="min-h-screen bg-slate-50">
+  return <NavigationHistoryProvider><div className="min-h-screen bg-slate-50">
     <aside className={`fixed inset-y-0 left-0 z-40 flex dashboard-sidebar flex-col bg-slate-950 text-white transition-transform lg:translate-x-0 ${mobile ? 'translate-x-0' : '-translate-x-full'} ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
         <BrandLogo showName={!collapsed} className="min-w-0 overflow-hidden" imageClassName="h-10 w-10" nameClassName="text-lg font-bold text-white" />
@@ -413,7 +414,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
         </Routes></Suspense>}
       </main>
     </div>
-  </div>
+  </div></NavigationHistoryProvider>
 }
 
 function ThemeToggle() {
