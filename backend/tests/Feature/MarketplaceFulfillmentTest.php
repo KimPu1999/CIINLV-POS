@@ -94,6 +94,46 @@ class MarketplaceFulfillmentTest extends TestCase
         $this->assertDatabaseHas('marketplace_payments', ['marketplace_order_id' => $order->id, 'status' => 'paid']);
     }
 
+    public function test_external_courier_cod_requires_reconciliation_reference(): void
+    {
+        [$tenant, , $listing, $variant, $admin] = $this->vendor('FULFILLMENT-COURIER-COD', 1000, 2);
+        $customer = $this->customer('fulfillment-courier-cod@example.com');
+        $address = $this->address($customer);
+        $this->addToCart($customer, $listing, $variant);
+        $order = $this->checkout($customer, $address, 'fulfillment-courier-cod-checkout');
+        $vendorOrder = $order->vendorOrders()->firstOrFail();
+        $shipment = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'external_courier', 'carrier_name' => 'Test Courier', 'tracking_number' => 'TRACK-1000'])
+            ->assertCreated()
+            ->json('data');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', ['amount_received' => 1000])
+            ->assertConflict()
+            ->assertJsonPath('message', 'Courier-collected COD must be reconciled before it is recorded as received by the business.');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/payments/cod/collect', [
+                'amount_received' => 1000,
+                'collection_source' => 'courier_reconciled',
+                'courier_reference' => 'COURIER-1000',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.payment_status', 'paid');
+
+        $this->assertDatabaseHas('marketplace_payments', [
+            'marketplace_order_id' => $order->id,
+            'status' => 'paid',
+            'transaction_reference' => null,
+        ]);
+        $this->assertDatabaseHas('marketplace_orders', [
+            'id' => $order->id,
+            'status' => 'processing',
+            'payment_status' => 'paid',
+        ]);
+        $this->assertNotEmpty($shipment['id']);
+    }
+
     public function test_cancelled_fulfillment_blocks_pending_cod_collection(): void
     {
         [$tenant, , $listing, $variant, $admin] = $this->vendor('FULFILLMENT-CANCELLED-PAYMENT', 1000, 2);

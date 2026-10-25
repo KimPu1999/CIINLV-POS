@@ -41,6 +41,20 @@ class MarketplacePaymentService
                 $this->assertVendorFulfillmentActive($lockedOrder, $vendorOrder);
             }
 
+            $collectionSource = $data['collection_source'] ?? 'business_cash';
+            $hasExternalCourier = $vendorOrder
+                ? $vendorOrder->shipments()->where('delivery_type', 'external_courier')->exists()
+                : $lockedOrder->vendorOrders()->whereHas('shipments', fn ($query) => $query->where('delivery_type', 'external_courier'))->exists();
+            if ($hasExternalCourier && $collectionSource !== 'courier_reconciled') {
+                throw new ConflictHttpException('Courier-collected COD must be reconciled before it is recorded as received by the business.');
+            }
+            if (! $hasExternalCourier && $collectionSource === 'courier_reconciled') {
+                throw new UnprocessableEntityHttpException('Courier reconciliation is only available for external courier shipments.');
+            }
+            if ($collectionSource === 'courier_reconciled' && trim((string) ($data['courier_reference'] ?? '')) === '') {
+                throw new UnprocessableEntityHttpException('A courier collection reference is required for reconciliation.');
+            }
+
             $scopeTotal = (string) ($vendorOrder?->total ?: $lockedOrder->grand_total);
             $collections = (array) ($metadata['vendor_collections'] ?? []);
             $scopeKey = $vendorOrder?->uuid;
@@ -71,6 +85,8 @@ class MarketplacePaymentService
             $metadata['vendor_collections'] = $collections;
             $metadata['collection_idempotency_keys'] = $replays;
             $metadata['collected_by'] = $actor->uuid;
+            $metadata['collection_source'] = $collectionSource;
+            $metadata['courier_reference'] = $data['courier_reference'] ?? null;
             $metadata['verification_note'] = $data['verification_note'] ?? $data['note'] ?? null;
 
             $paymentData = [
@@ -98,7 +114,13 @@ class MarketplacePaymentService
                 'event' => 'payment_received',
                 'from_status' => 'pending',
                 'to_status' => $fullyPaid ? 'paid' : 'pending',
-                'metadata' => ['amount_received' => $amount, 'transaction_reference' => $data['transaction_reference'] ?? null, 'vendor_order_id' => $vendorOrder?->uuid],
+                'metadata' => [
+                    'amount_received' => $amount,
+                    'transaction_reference' => $data['transaction_reference'] ?? null,
+                    'collection_source' => $collectionSource,
+                    'courier_reference' => $data['courier_reference'] ?? null,
+                    'vendor_order_id' => $vendorOrder?->uuid,
+                ],
             ]);
 
             return ['order' => $lockedOrder->fresh(), 'payment' => $payment->fresh(), 'replayed' => false, 'vendor_order' => $vendorOrder];

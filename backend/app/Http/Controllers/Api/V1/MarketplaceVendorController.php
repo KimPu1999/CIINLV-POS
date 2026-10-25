@@ -616,7 +616,15 @@ class MarketplaceVendorController
             'idempotency_key' => $request->header('Idempotency-Key'),
         ], $vendorOrder);
         if (! $result['replayed']) {
-            $audit->record('marketplace.cod_payment_collected', $request->user(), $context->tenant(), $vendorOrder, ['order_number' => $vendorOrder->order?->order_number, 'vendor_order_number' => $vendorOrder->vendor_order_number]);
+            $audit->record('marketplace.cod_payment_collected', $request->user(), $context->tenant(), $vendorOrder, [
+                'order_number' => $vendorOrder->order?->order_number,
+                'vendor_order_number' => $vendorOrder->vendor_order_number,
+                'amount_received' => $request->validated('amount_received'),
+                'received_at' => $request->validated('received_at'),
+                'transaction_reference' => $request->validated('transaction_reference'),
+                'collection_source' => $request->validated('collection_source', 'business_cash'),
+                'courier_reference' => $request->validated('courier_reference'),
+            ]);
         }
 
         return response()->json([
