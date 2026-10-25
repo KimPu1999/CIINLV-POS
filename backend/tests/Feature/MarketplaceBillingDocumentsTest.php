@@ -18,6 +18,7 @@ use App\Models\TenantMembership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MarketplaceBillingDocumentsTest extends TestCase
@@ -41,6 +42,10 @@ class MarketplaceBillingDocumentsTest extends TestCase
 
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->getJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/invoice')->assertOk()->assertJsonPath('data.grand_total', '1500.00');
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->get('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/invoice/pdf')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
             ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])->assertCreated();
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
@@ -72,6 +77,29 @@ class MarketplaceBillingDocumentsTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'billing-b-collect'])->postJson($url, ['amount_received' => 1000])->assertOk()->assertJsonPath('idempotent_replay', true);
         $this->assertDatabaseCount('marketplace_payments', 1);
         $this->assertDatabaseHas('marketplace_orders', ['id' => $order->id, 'payment_status' => 'paid']);
+    }
+
+    public function test_invoice_uses_the_associated_tenant_logo_and_address_only(): void
+    {
+        Storage::fake('public');
+        [$tenant, , $listing, $variant, $admin] = $this->vendor('BILLING-LOGO-A', 1500);
+        $tenant->forceFill([
+            'logo_path' => 'logos/tenant-a.png',
+            'address' => 'Tenant A address',
+            'city' => 'Yangon',
+            'phone' => '090000000',
+            'email' => 'a@example.com',
+        ])->save();
+        Storage::disk('public')->put('logos/tenant-a.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='));
+
+        $customer = $this->customer('billing-logo@example.com');
+        $order = $this->checkout($customer, $listing, $variant, 'billing-logo');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/orders/'.$order->vendorOrders()->firstOrFail()->uuid.'/invoice')
+            ->assertOk()
+            ->assertJsonPath('data.business.address', 'Tenant A address')
+            ->assertJsonPath('data.business.logo_url', Storage::disk('public')->url('logos/tenant-a.png'));
     }
 
     public function test_documents_are_scoped_to_customer_and_vendor_and_platform_admin_can_oversee(): void

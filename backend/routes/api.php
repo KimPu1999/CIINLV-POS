@@ -272,6 +272,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/orders', [MarketplaceVendorController::class, 'orders']);
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
             Route::get('/orders/{order}/invoice', [MarketplaceVendorController::class, 'invoice']);
+            Route::get('/orders/{order}/invoice/pdf', [MarketplaceVendorController::class, 'invoicePdf']);
             Route::get('/orders/{order}/receipt', [MarketplaceVendorController::class, 'receipt']);
             Route::get('/disputes', [MarketplaceDisputeController::class, 'vendorIndex']);
             Route::get('/disputes/{dispute}', [MarketplaceDisputeController::class, 'vendorShow']);

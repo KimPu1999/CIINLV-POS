@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplacePayment;
 use App\Models\MarketplaceVendorOrder;
+use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -81,6 +82,31 @@ class MarketplaceDocumentService
             'transaction_reference' => $payment->transaction_reference ?: $payment->provider_reference,
             'received_by' => $payment->receivedBy?->only(['id', 'name', 'email']),
         ];
+    }
+
+    public function pdf(MarketplaceOrder $order, ?MarketplaceVendorOrder $vendorOrder = null): string
+    {
+        $data = $this->invoice($order, $vendorOrder);
+        $escape = static fn ($value): string => e((string) ($value ?? ''));
+        $business = $data['business'] ?? [];
+        $items = collect($data['items'] ?? [])->map(fn (array $item): string => '<tr><td><strong>'.$escape($item['name'] ?? 'Item').'</strong><br><small>'.$escape($item['sku'] ?? '').'</small></td><td>'.$escape($item['quantity'] ?? '').'</td><td>'.$escape($item['unit_price'] ?? '').'</td><td>'.$escape($item['line_total'] ?? '').'</td></tr>')->implode('');
+        $address = implode(' · ', array_filter([
+            $business['address'] ?? null,
+            $business['city'] ?? null,
+            $business['state'] ?? null,
+            $business['postal_code'] ?? null,
+            $business['country'] ?? null,
+        ]));
+        $logo = ! empty($business['logo_data'])
+            ? '<img class="logo" src="'.$escape($business['logo_data']).'" alt="'.$escape($business['business_name'] ?? $business['name'] ?? 'Business').'">'
+            : '';
+        $html = '<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4;margin:18mm}*{box-sizing:border-box}body{font-family:DejaVu Sans,sans-serif;color:#0f172a;font-size:11px}.header{display:flex;justify-content:space-between;gap:24px;border-bottom:1px solid #cbd5e1;padding-bottom:18px}.identity{display:flex;gap:14px;align-items:flex-start}.logo{display:block;max-width:100px;max-height:70px;width:auto;height:auto;object-fit:contain}.business h1{font-size:19px;margin:0 0 5px}.muted{color:#64748b;margin:3px 0}.document{text-align:right}.document h2{font-size:24px;margin:0 0 8px}.meta{line-height:1.6}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border-bottom:1px solid #e2e8f0;padding:8px 5px;text-align:right;vertical-align:top}th:first-child,td:first-child{text-align:left}th{font-size:10px;text-transform:uppercase;color:#64748b}.totals{margin:20px 0 0 auto;width:280px}.row{display:flex;justify-content:space-between;gap:18px;padding:4px 0}.grand{border-top:2px solid #0f172a;font-size:14px;font-weight:bold;margin-top:5px;padding-top:8px}</style></head><body><header class="header"><div class="identity">'.$logo.'<div class="business"><h1>'.$escape($business['business_name'] ?? $business['name'] ?? 'Marketplace Store').'</h1><p class="muted">'.$escape($address).'</p><p class="muted">'.$escape($business['phone'] ?? '').($business['email'] ? ' · '.$escape($business['email']) : '').'</p></div></div><div class="document"><h2>INVOICE</h2><div class="meta"><div>'.$escape($data['invoice_number']).'</div><div>'.$escape($data['order_date']).'</div></div></div></header><p><strong>Bill to:</strong> '.$escape($data['customer']['name'] ?? '').' · '.$escape($data['customer']['email'] ?? '').'</p><table><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr></thead><tbody>'.$items.'</tbody></table><section class="totals"><div class="row"><span>Subtotal</span><span>'.$escape($data['subtotal']).' '.$escape($data['currency_code']).'</span></div><div class="row"><span>Discount</span><span>'.$escape($data['discount']).' '.$escape($data['currency_code']).'</span></div><div class="row"><span>Tax</span><span>'.$escape($data['tax']).' '.$escape($data['currency_code']).'</span></div><div class="row"><span>Shipping</span><span>'.$escape($data['shipping']).' '.$escape($data['currency_code']).'</span></div><div class="row grand"><span>Total</span><span>'.$escape($data['grand_total']).' '.$escape($data['currency_code']).'</span></div></section></body></html>';
+        $dompdf = new Dompdf(['isRemoteEnabled' => false]);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('a4');
+        $dompdf->render();
+
+        return $dompdf->output();
     }
 
     public function ensureInvoiceNumber(MarketplaceOrder $order): string
@@ -169,13 +195,33 @@ class MarketplaceDocumentService
 
     private function business($store, $tenant): array
     {
+        $logoPath = $tenant?->logo_path ?: $store?->logo_path;
+
         return [
             'name' => $store?->name ?: ($tenant?->display_name ?: $tenant?->name),
             'business_name' => $tenant?->display_name ?: $tenant?->name,
-            'logo_url' => $store?->logo_path ? Storage::disk('public')->url($store->logo_path) : ($tenant?->logo_path ? Storage::disk('public')->url($tenant->logo_path) : null),
+            'logo_url' => $logoPath ? Storage::disk('public')->url($logoPath) : null,
+            'logo_data' => $this->privateImageData($logoPath),
             'email' => $store?->public_contact_email ?: $tenant?->email,
             'phone' => $store?->public_contact_phone ?: $tenant?->phone,
+            'address' => $tenant?->address ?: $store?->address,
+            'city' => $tenant?->city,
+            'state' => $tenant?->state,
+            'postal_code' => $tenant?->postal_code,
+            'country' => $tenant?->country,
         ];
+    }
+
+    private function privateImageData(?string $path): ?string
+    {
+        if (! $path || ! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        $contents = Storage::disk('public')->get($path);
+        $mime = Storage::disk('public')->mimeType($path) ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode($contents);
     }
 
     private function customer(MarketplaceOrder $order): array

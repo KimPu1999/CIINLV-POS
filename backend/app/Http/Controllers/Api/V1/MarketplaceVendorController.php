@@ -601,6 +601,16 @@ class MarketplaceVendorController
         return response()->json(['success' => true, 'data' => $documents->invoice($vendorOrder->order, $vendorOrder)]);
     }
 
+    public function invoicePdf(string $order, TenantContext $context, MarketplaceDocumentService $documents): \Illuminate\Http\Response
+    {
+        $vendorOrder = $this->vendorOrder($order, $context);
+
+        return response($documents->pdf($vendorOrder->order, $vendorOrder), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$vendorOrder->vendor_order_number.'-invoice.pdf"',
+        ]);
+    }
+
     public function receipt(string $order, TenantContext $context, MarketplaceDocumentService $documents): JsonResponse
     {
         $vendorOrder = $this->vendorOrder($order, $context);
