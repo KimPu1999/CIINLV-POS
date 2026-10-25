@@ -435,9 +435,18 @@ Route::prefix('v1')->group(function (): void {
             Route::apiResource('categories', CategoryController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
             Route::get('/products/barcode/{barcode}', [BarcodeController::class, 'show']);
             Route::get('/barcodes/statistics', [BarcodeController::class, 'statistics']);
+            Route::get('/barcodes/brands', [BarcodeController::class, 'brands']);
+            Route::get('/barcodes/catalog', [BarcodeController::class, 'catalog']);
             Route::post('/product-variants/{variant}/barcode/generate', [BarcodeController::class, 'generate']);
             Route::put('/product-variants/{variant}/barcode', [BarcodeController::class, 'update']);
             Route::post('/barcodes/bulk-generate', [BarcodeController::class, 'bulkGenerate']);
+            Route::get('/barcodes/batches', [BarcodeController::class, 'batchIndex']);
+            Route::post('/barcodes/batches', [BarcodeController::class, 'createBatch']);
+            Route::get('/barcodes/batches/{batch}', [BarcodeController::class, 'showBatch']);
+            Route::post('/barcodes/batches/{batch}/start', [BarcodeController::class, 'startBatch']);
+            Route::get('/barcodes/batches/{batch}/labels', [BarcodeController::class, 'batchLabels']);
+            Route::get('/barcodes/batches/{batch}/download.csv', [BarcodeController::class, 'downloadBatchCsv']);
+            Route::post('/barcodes/batches/{batch}/cancel', [BarcodeController::class, 'cancelBatch']);
             Route::post('/products/bulk-status', [ProductController::class, 'bulkStatus']);
             Route::get('/products/export-selected', [ProductController::class, 'exportSelected'])->middleware('throttle:exports');
             Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show', 'update', 'destroy']);

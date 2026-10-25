@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProcessBarcodeBatch;
+use App\Models\BarcodeBatch;
 use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
 use App\Models\Product;
@@ -10,8 +12,12 @@ use App\Models\Store;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
+use App\Services\BarcodeBatchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PhaseFiveInventoryTest extends TestCase
@@ -87,6 +93,51 @@ class PhaseFiveInventoryTest extends TestCase
         $this->actingAs($adminB, 'sanctum')->withHeaders($headersB)->putJson('/api/v1/product-variants/'.$variant->uuid.'/barcode', ['barcode' => 'OTHER-001', 'type' => 'internal'])->assertNotFound();
     }
 
+    public function test_barcode_batches_generate_once_print_copies_and_preview_csv_assignments(): void
+    {
+        Queue::fake();
+        Storage::fake('local');
+        [$tenant, $admin] = $this->business('BUS-BATCH', 'barcode-batch@example.com', 'business_admin');
+        $headers = ['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'batch-unique-1'];
+        $product = $this->product($tenant, $admin, 'BATCH-001');
+        $variant = $product->variants()->firstOrFail();
+
+        $unique = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/barcodes/batches', [
+            'generation_mode' => 'unique',
+            'barcode_type' => 'internal',
+            'variant_ids' => [$variant->uuid],
+            'prefix' => 'KIPI-2026-',
+        ])->assertAccepted();
+        $batch = BarcodeBatch::where('uuid', $unique->json('data.id'))->firstOrFail();
+        Queue::assertPushed(ProcessBarcodeBatch::class);
+        (new ProcessBarcodeBatch($batch->id))->handle(app(BarcodeBatchService::class));
+        $batch->refresh();
+        $this->assertSame('completed', $batch->status);
+        $this->assertSame(1, $batch->completed_label_count);
+        $this->assertStringStartsWith('KIPI-2026-', (string) $variant->refresh()->barcode);
+
+        $copies = $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid, 'Idempotency-Key' => 'batch-copies-1'])->postJson('/api/v1/barcodes/batches', [
+            'generation_mode' => 'copies',
+            'variant_id' => $variant->uuid,
+            'quantity' => 100000,
+        ])->assertAccepted();
+        $copyBatch = BarcodeBatch::where('uuid', $copies->json('data.id'))->firstOrFail();
+        (new ProcessBarcodeBatch($copyBatch->id))->handle(app(BarcodeBatchService::class));
+        $labels = $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid])->getJson('/api/v1/barcodes/batches/'.$copyBatch->uuid.'/labels?offset=0&limit=10')->assertOk();
+        $this->assertCount(10, $labels->json('data.labels'));
+        $this->assertSame(100000, $labels->json('data.total'));
+        $this->assertSame($variant->barcode, $labels->json('data.labels.2.barcode'));
+        $this->assertSame(1, $product->variants()->count());
+
+        $csv = UploadedFile::fake()->createWithContent('barcodes.csv', "variant_id,barcode,barcode_type\n{$variant->uuid},CUSTOM-2026-0001,internal\n");
+        $preview = $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid])->call('POST', '/api/v1/barcodes/batches', ['generation_mode' => 'manual_csv', 'overwrite' => '1', 'confirm_overwrite' => '1'], [], ['file' => $csv]);
+        $preview->assertOk()->assertJsonPath('data.status', 'pending_review')->assertJsonPath('data.requested_label_count', 1);
+        $csvBatch = BarcodeBatch::where('uuid', $preview->json('data.id'))->firstOrFail();
+        $this->actingAs($admin, 'sanctum')->withHeaders(['X-Tenant-Id' => $tenant->uuid])->postJson('/api/v1/barcodes/batches/'.$csvBatch->uuid.'/start', ['allow_partial' => true])->assertAccepted();
+        (new ProcessBarcodeBatch($csvBatch->id))->handle(app(BarcodeBatchService::class));
+        $this->assertSame('CUSTOM-2026-0001', $variant->refresh()->barcode);
+    }
+
     public function test_product_listing_returns_inventory_summary_and_server_side_filters(): void
     {
         [$tenant, $admin] = $this->business('BUS-LIST', 'products-list@example.com', 'business_admin');
@@ -100,6 +151,27 @@ class PhaseFiveInventoryTest extends TestCase
 
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/products?search=LIST-001&stock_status=low_stock')
             ->assertOk()->assertJsonPath('data.0.sku', 'LIST-001')->assertJsonPath('data.0.available_stock', 10);
+    }
+
+    public function test_barcode_catalog_supports_brand_filters_pagination_and_tenant_isolation(): void
+    {
+        [$tenantA, $adminA] = $this->business('BUS-CATALOG-A', 'barcode-catalog-a@example.com', 'business_admin');
+        [$tenantB, $adminB] = $this->business('BUS-CATALOG-B', 'barcode-catalog-b@example.com', 'business_admin');
+        $headersA = ['X-Tenant-Id' => $tenantA->uuid];
+        $headersB = ['X-Tenant-Id' => $tenantB->uuid];
+
+        $branded = Product::create(['tenant_id' => $tenantA->id, 'name' => 'Catalog Product', 'slug' => 'catalog-product', 'brand' => 'Catalog Brand', 'status' => 'active', 'track_inventory' => true, 'created_by' => $adminA->id]);
+        $branded->variants()->create(['tenant_id' => $tenantA->id, 'sku' => 'CATALOG-001', 'selling_price' => 10, 'purchase_cost' => 5, 'status' => 'active']);
+        $unbranded = Product::create(['tenant_id' => $tenantA->id, 'name' => 'Unbranded Product', 'slug' => 'unbranded-product', 'brand' => null, 'status' => 'active', 'track_inventory' => true, 'created_by' => $adminA->id]);
+        $unbranded->variants()->create(['tenant_id' => $tenantA->id, 'sku' => 'CATALOG-002', 'selling_price' => 12, 'purchase_cost' => 6, 'status' => 'active']);
+        $this->product($tenantB, $adminB, 'OTHER-CATALOG-001');
+
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->getJson('/api/v1/barcodes/brands')->assertOk()->assertJsonFragment(['Catalog Brand']);
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->getJson('/api/v1/barcodes/catalog?brand=Catalog%20Brand&barcode_status=missing&product_status=active&per_page=1&page=1')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('meta.per_page', 1)->assertJsonPath('data.0.sku', 'CATALOG-001');
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->getJson('/api/v1/barcodes/catalog?brand=__unbranded__&per_page=25')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.sku', 'CATALOG-002');
+        $this->actingAs($adminB, 'sanctum')->withHeaders($headersB)->getJson('/api/v1/barcodes/catalog?search=Catalog%20Product')->assertOk()->assertJsonPath('meta.total', 0);
     }
 
     public function test_product_listing_supports_bounded_pagination_filters_and_sorting(): void

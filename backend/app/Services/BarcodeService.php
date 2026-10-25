@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ProductVariant;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class BarcodeService
@@ -27,6 +28,15 @@ class BarcodeService
         if (! $valid) {
             throw new UnprocessableEntityHttpException('The barcode does not match its declared symbology.');
         }
+
+        return $barcode;
+    }
+
+    public function generateInternal(int $tenantId, ProductVariant $variant): string
+    {
+        do {
+            $barcode = 'CIINLV-'.$tenantId.'-'.$variant->getKey().'-'.strtoupper(bin2hex(random_bytes(3)));
+        } while (ProductVariant::query()->where('tenant_id', $tenantId)->where('barcode', $barcode)->exists());
 
         return $barcode;
     }

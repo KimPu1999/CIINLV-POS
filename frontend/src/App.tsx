@@ -1,7 +1,7 @@
 import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, AlertTriangle, BarChart3, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, History, HelpCircle, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, History, HelpCircle, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, ScanBarcode, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
@@ -33,6 +33,7 @@ const AuditSecurityPage = lazy(() => import('./features/audit-security').then(({
 const MarketplaceAdminPage = lazy(() => import('./features/marketplace-admin').then(({ MarketplaceAdminPage: Page }) => ({ default: Page })))
 const MarketplaceVendorDetailPage = lazy(() => import('./features/marketplace-vendor-detail').then(({ MarketplaceVendorDetailPage: Page }) => ({ default: Page })))
 const ProductManagementPage = lazy(() => import('./features/products').then(({ ProductManagementPage: Page }) => ({ default: Page })))
+const BarcodeManagementPage = lazy(() => import('./features/barcode-management').then(({ BarcodeManagementPage: Page }) => ({ default: Page })))
 const CategoryManagementPage = lazy(() => import('./features/categories').then(({ CategoryManagementPage: Page }) => ({ default: Page })))
 const BarcodeSearchPage = lazy(() => import('./features/barcode-search').then(({ BarcodeSearchPage: Page }) => ({ default: Page })))
 const SupplierManagementPage = lazy(() => import('./features/suppliers').then(({ SupplierManagementPage: Page }) => ({ default: Page })))
@@ -111,6 +112,7 @@ const businessNav: NavItem[] = [
   { label: 'Customers', path: '/business/customers', icon: CircleUserRound, roles: ['business'] },
   { label: 'Branches & dashboards', path: '/business/branches', icon: Store, roles: ['business'] },
   { label: 'Products', path: '/business/products', icon: Package, roles: ['business'] },
+  { label: 'Barcode management', path: '/business/barcode-management', icon: ScanBarcode, roles: ['business'] },
   { label: 'Categories', path: '/business/categories', icon: Boxes, roles: ['business'] },
   { label: 'Barcode search', path: '/business/barcode', icon: Search, roles: ['business'] },
   { label: 'Suppliers', path: '/business/suppliers', icon: Truck, roles: ['business'] },
@@ -145,6 +147,7 @@ const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
   '/business/customers',
   '/business/branches',
   '/business/products',
+  '/business/barcode-management',
   '/business/categories',
   '/business/inventory',
   '/business/sales',
@@ -369,6 +372,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="branches/:id/dashboard" element={<BranchDashboardPage />} />
           <Route path="store-manager" element={<BranchDashboardPage />} />
           <Route path="products" element={<ResourcePage title="Products" description="Catalog, variants, SKU and barcode management." endpoint="/api/v1/products" columns={['name', 'sku', 'status']} />} />
+          <Route path="barcode-management" element={<BarcodeManagementPage />} />
           <Route path="categories" element={<ResourcePage title="Categories" description="Organize products with tenant-scoped categories." endpoint="/api/v1/categories" columns={['name', 'slug', 'status']} />} />
           <Route path="barcode" element={<BarcodePage />} />
           <Route path="suppliers" element={<ResourcePage title="Suppliers" description="Supplier directory backed by your business data." endpoint="/api/v1/suppliers" columns={['name', 'supplier_code', 'status']} />} />
