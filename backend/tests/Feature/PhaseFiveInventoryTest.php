@@ -65,6 +65,26 @@ class PhaseFiveInventoryTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/barcodes/statistics')->assertOk()->assertJsonPath('data.with_barcode', 1);
     }
 
+    public function test_barcode_management_assigns_valid_codes_detects_duplicates_and_bulk_skips_existing_values(): void
+    {
+        [$tenantA, $adminA] = $this->business('BUS-MANAGE-A', 'barcode-management-a@example.com', 'business_admin');
+        [$tenantB, $adminB] = $this->business('BUS-MANAGE-B', 'barcode-management-b@example.com', 'business_admin');
+        $headersA = ['X-Tenant-Id' => $tenantA->uuid];
+        $headersB = ['X-Tenant-Id' => $tenantB->uuid];
+        $product = $this->product($tenantA, $adminA, 'MANAGE-001');
+        $variant = $product->variants()->firstOrFail();
+        $second = $product->variants()->create(['tenant_id' => $tenantA->id, 'sku' => 'MANAGE-002', 'selling_price' => 20, 'status' => 'active']);
+
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->putJson('/api/v1/product-variants/'.$variant->uuid.'/barcode', ['barcode' => '4006381333931', 'type' => 'ean-13'])
+            ->assertOk()->assertJsonPath('data.barcode', '4006381333931')->assertJsonPath('data.barcode_type', 'ean-13');
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->putJson('/api/v1/product-variants/'.$second->uuid.'/barcode', ['barcode' => '4006381333931', 'type' => 'ean-13'])->assertStatus(409);
+        $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->putJson('/api/v1/product-variants/'.$second->uuid.'/barcode', ['barcode' => 'not-an-ean', 'type' => 'ean-13'])->assertUnprocessable();
+
+        $bulk = $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/barcodes/bulk-generate', ['variant_ids' => [$variant->uuid, $second->uuid], 'type' => 'internal'])->assertOk();
+        $bulk->assertJsonCount(1, 'data.generated')->assertJsonCount(1, 'data.skipped');
+        $this->actingAs($adminB, 'sanctum')->withHeaders($headersB)->putJson('/api/v1/product-variants/'.$variant->uuid.'/barcode', ['barcode' => 'OTHER-001', 'type' => 'internal'])->assertNotFound();
+    }
+
     public function test_product_listing_returns_inventory_summary_and_server_side_filters(): void
     {
         [$tenant, $admin] = $this->business('BUS-LIST', 'products-list@example.com', 'business_admin');

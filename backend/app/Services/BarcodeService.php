@@ -11,6 +11,10 @@ class BarcodeService
         if ($barcode === null || $barcode === '') {
             return null;
         }
+        $barcode = trim($barcode);
+        if ($barcode === '') {
+            return null;
+        }
         $type = strtolower((string) $type);
         $valid = match ($type) {
             'ean-13' => $this->checkDigit($barcode, 13),

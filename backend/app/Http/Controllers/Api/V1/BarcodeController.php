@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Requests\Inventory\BulkGenerateBarcodeRequest;
 use App\Http\Requests\Inventory\GenerateBarcodeRequest;
+use App\Http\Requests\Inventory\UpdateBarcodeRequest;
 use App\Http\Resources\ProductVariantResource;
 use App\Models\InventoryLocation;
 use App\Models\ProductVariant;
 use App\Services\AuditLogger;
+use App\Services\BarcodeService;
 use App\Services\ReportScopeService;
 use App\Services\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -60,5 +63,74 @@ class BarcodeController
         $auditLogger->record('inventory.barcode_generated', $request->user(), $context->tenant(), $updated, ['variant_id' => $updated->uuid, 'barcode_type' => $updated->barcode_type]);
 
         return response()->json(['success' => true, 'data' => new ProductVariantResource($updated)]);
+    }
+
+    public function update(UpdateBarcodeRequest $request, ProductVariant $variant, TenantContext $context, AuditLogger $auditLogger, BarcodeService $barcodeService): JsonResponse
+    {
+        abort_unless((int) $variant->tenant_id === (int) $context->tenant()->id, 404);
+        $this->requireManager($request, $context);
+
+        $barcode = $barcodeService->validate($request->input('barcode'), $request->input('type', 'manual'));
+        $type = $barcode ? $request->input('type', 'manual') : null;
+        $updated = DB::transaction(function () use ($variant, $context, $barcode, $type): ProductVariant {
+            $locked = ProductVariant::query()->whereKey($variant->getKey())->where('tenant_id', $context->tenant()->id)->lockForUpdate()->firstOrFail();
+            if ($barcode && ProductVariant::query()->where('tenant_id', $context->tenant()->id)->where('barcode', $barcode)->where('id', '!=', $locked->getKey())->where('status', 'active')->exists()) {
+                throw new ConflictHttpException('The barcode is already in use in this business.');
+            }
+            $locked->update(['barcode' => $barcode, 'barcode_type' => $type]);
+
+            return $locked->fresh('product');
+        });
+        $auditLogger->record($barcode ? 'inventory.barcode_assigned' : 'inventory.barcode_cleared', $request->user(), $context->tenant(), $updated, ['variant_id' => $updated->uuid, 'barcode_type' => $updated->barcode_type]);
+
+        return response()->json(['success' => true, 'data' => new ProductVariantResource($updated)]);
+    }
+
+    public function bulkGenerate(BulkGenerateBarcodeRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    {
+        $this->requireManager($request, $context);
+        $tenantId = (int) $context->tenant()->id;
+        $type = $request->input('type', 'internal');
+        $requested = array_values(array_unique($request->input('variant_ids', [])));
+
+        $result = DB::transaction(function () use ($requested, $tenantId, $type): array {
+            $variants = ProductVariant::query()->where('tenant_id', $tenantId)->whereIn('uuid', $requested)->lockForUpdate()->get()->keyBy('uuid');
+            abort_if($variants->count() !== count($requested), 422, 'One or more selected variants are not available in this business.');
+            $generated = [];
+            $skipped = [];
+            foreach ($requested as $uuid) {
+                $variant = $variants->get($uuid);
+                if ($variant->barcode) {
+                    $skipped[] = $variant->uuid;
+
+                    continue;
+                }
+                $barcode = $this->newInternalBarcode($tenantId, $variant);
+                $variant->update(['barcode' => $barcode, 'barcode_type' => $type]);
+                $generated[] = $variant->fresh('product');
+            }
+
+            return ['generated' => $generated, 'skipped' => $skipped];
+        });
+
+        foreach ($result['generated'] as $variant) {
+            $auditLogger->record('inventory.barcode_generated', $request->user(), $context->tenant(), $variant, ['variant_id' => $variant->uuid, 'barcode_type' => $variant->barcode_type, 'bulk' => true]);
+        }
+
+        return response()->json(['success' => true, 'data' => ['generated' => ProductVariantResource::collection(collect($result['generated'])), 'skipped' => $result['skipped']]]);
+    }
+
+    private function requireManager(Request $request, TenantContext $context): void
+    {
+        abort_unless($request->user()->memberships()->where('tenant_id', $context->tenant()->id)->where('status', 'active')->whereHas('role', fn ($role) => $role->whereIn('name', ['business_admin', 'inventory_manager']))->exists(), 403);
+    }
+
+    private function newInternalBarcode(int $tenantId, ProductVariant $variant): string
+    {
+        do {
+            $barcode = 'CIINLV-'.$tenantId.'-'.$variant->getKey().'-'.strtoupper(bin2hex(random_bytes(3)));
+        } while (ProductVariant::query()->where('tenant_id', $tenantId)->where('barcode', $barcode)->exists());
+
+        return $barcode;
     }
 }
