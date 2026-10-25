@@ -18,7 +18,7 @@ class UpdateReceiptSettingsRequest extends FormRequest
             'receipt_business_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'header_text' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'footer_text' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'paper_width' => ['sometimes', 'in:58,80'],
+            'paper_width' => ['sometimes', 'in:58,80,a4'],
             'show_logo' => ['sometimes', 'boolean'],
             'show_address' => ['sometimes', 'boolean'],
             'show_phone' => ['sometimes', 'boolean'],
@@ -27,6 +27,7 @@ class UpdateReceiptSettingsRequest extends FormRequest
             'show_datetime' => ['sometimes', 'boolean'],
             'currency_display' => ['sometimes', 'boolean'],
             'auto_print' => ['sometimes', 'boolean'],
+            'show_receipt_preview' => ['sometimes', 'boolean'],
         ];
     }
 }

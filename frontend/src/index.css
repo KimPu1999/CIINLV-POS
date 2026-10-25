@@ -1127,6 +1127,12 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   opacity: .62;
 }
 
+/* The confirmed sale remains available to the payment panel and Sales History;
+   keep the checkout page focused on the existing payment controls. */
+.pos-checkout-page > section.mb-5.rounded-2xl.border-emerald-200.bg-emerald-50 {
+  display: none !important;
+}
+
 [data-theme="dark"] .pos-checkout-page [class~="bg-[#062d4d]"] {
   background-color: #1d6f9c !important;
   color: #ffffff !important;

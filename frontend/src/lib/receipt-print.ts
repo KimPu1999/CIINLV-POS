@@ -34,6 +34,8 @@ export type ReceiptContent = {
 type PrintReceiptOptions = {
   onError: (error: unknown) => void
   onPopupBlocked: () => void
+  paperWidth?: '58' | '80' | 'a4'
+  popup?: Window | null
 }
 
 const escapeHtml = (input: unknown): string => { const source = input == null ? '' : input.toString(); return source.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character] || character) }
@@ -55,7 +57,7 @@ function receiptMarkup(content: ReceiptContent, fallbackId: string): string {
 }
 
 export function printReceipt(id: string, options: PrintReceiptOptions): void {
-  const popup = window.open('', '_blank', 'width=420,height=760')
+  const popup = options.popup || window.open('', '_blank', 'width=420,height=760')
   if (!popup) {
     options.onPopupBlocked()
     return
@@ -66,7 +68,9 @@ export function printReceipt(id: string, options: PrintReceiptOptions): void {
 
   void api.get<{ data: { content: ReceiptContent } }>(`/api/v1/pos/sales/${id}/receipt`).then((response) => {
     popup.document.open()
-    popup.document.write(receiptMarkup(response.data.data.content, id))
+    const pageSize = options.paperWidth === '58' ? '58mm auto' : options.paperWidth === 'a4' ? 'A4' : '80mm auto'
+    const markup = receiptMarkup(response.data.data.content, id).replace('@page{size:80mm auto;', `@page{size:${pageSize};`)
+    popup.document.write(markup)
     popup.document.close()
     popup.focus()
   }).catch((error: unknown) => {

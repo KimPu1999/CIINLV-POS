@@ -4,6 +4,7 @@ import fs from 'node:fs'
 
 const source = fs.readFileSync(new URL('../src/features/pos-checkout.tsx', import.meta.url), 'utf8')
 const receiptPrintSource = fs.readFileSync(new URL('../src/lib/receipt-print.ts', import.meta.url), 'utf8')
+const styles = fs.readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 
 test('POS checkout uses server preview and idempotent sale/payment requests', () => {
   assert.match(source, /\/api\/v1\/pos\/checkout\/preview/)
@@ -37,6 +38,34 @@ test('receipt printing uses the completed sale id and a printable 80mm backend r
   assert.match(receiptPrintSource, /\/api\/v1\/pos\/sales\/\$\{id\}\/receipt/)
   assert.match(receiptPrintSource, /@page\{size:80mm/)
   assert.match(receiptPrintSource, /window\.print\(\)/)
+})
+
+test('sale confirmation never auto-prints and invoice printing is a separate manual action', () => {
+  assert.match(source, /setQuote\(completedSale\)/)
+  assert.match(source, /Sale Successful/)
+  assert.match(source, /Print Invoice/)
+  assert.match(source, /onClick=\{onPrint\}/)
+  assert.doesNotMatch(source, /receiptSettings\.auto_print/)
+  assert.doesNotMatch(source, /pendingReceiptPopup/)
+  assert.doesNotMatch(source, /window\.open\(/)
+  assert.match(receiptPrintSource, /window\.print\(\)/)
+})
+
+test('confirmed sales keep the disabled Confirmed action and place Print Receipt below it', () => {
+  assert.match(source, /saleConfirmedRef/)
+  assert.match(source, /Sale Confirmed Successfully/)
+  assert.match(source, /quote\?\.status === 'completed'/)
+  assert.match(source, /onClick=\{onPrint\}/)
+  assert.match(source, /text\.print_receipt/)
+  assert.match(source, /confirmedSale/)
+  assert.match(source, /setConfirmedSale\(quote\)/)
+  assert.match(source, /if \(confirmedSale && !quote\) setQuote\(confirmedSale\)/)
+  assert.ok(source.lastIndexOf('pos-confirm-sale') < source.lastIndexOf('onClick={onPrint}'))
+})
+
+test('the large sale-success summary card is hidden while the payment panel remains', () => {
+  assert.match(styles, /\.pos-checkout-page > section\.mb-5\.rounded-2xl\.border-emerald-200\.bg-emerald-50[\s\S]*display: none/)
+  assert.match(source, /pos-payment-card/)
 })
 
 test('POS checkout does not pretend unverified split payments completed', () => {
