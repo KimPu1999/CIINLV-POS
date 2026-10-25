@@ -130,6 +130,11 @@
   --theme-primary: var(--brand-primary);
   --theme-primary-soft: var(--brand-primary-light);
   --theme-focus: var(--brand-focus);
+  --table-row-bg: #ffffff;
+  --table-row-hover-bg: #eff6ff;
+  --table-text-primary: #0f172a;
+  --table-text-secondary: #475569;
+  --table-border: #e2e8f0;
   --shadow-small: 0 2px 8px rgba(15, 23, 42, 0.10);
   --shadow-medium: 0 4px 18px rgba(15, 23, 42, 0.08);
   --shadow-large: 0 12px 30px rgba(36, 50, 71, 0.12);
@@ -166,6 +171,11 @@
   --theme-primary: var(--brand-primary);
   --theme-primary-soft: var(--brand-primary-light);
   --theme-focus: var(--brand-focus);
+  --table-row-bg: #102a42;
+  --table-row-hover-bg: #214761;
+  --table-text-primary: #f8fafc;
+  --table-text-secondary: #cbd5e1;
+  --table-border: #365b75;
   --shadow-small: 0 4px 12px rgba(0, 0, 0, 0.22);
   --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.28);
   --shadow-large: 0 12px 30px rgba(0, 0, 0, 0.38);
@@ -1400,6 +1410,57 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 
 .pos-checkout-page .pos-header-card > .pos-filter-row {
   display: none !important;
+}
+
+/* Dashboard table tokens. Keep row text independent from hover backgrounds;
+   status badges and other semantic descendants retain their own colors. */
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table {
+  color: var(--table-text-primary);
+}
+
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table thead {
+  background-color: var(--theme-surface-muted);
+  color: var(--table-text-secondary);
+}
+
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table thead th {
+  color: var(--table-text-secondary) !important;
+  border-color: var(--table-border);
+}
+
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr {
+  background-color: var(--table-row-bg);
+  border-color: var(--table-border);
+}
+
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:focus-within,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr[aria-selected="true"],
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr[data-selected="true"],
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr.selected {
+  background-color: var(--table-row-hover-bg) !important;
+  color: var(--table-text-primary) !important;
+}
+
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td {
+  color: var(--table-text-primary) !important;
+  border-color: var(--table-border);
+}
+
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td.text-slate-400,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td.text-slate-500,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td.text-slate-600,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td .text-slate-400,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td .text-slate-500,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody td .text-slate-600 {
+  color: var(--table-text-secondary) !important;
+}
+
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover a[class~="hover:text-blue-700"]:hover,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover a[class~="hover:text-blue-900"]:hover,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover button[class~="hover:text-blue-700"]:hover,
+:root:not([data-theme="dark"]) .min-h-screen.bg-slate-50 > aside + div main .overflow-x-auto > table tbody tr:hover button[class~="hover:text-blue-900"]:hover {
+  color: var(--theme-primary) !important;
 }
 
 .pos-checkout-page .pos-header-card > .pos-register-status {
