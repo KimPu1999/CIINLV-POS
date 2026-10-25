@@ -288,6 +288,7 @@ export interface MarketplaceOrder {
   currencyCode: string
   status: string
   paymentStatus: string
+  paymentMethod?: string | null
   subtotal: string
   discountTotal: string
   shippingTotal: string
@@ -298,7 +299,7 @@ export interface MarketplaceOrder {
   receiptAvailable?: boolean
   deliveryAddress: Record<string, unknown>
   createdAt?: string | null
-  vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; items: Array<{ id: string; name: string; sku?: string; size?: string | null; quantity: string; unitPrice: string; lineTotal: string }>; shipments: MarketplaceShipment[] }>
+  vendorOrders: Array<{ id: string; vendorOrderNumber: string; storeName?: string | null; status: string; total: string; deliveryOptions?: Record<string, unknown> | null; items: Array<{ id: string; name: string; sku?: string; size?: string | null; quantity: string; unitPrice: string; lineTotal: string }>; shipments: MarketplaceShipment[] }>
   events?: Array<{ id: number; event: string; fromStatus?: string | null; toStatus?: string | null; createdAt?: string | null }>
 }
 
@@ -789,10 +790,12 @@ function normalizeOrder(value: unknown): MarketplaceOrder {
     const item = asRecord(vendor) ?? {}
     const items = Array.isArray(item.items) ? item.items.map((line) => { const row = asRecord(line) ?? {}; const variant = asRecord(row.variant); return { id: String(row.id ?? ''), name: String(row.name ?? ''), sku: typeof row.sku === 'string' ? row.sku : undefined, size: typeof row.size === 'string' ? row.size : (typeof asRecord(variant)?.attributes === 'object' ? String(asRecord(asRecord(variant)?.attributes)?.size ?? '') || null : null), quantity: String(row.quantity ?? '0'), unitPrice: String(row.unit_price ?? '0'), lineTotal: String(row.line_total ?? '0') } }) : []
     const shipments = Array.isArray(item.shipments) ? item.shipments.map(normalizeShipment) : []
-    return { id: String(item.id ?? ''), vendorOrderNumber: String(item.vendor_order_number ?? ''), storeName: typeof item.store_name === 'string' ? item.store_name : null, status: String(item.status ?? 'pending'), total: String(item.total ?? '0'), items, shipments }
+    return { id: String(item.id ?? ''), vendorOrderNumber: String(item.vendor_order_number ?? ''), storeName: typeof item.store_name === 'string' ? item.store_name : null, status: String(item.status ?? 'pending'), total: String(item.total ?? '0'), deliveryOptions: asRecord(item.delivery_options), items, shipments }
   }) : []
   const events = Array.isArray(data.events) ? data.events.map((event) => { const row = asRecord(event) ?? {}; return { id: Number(row.id ?? 0), event: String(row.event ?? ''), fromStatus: typeof row.from_status === 'string' ? row.from_status : null, toStatus: typeof row.to_status === 'string' ? row.to_status : null, createdAt: typeof row.created_at === 'string' ? row.created_at : null } }) : []
-  return { id: String(data.id ?? ''), orderNumber: String(data.order_number ?? ''), invoiceNumber: typeof data.invoice_number === 'string' ? data.invoice_number : null, currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'confirmed'), paymentStatus: String(data.payment_status ?? 'pending'), subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), amountReceived: data.amount_received == null ? null : String(data.amount_received), amountDue: data.amount_due == null ? null : String(data.amount_due), receiptAvailable: Boolean(data.receipt_available), deliveryAddress: asRecord(data.delivery_address) ?? {}, createdAt: typeof data.created_at === 'string' ? data.created_at : null, vendorOrders: vendors, events }
+  const payments = Array.isArray(data.payments) ? data.payments : []
+  const latestPayment = asRecord(payments[payments.length - 1])
+  return { id: String(data.id ?? ''), orderNumber: String(data.order_number ?? ''), invoiceNumber: typeof data.invoice_number === 'string' ? data.invoice_number : null, currencyCode: String(data.currency_code ?? 'MMK'), status: String(data.status ?? 'confirmed'), paymentStatus: String(data.payment_status ?? 'pending'), paymentMethod: typeof latestPayment?.method === 'string' ? latestPayment.method : null, subtotal: String(data.subtotal ?? '0'), discountTotal: String(data.discount_total ?? '0'), shippingTotal: String(data.shipping_total ?? '0'), taxTotal: String(data.tax_total ?? '0'), grandTotal: String(data.grand_total ?? '0'), amountReceived: data.amount_received == null ? null : String(data.amount_received), amountDue: data.amount_due == null ? null : String(data.amount_due), receiptAvailable: Boolean(data.receipt_available), deliveryAddress: asRecord(data.delivery_address) ?? {}, createdAt: typeof data.created_at === 'string' ? data.created_at : null, vendorOrders: vendors, events }
 }
 
 function normalizeShipment(value: unknown): MarketplaceShipment {

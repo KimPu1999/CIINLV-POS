@@ -33,8 +33,12 @@ class MarketplaceDisputeService
 
     public function create(MarketplaceOrder $order, User $customer, array $data, MarketplaceAuditLogger $audit): MarketplaceDispute
     {
-        if (! in_array($order->status, ['confirmed', 'processing', 'partially_shipped', 'shipped', 'delivered'], true) || $order->status === 'cancelled') {
+        $eligibleCategories = $this->eligibleCategories($order);
+        if ($eligibleCategories === []) {
             throw new UnprocessableEntityHttpException('This order is not eligible for a dispute.');
+        }
+        if (! in_array($data['category'], $eligibleCategories, true)) {
+            throw new UnprocessableEntityHttpException('This dispute category is not available for the current order state.');
         }
         if ($order->created_at?->lt(now()->subDays((int) config('marketplace.disputes.filing_window_days', 30)))) {
             throw new UnprocessableEntityHttpException('The dispute filing window for this order has expired.');
@@ -68,6 +72,24 @@ class MarketplaceDisputeService
         $this->notifications->disputeUpdated($dispute, 'submitted');
 
         return $dispute->load(['order', 'vendorOrder.store', 'item', 'customer', 'evidence.uploader', 'messages.sender', 'history.actor', 'resolution']);
+    }
+
+    /** @return array<int, string> */
+    public function eligibleCategories(MarketplaceOrder $order): array
+    {
+        $categories = match ($order->status) {
+            'confirmed', 'processing' => ['payment_problem', 'order_problem', 'seller_not_responding'],
+            'partially_shipped', 'shipped' => ['shipping_delay', 'tracking_problem', 'product_not_received', 'delivery_delay', 'payment_problem', 'seller_not_responding'],
+            'delivered' => ['damaged_or_defective', 'wrong_product', 'missing_items', 'not_as_described'],
+            'cancelled' => ['refund_problem'],
+            default => [],
+        };
+        $methods = $order->vendorOrders()->get()->pluck('delivery_options')->all();
+        $isPickup = collect($methods)->contains(fn ($options): bool => is_array($options) && in_array($options['method'] ?? null, ['take_away', 'pickup', 'store_pickup'], true));
+        if ($isPickup) {
+            $categories = array_values(array_unique(array_merge(['pickup_unavailable', 'pickup_delay'], $categories, ['wrong_product', 'damaged_or_defective', 'missing_items', 'not_as_described'])));
+        }
+        return $categories;
     }
 
     public function changeStatus(MarketplaceDispute $dispute, string $status, User $actor, ?string $reason, MarketplaceAuditLogger $audit): MarketplaceDispute

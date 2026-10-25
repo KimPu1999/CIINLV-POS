@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 class MarketplaceDispute extends Model
 {
     public const STATUSES = ['open', 'awaiting_seller_response', 'under_review', 'awaiting_customer_information', 'resolved', 'rejected', 'closed'];
-    public const CATEGORIES = ['product_not_received', 'wrong_product', 'damaged_or_defective', 'missing_items', 'not_as_described', 'payment_problem', 'refund_problem', 'other'];
+    public const CATEGORIES = ['payment_problem', 'order_problem', 'seller_not_responding', 'shipping_delay', 'tracking_problem', 'product_not_received', 'delivery_delay', 'wrong_product', 'damaged_or_defective', 'missing_items', 'not_as_described', 'refund_problem', 'pickup_unavailable', 'pickup_delay', 'other'];
     public const RESOLUTIONS = ['full_refund', 'partial_refund', 'replacement', 'return_requested', 'no_refund', 'other'];
 
     protected $fillable = ['marketplace_order_id', 'marketplace_vendor_order_id', 'marketplace_order_item_id', 'tenant_id', 'customer_user_id', 'assigned_reviewer_id', 'category', 'subject', 'description', 'status', 'priority', 'requested_resolution', 'resolution_note', 'resolved_at'];
