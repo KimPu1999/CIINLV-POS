@@ -1014,3 +1014,120 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* POS checkout theme tokens. These remain scoped to checkout so shared
+   dashboard pages keep their existing visual language. */
+.pos-checkout-page {
+  --pos-page: var(--theme-background);
+  --pos-surface: var(--theme-surface);
+  --pos-elevated: var(--theme-surface-muted);
+  --pos-text: var(--theme-text);
+  --pos-muted: var(--theme-text-secondary);
+  --pos-border: var(--theme-border);
+  --pos-primary: var(--theme-primary);
+  color: var(--pos-text);
+}
+
+.pos-checkout-page .pos-filter-card,
+.pos-checkout-page .pos-search-card,
+.pos-checkout-page .pos-product-card,
+.pos-checkout-page .pos-cart-panel,
+.pos-checkout-page .pos-payment-card {
+  border-color: var(--pos-border) !important;
+  background: var(--pos-surface) !important;
+  color: var(--pos-text);
+}
+
+.pos-checkout-page input,
+.pos-checkout-page select,
+.pos-checkout-page textarea {
+  border-color: var(--pos-border) !important;
+  background-color: var(--pos-elevated) !important;
+  color: var(--pos-text) !important;
+}
+
+.pos-checkout-page input::placeholder,
+.pos-checkout-page textarea::placeholder {
+  color: var(--pos-muted) !important;
+  opacity: 1;
+}
+
+.pos-checkout-page option {
+  background: var(--pos-surface);
+  color: var(--pos-text);
+}
+
+.pos-checkout-page label,
+.pos-checkout-page [class~="text-slate-900"],
+.pos-checkout-page [class~="text-slate-800"],
+.pos-checkout-page [class~="text-slate-700"],
+.pos-checkout-page [class~="text-slate-600"],
+.pos-checkout-page [class~="text-slate-500"],
+.pos-checkout-page [class~="text-slate-400"],
+.pos-checkout-page [class~="text-[#062d4d]"],
+.pos-checkout-page [class~="text-[#6e8aa3]"] {
+  color: var(--pos-text) !important;
+}
+
+.pos-checkout-page [class~="text-slate-600"],
+.pos-checkout-page [class~="text-slate-500"],
+.pos-checkout-page [class~="text-slate-400"],
+.pos-checkout-page [class~="text-[#6e8aa3]"] {
+  color: var(--pos-muted) !important;
+}
+
+.pos-checkout-page [class~="border-slate-100"],
+.pos-checkout-page [class~="border-slate-200"],
+.pos-checkout-page [class~="border-slate-300"],
+.pos-checkout-page [class~="border-blue-100"],
+.pos-checkout-page [class~="border-blue-200"] {
+  border-color: var(--pos-border) !important;
+}
+
+.pos-checkout-page [class~="bg-white"],
+.pos-checkout-page [class~="bg-white/90"] {
+  background-color: var(--pos-surface) !important;
+}
+
+.pos-checkout-page [class~="bg-slate-50"],
+.pos-checkout-page [class~="bg-slate-100"],
+.pos-checkout-page [class~="bg-blue-50"],
+.pos-checkout-page [class~="bg-blue-50/40"] {
+  background-color: var(--pos-elevated) !important;
+}
+
+.pos-checkout-page [class~="text-blue-700"],
+.pos-checkout-page [class~="text-blue-600"],
+.pos-checkout-page [class~="text-blue-500"] {
+  color: var(--pos-primary) !important;
+}
+
+.pos-checkout-page [class~="bg-[#062d4d]"] {
+  background-color: var(--pos-primary) !important;
+}
+
+.pos-checkout-page [class~="border-[#062d4d]"] {
+  border-color: var(--pos-primary) !important;
+}
+
+.pos-checkout-page button:not(:disabled):focus-visible,
+.pos-checkout-page input:focus-visible,
+.pos-checkout-page select:focus-visible,
+.pos-checkout-page textarea:focus-visible {
+  outline: 3px solid var(--theme-focus);
+  outline-offset: 2px;
+}
+
+.pos-checkout-page button:disabled {
+  color: var(--pos-muted);
+}
+
+.pos-checkout-page .pos-confirm-sale:disabled {
+  color: #dbeafe;
+  opacity: .62;
+}
+
+[data-theme="dark"] .pos-checkout-page [class~="bg-[#062d4d]"] {
+  background-color: #1d6f9c !important;
+  color: #ffffff !important;
+}
