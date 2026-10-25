@@ -182,7 +182,15 @@ function App() {
   useEffect(() => {
     const root = document.documentElement
     const colors = appearance?.[theme]
-    if (colors) Object.entries(colors).forEach(([key, value]) => root.style.setProperty(`--marketplace-${key.replaceAll('_', '-')}`, value))
+    if (colors) {
+      Object.entries(colors).forEach(([key, value]) => {
+        if (!/^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(value)) return
+        root.style.setProperty(`--marketplace-${key.replaceAll('_', '-')}`, value)
+      })
+      // Keep semantic aliases stable for shared components and future pages.
+      root.style.setProperty('--marketplace-background', colors.page_bg)
+      root.style.setProperty('--marketplace-surface', colors.card_bg)
+    }
     if (appearance) {
       root.style.setProperty('--marketplace-font-family', appearance.font_family)
       root.style.setProperty('--marketplace-nav-font-size', `${appearance.nav_font_size}px`)

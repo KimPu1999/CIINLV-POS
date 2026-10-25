@@ -9,7 +9,7 @@
   /* --brand-primary: #003868; --brand-primary-deep: #002850; --brand-secondary: #f86820; --brand-accent: #47bfff; */
   /* --brand-header-bg: var(--brand-primary); --brand-footer-bg: var(--brand-primary-deep); */
   --brand-primary: var(--marketplace-primary, #003868);
-  --brand-primary-deep: #002850;
+  --brand-primary-deep: var(--marketplace-footer-bg, #002850);
   --brand-secondary: var(--marketplace-secondary, #f86820);
   --brand-accent: var(--marketplace-accent, #47bfff);
   --brand-header-bg: var(--marketplace-header-bg, var(--brand-primary));
@@ -24,8 +24,17 @@
   --brand-footer-text: var(--marketplace-footer-text, #ffffff);
   --brand-footer-muted: color-mix(in srgb, var(--brand-footer-text) 74%, var(--brand-footer-bg));
   --brand-footer-border: color-mix(in srgb, var(--brand-secondary) 28%, transparent);
-  color: #0f172a;
-  background: #f8fafc;
+  /* These variables are the stable contract for the public marketplace. The
+     API replaces them at runtime; the values below keep the first paint safe. */
+  --marketplace-page-bg: #f8fafc;
+  --marketplace-card-bg: #ffffff;
+  --marketplace-border: #dbeafe;
+  --marketplace-text: #0f172a;
+  --marketplace-muted-text: #64748b;
+  --marketplace-button-bg: #2563eb;
+  --marketplace-button-text: #ffffff;
+  color: var(--marketplace-text);
+  background: var(--marketplace-page-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -45,6 +54,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--marketplace-page-bg);
+  color: var(--marketplace-text);
 }
 
 body { font-size: var(--marketplace-body-font-size, 16px); }
@@ -227,3 +238,30 @@ select:focus-visible {
   .marketplace-print-document * { visibility: visible !important; }
   .marketplace-print-document { position: absolute; inset: 0; width: 100%; padding: 0 !important; }
 }
+
+/* Shared marketplace surfaces. Keeping these aliases here means pages can
+   continue using the existing Tailwind component markup while configurable
+   branding is applied consistently at runtime. */
+.marketplace-app-shell {
+  background-color: var(--marketplace-page-bg) !important;
+  color: var(--marketplace-text) !important;
+}
+
+.marketplace-app-shell .bg-white { background-color: var(--marketplace-card-bg); }
+.marketplace-app-shell .bg-slate-50 { background-color: var(--marketplace-page-bg); }
+.marketplace-app-shell .text-slate-950,
+.marketplace-app-shell .text-slate-900,
+.marketplace-app-shell .text-slate-800 { color: var(--marketplace-text); }
+.marketplace-app-shell .text-slate-700,
+.marketplace-app-shell .text-slate-600,
+.marketplace-app-shell .text-slate-500,
+.marketplace-app-shell .text-slate-400 { color: var(--marketplace-muted-text); }
+.marketplace-app-shell .text-blue-700,
+.marketplace-app-shell .text-blue-600 { color: var(--marketplace-primary); }
+.marketplace-app-shell .bg-blue-600 { background-color: var(--marketplace-button-bg); color: var(--marketplace-button-text); }
+.marketplace-app-shell .text-white { color: var(--marketplace-button-text); }
+.marketplace-app-shell .border-slate-200,
+.marketplace-app-shell .border-slate-100,
+.marketplace-app-shell .border-blue-100 { border-color: var(--marketplace-border); }
+.marketplace-app-shell button { font-size: var(--marketplace-button-font-size, inherit); }
+

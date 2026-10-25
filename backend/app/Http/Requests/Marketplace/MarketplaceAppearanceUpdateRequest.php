@@ -15,7 +15,7 @@ class MarketplaceAppearanceUpdateRequest extends FormRequest
 
     public function rules(): array
     {
-        $colors = ['nullable', 'string', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'];
+        $colors = ['required', 'string', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'];
         $sizes = ['nullable', 'numeric', 'min:10', 'max:48'];
 
         return [

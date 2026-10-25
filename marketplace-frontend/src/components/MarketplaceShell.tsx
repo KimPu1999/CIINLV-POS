@@ -70,7 +70,7 @@ export function MarketplaceShell({ locale, theme, customer, appearance, cartCoun
   const closeMobile = () => setMobileOpen(false)
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
+    <div className="marketplace-app-shell min-h-screen bg-slate-50 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
       <div className="marketplace-announcement px-4 py-1 text-center text-xs font-semibold tracking-wide"><span className="marketplace-announcement-accent">{t('tagline')}</span></div>
       <header className="marketplace-header sticky top-0 z-40 border-b backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1536px] flex-wrap items-center gap-2 px-4 py-2.5 sm:gap-3 sm:px-6 lg:flex-nowrap lg:px-8">
