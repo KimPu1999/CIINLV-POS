@@ -80,7 +80,9 @@ class PhaseFiveInventoryTest extends TestCase
         $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->putJson('/api/v1/product-variants/'.$second->uuid.'/barcode', ['barcode' => '4006381333931', 'type' => 'ean-13'])->assertStatus(409);
         $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->putJson('/api/v1/product-variants/'.$second->uuid.'/barcode', ['barcode' => 'not-an-ean', 'type' => 'ean-13'])->assertUnprocessable();
 
-        $bulk = $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/barcodes/bulk-generate', ['variant_ids' => [$variant->uuid, $second->uuid], 'type' => 'internal'])->assertOk();
+        $preview = $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/barcodes/bulk-generate', ['variant_ids' => [$variant->uuid, $second->uuid], 'type' => 'internal', 'preview' => true])->assertOk();
+        $this->assertCount(1, $preview->json('data.preview'));
+        $bulk = $this->actingAs($adminA, 'sanctum')->withHeaders($headersA)->postJson('/api/v1/barcodes/bulk-generate', ['variant_ids' => [$variant->uuid, $second->uuid], 'type' => 'internal', 'assignments' => [['variant_id' => $second->uuid, 'barcode' => $preview->json('data.preview.0.barcode')]]])->assertOk();
         $bulk->assertJsonCount(1, 'data.generated')->assertJsonCount(1, 'data.skipped');
         $this->actingAs($adminB, 'sanctum')->withHeaders($headersB)->putJson('/api/v1/product-variants/'.$variant->uuid.'/barcode', ['barcode' => 'OTHER-001', 'type' => 'internal'])->assertNotFound();
     }

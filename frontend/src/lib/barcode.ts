@@ -11,15 +11,34 @@ function formatFor(type?: string | null): 'CODE128' | 'EAN13' | 'EAN8' | 'UPC' {
 
 export function createBarcodeSvg(value: string, type?: string | null): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.classList.add('barcode')
   JsBarcode(svg, value, { format: formatFor(type), displayValue: true, margin: 8, height: 64, width: 2, background: '#ffffff', lineColor: '#111827' })
   return svg
 }
 
-export function openBarcodeLabel(options: { value: string; type?: string | null; productName?: string; variant?: string; sku?: string; price?: string; businessName?: string }) {
+export type BarcodeLabel = { value: string; type?: string | null; productName?: string; variant?: string; sku?: string; price?: string; businessName?: string }
+
+export function downloadBarcodeSvg(options: BarcodeLabel): void {
+  const svg = createBarcodeSvg(options.value, options.type)
+  const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${safeFilename(options.productName || 'barcode')}-${safeFilename(options.value)}.svg`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+export function openBarcodeLabels(labels: BarcodeLabel[]) {
+  if (!labels.length) throw new Error('No barcode labels are available to print.')
   const popup = window.open('', '_blank', 'width=520,height=520')
   if (!popup) throw new Error('Allow pop-ups to print barcode labels.')
-  const svg = createBarcodeSvg(options.value, options.type).outerHTML
   const esc = (value: string) => value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character] || character))
-  popup.document.write(`<html><head><title>Barcode label</title><style>@page{size:50mm 30mm;margin:0}body{font-family:Arial,sans-serif;text-align:center;margin:4mm 2mm;color:#111827}.label{width:46mm;margin:auto}.business{font-size:10px;font-weight:700}.name{font-size:11px;font-weight:700;margin:2mm 0 1mm}.meta{font-size:9px;margin-top:1mm}.barcode{display:block;width:100%;height:auto;margin:1mm auto}.price{font-size:10px;font-weight:700;margin-top:1mm}@media print{body{margin:4mm 2mm}}</style></head><body><div class="label">${options.businessName ? `<div class="business">${esc(options.businessName)}</div>` : ''}<div class="name">${esc(options.productName || 'Product')}${options.variant ? ` · ${esc(options.variant)}` : ''}</div>${svg}<div class="meta">${esc(options.sku || '')} · ${esc(options.value)}</div>${options.price ? `<div class="price">${esc(options.price)}</div>` : ''}</div><script>window.onload=()=>window.print()<\/script></body></html>`)
+  const markup = labels.map((options) => { const svg = createBarcodeSvg(options.value, options.type).outerHTML; return `<article class="label">${options.businessName ? `<div class="business">${esc(options.businessName)}</div>` : ''}<div class="name">${esc(options.productName || 'Product')}${options.variant ? ` · ${esc(options.variant)}` : ''}</div>${svg}<div class="meta">${esc(options.sku || '')} · ${esc(options.value)}</div>${options.price ? `<div class="price">${esc(options.price)}</div>` : ''}</article>` }).join('')
+  popup.document.write(`<html><head><title>Barcode labels</title><style>@page{size:50mm 30mm;margin:0}body{font-family:Arial,sans-serif;text-align:center;margin:4mm 2mm;color:#111827}.label{box-sizing:border-box;width:46mm;min-height:26mm;margin:0 auto 4mm;break-after:page}.label:last-child{break-after:auto}.business{font-size:10px;font-weight:700}.name{font-size:11px;font-weight:700;margin:2mm 0 1mm}.meta{font-size:9px;margin-top:1mm}.barcode{display:block;width:100%;height:auto;margin:1mm auto}.price{font-size:10px;font-weight:700;margin-top:1mm}@media print{body{margin:4mm 2mm}}</style></head><body>${markup}<script>window.onload=()=>window.print()<\/script></body></html>`)
   popup.document.close()
 }
+
+export function openBarcodeLabel(options: BarcodeLabel) { openBarcodeLabels([options]) }
+
+function safeFilename(value: string): string { return value.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'barcode' }

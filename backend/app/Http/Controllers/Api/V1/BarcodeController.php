@@ -86,18 +86,21 @@ class BarcodeController
         return response()->json(['success' => true, 'data' => new ProductVariantResource($updated)]);
     }
 
-    public function bulkGenerate(BulkGenerateBarcodeRequest $request, TenantContext $context, AuditLogger $auditLogger): JsonResponse
+    public function bulkGenerate(BulkGenerateBarcodeRequest $request, TenantContext $context, AuditLogger $auditLogger, BarcodeService $barcodeService): JsonResponse
     {
         $this->requireManager($request, $context);
         $tenantId = (int) $context->tenant()->id;
         $type = $request->input('type', 'internal');
         $requested = array_values(array_unique($request->input('variant_ids', [])));
+        $assignments = collect($request->input('assignments', []))->keyBy('variant_id');
 
-        $result = DB::transaction(function () use ($requested, $tenantId, $type): array {
-            $variants = ProductVariant::query()->where('tenant_id', $tenantId)->whereIn('uuid', $requested)->lockForUpdate()->get()->keyBy('uuid');
+        $result = DB::transaction(function () use ($requested, $tenantId, $type, $assignments, $request, $barcodeService): array {
+            $variants = ProductVariant::query()->where('tenant_id', $tenantId)->whereIn('uuid', $requested)->with('product')->lockForUpdate()->get()->keyBy('uuid');
             abort_if($variants->count() !== count($requested), 422, 'One or more selected variants are not available in this business.');
             $generated = [];
             $skipped = [];
+            $preview = [];
+            $seen = [];
             foreach ($requested as $uuid) {
                 $variant = $variants->get($uuid);
                 if ($variant->barcode) {
@@ -105,19 +108,32 @@ class BarcodeController
 
                     continue;
                 }
-                $barcode = $this->newInternalBarcode($tenantId, $variant);
+                $assignment = $assignments->get($uuid);
+                $barcode = $assignment['barcode'] ?? $this->newInternalBarcode($tenantId, $variant);
+                $barcode = $barcodeService->validate($barcode, $type);
+                abort_if(isset($seen[$barcode]), 409, 'The proposed barcodes contain a duplicate value.');
+                abort_if(ProductVariant::query()->where('tenant_id', $tenantId)->where('barcode', $barcode)->where('id', '!=', $variant->getKey())->where('status', 'active')->exists(), 409, 'One of the proposed barcodes is already in use in this business.');
+                $seen[$barcode] = true;
+                $preview[] = ['variant_id' => $variant->uuid, 'barcode' => $barcode, 'sku' => $variant->sku, 'product_name' => $variant->product?->name, 'size' => is_array($variant->attributes) ? ($variant->attributes['size'] ?? null) : null];
+                if ($request->boolean('preview')) {
+                    continue;
+                }
                 $variant->update(['barcode' => $barcode, 'barcode_type' => $type]);
                 $generated[] = $variant->fresh('product');
             }
 
-            return ['generated' => $generated, 'skipped' => $skipped];
+            return ['generated' => $generated, 'skipped' => $skipped, 'preview' => $preview];
         });
+
+        if ($request->boolean('preview')) {
+            return response()->json(['success' => true, 'data' => ['preview' => $result['preview'], 'skipped' => $result['skipped']]]);
+        }
 
         foreach ($result['generated'] as $variant) {
             $auditLogger->record('inventory.barcode_generated', $request->user(), $context->tenant(), $variant, ['variant_id' => $variant->uuid, 'barcode_type' => $variant->barcode_type, 'bulk' => true]);
         }
 
-        return response()->json(['success' => true, 'data' => ['generated' => ProductVariantResource::collection(collect($result['generated'])), 'skipped' => $result['skipped']]]);
+        return response()->json(['success' => true, 'data' => ['generated' => ProductVariantResource::collection(collect($result['generated'])), 'skipped' => $result['skipped'], 'preview' => $result['preview']]]);
     }
 
     private function requireManager(Request $request, TenantContext $context): void
