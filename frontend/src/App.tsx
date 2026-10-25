@@ -58,6 +58,7 @@ const MarketplaceStorePage = lazy(() => import('./features/marketplace-vendor').
 const MarketplaceStorePreviewPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceStorePreviewPage: Page }) => ({ default: Page })))
 const MarketplaceProductsPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceProductsPage: Page }) => ({ default: Page })))
 const MarketplaceOrdersPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrdersPage: Page }) => ({ default: Page })))
+const MarketplaceDisputesPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceDisputesPage: Page }) => ({ default: Page })))
 const MarketplaceOrderDetailPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceOrderDetailPage: Page }) => ({ default: Page })))
 const MarketplaceInvoicePage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceInvoicePage: Page }) => ({ default: Page })))
 const MarketplaceReceiptPage = lazy(() => import('./features/marketplace-vendor').then(({ MarketplaceReceiptPage: Page }) => ({ default: Page })))
@@ -394,6 +395,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="marketplace/store" element={<MarketplaceStorePage />} />
           <Route path="marketplace/products" element={<MarketplaceProductsPage />} />
           <Route path="marketplace/orders" element={<MarketplaceOrdersPage />} />
+          <Route path="marketplace/disputes" element={<MarketplaceDisputesPage />} />
           <Route path="marketplace/orders/:order" element={<MarketplaceOrderDetailPage />} />
           <Route path="marketplace/orders/:order/invoice" element={<MarketplaceInvoicePage />} />
           <Route path="marketplace/orders/:order/receipt" element={<MarketplaceReceiptPage />} />

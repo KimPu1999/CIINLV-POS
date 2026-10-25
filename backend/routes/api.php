@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\InventoryReportController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\MarketplaceAdminController;
 use App\Http\Controllers\Api\V1\MarketplaceContactController;
+use App\Http\Controllers\Api\V1\MarketplaceDisputeController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAddressController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerCheckoutController;
@@ -217,6 +218,14 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/return-requests', [MarketplaceAdminController::class, 'returnRequests']);
             Route::patch('/return-requests/{return}/decision', [MarketplaceAdminController::class, 'decideReturn']);
             Route::get('/refund-requests', [MarketplaceAdminController::class, 'refundRequests']);
+            Route::get('/disputes', [MarketplaceDisputeController::class, 'adminIndex']);
+            Route::get('/disputes/dashboard', [MarketplaceDisputeController::class, 'adminDashboard']);
+            Route::get('/disputes/{dispute}', [MarketplaceDisputeController::class, 'adminShow']);
+            Route::patch('/disputes/{dispute}/assign', [MarketplaceDisputeController::class, 'assign']);
+            Route::patch('/disputes/{dispute}/status', [MarketplaceDisputeController::class, 'status']);
+            Route::post('/disputes/{dispute}/messages', [MarketplaceDisputeController::class, 'message']);
+            Route::post('/disputes/{dispute}/evidence', [MarketplaceDisputeController::class, 'evidence']);
+            Route::post('/disputes/{dispute}/resolution', [MarketplaceDisputeController::class, 'resolve']);
             Route::get('/orders/{order}', [MarketplaceAdminController::class, 'orderDetail']);
             Route::post('/orders/{order}/investigation-notes', [MarketplaceAdminController::class, 'investigationNote']);
             Route::patch('/orders/{order}/hold', [MarketplaceAdminController::class, 'hold']);
@@ -264,6 +273,11 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
             Route::get('/orders/{order}/invoice', [MarketplaceVendorController::class, 'invoice']);
             Route::get('/orders/{order}/receipt', [MarketplaceVendorController::class, 'receipt']);
+            Route::get('/disputes', [MarketplaceDisputeController::class, 'vendorIndex']);
+            Route::get('/disputes/{dispute}', [MarketplaceDisputeController::class, 'vendorShow']);
+            Route::post('/disputes/{dispute}/messages', [MarketplaceDisputeController::class, 'message']);
+            Route::post('/disputes/{dispute}/evidence', [MarketplaceDisputeController::class, 'evidence']);
+            Route::patch('/disputes/{dispute}/status', [MarketplaceDisputeController::class, 'status']);
             Route::post('/orders/{order}/payments/cod/collect', [MarketplaceVendorController::class, 'collectCod']);
             Route::post('/orders/{order}/shipments', [MarketplaceVendorFulfillmentController::class, 'createShipment']);
             Route::patch('/shipments/{shipment}/status', [MarketplaceVendorFulfillmentController::class, 'updateShipment']);
@@ -311,7 +325,14 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/orders/{order}/cancellation-requests', [MarketplaceCustomerCheckoutController::class, 'requestCancellation'])->middleware('throttle:api');
             Route::post('/orders/{order}/return-requests', [MarketplaceCustomerCheckoutController::class, 'requestReturn'])->middleware('throttle:api');
             Route::get('/orders/{order}', [MarketplaceCustomerCheckoutController::class, 'order']);
+            Route::get('/disputes', [MarketplaceDisputeController::class, 'customerIndex']);
+            Route::get('/disputes/{dispute}', [MarketplaceDisputeController::class, 'customerShow']);
+            Route::post('/orders/{order}/disputes', [MarketplaceDisputeController::class, 'customerStore'])->middleware('throttle:api');
+            Route::post('/disputes/{dispute}/messages', [MarketplaceDisputeController::class, 'message']);
+            Route::post('/disputes/{dispute}/evidence', [MarketplaceDisputeController::class, 'evidence']);
         });
+
+        Route::get('/marketplace/dispute-evidence/{evidence}', [MarketplaceDisputeController::class, 'download'])->middleware('auth:sanctum');
 
         Route::prefix('business')->middleware('tenant.context')->group(function (): void {
             Route::get('/profile', [BusinessProfileController::class, 'show']);

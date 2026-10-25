@@ -1170,7 +1170,7 @@ class MarketplaceAdminController
             'settlement_ledger' => ['available' => $ledgerAvailable, 'reason' => $ledgerAvailable ? 'Order-level commission snapshots and seller earnings are persisted.' : 'The reviewed settlement migration is pending.'],
             'payouts' => ['available' => false, 'reason' => $payoutStorageAvailable ? 'Payout records are persisted, but no verified payout provider is configured.' : 'No payout provider or payout records exist yet; the reviewed additive payout migration is pending.'],
             'real_money_refunds' => ['available' => false, 'reason' => 'No verified refund provider is configured.'],
-            'disputes' => ['available' => false, 'reason' => 'No dispute workflow or evidence schema exists yet.'],
+            'disputes' => ['available' => Schema::hasTable('marketplace_disputes'), 'reason' => Schema::hasTable('marketplace_disputes') ? 'Customer, seller and platform dispute workflow is available.' : 'The dispute workflow migration is pending.'],
         ];
     }
 

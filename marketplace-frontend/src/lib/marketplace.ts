@@ -302,6 +302,8 @@ export interface MarketplaceOrder {
   events?: Array<{ id: number; event: string; fromStatus?: string | null; toStatus?: string | null; createdAt?: string | null }>
 }
 
+export interface MarketplaceDispute { id: string; reference: string; orderNumber?: string | null; category: string; subject: string; description: string; status: string; priority: string; requestedResolution: string; resolutionNote?: string | null; createdAt?: string | null; messages?: { id: string; message: string; visibility: string; sender?: { id?: number; name?: string }; createdAt?: string | null }[]; evidence?: { id: string; name: string; mimeType: string; sizeBytes: number; createdAt?: string | null }[]; history?: { from?: string | null; to: string; reason?: string | null; createdAt?: string | null }[]; resolution?: { type: string; amount?: string | null; note: string; refundStatus: string } | null }
+
 export interface MarketplaceDocument {
   documentType: 'invoice' | 'receipt'
   invoiceNumber?: string | null
@@ -451,7 +453,7 @@ async function requestJson(path: string, init: RequestInit = {}, locale?: Locale
   if (locale) headers.set('Accept-Language', locale)
   const token = xsrfToken()
   if (token) headers.set('X-XSRF-TOKEN', token)
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (init.body && !(typeof FormData !== 'undefined' && init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   const response = await fetch(path, { ...init, headers, credentials: 'include' })
   const payload = await response.json().catch(() => null) as Record<string, unknown> | null
   if (!response.ok) {
@@ -817,6 +819,37 @@ export async function fetchMarketplaceOrder(id: string, locale: Locale): Promise
 export async function fetchMarketplaceTracking(id: string, locale: Locale): Promise<MarketplaceOrder> {
   const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(id)}/tracking`, {}, locale), {}, locale)
   return normalizeOrder(unwrap<unknown>(payload))
+}
+
+function normalizeDispute(value: unknown): MarketplaceDispute {
+  const data = asRecord(value) ?? {}
+  const map = (entry: unknown): Record<string, unknown> => asRecord(entry) ?? {}
+  return { id: String(data.id ?? ''), reference: String(data.reference ?? ''), orderNumber: typeof data.order_number === 'string' ? data.order_number : null, category: String(data.category ?? 'other'), subject: String(data.subject ?? ''), description: String(data.description ?? ''), status: String(data.status ?? 'open'), priority: String(data.priority ?? 'normal'), requestedResolution: String(data.requested_resolution ?? 'other'), resolutionNote: typeof data.resolution_note === 'string' ? data.resolution_note : null, createdAt: typeof data.created_at === 'string' ? data.created_at : null, messages: Array.isArray(data.messages) ? data.messages.map((item) => { const row = map(item); const sender = map(row.sender); return { id: String(row.id ?? ''), message: String(row.message ?? ''), visibility: String(row.visibility ?? 'participants'), sender: { id: Number(sender.id ?? 0), name: typeof sender.name === 'string' ? sender.name : undefined }, createdAt: typeof row.created_at === 'string' ? row.created_at : null } }) : undefined, evidence: Array.isArray(data.evidence) ? data.evidence.map((item) => { const row = map(item); return { id: String(row.id ?? ''), name: String(row.name ?? ''), mimeType: String(row.mime_type ?? ''), sizeBytes: Number(row.size_bytes ?? 0), createdAt: typeof row.created_at === 'string' ? row.created_at : null } }) : undefined, history: Array.isArray(data.history) ? data.history.map((item) => { const row = map(item); return { from: typeof row.from === 'string' ? row.from : null, to: String(row.to ?? ''), reason: typeof row.reason === 'string' ? row.reason : null, createdAt: typeof row.created_at === 'string' ? row.created_at : null } }) : undefined, resolution: data.resolution ? (() => { const row = map(data.resolution); return { type: String(row.type ?? 'other'), amount: typeof row.amount === 'string' ? row.amount : null, note: String(row.note ?? ''), refundStatus: String(row.refund_status ?? '') } })() : null }
+}
+
+export async function fetchMarketplaceDisputes(locale: Locale): Promise<MarketplaceDispute[]> {
+  const payload = await requestJson(withQuery('/disputes', {}, locale), {}, locale)
+  const values = unwrap<unknown>(payload)
+  return Array.isArray(values) ? values.map(normalizeDispute) : []
+}
+
+export async function fetchMarketplaceDispute(id: string, locale: Locale): Promise<MarketplaceDispute> {
+  const payload = await requestJson(withQuery(`/disputes/${encodeURIComponent(id)}`, {}, locale), {}, locale)
+  return normalizeDispute(unwrap<unknown>(payload))
+}
+
+export async function submitMarketplaceDispute(orderId: string, input: { category: string; subject: string; description: string; requested_resolution: string; vendor_order_id?: string; item_id?: string }, locale: Locale): Promise<MarketplaceDispute> {
+  const payload = await requestJson(withQuery(`/orders/${encodeURIComponent(orderId)}/disputes`, {}, locale), { method: 'POST', body: JSON.stringify(input) }, locale, true)
+  return normalizeDispute(unwrap<unknown>(payload))
+}
+
+export async function uploadMarketplaceDisputeEvidence(disputeId: string, file: File, locale: Locale): Promise<void> {
+  const form = new FormData(); form.append('file', file)
+  await requestJson(withQuery(`/disputes/${encodeURIComponent(disputeId)}/evidence`, {}, locale), { method: 'POST', body: form }, locale, true)
+}
+
+export async function sendMarketplaceDisputeMessage(disputeId: string, message: string, locale: Locale): Promise<void> {
+  await requestJson(withQuery(`/disputes/${encodeURIComponent(disputeId)}/messages`, {}, locale), { method: 'POST', body: JSON.stringify({ message }) }, locale, true)
 }
 
 function normalizeDocument(value: unknown): MarketplaceDocument {

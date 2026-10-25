@@ -106,6 +106,22 @@ class BusinessNotificationService
         }
     }
 
+    public function disputeUpdated(\App\Models\MarketplaceDispute $dispute, string $event): void
+    {
+        $dispute->loadMissing(['order', 'vendorOrder.store']);
+        if (! $dispute->tenant_id) return;
+        $this->notifyTenant(
+            (int) $dispute->tenant_id,
+            $dispute->vendorOrder?->marketplace_store_id,
+            'marketplace_dispute_'.$event,
+            'Marketplace dispute update',
+            sprintf('Dispute %s has been updated: %s.', $dispute->reference, str_replace('_', ' ', $event)),
+            ['dispute_id' => $dispute->uuid, 'reference' => $dispute->reference, 'order_id' => $dispute->order?->uuid, 'related_url' => '/business/marketplace/disputes/'.$dispute->uuid],
+            'high',
+            'marketplace_dispute:'.$dispute->uuid.':'.$event.':'.$dispute->updated_at?->timestamp,
+        );
+    }
+
     public function inventoryAlert(StockAlert $alert): void
     {
         $alert->loadMissing(['location.store', 'variant.product']);

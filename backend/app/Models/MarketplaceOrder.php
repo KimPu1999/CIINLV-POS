@@ -81,6 +81,11 @@ class MarketplaceOrder extends Model
         return $this->hasMany(MarketplaceRefundRequest::class);
     }
 
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(MarketplaceDispute::class);
+    }
+
     public function commissions(): HasMany
     {
         return $this->hasMany(MarketplaceOrderCommission::class);

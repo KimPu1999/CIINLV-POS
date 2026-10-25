@@ -57,6 +57,11 @@ class MarketplaceVendorOrder extends Model
         return $this->hasOne(MarketplaceOrderCommission::class, 'marketplace_vendor_order_id');
     }
 
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(MarketplaceDispute::class, 'marketplace_vendor_order_id');
+    }
+
     /**
      * Reservation locations are the authoritative historical fulfillment
      * attribution. Marketplace stores are seller profiles, not POS branches.
