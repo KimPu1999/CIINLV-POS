@@ -68,6 +68,77 @@ test('the large sale-success summary card is hidden while the payment panel rema
   assert.match(source, /pos-payment-card/)
 })
 
+test('POS checkout top controls use compact scoped dimensions', () => {
+  assert.match(styles, /\.pos-checkout-page \.pos-filter-card select[\s\S]*min-height: 42px/)
+  assert.match(styles, /\.pos-checkout-page \.pos-search-card > div:first-child > button[\s\S]*width: 42px/)
+  assert.match(styles, /\.pos-checkout-page \.pos-category-pill[\s\S]*height: 34px/)
+  assert.match(styles, /grid-template-columns: minmax\(220px, 1\.2fr\) 42px minmax\(220px, 1fr\)/)
+})
+
+test('POS search toolbar keeps search visible and moves scanner/category tools into accessible popovers', () => {
+  assert.match(source, /placeholder="Search products, SKU, barcode\.\.\."/)
+  assert.match(source, /aria-label="Open barcode scanner"/)
+  assert.match(source, /barcodeOpen/)
+  assert.match(source, /aria-label="Open categories"/)
+  assert.match(source, /categoriesOpen/)
+  assert.match(source, /setCategory\(id\); setCategoriesOpen\(false\)/)
+  assert.match(source, /ref=\{barcodeRef\}/)
+  assert.match(styles, /\.pos-checkout-page \.pos-tool-button[\s\S]*width: 42px/)
+  assert.match(styles, /\.pos-checkout-page \.pos-tool-popover/)
+})
+
+test('POS header keeps branch, salesperson, and register together above the search toolbar', () => {
+  assert.match(source, /pos-header-card pos-filter-card/)
+  assert.match(source, /pos-filter-row grid gap-2 md:grid-cols-3/)
+  assert.match(source, /aria-label=\{text\('branch'\)\}/)
+  assert.match(source, /aria-label=\{text\('salesperson'\)\}/)
+  assert.match(source, /aria-label=\{text\('register'\)\}/)
+  assert.match(source, /pos-register-status/)
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card > \.pos-filter-row[\s\S]*repeat\(3, minmax\(0, 1fr\)\)/)
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card \.pos-filter-row select[\s\S]*min-height: 42px/)
+  assert.match(styles, /@media \(max-width: 767px\)[\s\S]*grid-template-columns: minmax\(0, 1fr\)/)
+})
+
+test('POS header prevents legacy grid rules from collapsing the header rows', () => {
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card[\s\S]*display: block !important/)
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card \.pos-search-card[\s\S]*display: block !important/)
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card \.pos-toolbar-row > \.relative:first-child[\s\S]*flex: 1 1 0%/)
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card \.pos-toolbar-row > \.relative:first-child input[\s\S]*width: 100%/)
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card \.pos-toolbar-row > \.relative:not\(:first-child\)[\s\S]*flex: 0 0 42px/)
+})
+
+test('POS desktop header places selectors and the search toolbar on one row', () => {
+  assert.match(styles, /@media \(min-width: 1280px\)[\s\S]*grid-template-columns: minmax\(125px, \.75fr\) minmax\(135px, \.85fr\) minmax\(125px, \.75fr\) minmax\(390px, 3fr\)/)
+  assert.match(styles, /@media \(min-width: 1280px\)[\s\S]*\.pos-header-card > \.pos-filter-row > label[\s\S]*grid-row: 1/)
+  assert.match(styles, /@media \(min-width: 1280px\)[\s\S]*\.pos-header-card > \.pos-search-card[\s\S]*grid-column: 4 \/ -1/)
+  assert.match(styles, /@media \(min-width: 1280px\)[\s\S]*\.pos-header-card > \.pos-register-status[\s\S]*grid-row: 2/)
+})
+
+test('POS toolbar allocates a flexible search area and six accessible icon tools', () => {
+  assert.match(source, /pos-main-toolbar/)
+  assert.match(source, /<SelectorTool icon=\{<StoreIcon size=\{19\} \/>\} label=\{text\('branch'\)\}/)
+  assert.match(source, /<SelectorTool icon=\{<UserRound size=\{19\} \/>\} label=\{text\('salesperson'\)\}/)
+  assert.match(source, /<SelectorTool icon=\{<StoreIcon size=\{19\} \/>\} label=\{text\('register'\)\}/)
+  assert.match(source, /function SelectorTool\(/)
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card \.pos-main-toolbar[\s\S]*grid-template-columns: minmax\(0, 7fr\) repeat\(6, minmax\(38px, 1fr\)\)/)
+  assert.match(styles, /\.pos-checkout-page \.pos-main-toolbar > \.relative:first-child input[\s\S]*width: 100%/)
+})
+
+test('POS does not render the legacy duplicate selector row', () => {
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card > \.pos-filter-row[\s\S]*display: none !important/)
+  assert.match(source, /pos-filter-row/)
+  assert.match(source, /SelectorTool icon=/)
+})
+
+test('POS toolbar matches the compact navy reference treatment', () => {
+  assert.match(styles, /\.pos-checkout-page \.pos-header-card[\s\S]*background: #062d4d !important/)
+  assert.match(styles, /\.pos-checkout-page \.pos-main-toolbar > \.relative:first-child input[\s\S]*height: 44px/)
+  assert.match(styles, /\.pos-checkout-page \.pos-main-toolbar \.pos-tool-button[\s\S]*color: #8fe0ff/)
+  assert.match(styles, /grid-template-columns: minmax\(0, 7fr\) repeat\(6, 44px\)/)
+  assert.match(source, /pos-register-status/)
+  assert.match(source, /expected_cash/)
+})
+
 test('POS checkout does not pretend unverified split payments completed', () => {
   assert.match(source, /payment_pending_verification/)
   assert.match(source, /configured-terminal/)

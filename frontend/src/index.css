@@ -1133,7 +1133,509 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   display: none !important;
 }
 
+/* Compact POS header controls. These overrides intentionally stay scoped to
+   the checkout page and preserve the existing desktop/tablet/mobile markup. */
+.pos-checkout-page .pos-filter-card,
+.pos-checkout-page .pos-search-card {
+  border-radius: 14px;
+  padding: 12px !important;
+}
+
+.pos-checkout-page .pos-filter-card > div,
+.pos-checkout-page .pos-search-card > div:first-child {
+  gap: 8px;
+}
+
+.pos-checkout-page .pos-filter-card label {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.pos-checkout-page .pos-filter-card label > div {
+  margin-top: 3px;
+}
+
+.pos-checkout-page .pos-filter-card select,
+.pos-checkout-page .pos-filter-card > div:last-child > button,
+.pos-checkout-page .pos-filter-card > div:last-child > div {
+  min-height: 42px !important;
+  height: 42px;
+}
+
+.pos-checkout-page .pos-filter-card select {
+  padding-left: 44px !important;
+  padding-right: 36px !important;
+}
+
+.pos-checkout-page .pos-filter-card > div:last-child > button,
+.pos-checkout-page .pos-filter-card > div:last-child > div {
+  padding-block: 0;
+  padding-inline: 12px;
+}
+
+.pos-checkout-page .pos-search-card > div:first-child > form > input,
+.pos-checkout-page .pos-search-card > div:first-child > div > input,
+.pos-checkout-page .pos-search-card > div:first-child > button {
+  min-height: 42px;
+  height: 42px;
+}
+
+.pos-checkout-page .pos-search-card > div:first-child > form > input,
+.pos-checkout-page .pos-search-card > div:first-child > div > input {
+  padding-left: 44px !important;
+}
+
+.pos-checkout-page .pos-search-card > div:first-child > form > input {
+  padding-right: 48px !important;
+}
+
+.pos-checkout-page .pos-search-card > div:first-child > button {
+  width: 42px;
+  border-radius: 10px;
+}
+
+.pos-checkout-page .pos-search-card form > svg,
+.pos-checkout-page .pos-search-card > div:first-child > div > svg {
+  left: 12px;
+  width: 17px;
+  height: 17px;
+}
+
+.pos-checkout-page .pos-search-card > div:first-child > form > button {
+  top: 3px;
+  right: 3px;
+  width: 36px;
+  height: 36px;
+}
+
+.pos-checkout-page .pos-search-card > div:nth-child(2) {
+  margin-top: 8px;
+}
+
+.pos-checkout-page .pos-category-pill {
+  min-height: 34px;
+  height: 34px;
+  padding-inline: 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+@media (min-width: 1280px) {
+  .pos-checkout-page .pos-filter-card {
+    column-gap: 8px;
+  }
+
+  .pos-checkout-page .pos-search-card > div:first-child {
+    grid-template-columns: minmax(220px, 1.2fr) 42px minmax(220px, 1fr);
+  }
+}
+
 [data-theme="dark"] .pos-checkout-page [class~="bg-[#062d4d]"] {
   background-color: #1d6f9c !important;
   color: #ffffff !important;
+}
+
+/* Search toolbar: keep the text search visible while scanner and category
+   actions remain compact, discoverable icon buttons. */
+.pos-checkout-page .pos-toolbar-row {
+  min-width: 0;
+}
+
+.pos-checkout-page .pos-toolbar-row > .relative:first-child input {
+  height: 42px;
+  min-height: 42px;
+  padding-right: 12px !important;
+}
+
+.pos-checkout-page .pos-tool-button {
+  height: 42px;
+  width: 42px;
+  border-radius: 10px;
+}
+
+.pos-checkout-page .pos-tool-button.active {
+  border-color: #2563eb;
+  background: #e8f2ff;
+  color: #1d4ed8;
+}
+
+.pos-checkout-page .pos-tool-popover {
+  border-color: #d8e6f3;
+  color: #062d4d;
+}
+
+.pos-checkout-page .pos-category-menu .pos-category-pill {
+  width: 100%;
+  min-height: 34px;
+  height: 34px;
+  padding-inline: 10px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+@media (max-width: 480px) {
+  .pos-checkout-page .pos-toolbar-row {
+    gap: 6px;
+  }
+
+  .pos-checkout-page .pos-tool-button {
+    height: 40px;
+    width: 40px;
+  }
+
+  .pos-checkout-page .pos-toolbar-row > .relative:first-child input {
+    height: 40px;
+    min-height: 40px;
+  }
+}
+
+[data-theme="dark"] .pos-checkout-page .pos-tool-button {
+  border-color: #365b75;
+  background: #173b56;
+  color: #d8efff;
+}
+
+[data-theme="dark"] .pos-checkout-page .pos-tool-button:hover,
+[data-theme="dark"] .pos-checkout-page .pos-tool-button.active {
+  border-color: #46beff;
+  background: #205879;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .pos-checkout-page .pos-tool-popover {
+  border-color: #365b75;
+  background: #102d46;
+  color: #f8fafc;
+}
+
+/* Keep the selector row and search tools in one compact header card. */
+.pos-checkout-page .pos-header-card {
+  display: block !important;
+  grid-template-columns: none !important;
+  min-width: 0;
+  padding: 10px !important;
+}
+
+.pos-checkout-page .pos-header-card > .pos-filter-row {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px !important;
+}
+
+.pos-checkout-page .pos-header-card .pos-filter-row > label {
+  min-width: 0;
+}
+
+.pos-checkout-page .pos-header-card .pos-filter-row select {
+  width: 100%;
+  height: 42px;
+  min-height: 42px !important;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 44px !important;
+  padding-right: 32px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pos-checkout-page .pos-header-card .pos-filter-row label > div {
+  margin-top: 3px;
+}
+
+.pos-checkout-page .pos-header-card .pos-register-status {
+  gap: 8px;
+}
+
+.pos-checkout-page .pos-header-card .pos-search-card {
+  display: block !important;
+  min-width: 0;
+  margin-top: 10px !important;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.pos-checkout-page .pos-header-card .pos-search-card > .pos-toolbar-row {
+  display: flex !important;
+  min-height: 42px;
+  height: auto;
+  gap: 8px !important;
+}
+
+.pos-checkout-page .pos-header-card .pos-toolbar-row > .relative:first-child {
+  min-width: 0;
+  flex: 1 1 0%;
+}
+
+.pos-checkout-page .pos-header-card .pos-toolbar-row > .relative:first-child input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.pos-checkout-page .pos-header-card .pos-toolbar-row > .relative:not(:first-child),
+.pos-checkout-page .pos-header-card .pos-toolbar-row > .pos-tool-button,
+.pos-checkout-page .pos-header-card .pos-toolbar-row > button {
+  flex: 0 0 42px;
+}
+
+@media (max-width: 767px) {
+  .pos-checkout-page .pos-header-card > .pos-filter-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+[data-theme="dark"] .pos-checkout-page .pos-header-card .pos-register-status > div {
+  color: #dbeafe;
+}
+
+/* Final toolbar arrangement: search receives roughly 70% while six compact
+   actions share the remaining space. The original visible selects are kept
+   as the popover source of truth and are not rendered as duplicate controls. */
+.pos-checkout-page .pos-header-card {
+  display: block !important;
+  min-width: 0;
+}
+
+.pos-checkout-page .pos-header-card > .pos-filter-row {
+  display: none !important;
+}
+
+.pos-checkout-page .pos-header-card > .pos-register-status {
+  margin-top: 8px;
+}
+
+.pos-checkout-page .pos-header-card > .pos-search-card {
+  display: block !important;
+  width: 100%;
+  margin-top: 0 !important;
+}
+
+.pos-checkout-page .pos-header-card .pos-main-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 7fr) repeat(6, minmax(38px, 1fr));
+  align-items: center;
+  gap: 6px !important;
+  min-width: 0;
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:first-child {
+  min-width: 0;
+  width: 100%;
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:first-child input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  padding-right: 12px !important;
+  text-overflow: ellipsis;
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:not(:first-child),
+.pos-checkout-page .pos-main-toolbar > .pos-selector-tool,
+.pos-checkout-page .pos-main-toolbar > .pos-tool-button {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  justify-content: center;
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:not(:first-child) .pos-tool-button,
+.pos-checkout-page .pos-main-toolbar > .pos-selector-tool .pos-tool-button,
+.pos-checkout-page .pos-main-toolbar > .pos-tool-button {
+  flex: 0 0 42px;
+}
+
+.pos-checkout-page .pos-selector-popover select {
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 1280px) {
+  .pos-checkout-page .pos-main-toolbar {
+    grid-template-columns: minmax(0, 7fr) repeat(6, minmax(38px, 1fr));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .pos-checkout-page .pos-main-toolbar {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 42px);
+  }
+
+  .pos-checkout-page .pos-main-toolbar > .pos-selector-tool {
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 767px) {
+  .pos-checkout-page .pos-main-toolbar {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 40px);
+    gap: 6px !important;
+  }
+
+  .pos-checkout-page .pos-main-toolbar > .pos-selector-tool .pos-tool-button,
+  .pos-checkout-page .pos-main-toolbar > .relative:not(:first-child) .pos-tool-button,
+  .pos-checkout-page .pos-main-toolbar > .pos-tool-button {
+    flex-basis: 40px;
+  }
+
+  .pos-checkout-page .pos-main-toolbar > .pos-selector-tool {
+    grid-row: 2;
+  }
+}
+
+/* Desktop toolbar: promote the three selector fields and search tools into a
+   single horizontal row. The status line remains below the controls. */
+@media (min-width: 1280px) {
+  .pos-checkout-page .pos-header-card {
+    display: grid !important;
+    grid-template-columns: minmax(125px, .75fr) minmax(135px, .85fr) minmax(125px, .75fr) minmax(390px, 3fr);
+    column-gap: 10px;
+    row-gap: 7px;
+    align-items: end;
+  }
+
+  .pos-checkout-page .pos-header-card > .pos-filter-row {
+    display: contents !important;
+  }
+
+  .pos-checkout-page .pos-header-card > .pos-filter-row > label {
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .pos-checkout-page .pos-header-card > .pos-register-status {
+    grid-column: 1 / 4;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  .pos-checkout-page .pos-header-card > .pos-search-card {
+    grid-column: 4 / -1;
+    grid-row: 1;
+    min-width: 0;
+    width: 100%;
+    margin-top: 0 !important;
+  }
+
+  .pos-checkout-page .pos-header-card .pos-toolbar-row {
+    width: 100%;
+  }
+}
+
+/* Override the earlier selector-row desktop layout now that selectors are
+   represented by the six icon tools in the main toolbar. */
+@media (min-width: 1280px) {
+  .pos-checkout-page .pos-header-card {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+
+  .pos-checkout-page .pos-header-card > .pos-search-card {
+    display: block !important;
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+/* Reference toolbar finish: a single navy POS surface with a blue search
+   field and cyan action icons. */
+.pos-checkout-page .pos-header-card {
+  border-color: #164d70 !important;
+  background: #062d4d !important;
+  color: #f8fafc;
+  padding: 10px !important;
+}
+
+.pos-checkout-page .pos-header-card > .pos-search-card {
+  background: transparent !important;
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:first-child input {
+  border-color: #35637f !important;
+  background: #173b56 !important;
+  color: #f8fafc !important;
+  height: 44px;
+  min-height: 44px;
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:first-child input::placeholder {
+  color: #c1d3df;
+  opacity: 1;
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:first-child input:focus {
+  border-color: #46beff !important;
+  box-shadow: 0 0 0 3px rgb(70 190 255 / 22%);
+}
+
+.pos-checkout-page .pos-main-toolbar > .relative:first-child > svg {
+  color: #7bd8ff;
+  left: 13px;
+}
+
+.pos-checkout-page .pos-main-toolbar .pos-tool-button {
+  border-color: #2e6382;
+  background: #103f5f;
+  color: #8fe0ff;
+  height: 44px;
+  width: 44px;
+}
+
+.pos-checkout-page .pos-main-toolbar .pos-tool-button:hover,
+.pos-checkout-page .pos-main-toolbar .pos-tool-button:focus-visible,
+.pos-checkout-page .pos-main-toolbar .pos-tool-button.active {
+  border-color: #46beff;
+  background: #1a5b7d;
+  color: #ffffff;
+}
+
+.pos-checkout-page .pos-header-card .pos-register-status {
+  margin-top: 7px;
+  min-height: 22px;
+}
+
+.pos-checkout-page .pos-header-card .pos-register-status > div {
+  border-color: #2e6382;
+  background: #103f5f;
+  color: #d9f3ff;
+  padding: 4px 9px;
+}
+
+.pos-checkout-page .pos-header-card .pos-register-status > button {
+  background: #17608a;
+  color: #ffffff;
+  padding: 4px 9px;
+}
+
+@media (min-width: 1280px) {
+  .pos-checkout-page .pos-header-card .pos-main-toolbar {
+    grid-template-columns: minmax(0, 7fr) repeat(6, 44px);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .pos-checkout-page .pos-header-card .pos-main-toolbar {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 44px);
+  }
+}
+
+@media (max-width: 767px) {
+  .pos-checkout-page .pos-header-card .pos-main-toolbar {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 44px);
+  }
+}
+
+/* The legacy full-size selector row must never render alongside the compact
+   Branch, Salesperson, and Register icon popovers. */
+.pos-checkout-page .pos-header-card > .pos-filter-row {
+  display: none !important;
 }
