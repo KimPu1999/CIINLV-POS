@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuthenticatedMediaController;
 use App\Http\Controllers\Api\V1\BarcodeController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessDashboardController;
+use App\Http\Controllers\Api\V1\BusinessInformationController;
 use App\Http\Controllers\Api\V1\BusinessInvitationController;
 use App\Http\Controllers\Api\V1\BusinessNotificationController;
 use App\Http\Controllers\Api\V1\BusinessProfileController;
@@ -337,6 +338,11 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/marketplace/dispute-evidence/{evidence}', [MarketplaceDisputeController::class, 'download'])->middleware('auth:sanctum');
 
         Route::prefix('business')->middleware('tenant.context')->group(function (): void {
+            Route::get('/settings/business-information', [BusinessInformationController::class, 'show']);
+            Route::patch('/settings/business-information', [BusinessInformationController::class, 'update']);
+            Route::post('/settings/business-information/documents', [BusinessInformationController::class, 'uploadDocument']);
+            Route::get('/settings/business-information/documents/{document}/download', [BusinessInformationController::class, 'downloadDocument'])->name('business.information.documents.download');
+            Route::delete('/settings/business-information/documents/{document}', [BusinessInformationController::class, 'deleteDocument']);
             Route::get('/profile', [BusinessProfileController::class, 'show']);
             Route::patch('/profile', [BusinessProfileController::class, 'update']);
             Route::get('/settings/logo', [BusinessProfileController::class, 'logo'])->name('business.settings.logo');

@@ -24,6 +24,7 @@ const InvitationAcceptancePage = lazy(() => import('./features/businesses').then
 const BusinessRegistrationScreen = lazy(() => import('./features/registration-wizards').then(({ PlatformBusinessRegistrationWizard: Page }) => ({ default: Page })))
 const PublicBusinessRegistrationPage = lazy(() => import('./features/registration-wizards').then(({ PublicBusinessRegistrationWizard: Page }) => ({ default: Page })))
 const BusinessSettingsPage = lazy(() => import('./features/business-settings').then(({ BusinessSettingsPage: Page }) => ({ default: Page })))
+const BusinessInformationPage = lazy(() => import('./features/business-information').then(({ BusinessInformationPage: Page }) => ({ default: Page })))
 const BusinessVerificationPage = lazy(() => import('./features/business-verification').then(({ BusinessVerificationPage: Page }) => ({ default: Page })))
 const PlatformBusinessVerificationPage = lazy(() => import('./features/platform-business-verification').then(({ PlatformBusinessVerificationPage: Page }) => ({ default: Page })))
 const BusinessDashboardPage = lazy(() => import('./features/business-dashboard').then(({ BusinessDashboardPage: Page }) => ({ default: Page })))
@@ -328,6 +329,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="alerts" element={<ResourcePage title="Low-stock alerts" description="Live inventory alerts from the backend." endpoint="/api/v1/alerts" columns={['alert_type', 'status', 'available_quantity']} />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings/business-information" element={<BusinessInformationPage />} />
           <Route path="customers" element={<CustomerManagementPage />} />
           <Route path="help" element={<HelpPoliciesPage />} />
           <Route path="help/faq" element={<HelpPoliciesPage />} />

@@ -11,6 +11,7 @@ class BusinessSetting extends Model
         'tenant_id', 'currency_code', 'timezone', 'locale', 'tax_configuration', 'receipt_configuration',
         'pos_configuration', 'inventory_configuration', 'payment_configuration', 'notification_configuration',
         'appearance_configuration', 'data_configuration', 'revision',
+        'settlement_configuration',
     ];
 
     protected function casts(): array
@@ -24,9 +25,12 @@ class BusinessSetting extends Model
             'notification_configuration' => 'array',
             'appearance_configuration' => 'array',
             'data_configuration' => 'array',
+            'settlement_configuration' => 'encrypted:array',
             'revision' => 'integer',
         ];
     }
+
+    protected $hidden = ['settlement_configuration'];
 
     public function tenant(): BelongsTo
     {

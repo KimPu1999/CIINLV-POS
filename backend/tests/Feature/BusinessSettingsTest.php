@@ -72,6 +72,54 @@ class BusinessSettingsTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_business_information_center_updates_profile_settings_and_masks_encrypted_settlement_details(): void
+    {
+        [$user, $tenant] = $this->businessAdmin('INFO_A');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $initial = $this->actingAs($user)->withHeaders($headers)->getJson('/api/v1/business/settings/business-information')
+            ->assertOk()
+            ->assertJsonPath('data.permissions.can_update', true)
+            ->assertJsonMissingPath('data.settings.settlement_configuration');
+        $revision = $initial->json('data.settings.revision');
+
+        $response = $this->actingAs($user)->withHeaders($headers)->patchJson('/api/v1/business/settings/business-information', [
+            'revision' => $revision,
+            'profile' => ['name' => 'Central Business', 'tax_registration_number' => 'TAX-INFO-A'],
+            'settings' => [
+                'currency_code' => 'USD',
+                'tax_configuration' => ['rate' => 7.5, 'mode' => 'exclusive'],
+                'pos_configuration' => ['service_charge' => ['enabled' => true, 'type' => 'percentage', 'value' => 2]],
+            ],
+            'settlement' => ['bank_name' => 'Example Bank', 'account_holder' => 'Central Business', 'account_details' => '1234567890', 'settlement_method' => 'bank_transfer'],
+        ])->assertOk()->assertJsonPath('data.profile.name', 'Central Business')->assertJsonPath('data.settings.currency_code', 'USD');
+
+        $masked = (string) $response->json('data.settlement.account_details_masked');
+        $this->assertStringEndsWith('7890', $masked);
+        $this->assertStringNotContainsString('1234567890', (string) DB::table('business_settings')->where('tenant_id', $tenant->id)->value('settlement_configuration'));
+        $this->assertDatabaseHas('tenants', ['id' => $tenant->id, 'tax_registration_number' => 'TAX-INFO-A']);
+        $this->assertDatabaseHas('audit_logs', ['tenant_id' => $tenant->id, 'action' => 'business.information_updated']);
+    }
+
+    public function test_business_information_documents_are_private_and_tenant_scoped(): void
+    {
+        Storage::fake('private');
+        [$user, $tenant] = $this->businessAdmin('INFO_B');
+        [$otherUser, $otherTenant] = $this->businessAdmin('INFO_C');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $response = $this->actingAs($user)->withHeaders($headers)->post('/api/v1/business/settings/business-information/documents', [
+            'document_type' => 'business_license',
+            'document' => UploadedFile::fake()->create('license.pdf', 20, 'application/pdf'),
+        ])->assertCreated();
+        $documentId = $response->json('data.id');
+        $path = DB::table('business_documents')->where('uuid', $documentId)->value('path');
+        Storage::disk('private')->assertExists($path);
+
+        $this->actingAs($user)->withHeaders($headers)->get('/api/v1/business/settings/business-information/documents/'.$documentId.'/download')->assertOk();
+        $this->actingAs($otherUser)->withHeader('X-Tenant-Id', $otherTenant->uuid)->get('/api/v1/business/settings/business-information/documents/'.$documentId.'/download')->assertNotFound();
+    }
+
     public function test_notification_preferences_and_operational_settings_do_not_cross_tenants(): void
     {
         [$user, $tenant] = $this->businessAdmin('SETTINGS_G');
