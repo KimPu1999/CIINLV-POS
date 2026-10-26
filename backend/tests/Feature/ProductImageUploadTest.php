@@ -103,6 +103,28 @@ class ProductImageUploadTest extends TestCase
         $this->assertDatabaseCount('product_images', 2);
     }
 
+    public function test_business_admin_can_remove_a_product_image_and_promote_the_next_image(): void
+    {
+        Storage::fake('public');
+        [$tenant, $admin, $product] = $this->productForAdmin('IMAGE-F', 'image-f@example.com');
+        $primaryPath = 'tenants/'.$tenant->uuid.'/products/'.$product->uuid.'/primary.jpg';
+        $secondaryPath = 'tenants/'.$tenant->uuid.'/products/'.$product->uuid.'/secondary.jpg';
+        Storage::disk('public')->put($primaryPath, 'primary');
+        Storage::disk('public')->put($secondaryPath, 'secondary');
+        $primary = ProductImage::create(['tenant_id' => $tenant->id, 'product_id' => $product->id, 'storage_path' => $primaryPath, 'sort_order' => 0, 'is_primary' => true]);
+        $secondary = ProductImage::create(['tenant_id' => $tenant->id, 'product_id' => $product->id, 'storage_path' => $secondaryPath, 'sort_order' => 1, 'is_primary' => false]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->delete('/api/v1/products/'.$product->uuid.'/images/'.$primary->uuid);
+
+        $response->assertOk()->assertJsonCount(1, 'data.images');
+        $this->assertDatabaseMissing('product_images', ['id' => $primary->id]);
+        $this->assertDatabaseHas('product_images', ['id' => $secondary->id, 'is_primary' => true]);
+        Storage::disk('public')->assertMissing($primaryPath);
+        Storage::disk('public')->assertExists($secondaryPath);
+    }
+
     private function productForAdmin(string $code, string $email): array
     {
         [$tenant, $admin] = $this->businessWithAdmin($code, $email);

@@ -293,6 +293,35 @@ class ProductController
         return response()->json(['success' => true, 'data' => new ProductResource($savedProduct)]);
     }
 
+    public function destroyImage(Product $product, ProductImage $image, TenantContext $context, AuditLogger $auditLogger, Request $request): JsonResponse
+    {
+        $this->assertTenant($product, $context);
+        Gate::authorize('manage', $product);
+        abort_unless((int) $image->tenant_id === (int) $product->tenant_id && (int) $image->product_id === (int) $product->id, 404);
+
+        $storagePath = $image->storage_path;
+        DB::transaction(function () use ($image): void {
+            $wasPrimary = (bool) $image->is_primary;
+            $tenantId = $image->tenant_id;
+            $productId = $image->product_id;
+            $image->delete();
+
+            if ($wasPrimary) {
+                ProductImage::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('product_id', $productId)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->first()?->update(['is_primary' => true]);
+            }
+        });
+        Storage::disk('public')->delete($storagePath);
+
+        $auditLogger->record('inventory.product_image_removed', $request->user(), $context->tenant(), $product, ['image_id' => $image->uuid]);
+
+        return response()->json(['success' => true, 'data' => new ProductResource($product->refresh()->load('images'))]);
+    }
+
     private function assertTenant(Product $product, TenantContext $context): void
     {
         abort_unless((int) $product->tenant_id === (int) $context->tenant()->id, 404);

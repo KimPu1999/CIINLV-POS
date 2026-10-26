@@ -452,6 +452,7 @@ Route::prefix('v1')->group(function (): void {
             Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
             Route::post('/products/{product}/variants', [ProductController::class, 'variant']);
             Route::post('/products/{product}/images', [ProductController::class, 'images']);
+            Route::delete('/products/{product}/images/{image}', [ProductController::class, 'destroyImage']);
             Route::get('/suppliers/statistics', [SupplierController::class, 'statistics']);
             Route::apiResource('suppliers', SupplierController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
             Route::get('/translations', [TranslationController::class, 'index']);

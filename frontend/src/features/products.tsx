@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Archive, Camera, CheckSquare, ChevronLeft, ChevronRight, Download, Edit3, Eye, Filter, History, PackagePlus, Plus, Printer, RefreshCw, Rows3, ScanBarcode, SlidersHorizontal, Square, X } from 'lucide-react'
+import { Archive, Camera, CheckCircle2, CheckSquare, ChevronLeft, ChevronRight, Download, Edit3, Eye, Filter, History, PackagePlus, Plus, Printer, RefreshCw, Rows3, ScanBarcode, SlidersHorizontal, Square, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
 import { CollapsibleSearch, FilterPanel, FilterToggle, IconActionButton, PageToolbar } from '../components/toolbar'
@@ -43,6 +43,7 @@ export function ProductManagementPage() {
   const [detail, setDetail] = useState<Product | null>(null)
   const [detailData, setDetailData] = useState<DetailData>({ balances: [], movements: [], alerts: [], loading: false, error: '' })
   const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
@@ -144,6 +145,7 @@ export function ProductManagementPage() {
   const save = async (form: Form, imageSelection: ProductImageSelection) => {
     setSaving(true)
     setError('')
+    setSuccess('')
     setUploadProgress(null)
     try {
       const saved = editing?.id
@@ -170,7 +172,19 @@ export function ProductManagementPage() {
         }
       }
 
+      if (imageSelection.removedImageIds.length > 0) {
+        try {
+          await Promise.all(imageSelection.removedImageIds.map((imageId) => request<Product>({ method: 'delete', url: `/api/v1/products/${saved.id}/images/${encodeURIComponent(imageId)}` })))
+        } catch (err) {
+          setEditing(saved)
+          setError(`Product saved, but some image removals could not be completed. ${message(err, 'Please try again.')}`)
+          setRefresh((value) => value + 1)
+          return
+        }
+      }
+
       setEditing(null)
+      setSuccess('Product saved successfully.')
       setRefresh((value) => value + 1)
     } catch (err) {
       setError(message(err, 'Unable to save product.'))
@@ -254,6 +268,7 @@ export function ProductManagementPage() {
     {bulkMessage && <p className="mt-2 text-sm font-semibold text-emerald-700">{bulkMessage}</p>}
     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500"><button type="button" onClick={selectCurrentPage} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 font-semibold dark:border-slate-700">{products.length > 0 && products.every((product) => selectedIds.has(product.id)) ? <CheckSquare size={14} /> : <Square size={14} />} Select current page</button>{products.map((product) => <label key={`select-${product.id}`} className="inline-flex max-w-[180px] items-center gap-1 truncate"><input type="checkbox" checked={selectedIds.has(product.id)} onChange={() => toggleSelected(product.id)} />{product.name}</label>)}</div>
     {error && <div className="mt-4"><ErrorState message={error} /></div>}
+    {success && <div role="status" className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={17} />{success}</div>}
     {loading ? <div className="mt-6"><LoadingState /></div> : !products.length ? <div className="mt-6"><EmptyState label={filters.search || activeFilterCount ? 'No products match these filters.' : 'No products have been created yet.'} /></div> : <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-800"><tr>{['Product', 'SKU', 'Category', 'Brand', 'Selling price', 'Available stock', 'Status', 'Actions'].map((heading) => <th key={heading} className="px-4 py-3 font-semibold">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{products.map((product) => <tr key={product.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/70"><td className="px-4 py-3"><button type="button" onClick={() => setDetail(product)} className="flex items-center gap-3 text-left font-semibold text-slate-900 hover:text-blue-700 dark:text-white"><CatalogImage src={product.images?.[0]?.url} label={product.name} size="sm" /><span>{product.name}</span></button></td><td className="px-4 py-3 text-slate-500">{product.sku || product.variants?.[0]?.sku || '—'}</td><td className="px-4 py-3 text-slate-500">{product.category?.name || 'Uncategorized'}</td><td className="px-4 py-3 text-slate-500">{product.brand || '—'}</td><td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-100">{product.selling_price ? formatMoney(product.selling_price) : '—'}</td><td className="px-4 py-3 text-slate-700 dark:text-slate-300">{product.track_inventory ? String(product.available_stock ?? 0) : 'Not tracked'}</td><td className="px-4 py-3"><StatusBadge status={product.status} /></td><td className="px-4 py-3"><div className="flex gap-1"><button type="button" title="View" aria-label={`View ${product.name}`} onClick={() => setDetail(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Eye size={16} /></button><button type="button" title="Edit" aria-label={`Edit ${product.name}`} onClick={() => setEditing(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Edit3 size={16} /></button><button type="button" title="Activate or deactivate" aria-label={`Change status for ${product.name}`} onClick={() => { void changeStatus(product) }} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-700"><Archive size={16} /></button></div></td></tr>)}</tbody></table></div>}
     <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>{t('text.showing_products', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: pageMeta.total.toLocaleString() })}</span><span>{t('text.page_of', { current: pageMeta.current_page, total: pageMeta.last_page })}</span></div><div className="flex items-center justify-between gap-1 sm:justify-end"><button type="button" aria-label={t('text.first_page')} disabled={pageMeta.current_page <= 1} onClick={() => goToPage(1)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.first_page')}</button><button type="button" aria-label={t('text.previous_page')} disabled={pageMeta.current_page <= 1} onClick={() => goToPage(pageMeta.current_page - 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><ChevronLeft size={15} /><span className="hidden sm:inline">{t('text.previous')}</span></button><span className="px-2 text-xs font-semibold md:hidden">{t('text.page')} {pageMeta.current_page}</span><div className="hidden items-center gap-1 md:flex">{pages.map((item, index) => item === 'ellipsis' ? <span key={`ellipsis-${index}`} className="px-1">…</span> : <button type="button" key={item} aria-current={item === pageMeta.current_page ? 'page' : undefined} onClick={() => goToPage(item)} className={`min-w-8 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${item === pageMeta.current_page ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300'}`}>{item}</button>)}</div><button type="button" aria-label={t('text.next_page')} disabled={pageMeta.current_page >= pageMeta.last_page} onClick={() => goToPage(pageMeta.current_page + 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><span className="hidden sm:inline">{t('text.next')}</span><ChevronRight size={15} /></button><button type="button" aria-label={t('text.last_page')} disabled={pageMeta.current_page >= pageMeta.last_page} onClick={() => goToPage(pageMeta.last_page)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.last_page')}</button></div></div>
     {(editing || detail) && (editing ? <ProductForm product={editing.id ? editing : null} saving={saving} uploadProgress={uploadProgress} onClose={() => setEditing(null)} onSave={(form, images) => { void save(form, images) }} /> : <ProductDetail product={detail!} onClose={() => { detailSequence.current += 1; setDetail(null) }} />)}
@@ -266,7 +281,7 @@ function ProductForm({ product, saving, uploadProgress, onClose, onSave }: { pro
   const initialVariants = product?.variants?.length ? product.variants.map((variant) => ({ id: variant.id, sku: variant.sku || '', barcode: variant.barcode || '', barcode_type: variant.barcode_type || 'internal' as BarcodeType, size: variant.size || variant.attributes?.size || '', selling_price: variant.selling_price || '', purchase_cost: variant.purchase_cost || '', reorder_level: variant.reorder_level || '0', stock_quantity: '', is_default: Boolean(variant.is_default) })) : [emptyVariant()]
   const [form, setForm] = useState<Form>({ ...emptyForm, name: product?.name || '', brand: product?.brand || '', description: product?.description || '', track_inventory: product?.track_inventory !== false, has_sizes: Boolean(product?.has_sizes), variants: initialVariants })
   const [locations, setLocations] = useState<Array<{ id: string; name: string; location_type?: string }>>([])
-  const [images, setImages] = useState<ProductImageSelection>({ files: [], primaryIndex: null })
+  const [images, setImages] = useState<ProductImageSelection>({ files: [], primaryIndex: null, removedImageIds: [] })
   const [validationError, setValidationError] = useState('')
 
   useEffect(() => {
