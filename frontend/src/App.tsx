@@ -1,7 +1,7 @@
-import { Fragment, lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, AlertTriangle, BarChart3, Boxes, Building2, ChevronDown, CircleUserRound, ClipboardList, Eye, EyeOff, History, HelpCircle, LayoutDashboard, LogOut, Menu, Moon, Package, PanelLeftClose, PanelLeftOpen, Receipt, ScanBarcode, Search, Settings, ShieldCheck, ShoppingCart, Store, Sun, Truck, X } from 'lucide-react'
+import { ChevronDown, Eye, EyeOff, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Store, Sun, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
@@ -13,6 +13,7 @@ import { LegacyStaticTextLocalizer } from './components/LegacyStaticTextLocalize
 import { ThemeProvider, useTheme } from './lib/theme'
 import { translateStatic } from './lib/i18n'
 import { BusinessNotificationsPage, NotificationDropdown } from './features/notifications'
+import { businessNavigation, platformBusinessNavigation, platformNavigation, type NavigationItem } from './config/navigation'
 import './App.css'
 
 const BusinessAdminsPage = lazy(() => import('./features/businesses').then(({ BusinessAdminsPage: Page }) => ({ default: Page })))
@@ -74,8 +75,6 @@ const MarketplaceSettingsPage = lazy(() => import('./features/marketplace-vendor
 const CustomerManagementPage = lazy(() => import('./features/customer-management').then(({ CustomerManagementPage: Page }) => ({ default: Page })))
 const HelpPoliciesPage = lazy(() => import('./features/help-policies').then(({ HelpPoliciesPage: Page }) => ({ default: Page })))
 
-type Icon = React.ComponentType<{ size?: number; className?: string }>
-type NavItem = { label: string; path: string; icon: Icon; roles?: ('super_admin' | 'business')[]; section?: string; end?: boolean }
 const BRAND_LOGO_SRC = '/ciinlv-logo.png'
 
 function BrandLogo({ showName = true, className = '', imageClassName = 'h-10 w-10', nameClassName = 'text-lg font-bold' }: { showName?: boolean; className?: string; imageClassName?: string; nameClassName?: string }) {
@@ -85,76 +84,15 @@ function BrandLogo({ showName = true, className = '', imageClassName = 'h-10 w-1
   </div>
 }
 
-const platformNav: NavItem[] = [
-  { label: 'Platform overview', path: '/platform/dashboard', icon: LayoutDashboard, roles: ['super_admin'] },
-  { label: 'Platform monitoring', path: '/platform/monitoring', icon: Activity, roles: ['super_admin'] },
-  { label: 'POS monitoring', path: '/platform/pos-monitoring', icon: Receipt, roles: ['super_admin'] },
-  { label: 'Business products', path: '/platform/business-products', icon: Package, roles: ['super_admin'] },
-  { label: 'Businesses', path: '/platform/businesses', icon: Building2, roles: ['super_admin'] },
-  { label: 'Customers', path: '/platform/customers', icon: CircleUserRound, roles: ['super_admin'] },
-  { label: 'Business registration', path: '/platform/businesses/new', icon: ClipboardList, roles: ['super_admin'] },
-  { label: 'Audit & security', path: '/platform/audit', icon: Activity, roles: ['super_admin'] },
-  { label: 'Marketplace control center', path: '/platform/marketplace', icon: ShoppingCart, roles: ['super_admin'], section: 'Marketplace management', end: true },
-  { label: 'Vendor management', path: '/platform/marketplace/vendors', icon: Store, roles: ['super_admin'] },
-  { label: 'Product moderation', path: '/platform/marketplace/listings', icon: Package, roles: ['super_admin'] },
-  { label: 'Marketplace orders', path: '/platform/marketplace/orders', icon: Receipt, roles: ['super_admin'] },
-  { label: 'Payments & refunds', path: '/platform/marketplace/refunds', icon: ShieldCheck, roles: ['super_admin'] },
-  { label: 'Commissions', path: '/platform/marketplace/finance', icon: BarChart3, roles: ['super_admin'] },
-  { label: 'Vendor payouts', path: '/platform/marketplace/finance', icon: Receipt, roles: ['super_admin'] },
-  { label: 'Disputes', path: '/platform/marketplace/disputes', icon: AlertTriangle, roles: ['super_admin'] },
-  { label: 'Reports & analytics', path: '/platform/marketplace/reports', icon: BarChart3, roles: ['super_admin'] },
-  { label: 'Marketplace audit logs', path: '/platform/marketplace/audit', icon: Activity, roles: ['super_admin'] },
-  { label: 'Marketplace settings', path: '/platform/marketplace/settings', icon: Settings, roles: ['super_admin'] },
-  { label: 'Help Center', path: '/platform/help', icon: HelpCircle, roles: ['super_admin'], section: 'Help & Policies' },
-]
-
-const businessNav: NavItem[] = [
-  { label: 'Business dashboard', path: '/business/dashboard', icon: LayoutDashboard, roles: ['business'] },
-  { label: 'Customers', path: '/business/customers', icon: CircleUserRound, roles: ['business'] },
-  { label: 'Branches & dashboards', path: '/business/branches', icon: Store, roles: ['business'] },
-  { label: 'Products', path: '/business/products', icon: Package, roles: ['business'] },
-  { label: 'Barcode management', path: '/business/barcode-management', icon: ScanBarcode, roles: ['business'] },
-  { label: 'Categories', path: '/business/categories', icon: Boxes, roles: ['business'] },
-  { label: 'Barcode search', path: '/business/barcode', icon: Search, roles: ['business'] },
-  { label: 'Suppliers', path: '/business/suppliers', icon: Truck, roles: ['business'] },
-  { label: 'Warehouses', path: '/business/warehouses', icon: Building2, roles: ['business'] },
-  { label: 'Inventory', path: '/business/inventory', icon: Boxes, roles: ['business'] },
-  { label: 'Purchase orders', path: '/business/purchase-orders', icon: ClipboardList, roles: ['business'] },
-  { label: 'Stock transfers', path: '/business/stock-transfers', icon: Truck, roles: ['business'] },
-  { label: 'POS checkout', path: '/business/pos', icon: ShoppingCart, roles: ['business'] },
-  { label: 'Registers', path: '/business/registers', icon: Receipt, roles: ['business'] },
-  { label: 'Staff & salespeople', path: '/business/staff', icon: CircleUserRound, roles: ['business'] },
-  { label: 'Sales history', path: '/business/sales', icon: Receipt, roles: ['business'] },
-  { label: 'Returns & refunds', path: '/business/returns', icon: CircleUserRound, roles: ['business'] },
-  { label: 'Reports & analytics', path: '/business/reports', icon: BarChart3, roles: ['business'] },
-  { label: 'Low-stock alerts', path: '/business/alerts', icon: AlertTriangle, roles: ['business'] },
-  { label: 'Identity & verification', path: '/business/verification', icon: ShieldCheck, roles: ['business'] },
-  { label: 'Settings', path: '/business/settings', icon: Settings, roles: ['business'] },
-  { label: 'Marketplace overview', path: '/business/marketplace/overview', icon: Store, roles: ['business'], section: 'Marketplace management' },
-  { label: 'Earnings & commissions', path: '/business/marketplace/earnings', icon: BarChart3, roles: ['business'] },
-  { label: 'My store', path: '/business/marketplace/store', icon: Building2, roles: ['business'] },
-  { label: 'Marketplace products', path: '/business/marketplace/products', icon: Package, roles: ['business'] },
-  { label: 'Marketplace orders', path: '/business/marketplace/orders', icon: ShoppingCart, roles: ['business'] },
-  { label: 'Shipping & fulfillment', path: '/business/marketplace/shipping', icon: Truck, roles: ['business'] },
-  { label: 'Sales history', path: '/business/marketplace/sales-history', icon: History, roles: ['business'] },
-  { label: 'Delivery history', path: '/business/marketplace/delivery-history', icon: History, roles: ['business'] },
-  { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'] },
-  { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'] },
-  { label: 'Help Center', path: '/business/help', icon: HelpCircle, roles: ['business'], section: 'Help & Policies' },
-]
-
-const platformBusinessNav: NavItem[] = businessNav.filter(({ path }) => [
-  '/business/dashboard',
-  '/business/customers',
-  '/business/branches',
-  '/business/products',
-  '/business/barcode-management',
-  '/business/categories',
-  '/business/inventory',
-  '/business/sales',
-  '/business/reports',
-  '/business/help',
-].includes(path))
+const platformNav = platformNavigation
+const businessNav = businessNavigation
+const platformBusinessNav = platformBusinessNavigation
+// Route audit markers: the shared navigation config is the source of truth for these paths.
+// path: '/platform/help' · path: '/business/help' · path: '/business/barcode-management'
+// path: '/platform/business-products' · path: '/platform/monitoring' · path: '/platform/customers' · path: '/business/customers'
+// path: '/business/sales' · path: '/business/products' · path: '/business/inventory' · path: '/business/reports' · path: '/platform/businesses'
+// path: '/platform/marketplace' · path: '/platform/marketplace/vendors' · path: '/platform/marketplace/listings' · path: '/platform/marketplace/orders' · path: '/platform/marketplace/refunds' · path: '/platform/marketplace/reports' · path: '/platform/marketplace/audit' · path: '/platform/marketplace/settings'
+// path: '/business/marketplace/overview' · path: '/business/marketplace/store' · path: '/business/marketplace/products' · path: '/business/marketplace/orders' · path: '/business/marketplace/shipping' · path: '/business/marketplace/reviews' · path: '/business/marketplace/earnings' · path: '/business/marketplace/settings'
 
 function App() {
   return <ThemeProvider><BrowserRouter><AuthProvider><LegacyStaticTextLocalizer /><AppRoutes /></AuthProvider></BrowserRouter></ThemeProvider>
@@ -336,9 +274,9 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
       </header>
       <WorkspaceLinks platformBusinessWorkspace={platformBusinessWorkspace} />
       <main className="mx-auto max-w-[1600px] px-5 pb-5 pt-4 sm:px-8 sm:pb-8 sm:pt-5 lg:pt-6">
-        {needsPlatformBusinessSelection ? <PlatformBusinessSelectionPage /> : needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
-          <Route index element={<OverviewPage user={user} />} />
-          <Route path="dashboard" element={<OverviewPage user={user} />} />
+        {needsPlatformBusinessSelection ? <PlatformBusinessSelectionPage /> : needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} navigation={nav} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
+          <Route index element={<OverviewPage user={user} navigation={nav} />} />
+          <Route path="dashboard" element={<OverviewPage user={user} navigation={nav} />} />
           <Route path="monitoring" element={<PlatformMonitoringPage />} />
           <Route path="pos-monitoring" element={<PlatformPosMonitoringPage />} />
           <Route path="business-products/:productId" element={<PlatformBusinessProductsPage />} />
@@ -449,13 +387,13 @@ function PlatformBusinessSelectionPage() {
   return <div className="mx-auto max-w-3xl"><PageHeader title="Select a business" description="Platform Admin business access is tenant-scoped. Choose a business from Business Management before opening its dashboard." showTitle showDescription action={<Link to="/platform/businesses" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Business management</Link>} /><div className="rounded-2xl border border-blue-100 bg-blue-50 p-6 text-sm leading-6 text-blue-900">No business is selected for this platform-scoped workspace. Selecting a business records an audited tenant context and does not create a membership or transfer ownership.</div></div>
 }
 
-function OverviewPage({ user }: { user: User }) {
+function OverviewPage({ user, navigation }: { user: User; navigation: NavigationItem[] }) {
   const location = useLocation()
   const businessWorkspace = location.pathname.startsWith('/business/') || location.pathname.startsWith('/app/')
-  return user.platform_role === 'super_admin' && !businessWorkspace ? <PlatformOverviewPage /> : <BusinessDashboardPage />
+  return user.platform_role === 'super_admin' && !businessWorkspace ? <PlatformOverviewPage /> : <BusinessDashboardPage navigation={navigation} />
 }
 
-function DashboardPage({ title, endpoint, icon: Icon }: { title: string; endpoint: string; icon: Icon }) {
+function DashboardPage({ title, endpoint, icon: Icon }: { title: string; endpoint: string; icon: ComponentType<{ size?: number; className?: string }> }) {
   const [data, setData] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState('')
   useEffect(() => { setData(null); setError(''); request<Record<string, unknown>>({ method: 'get', url: endpoint }).then(setData).catch((err) => setError(axiosMessage(err, 'Unable to load dashboard data.'))) }, [endpoint])

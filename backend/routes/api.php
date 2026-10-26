@@ -262,6 +262,7 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
+            Route::get('/dashboard-summary', [MarketplaceVendorController::class, 'dashboardSummary']);
             Route::get('/overview', [MarketplaceVendorController::class, 'overview']);
             Route::get('/products', [MarketplaceVendorController::class, 'products']);
             Route::get('/earnings', [MarketplaceVendorController::class, 'earnings']);
