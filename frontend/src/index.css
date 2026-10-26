@@ -11,11 +11,11 @@
 .pos-checkout-page .pos-payment-card { border-color: #d8e6f3; }
 .pos-checkout-page .pos-filter-card,
 .pos-checkout-page .pos-search-card { background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%); }
-.pos-checkout-page .pos-static-select { position: relative; display: flex; min-height: 54px; align-items: center; gap: 10px; border: 1px solid #d8e6f3; border-radius: 12px; background: #ffffff; padding: 0 12px 0 52px; font-size: 14px; }
+.pos-checkout-page .pos-static-select { position: relative; display: flex; min-height: 54px; align-items: center; gap: 10px; border: 1px solid var(--theme-border); border-radius: 12px; background: var(--theme-surface); color: var(--theme-text); padding: 0 12px 0 52px; font-size: 14px; }
 .pos-checkout-page .pos-static-select > svg:first-child { position: absolute; top: 50%; left: 16px; width: 18px; height: 18px; pointer-events: none; transform: translateY(-50%); }
 .pos-checkout-page .pos-category-pill { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; border-radius: 12px; background: #f1f6fa; padding: 0 13px; color: #51708c; font-size: 12px; font-weight: 700; transition: background .18s ease, color .18s ease; }
 .pos-checkout-page .pos-category-pill:hover { background: #e1eef8; }
-.pos-checkout-page .pos-category-pill.active { background: #062d4d; color: #ffffff; }
+.pos-checkout-page .pos-category-pill.active { background: var(--theme-primary); color: #ffffff; }
 .pos-checkout-page .pos-cart-panel { position: sticky; top: 20px; max-height: calc(100vh - 7rem); box-shadow: 0 12px 30px rgba(30, 64, 175, .08); }
 .pos-checkout-page .pos-product-card { box-shadow: 0 5px 16px rgba(30, 64, 175, .05); }
 
@@ -111,25 +111,35 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   /* CIINLV logo palette sampled from public/ciinlv-logo.png:
      deep blue field, cyan edge/highlight, and orange leaf accent. */
-  --brand-primary: #003868;
-  --brand-primary-hover: #002850;
-  --brand-primary-light: #e8f8ff;
-  --brand-secondary: #f86820;
-  --brand-accent: #47bfff;
-  --brand-background: #f5f9fc;
+  --brand-primary: #1d4ed8;
+  --brand-primary-hover: #1e40af;
+  --brand-primary-light: #dbeafe;
+  --brand-secondary: #b45309;
+  --brand-accent: #1d4ed8;
+  --brand-background: #f3f7fb;
   --brand-surface: #ffffff;
-  --brand-text: #102a43;
-  --brand-border: #d8e7f2;
-  --brand-focus: rgba(71, 191, 255, 0.34);
+  --brand-text: #0f172a;
+  --brand-border: #cbd5e1;
+  --brand-focus: rgba(29, 78, 216, 0.24);
   --theme-background: var(--brand-background);
   --theme-surface: var(--brand-surface);
-  --theme-surface-muted: #eef6fb;
+  --theme-surface-muted: #f1f5f9;
   --theme-text: var(--brand-text);
-  --theme-text-secondary: #607d94;
+  --theme-text-secondary: #475569;
+  --theme-label: #334155;
   --theme-border: var(--brand-border);
   --theme-primary: var(--brand-primary);
   --theme-primary-soft: var(--brand-primary-light);
   --theme-focus: var(--brand-focus);
+  --theme-success: #047857;
+  --theme-success-soft: #ecfdf5;
+  --theme-warning: #b45309;
+  --theme-warning-soft: #fffbeb;
+  --theme-danger: #be123c;
+  --theme-danger-soft: #fff1f2;
+  --theme-purple: #6d28d9;
+  --theme-purple-soft: #f5f3ff;
+  --theme-placeholder: #64748b;
   --table-row-bg: #ffffff;
   --table-row-hover-bg: #eff6ff;
   --table-text-primary: #0f172a;
@@ -167,10 +177,20 @@
   --theme-surface-muted: #123d5c;
   --theme-text: var(--brand-text);
   --theme-text-secondary: #a9c7d9;
+  --theme-label: #d7e8f2;
   --theme-border: var(--brand-border);
   --theme-primary: var(--brand-primary);
   --theme-primary-soft: var(--brand-primary-light);
   --theme-focus: var(--brand-focus);
+  --theme-success: #6ee7b7;
+  --theme-success-soft: rgba(16, 185, 129, 0.18);
+  --theme-warning: #fbbf24;
+  --theme-warning-soft: rgba(245, 158, 11, 0.18);
+  --theme-danger: #fda4af;
+  --theme-danger-soft: rgba(239, 68, 68, 0.18);
+  --theme-purple: #c4b5fd;
+  --theme-purple-soft: rgba(139, 92, 246, 0.18);
+  --theme-placeholder: #a9c7d9;
   --table-row-bg: #102a42;
   --table-row-hover-bg: #214761;
   --table-text-primary: #f8fafc;
@@ -310,11 +330,11 @@ select.compact-field {
   white-space: nowrap;
 }
 
-.label-badge--success { --label-bg: #ecfdf5; --label-border: #bbf7d0; --label-text: #166534; }
-.label-badge--warning { --label-bg: #fffbeb; --label-border: #fde68a; --label-text: #92400e; }
-.label-badge--danger { --label-bg: #fef2f2; --label-border: #fecaca; --label-text: #b91c1c; }
-.label-badge--info { --label-bg: #eaf1fd; --label-border: #bfd3f7; --label-text: #315da8; }
-.label-badge--neutral { --label-bg: #f1f5f9; --label-border: #e2e8f0; --label-text: #475569; }
+.label-badge--success { --label-bg: #ecfdf5; --label-border: #a7f3d0; --label-text: #047857; }
+.label-badge--warning { --label-bg: #fffbeb; --label-border: #fcd34d; --label-text: #b45309; }
+.label-badge--danger { --label-bg: #fff1f2; --label-border: #fda4af; --label-text: #be123c; }
+.label-badge--info { --label-bg: #eff6ff; --label-border: #93c5fd; --label-text: #1d4ed8; }
+.label-badge--neutral { --label-bg: #f1f5f9; --label-border: #cbd5e1; --label-text: #475569; }
 
 /* Keep legacy page-local chips consistent until those views are migrated to
    LabelBadge. Ordinary text labels are intentionally excluded. */
@@ -328,11 +348,7 @@ select.compact-field {
 }
 
 .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"][class~="bg-blue-50"] {
-  border-color: #000000;
-}
-
-[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"][class~="bg-blue-50"] {
-  border-color: #FFFFFF;
+  border-color: var(--theme-border);
 }
 
 [data-theme="dark"] .label-badge--success { --label-bg: rgba(16, 185, 129, 0.14); --label-border: rgba(110, 231, 183, 0.4); --label-text: #86efac; }
@@ -343,12 +359,12 @@ select.compact-field {
 
 [data-theme="dark"] .label-badge,
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"] {
-  border-color: #FFFFFF;
+  border-color: var(--theme-border);
 }
 
 .label-badge,
 .min-h-screen.bg-slate-50 > aside + div main span[class~="rounded-full"][class~="text-xs"] {
-  border-color: #000000;
+  border-color: var(--theme-border);
 }
 
 /* Toolbar sections stay in normal document flow. Older global rules removed
@@ -545,11 +561,11 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 .min-h-screen.bg-slate-50 > aside + div select,
 .min-h-screen.bg-slate-50 > aside + div textarea {
   min-height: 36px;
-  border: 0;
+  border: 1px solid var(--theme-border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--theme-surface);
   padding: 0 12px;
-  color: #0f172a;
+  color: var(--theme-text);
   font-size: 13px;
   line-height: 1.35;
   box-shadow: var(--compact-field-shadow);
@@ -567,7 +583,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 }
 
 .min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])::placeholder {
-  color: #94a3b8;
+  color: var(--theme-placeholder);
 }
 
 .min-h-screen.bg-slate-50 > aside + div select {
@@ -605,7 +621,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 .min-h-screen.bg-slate-50 > aside + div label:has(> input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])),
 .min-h-screen.bg-slate-50 > aside + div label:has(> select),
 .min-h-screen.bg-slate-50 > aside + div label:has(> textarea) {
-  color: #475569;
+  color: var(--theme-label);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.25;
@@ -647,9 +663,12 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 
 .min-h-screen.bg-slate-50 > aside + div .text-slate-950,
 .min-h-screen.bg-slate-50 > aside + div .text-slate-900,
-.min-h-screen.bg-slate-50 > aside + div .text-slate-800,
-.min-h-screen.bg-slate-50 > aside + div .text-slate-700 {
+.min-h-screen.bg-slate-50 > aside + div .text-slate-800 {
   color: var(--theme-text) !important;
+}
+
+.min-h-screen.bg-slate-50 > aside + div .text-slate-700 {
+  color: var(--theme-label) !important;
 }
 
 .min-h-screen.bg-slate-50 > aside + div .text-slate-600,
@@ -727,9 +746,12 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 
 [data-theme="dark"] .text-slate-950,
 [data-theme="dark"] .text-slate-900,
-[data-theme="dark"] .text-slate-800,
-[data-theme="dark"] .text-slate-700 {
+[data-theme="dark"] .text-slate-800 {
   color: var(--theme-text) !important;
+}
+
+[data-theme="dark"] .text-slate-700 {
+  color: var(--theme-label) !important;
 }
 
 [data-theme="dark"] .text-slate-600,
@@ -762,12 +784,13 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 }
 
 [data-theme="dark"] .text-emerald-700,
-[data-theme="dark"] .text-emerald-600 { color: #6ee7b7 !important; }
+[data-theme="dark"] .text-emerald-600 { color: var(--theme-success) !important; }
 [data-theme="dark"] .text-amber-700,
-[data-theme="dark"] .text-amber-600 { color: #fbbf24 !important; }
-[data-theme="dark"] .text-red-700 { color: #fca5a5 !important; }
+[data-theme="dark"] .text-amber-600 { color: var(--theme-warning) !important; }
+[data-theme="dark"] .text-red-700,
+[data-theme="dark"] .text-red-600 { color: var(--theme-danger) !important; }
 [data-theme="dark"] .text-violet-700,
-[data-theme="dark"] .text-violet-600 { color: #c4b5fd !important; }
+[data-theme="dark"] .text-violet-600 { color: var(--theme-purple) !important; }
 
 [data-theme="dark"] .bg-emerald-50,
 [data-theme="dark"] .bg-amber-50,
@@ -928,10 +951,37 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 .text-blue-700 { color: var(--brand-primary) !important; }
 .text-blue-800,
 .text-blue-900 { color: var(--brand-primary-hover) !important; }
+.text-emerald-600,
+.text-emerald-700,
+.text-emerald-800 { color: var(--theme-success) !important; }
+.text-green-800 { color: var(--theme-success) !important; }
+.text-amber-600,
+.text-amber-700 { color: var(--theme-warning) !important; }
+.text-red-600,
+.text-red-700 { color: var(--theme-danger) !important; }
+.text-violet-600,
+.text-violet-700 { color: var(--theme-purple) !important; }
+:root:not([data-theme="dark"]) .bg-emerald-600,
+:root:not([data-theme="dark"]) .bg-emerald-700 { background-color: var(--theme-success) !important; }
+:root:not([data-theme="dark"]) .bg-amber-600,
+:root:not([data-theme="dark"]) .bg-amber-700 { background-color: var(--theme-warning) !important; }
+:root:not([data-theme="dark"]) .bg-red-600,
+:root:not([data-theme="dark"]) .bg-red-700 { background-color: var(--theme-danger) !important; }
+:root:not([data-theme="dark"]) .bg-violet-600,
+:root:not([data-theme="dark"]) .bg-violet-700 { background-color: var(--theme-purple) !important; }
 .border-blue-100,
 .border-blue-200,
 .border-blue-300,
 .border-blue-500 { border-color: color-mix(in srgb, var(--brand-accent) 55%, var(--brand-border)) !important; }
+.border-emerald-100,
+.border-emerald-200,
+.border-emerald-300 { border-color: color-mix(in srgb, var(--theme-success) 45%, var(--theme-border)) !important; }
+.border-amber-200,
+.border-amber-300 { border-color: color-mix(in srgb, var(--theme-warning) 45%, var(--theme-border)) !important; }
+.border-red-200,
+.border-red-300 { border-color: color-mix(in srgb, var(--theme-danger) 45%, var(--theme-border)) !important; }
+.border-violet-200,
+.border-violet-300 { border-color: color-mix(in srgb, var(--theme-purple) 45%, var(--theme-border)) !important; }
 .ring-blue-100,
 .ring-blue-200 { --tw-ring-color: var(--brand-focus) !important; }
 .shadow-blue-900\/30 { --tw-shadow-color: color-mix(in srgb, var(--brand-primary) 45%, transparent) !important; }
@@ -942,6 +992,14 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 [class~="hover:bg-blue-100"]:hover { background-color: var(--brand-primary-light) !important; }
 [class~="hover:bg-blue-600"]:hover { background-color: var(--brand-primary) !important; }
 [class~="hover:bg-blue-700"]:hover { background-color: var(--brand-primary-hover) !important; }
+:root:not([data-theme="dark"]) [class~="hover:bg-emerald-600"]:hover,
+:root:not([data-theme="dark"]) [class~="hover:bg-emerald-700"]:hover { background-color: var(--theme-success) !important; }
+:root:not([data-theme="dark"]) [class~="hover:bg-amber-600"]:hover,
+:root:not([data-theme="dark"]) [class~="hover:bg-amber-700"]:hover { background-color: var(--theme-warning) !important; }
+:root:not([data-theme="dark"]) [class~="hover:bg-red-600"]:hover,
+:root:not([data-theme="dark"]) [class~="hover:bg-red-700"]:hover { background-color: var(--theme-danger) !important; }
+:root:not([data-theme="dark"]) [class~="hover:bg-violet-600"]:hover,
+:root:not([data-theme="dark"]) [class~="hover:bg-violet-700"]:hover { background-color: var(--theme-purple) !important; }
 [class~="hover:text-blue-600"]:hover,
 [class~="hover:text-blue-700"]:hover,
 [class~="hover:text-blue-900"]:hover { color: var(--brand-primary-hover) !important; }
@@ -990,7 +1048,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 .min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
 .min-h-screen.bg-slate-50 > aside + div .product-form-dialog select,
 .min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea {
-  border: 1px solid #000000 !important;
+  border: 1px solid var(--theme-border) !important;
 }
 
 .min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):focus,
@@ -1005,7 +1063,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog select,
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog textarea {
-  border-color: #FFFFFF !important;
+  border-color: var(--theme-border) !important;
 }
 
 [data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div .product-form-dialog input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):focus,
@@ -1067,7 +1125,10 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   color: var(--pos-text);
 }
 
-.pos-checkout-page label,
+.pos-checkout-page label {
+  color: var(--theme-label) !important;
+}
+
 .pos-checkout-page [class~="text-slate-900"],
 .pos-checkout-page [class~="text-slate-800"],
 .pos-checkout-page [class~="text-slate-700"],
@@ -1410,6 +1471,81 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
 
 .pos-checkout-page .pos-header-card > .pos-filter-row {
   display: none !important;
+}
+
+/* Summary KPI cards share one visual system across dashboards. The icon size
+   remains controlled by StatCard's existing 20px/24px values; these rules
+   only clarify alignment, surfaces, hierarchy, and semantic accents. */
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card {
+  min-height: 112px;
+  padding: 16px !important;
+  border: 1px solid var(--theme-border) !important;
+  border-left-width: 4px !important;
+  border-radius: 12px !important;
+  background-color: var(--theme-surface) !important;
+  box-shadow: var(--shadow-small) !important;
+}
+
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--blue { border-left-color: var(--theme-primary) !important; }
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--emerald { border-left-color: var(--theme-success) !important; }
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--amber { border-left-color: var(--theme-warning) !important; }
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--violet { border-left-color: var(--theme-purple) !important; }
+
+.dashboard-stat-card__header { min-height: 36px; }
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__label,
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__detail {
+  color: var(--theme-text-secondary) !important;
+}
+
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__value {
+  color: var(--theme-text) !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.015em;
+}
+
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--blue {
+  background-color: var(--theme-primary-soft) !important;
+  color: var(--theme-primary) !important;
+}
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--emerald {
+  background-color: var(--theme-success-soft) !important;
+  color: var(--theme-success) !important;
+}
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--amber {
+  background-color: var(--theme-warning-soft) !important;
+  color: var(--theme-warning) !important;
+}
+.min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--violet {
+  background-color: var(--theme-purple-soft) !important;
+  color: var(--theme-purple) !important;
+}
+
+/* Preserve the requested icon dimensions on hover; the card itself retains a
+   quiet lift and shadow change without scaling the Lucide icon container. */
+.dashboard-stat-card:hover .dashboard-stat-card__icon {
+  transform: none !important;
+}
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--blue { border-left-color: var(--theme-primary) !important; }
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--emerald { border-left-color: var(--theme-success) !important; }
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--amber { border-left-color: var(--theme-warning) !important; }
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card--violet { border-left-color: var(--theme-purple) !important; }
+
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--blue {
+  background-color: var(--theme-primary-soft) !important;
+  color: var(--theme-primary) !important;
+}
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--emerald {
+  background-color: var(--theme-success-soft) !important;
+  color: var(--theme-success) !important;
+}
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--amber {
+  background-color: var(--theme-warning-soft) !important;
+  color: var(--theme-warning) !important;
+}
+[data-theme="dark"] .min-h-screen.bg-slate-50 > aside + div main .dashboard-stat-card__icon--violet {
+  background-color: var(--theme-purple-soft) !important;
+  color: var(--theme-purple) !important;
 }
 
 /* Inventory table thumbnails stay inside their cell even when a global image
