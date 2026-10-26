@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CurrentUserStoreController;
 use App\Http\Controllers\Api\V1\CustomerManagementController;
 use App\Http\Controllers\Api\V1\DashboardOverviewController;
+use App\Http\Controllers\Api\V1\DeliveryManagementController;
 use App\Http\Controllers\Api\V1\EmployeeManagementController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\HelpPolicyController;
@@ -340,6 +341,24 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/marketplace/dispute-evidence/{evidence}', [MarketplaceDisputeController::class, 'download'])->middleware('auth:sanctum');
 
         Route::prefix('business')->middleware('tenant.context')->group(function (): void {
+            Route::get('/delivery-management/dashboard', [DeliveryManagementController::class, 'dashboard']);
+            Route::get('/delivery-management/lookup', [DeliveryManagementController::class, 'lookup']);
+            Route::get('/delivery-management/staff', [DeliveryManagementController::class, 'staffIndex']);
+            Route::post('/delivery-management/staff', [DeliveryManagementController::class, 'staffStore']);
+            Route::patch('/delivery-management/staff/{staff}', [DeliveryManagementController::class, 'staffUpdate']);
+            Route::post('/delivery-management/staff/{staff}/deactivate', [DeliveryManagementController::class, 'staffDeactivate']);
+            Route::post('/delivery-management/staff/{staff}/availability', [DeliveryManagementController::class, 'staffAvailability']);
+            Route::get('/delivery-management/orders/eligible', [DeliveryManagementController::class, 'eligibleOrders']);
+            Route::post('/delivery-management/assignments', [DeliveryManagementController::class, 'assign']);
+            Route::get('/delivery-management/active', [DeliveryManagementController::class, 'active']);
+            Route::get('/delivery-management/history', [DeliveryManagementController::class, 'history']);
+            Route::post('/delivery-management/shipments/{shipment}/reassign', [DeliveryManagementController::class, 'reassign']);
+            Route::post('/delivery-management/shipments/{shipment}/status', [DeliveryManagementController::class, 'status']);
+            Route::get('/delivery-management/shipments/{shipment}/proof', [DeliveryManagementController::class, 'proof']);
+            Route::get('/delivery-management/reports', [DeliveryManagementController::class, 'reports']);
+            Route::match(['get', 'post'], '/delivery-management/courier-partners', [DeliveryManagementController::class, 'courierPartners']);
+            Route::patch('/delivery-management/courier-partners/{partner}', [DeliveryManagementController::class, 'courierPartnerUpdate']);
+            Route::post('/delivery-management/courier-partners/{partner}/deactivate', [DeliveryManagementController::class, 'courierPartnerDeactivate']);
             Route::get('/settings/business-information', [BusinessInformationController::class, 'show']);
             Route::patch('/settings/business-information', [BusinessInformationController::class, 'update']);
             Route::post('/settings/business-information/documents', [BusinessInformationController::class, 'uploadDocument']);

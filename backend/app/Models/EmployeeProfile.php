@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class EmployeeProfile extends Model
@@ -37,4 +38,5 @@ class EmployeeProfile extends Model
     public function leaveRequests(): HasMany { return $this->hasMany(LeaveRequest::class); }
     public function payrollRecords(): HasMany { return $this->hasMany(EmployeePayrollRecord::class); }
     public function commissions(): HasMany { return $this->hasMany(EmployeeCommission::class); }
+    public function deliveryStaff(): HasOne { return $this->hasOne(DeliveryStaffProfile::class, 'employee_profile_id'); }
 }

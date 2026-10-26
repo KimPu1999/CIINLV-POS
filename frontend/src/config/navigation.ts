@@ -50,6 +50,7 @@ export const businessNavigation: NavigationItem[] = [
   { label: 'Registers', path: '/business/registers', icon: Receipt, roles: ['business'] },
   { label: 'Cash management', path: '/business/cash-management', icon: WalletCards, roles: ['business'], section: 'Cash & reconciliation' },
   { label: 'Staff & salespeople', path: '/business/staff', icon: CircleUserRound, roles: ['business'] },
+  { label: 'Delivery management', path: '/business/delivery-management', icon: Truck, roles: ['business'], section: 'Delivery management' },
   { label: 'Sales history', path: '/business/sales', icon: Receipt, roles: ['business'] },
   { label: 'Returns & refunds', path: '/business/returns', icon: CircleUserRound, roles: ['business'] },
   { label: 'Reports & analytics', path: '/business/reports', icon: BarChart3, roles: ['business'] },

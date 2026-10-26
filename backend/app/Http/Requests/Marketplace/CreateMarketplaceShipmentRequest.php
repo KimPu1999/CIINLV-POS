@@ -14,7 +14,7 @@ class CreateMarketplaceShipmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'delivery_type' => ['required', 'in:self_delivery,external_courier'],
+            'delivery_type' => ['required', 'in:self_delivery,external_courier,customer_pickup'],
             'carrier_name' => ['nullable', 'string', 'max:120', 'required_if:delivery_type,external_courier'],
             'tracking_number' => ['nullable', 'string', 'max:150', 'required_if:delivery_type,external_courier'],
             'tracking_url' => ['nullable', 'url', 'regex:/^https?:\\/\\//i', 'max:500'],

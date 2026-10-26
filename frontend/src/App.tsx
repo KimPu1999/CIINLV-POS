@@ -48,6 +48,7 @@ const POSCheckoutPage = lazy(() => import('./features/pos-checkout').then(({ POS
 const RegisterManagementPage = lazy(() => import('./features/pos-management').then(({ RegisterManagementPage: Page }) => ({ default: Page })))
 const CashManagementPage = lazy(() => import('./features/cash-management').then(({ CashManagementPage: Page }) => ({ default: Page })))
 const StaffManagementPage = lazy(() => import('./features/employee-management').then(({ EmployeeManagementPage: Page }) => ({ default: Page })))
+const DeliveryManagementPage = lazy(() => import('./features/delivery-management').then(({ DeliveryManagementPage: Page }) => ({ default: Page })))
 const SalesHistoryPage = lazy(() => import('./features/sales-history').then(({ SalesHistoryPage: Page }) => ({ default: Page })))
 const ReturnsRefundsPage = lazy(() => import('./features/returns-refunds').then(({ ReturnsRefundsPage: Page }) => ({ default: Page })))
 const ReportsAnalyticsPage = lazy(() => import('./features/reports-analytics').then(({ ReportsAnalyticsPage: Page }) => ({ default: Page })))
@@ -325,6 +326,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="registers" element={<RegisterManagementPage />} />
           <Route path="cash-management" element={<CashManagementPage />} />
           <Route path="staff" element={<StaffManagementPage />} />
+          <Route path="delivery-management" element={<DeliveryManagementPage />} />
           <Route path="sales" element={<ResourcePage title="Sales history" description="Completed, held and cancelled POS sales." endpoint="/api/v1/pos/sales" columns={['sale_number', 'status', 'grand_total', 'completed_at']} />} />
           <Route path="notifications" element={<BusinessNotificationsPage />} />
           <Route path="returns" element={<ResourcePage title="Returns & refunds" description="Review return requests and refund states." endpoint="/api/v1/pos/returns" columns={['return_number', 'status', 'refund_total']} />} />
