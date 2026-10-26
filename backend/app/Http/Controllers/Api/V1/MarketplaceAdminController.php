@@ -936,27 +936,49 @@ class MarketplaceAdminController
 
     public function commissionReports(Request $request, MarketplaceCommissionService $commissions): JsonResponse
     {
-        $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'status' => ['nullable', 'in:pending,payable,reversed'], 'from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:100']]);
+        $data = $request->validate([
+            'tenant_id' => ['nullable', 'integer', 'exists:tenants,id'],
+            'status' => ['nullable', 'in:pending,payable,reversed'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'sort' => ['nullable', 'in:created_at,commission_amount,commission_rate,seller_net_amount'],
+            'direction' => ['nullable', 'in:asc,desc'],
+            'per_page' => ['nullable', 'integer', 'in:10,20,50,100'],
+        ]);
 
         return response()->json(['success' => true, 'data' => $commissions->report($data)]);
     }
 
-    public function exportCommissionReport(Request $request)
+    public function exportCommissionReport(Request $request, MarketplaceCommissionService $commissions, MarketplaceAuditLogger $audit)
     {
-        $data = $request->validate(['tenant_id' => ['nullable', 'integer', 'exists:tenants,id'], 'status' => ['nullable', 'in:pending,payable,reversed'], 'from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
-        $query = MarketplaceOrderCommission::query()
-            ->when($data['tenant_id'] ?? null, fn (Builder $builder, $tenantId) => $builder->where('tenant_id', $tenantId))
-            ->when($data['status'] ?? null, fn (Builder $builder, $status) => $builder->where('status', $status))
-            ->when($data['from'] ?? null, fn (Builder $builder, $from) => $builder->whereDate('created_at', '>=', $from))
-            ->when($data['to'] ?? null, fn (Builder $builder, $to) => $builder->whereDate('created_at', '<=', $to))
-            ->orderBy('id');
+        $data = $request->validate([
+            'tenant_id' => ['nullable', 'integer', 'exists:tenants,id'],
+            'status' => ['nullable', 'in:pending,payable,reversed'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'sort' => ['nullable', 'in:created_at,commission_amount,commission_rate,seller_net_amount'],
+            'direction' => ['nullable', 'in:asc,desc'],
+        ]);
+        $query = $commissions->reportQuery($data);
+        $audit->record('marketplace.commission_report_exported', $request->user(), metadata: [
+            'tenant_id' => $data['tenant_id'] ?? null,
+            'status' => $data['status'] ?? null,
+            'search' => $data['search'] ?? null,
+            'from' => $data['from'] ?? null,
+            'to' => $data['to'] ?? null,
+        ]);
 
-        return response()->streamDownload(function () use ($query): void {
+        return response()->streamDownload(function () use ($query, $commissions): void {
             $output = fopen('php://output', 'wb');
-            fputcsv($output, ['commission_id', 'order_id', 'vendor_order_id', 'tenant_id', 'currency_code', 'eligible_sales', 'commission_rate', 'commission_amount', 'seller_net_amount', 'status', 'calculated_at']);
-            foreach ($query->cursor() as $commission) {
-                fputcsv($output, [$commission->uuid, $commission->marketplace_order_id, $commission->marketplace_vendor_order_id, $commission->tenant_id, $commission->currency_code, $commission->commission_base_amount, $commission->commission_rate, $commission->commission_amount, $commission->seller_net_amount, $commission->status, $commission->calculated_at?->toIso8601String()]);
-            }
+            fputcsv($output, ['commission_id', 'order_number', 'vendor_order_number', 'business_id', 'business_name', 'gross_amount', 'commission_base_amount', 'commission_rate', 'commission_amount', 'seller_net_amount', 'payout_status', 'status', 'currency_code', 'date']);
+            $query->chunkById(250, function ($commissionsPage) use ($output, $commissions): void {
+                foreach ($commissionsPage as $commission) {
+                    $row = $commissions->reportRow($commission);
+                    fputcsv($output, [$row['commission_id'], $row['order_number'], $row['vendor_order_number'], $row['business_id'], $row['business_name'], $row['gross_amount'], $row['commission_base_amount'], $row['commission_rate'], $row['commission_amount'], $row['seller_net_amount'], $row['payout_status'], $row['status'], $row['currency_code'], $row['date']]);
+                }
+            });
             fclose($output);
         }, 'marketplace-commission-report.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }

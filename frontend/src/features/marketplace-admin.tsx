@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, LoadingState, StatCard, StatusBadge, useConfirm
 import { api, request } from '../lib/api'
 import { useAuth } from '../lib/useAuth'
 import { SearchInput } from '../components/toolbar'
+import { MarketplaceCommissionReportTable } from '../components/MarketplaceCommissionReportTable'
 
 export type MarketplaceAdminTab = 'overview' | 'vendors' | 'listings' | 'orders' | 'shipments' | 'cancellations' | 'returns' | 'refunds' | 'finance' | 'disputes' | 'reports' | 'audit' | 'settings'
 
@@ -1126,7 +1127,7 @@ export function FinancePanel({ settings }: { settings: MarketplaceSettingsRespon
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const load = async () => { if (!settings?.configured) { setLoading(false); return }; setLoading(true); setError(''); try { const [ruleResponse, payoutResponse, reportResponse] = await Promise.all([request<{ data: CommissionRule[] }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-rules', params: { per_page: 100 } }), request<{ data: { tenant_id: number; currency_code: string; pending_amount: string; available_amount: string; tenant?: { name?: string } }[] }>({ method: 'get', url: '/api/v1/admin/marketplace/payout-summaries', params: { per_page: 100 } }), request<{ summary: { commission_total: string; seller_earnings_total: string; rows: number } }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-reports', params: { per_page: 1 } })]); setRules(extractRows(ruleResponse) as CommissionRule[]); setPayouts(extractRows(payoutResponse) as typeof payouts); setReportSummary(reportResponse.summary) } catch (err) { setError(errorMessage(err, 'Unable to load commission data.')) } finally { setLoading(false) } }
+  const load = async () => { if (!settings?.configured) { setLoading(false); return }; setLoading(true); setError(''); try { const [ruleResponse, payoutResponse, reportResponse] = await Promise.all([request<{ data: CommissionRule[] }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-rules', params: { per_page: 100 } }), request<{ data: { tenant_id: number; currency_code: string; pending_amount: string; available_amount: string; tenant?: { name?: string } }[] }>({ method: 'get', url: '/api/v1/admin/marketplace/payout-summaries', params: { per_page: 100 } }), request<{ summary: { commission_total: string; seller_earnings_total: string; rows: number } }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-reports' })]); setRules(extractRows(ruleResponse) as CommissionRule[]); setPayouts(extractRows(payoutResponse) as typeof payouts); setReportSummary(reportResponse.summary) } catch (err) { setError(errorMessage(err, 'Unable to load commission data.')) } finally { setLoading(false) } }
   useEffect(() => { void load() }, [settings?.configured])
   const createRule = async () => { if (!settings?.configured || !form.rate) return; setSaving(true); setError(''); try { await request({ method: 'post', url: '/api/v1/admin/marketplace/commission-rules', data: { tenant_id: form.tenant_id ? Number(form.tenant_id) : null, rate: form.rate, effective_from: form.effective_from || undefined } }); setForm({ tenant_id: '', rate: '', effective_from: '' }); await load() } catch (err) { setError(errorMessage(err, 'Unable to save the commission rule.')) } finally { setSaving(false) } }
   const calculatePreview = async () => { if (!previewForm.tenant_id || !previewForm.base_amount) return; try { setPreview(await request({ method: 'get', url: '/api/v1/admin/marketplace/commission-preview', params: { tenant_id: Number(previewForm.tenant_id), base_amount: previewForm.base_amount, currency_code: settings?.settings.currency_code } })) } catch (err) { setError(errorMessage(err, 'Unable to calculate the commission preview.')) } }
@@ -1155,7 +1156,7 @@ export function CommissionPanel({ settings }: { settings: MarketplaceSettingsRes
       const [businessResponse, payoutResponse, reportResponse] = await Promise.all([
         request<CommissionBusiness[]>({ method: 'get', url: '/api/v1/admin/marketplace/commission-businesses', params: { search: businessSearch || undefined, per_page: 25 } }),
         request<{ data: { tenant_id: number; currency_code: string; pending_amount: string; available_amount: string; tenant?: { name?: string } }[] }>({ method: 'get', url: '/api/v1/admin/marketplace/payout-summaries', params: { per_page: 100 } }),
-        request<{ summary: { commission_total: string; seller_earnings_total: string; rows: number } }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-reports', params: { per_page: 1 } }),
+        request<{ summary: { commission_total: string; seller_earnings_total: string; rows: number } }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-reports' }),
       ])
       setBusinesses(businessResponse)
       setPayouts(extractRows(payoutResponse) as typeof payouts)
@@ -1255,7 +1256,11 @@ function extractRows(value: unknown): unknown[] { if (Array.isArray(value)) retu
 function formatDate(value?: string | null): string { return value ? new Date(value).toLocaleString() : '—' }
 function errorMessage(error: unknown, fallback: string): string { const value = error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }; return value?.response?.data?.message || Object.values(value?.response?.data?.errors || {})[0]?.[0] || fallback }
 
-function AdvancedCommissionPanel({ settings }: { settings: MarketplaceSettingsResponse | null }) {
+export function AdvancedCommissionPanel({ settings }: { settings: MarketplaceSettingsResponse | null }) {
+  return <><AdvancedCommissionPanelContent settings={settings} /><MarketplaceCommissionReportTable /></>
+}
+
+function AdvancedCommissionPanelContent({ settings }: { settings: MarketplaceSettingsResponse | null }) {
   const { requestConfirmation } = useConfirmation()
   const [businesses, setBusinesses] = useState<CommissionBusiness[]>([])
   const [categories, setCategories] = useState<{ id: number; name: string; business_name?: string | null }[]>([])
@@ -1285,7 +1290,7 @@ function AdvancedCommissionPanel({ settings }: { settings: MarketplaceSettingsRe
         request<{ id: number; name: string; business_name?: string | null }[]>({ method: 'get', url: '/api/v1/admin/marketplace/commission-categories', params: { search: '', per_page: 100 } }),
         request<{ data: { tenant_id: number; currency_code: string; pending_amount: string; available_amount: string; paid_amount?: string; tenant?: { name?: string } }[] }>({ method: 'get', url: '/api/v1/admin/marketplace/payout-summaries', params: { per_page: 100 } }),
         request<{ data: PayoutRecord[] }>({ method: 'get', url: '/api/v1/admin/marketplace/payouts', params: { per_page: 50 } }),
-        request<{ summary: { eligible_sales_total: string; commission_total: string; seller_earnings_total: string; rows: number } }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-reports', params: { per_page: 1 } }),
+        request<{ summary: { eligible_sales_total: string; commission_total: string; seller_earnings_total: string; rows: number } }>({ method: 'get', url: '/api/v1/admin/marketplace/commission-reports' }),
       ])
       setBusinesses(businessResponse)
       setCategories(categoryResponse)

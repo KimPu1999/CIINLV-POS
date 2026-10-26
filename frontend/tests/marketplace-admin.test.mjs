@@ -13,6 +13,7 @@ const [app, feature, detail, routes, controller, settingsService, settingsReques
   readFile(new URL('../../backend/app/Http/Controllers/Api/V1/ProductController.php', import.meta.url), 'utf8'),
 ])
 const products = await readFile(new URL('../src/features/products.tsx', import.meta.url), 'utf8')
+const commissionReport = await readFile(new URL('../src/components/MarketplaceCommissionReportTable.tsx', import.meta.url), 'utf8')
 
 test('Super Admin marketplace control-center routes and navigation are registered', () => {
   for (const path of ['/platform/marketplace', '/platform/marketplace/vendors', '/platform/marketplace/listings', '/platform/marketplace/orders', '/platform/marketplace/refunds', '/platform/marketplace/reports', '/platform/marketplace/audit', '/platform/marketplace/settings']) {
@@ -83,6 +84,21 @@ test('control center preserves explicit blockers for unconfigured marketplace fi
   assert.match(controller, /No payout provider or payout records exist yet/)
   assert.match(controller, /No verified refund provider is configured/)
   assert.doesNotMatch(routes, /admin\/marketplace.*payouts.*POST/)
+})
+
+test('commission summary requests use the report endpoint defaults', () => {
+  assert.doesNotMatch(feature, /commission-reports', params: \{ per_page: 1 \}/)
+})
+
+test('commission report table preserves scoped reporting controls and payout fields', () => {
+  assert.match(commissionReport, /commission-reports/)
+  assert.match(commissionReport, /commission-reports\/export/)
+  assert.match(commissionReport, /const rowsPerPage = \[10, 20, 50, 100\]/)
+  for (const field of ['commission_id', 'order_number', 'business_name', 'gross_amount', 'commission_rate', 'commission_amount', 'seller_net_amount', 'payout_status']) {
+    assert.match(commissionReport, new RegExp(field))
+  }
+  assert.match(commissionReport, /label=\"Search commission report\"/)
+  assert.match(commissionReport, /All statuses/)
 })
 
 test('marketplace settings exposes retryable load failures and safe missing-storage defaults', () => {

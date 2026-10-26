@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class MarketplaceOrderCommission extends Model
@@ -38,5 +39,10 @@ class MarketplaceOrderCommission extends Model
     public function rule(): BelongsTo
     {
         return $this->belongsTo(MarketplaceCommissionRule::class, 'marketplace_commission_rule_id');
+    }
+
+    public function settlementEntries(): HasMany
+    {
+        return $this->hasMany(MarketplaceSettlementEntry::class, 'marketplace_order_commission_id');
     }
 }

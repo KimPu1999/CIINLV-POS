@@ -32,6 +32,7 @@ class MarketplaceSettingsCommissionTest extends TestCase
         $service = $this->mock(MarketplaceSettingsService::class);
         $service->shouldReceive('current')->once()->andReturn(['configured' => false, 'settings' => $defaults]);
         $service->shouldReceive('storageAvailable')->once()->andReturn(false);
+        $service->shouldReceive('appearance')->once()->andReturn(['configured' => false]);
 
         $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/settings')
             ->assertOk()
@@ -145,6 +146,25 @@ class MarketplaceSettingsCommissionTest extends TestCase
         $this->assertDatabaseCount('marketplace_commission_rules', 2);
     }
 
+    public function test_zero_percent_commission_is_configured_and_distinct_from_missing_storage(): void
+    {
+        [$tenant] = $this->businessWithAdmin('COMMISSION-ZERO', 'commission-zero@example.com');
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', [
+            'default_commission_rate' => '0.0000',
+            'revision' => 1,
+        ])->assertOk();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-preview?tenant_id='.$tenant->id.'&base_amount=1000.00')
+            ->assertOk()
+            ->assertJsonPath('data.configured', true)
+            ->assertJsonPath('data.rate', '0.0000')
+            ->assertJsonPath('data.commission_amount', '0.00')
+            ->assertJsonPath('data.seller_net_amount', '1000.00')
+            ->assertJsonPath('data.commission_base_policy.excludes.0', 'tax');
+    }
+
     public function test_platform_admin_can_search_businesses_and_apply_different_rates_with_global_fallback(): void
     {
         [$businessA] = $this->businessWithAdmin('COMMISSION-A', 'commission-a@example.com');
@@ -197,6 +217,22 @@ class MarketplaceSettingsCommissionTest extends TestCase
             ->assertOk()->assertJsonPath('data.rate', '20.0000');
     }
 
+    public function test_business_rule_precedes_category_and_global_rules_for_an_overlapping_product(): void
+    {
+        [$tenant] = $this->businessWithAdmin('COMMISSION-OVERLAP', 'commission-overlap@example.com');
+        $category = Category::create(['tenant_id' => $tenant->id, 'name' => 'Overlap', 'slug' => 'commission-overlap-category', 'status' => 'active']);
+        $admin = User::factory()->create(['platform_role' => User::PLATFORM_ROLE_SUPER_ADMIN]);
+
+        $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/settings', ['default_commission_rate' => '10.0000', 'revision' => 1])->assertOk();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['rule_type' => 'category', 'category_id' => $category->id, 'rate' => '20.0000'])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/commission-rules', ['rule_type' => 'business', 'tenant_id' => $tenant->id, 'rate' => '5.0000'])->assertCreated();
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-preview?tenant_id='.$tenant->id.'&category_id='.$category->id.'&base_amount=1000.00')
+            ->assertOk()
+            ->assertJsonPath('data.rate', '5.0000')
+            ->assertJsonPath('data.rule.source', 'business');
+    }
+
     public function test_business_admin_cannot_read_or_change_platform_commission_rules(): void
     {
         [$tenant, $businessAdmin] = $this->businessWithAdmin('COMMISSION-C', 'commission-c@example.com');
@@ -247,9 +283,24 @@ class MarketplaceSettingsCommissionTest extends TestCase
             'idempotency_key' => 'settings-d-payout',
             'reason' => 'Test payout approval',
         ])->assertCreated()->json('data.uuid');
+        $this->actingAs($admin, 'sanctum')->postJson('/api/v1/admin/marketplace/payouts', [
+            'tenant_id' => $tenant->id,
+            'currency_code' => 'MMK',
+            'amount' => '855.00',
+            'idempotency_key' => 'settings-d-payout',
+            'reason' => 'Retry after client timeout',
+        ])->assertCreated()->assertJsonPath('data.uuid', $payout);
+        $this->assertDatabaseCount('marketplace_payouts', 1);
         $this->actingAs($admin, 'sanctum')->patchJson('/api/v1/admin/marketplace/payouts/'.$payout.'/approve')
             ->assertOk()->assertJsonPath('data.status', 'approved');
         $this->assertDatabaseHas('marketplace_payouts', ['uuid' => $payout, 'status' => 'approved', 'amount' => '855.00']);
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/v1/admin/marketplace/commission-reports?search=MKT-SETTINGS-D&per_page=10')
+            ->assertOk()
+            ->assertJsonPath('data.data.data.0.order_number', 'MKT-SETTINGS-D')
+            ->assertJsonPath('data.data.data.0.business_name', 'SETTINGS-D')
+            ->assertJsonPath('data.data.data.0.gross_amount', '900.00')
+            ->assertJsonPath('data.data.data.0.payout_status', 'approved');
     }
 
     private function businessWithAdmin(string $code, string $email): array

@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Schema;
 
 class MarketplaceCommissionService
 {
+    public const REPORT_PER_PAGE = [10, 20, 50, 100];
+
     public function __construct(private readonly MarketplaceSettingsService $settings) {}
 
     public function storageAvailable(): bool
@@ -32,7 +34,7 @@ class MarketplaceCommissionService
             && Schema::hasColumn('marketplace_commission_rules', 'category_id');
     }
 
-    /** @return array{rule_id:int|null, rate:string, base:string, source:string, rule_type:string} */
+    /** @return array{rule_id:int|null, rate:string, base:string, source:string, rule_type:string, configured:bool} */
     public function effectiveRule(int $tenantId, ?CarbonImmutable $at = null, ?int $categoryId = null, ?string $promotionCode = null): array
     {
         $at ??= CarbonImmutable::now();
@@ -100,13 +102,15 @@ class MarketplaceCommissionService
                         default => 'global',
                     },
                     'rule_type' => $type,
+                    'configured' => true,
                 ];
             }
         }
 
-        $current = $this->settings->current()['settings'];
+        $currentState = $this->settings->current();
+        $current = $currentState['settings'];
 
-        return ['rule_id' => null, 'rate' => (string) $current['default_commission_rate'], 'base' => (string) $current['commission_base'], 'source' => 'default', 'rule_type' => 'global'];
+        return ['rule_id' => null, 'rate' => (string) $current['default_commission_rate'], 'base' => (string) $current['commission_base'], 'source' => 'default', 'rule_type' => 'global', 'configured' => (bool) $currentState['configured']];
     }
 
     /** @return array{base_amount:string, rate:string, commission_amount:string, seller_net_amount:string, currency_code:string, rule:array} */
@@ -122,6 +126,12 @@ class MarketplaceCommissionService
             'commission_amount' => $commission,
             'seller_net_amount' => $this->money(bcsub($base, $commission, 8)),
             'currency_code' => strtoupper($currency ?: $this->settings->current()['settings']['currency_code']),
+            'configured' => $rule['configured'],
+            'commission_base_policy' => [
+                'key' => $rule['base'],
+                'includes' => ['item_subtotal_after_discounts'],
+                'excludes' => ['tax', 'shipping', 'payment_fees'],
+            ],
             'rule' => $rule,
         ];
     }
@@ -245,15 +255,80 @@ class MarketplaceCommissionService
             return ['configured' => false, 'summary' => ['eligible_sales_total' => '0.00', 'commission_total' => '0.00', 'seller_earnings_total' => '0.00', 'rows' => 0], 'data' => []];
         }
 
-        $query = MarketplaceOrderCommission::query()->with(['order:id,uuid,order_number,created_at', 'tenant:id,name,business_code'])->when($filters['tenant_id'] ?? null, fn (Builder $builder, $tenantId) => $builder->where('tenant_id', $tenantId))->when($filters['status'] ?? null, fn (Builder $builder, $status) => $builder->where('status', $status))->when($filters['from'] ?? null, fn (Builder $builder, $from) => $builder->whereDate('created_at', '>=', $from))->when($filters['to'] ?? null, fn (Builder $builder, $to) => $builder->whereDate('created_at', '<=', $to));
-        $summaryQuery = clone $query;
+        $query = $this->reportQuery($filters);
+        $summaryQuery = (clone $query)->reorder();
         if (! ($filters['status'] ?? null)) {
             $summaryQuery->whereIn('status', ['pending', 'payable']);
         }
         $summary = $summaryQuery->selectRaw('COALESCE(SUM(commission_base_amount), 0) AS eligible_sales_total, COALESCE(SUM(commission_amount), 0) AS commission_total, COALESCE(SUM(seller_net_amount), 0) AS seller_earnings_total, COUNT(*) AS rows')->first();
-        $rows = $query->latest()->paginate($filters['per_page'] ?? 25);
+        $rows = $query->paginate($this->reportPerPage((int) ($filters['per_page'] ?? 20)));
+        $rows->setCollection($rows->getCollection()->map(fn (MarketplaceOrderCommission $commission): array => $this->reportRow($commission)));
 
         return ['configured' => true, 'summary' => ['eligible_sales_total' => $this->money($summary?->eligible_sales_total), 'commission_total' => $this->money($summary?->commission_total), 'seller_earnings_total' => $this->money($summary?->seller_earnings_total), 'rows' => (int) ($summary?->rows ?? 0)], 'data' => $rows];
+    }
+
+    public function reportQuery(array $filters): Builder
+    {
+        return MarketplaceOrderCommission::query()
+            ->with([
+                'order:id,uuid,order_number,grand_total,created_at',
+                'vendorOrder:id,uuid,vendor_order_number,total',
+                'tenant:id,name,business_code',
+                'settlementEntries.payoutItem.payout:id,uuid,status,provider_reference',
+            ])
+            ->when($filters['tenant_id'] ?? null, fn (Builder $builder, $tenantId) => $builder->where('tenant_id', $tenantId))
+            ->when($filters['status'] ?? null, fn (Builder $builder, $status) => $builder->where('status', $status))
+            ->when($filters['from'] ?? null, fn (Builder $builder, $from) => $builder->whereDate('created_at', '>=', $from))
+            ->when($filters['to'] ?? null, fn (Builder $builder, $to) => $builder->whereDate('created_at', '<=', $to))
+            ->when($filters['search'] ?? null, function (Builder $builder, $search): void {
+                $term = '%'.mb_strtolower(trim((string) $search)).'%';
+                $builder->where(function (Builder $query) use ($term): void {
+                    $query->whereHas('order', fn (Builder $order) => $order->whereRaw('LOWER(order_number) LIKE ?', [$term]))
+                        ->orWhereHas('vendorOrder', fn (Builder $vendorOrder) => $vendorOrder->whereRaw('LOWER(vendor_order_number) LIKE ?', [$term]))
+                        ->orWhereHas('tenant', fn (Builder $tenant) => $tenant->whereRaw('LOWER(name) LIKE ?', [$term])->orWhereRaw('LOWER(business_code) LIKE ?', [$term]))
+                        ->orWhereRaw('LOWER(currency_code) LIKE ?', [$term]);
+                });
+            })
+            ->orderBy($this->reportSort((string) ($filters['sort'] ?? 'created_at')), ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc')
+            ->orderByDesc('id');
+    }
+
+    public function reportRow(MarketplaceOrderCommission $commission): array
+    {
+        $commission->loadMissing(['order', 'vendorOrder', 'tenant', 'settlementEntries.payoutItem.payout']);
+        $sellerEntry = $commission->settlementEntries->firstWhere('entry_type', 'seller_earning');
+        $payout = $sellerEntry?->payoutItem?->payout;
+
+        return [
+            'commission_id' => $commission->uuid,
+            'order_number' => $commission->order?->order_number,
+            'vendor_order_number' => $commission->vendorOrder?->vendor_order_number,
+            'business_id' => $commission->tenant?->business_code ?: (string) $commission->tenant_id,
+            'business_name' => $commission->tenant?->name,
+            'gross_amount' => $this->money((string) ($commission->vendorOrder?->total ?? $commission->order?->grand_total ?? $commission->commission_base_amount)),
+            'commission_base_amount' => $this->money($commission->commission_base_amount),
+            'commission_rate' => $this->rate($commission->commission_rate),
+            'commission_amount' => $this->money($commission->commission_amount),
+            'seller_net_amount' => $this->money($commission->seller_net_amount),
+            'payout_status' => $payout?->status ?: ($sellerEntry?->status ?: $commission->status),
+            'status' => $commission->status,
+            'currency_code' => $commission->currency_code,
+            'calculated_at' => $commission->calculated_at?->toIso8601String(),
+            'date' => $commission->created_at?->toIso8601String(),
+        ];
+    }
+
+    private function reportPerPage(int $perPage): int
+    {
+        return in_array($perPage, self::REPORT_PER_PAGE, true) ? $perPage : 20;
+    }
+
+    private function reportSort(string $sort): string
+    {
+        return match ($sort) {
+            'commission_amount', 'commission_rate', 'seller_net_amount', 'created_at' => $sort,
+            default => 'created_at',
+        };
     }
 
     public function businessSummaries(?array $tenantIds = null): array

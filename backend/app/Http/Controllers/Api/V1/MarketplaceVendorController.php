@@ -179,6 +179,7 @@ class MarketplaceVendorController
                     'source' => $commissionRule['source'],
                     'rule_type' => $commissionRule['rule_type'],
                     'base' => $commissionRule['base'],
+                    'configured' => $commissionRule['configured'],
                 ],
             ],
         ]);
@@ -458,6 +459,7 @@ class MarketplaceVendorController
                 'source' => $commissionRule['source'],
                 'rule_type' => $commissionRule['rule_type'],
                 'base' => $commissionRule['base'],
+                'configured' => $commissionRule['configured'],
             ],
         ]]);
     }

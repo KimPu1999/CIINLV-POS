@@ -226,6 +226,7 @@ class MarketplaceFulfillmentTest extends TestCase
         $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/return-requests/'.$return['id'].'/decision', ['decision' => 'approved'])->assertOk()->assertJsonPath('data.status', 'approved');
         $this->assertDatabaseHas('marketplace_refund_requests', ['marketplace_order_id' => $order->id, 'status' => 'blocked']);
         $this->assertDatabaseMissing('marketplace_payments', ['status' => 'refunded']);
+        $this->assertDatabaseHas('marketplace_order_commissions', ['marketplace_order_id' => $order->id, 'status' => 'pending']);
     }
 
     public function test_vendor_cannot_access_another_business_order_or_shipment(): void
