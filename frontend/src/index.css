@@ -268,39 +268,95 @@ select.compact-field {
 
 .compact-search-shell {
   display: flex;
-  min-height: 44px;
+  height: 40px;
+  min-height: 40px;
   min-width: 0;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   border: 1px solid var(--theme-border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--theme-surface);
-  padding: 0 10px 0 16px;
+  padding: 0 10px 0 12px;
   color: var(--theme-text);
-  box-shadow: var(--compact-field-shadow);
+  box-shadow: none;
   outline: none;
-  transition: box-shadow 200ms ease, background-color 200ms ease, opacity 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, background-color 200ms ease, opacity 200ms ease;
 }
 
 .compact-search-shell:focus-within {
+  border-color: var(--brand-focus);
   box-shadow: var(--compact-field-focus-shadow);
 }
 
 .compact-search-input {
   min-width: 0;
-  min-height: 42px;
+  min-height: 38px;
   flex: 1 1 auto;
   border: 0;
   background: transparent;
   padding: 0;
   color: var(--theme-text);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.35;
   outline: none;
+  box-shadow: none;
 }
 
 .compact-search-input::placeholder {
   color: var(--theme-text-secondary);
+}
+
+.search-input-shell {
+  width: min(100%, 360px);
+  flex: 0 1 360px;
+}
+
+.search-input-shell--comfortable {
+  height: 44px;
+  min-height: 44px;
+}
+
+.search-input-shell--comfortable .compact-search-input {
+  min-height: 42px;
+}
+
+.search-input-field {
+  appearance: none;
+}
+
+.search-input-field,
+.search-input-field:focus,
+.search-input-field:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.toolbar-search-control {
+  width: min(100%, 360px);
+  min-width: 0;
+  flex: 0 1 360px;
+}
+
+@media (max-width: 639px) {
+  .compact-search-shell {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .compact-search-input {
+    min-height: 42px;
+  }
+
+  .toolbar-search-control {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .search-input-shell {
+    width: 100%;
+    flex-basis: 100%;
+  }
 }
 
 .compact-field--textarea {
@@ -557,7 +613,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
    shared Input/Select/Textarea component. Scope the compact treatment to the
    authenticated dashboard shell so public/auth controls and native checkbox,
    radio, file, hidden, range, and color inputs are not affected. */
-.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+.min-h-screen.bg-slate-50 > aside + div input:not(.search-input-field):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
 .min-h-screen.bg-slate-50 > aside + div select,
 .min-h-screen.bg-slate-50 > aside + div textarea {
   min-height: 36px;
@@ -573,8 +629,8 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   transition: box-shadow 200ms ease, background-color 200ms ease, opacity 200ms ease;
 }
 
-.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus,
-.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus-visible,
+.min-h-screen.bg-slate-50 > aside + div input:not(.search-input-field):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus,
+.min-h-screen.bg-slate-50 > aside + div input:not(.search-input-field):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]):focus-visible,
 .min-h-screen.bg-slate-50 > aside + div select:focus,
 .min-h-screen.bg-slate-50 > aside + div select:focus-visible,
 .min-h-screen.bg-slate-50 > aside + div textarea:focus,
@@ -582,7 +638,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   box-shadow: var(--compact-field-focus-shadow);
 }
 
-.min-h-screen.bg-slate-50 > aside + div input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])::placeholder {
+.min-h-screen.bg-slate-50 > aside + div input:not(.search-input-field):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])::placeholder {
   color: var(--theme-placeholder);
 }
 
@@ -596,9 +652,9 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   padding-left: 40px;
 }
 
-.min-h-screen.bg-slate-50 > aside + div input[placeholder*="search" i],
-.min-h-screen.bg-slate-50 > aside + div input[placeholder*="barcode" i],
-.min-h-screen.bg-slate-50 > aside + div input[placeholder*="sku" i] {
+.min-h-screen.bg-slate-50 > aside + div input:not(.search-input-field)[placeholder*="search" i],
+.min-h-screen.bg-slate-50 > aside + div input:not(.search-input-field)[placeholder*="barcode" i],
+.min-h-screen.bg-slate-50 > aside + div input:not(.search-input-field)[placeholder*="sku" i] {
   min-height: 38px;
 }
 
@@ -618,7 +674,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   resize: vertical;
 }
 
-.min-h-screen.bg-slate-50 > aside + div label:has(> input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])),
+.min-h-screen.bg-slate-50 > aside + div label:has(> input:not(.search-input-field):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])),
 .min-h-screen.bg-slate-50 > aside + div label:has(> select),
 .min-h-screen.bg-slate-50 > aside + div label:has(> textarea) {
   color: var(--theme-label);
@@ -627,7 +683,7 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
   line-height: 1.25;
 }
 
-.min-h-screen.bg-slate-50 > aside + div label:has(> input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])):not(:has(> input.pl-10)) > input,
+.min-h-screen.bg-slate-50 > aside + div label:has(> input:not(.search-input-field):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"])):not(:has(> input.pl-10)) > input,
 .min-h-screen.bg-slate-50 > aside + div label:has(> select) > select,
 .min-h-screen.bg-slate-50 > aside + div label:has(> textarea) > textarea {
   margin-top: 6px;

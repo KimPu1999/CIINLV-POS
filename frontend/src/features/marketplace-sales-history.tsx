@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, Download, Eye, FileText, History, Printer, Receipt, RefreshCw, Search, Truck, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, Download, Eye, FileText, History, Printer, Receipt, RefreshCw, Truck, X } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { EmptyState, LabelBadge, PageHeader, StatCard } from '../components/ui'
+import { SearchInput } from '../components/toolbar'
 
 type SaleItem = {
   id?: string
@@ -321,7 +322,7 @@ export function MarketplaceSalesHistoryPage({ deliveryHistory = false }: { deliv
     <section className="mt-4 w-full max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
         <FilterField label="Search" className="xl:col-span-2 2xl:col-span-2">
-          <span className="compact-search-shell relative block h-11 p-0"><Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search order, customer, tracking..." className="compact-search-input h-11 w-full pl-11 pr-3" /></span>
+          <SearchInput value={searchInput} onChange={setSearchInput} label="Search orders" placeholder="Search order, customer, tracking..." className="min-w-0" />
         </FilterField>
         <FilterField label="Branch"><select aria-label="Branch" value={branchId} onChange={(event) => update('branch_id', setBranchId, event.target.value)} className="compact-field h-11 w-full min-w-0"><option value="">All authorized branches</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}{(branch.code || branch.store_code) ? ' · '+(branch.code || branch.store_code) : ''}</option>)}{canViewUnassigned && <option value="unassigned">{t('text.unassigned_unknown_branch')}</option>}</select></FilterField>
         <FilterField label="From date"><input type="date" value={dateFrom} onChange={(event) => { setQuickRange('custom'); update('date_from', setDateFrom, event.target.value) }} className="compact-field h-11 w-full" /></FilterField>

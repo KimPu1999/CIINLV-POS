@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Download, Eye, Package, RefreshCw, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Eye, Package, RefreshCw, X } from 'lucide-react'
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge } from '../components/ui'
-import { IconActionButton, PageToolbar } from '../components/toolbar'
+import { IconActionButton, PageToolbar, SearchInput } from '../components/toolbar'
 
 type Branch = { id: string; name: string; code?: string | null; status?: string; business_id?: string | null }
 type Inventory = { id: number; on_hand: string; reserved: string; available: string; average_cost: string; location?: { name?: string; code?: string; branch?: Branch | null } | null }
@@ -105,7 +105,7 @@ function PlatformBusinessProductList() {
     {error && <div className="mb-5"><ErrorState message={error} /></div>}
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
       <div className="grid gap-3 xl:grid-cols-[minmax(300px,2fr)_minmax(220px,1fr)_minmax(220px,1fr)]">
-        <label className="relative block"><span className="sr-only">{t('text.search')}</span><Search className="absolute left-3 top-3 text-slate-400" size={17} aria-hidden="true" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') updateQuery({ search: searchInput.trim(), page: 1 }) }} placeholder={t('text.search_business_products')} className="compact-field w-full pl-10 pr-10" />{searchInput && <button type="button" aria-label={t('text.clear_search')} onClick={() => { setSearchInput(''); updateQuery({ search: '', page: 1 }) }} className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-700"><X size={16} /></button>}</label>
+        <SearchInput value={searchInput} onChange={setSearchInput} onKeyDown={(event) => { if (event.key === 'Enter') updateQuery({ search: searchInput.trim(), page: 1 }) }} onClear={() => { setSearchInput(''); updateQuery({ search: '', page: 1 }) }} label={t('text.search')} placeholder={t('text.search_business_products')} className="min-w-0" />
         <RemoteSelect type="business" value={filters.business} label={t('text.business')} placeholder={t('text.search_businesses')} onSelect={(option) => updateFilter('business', option?.id || '')} />
         <RemoteSelect key={filters.business || 'no-business'} type="branch" value={filters.branch} businessId={filters.business} label={t('text.branch')} placeholder={filters.business ? t('text.search_branches') : t('text.select_business_first')} disabled={!filters.business} onSelect={(option) => updateFilter('branch', option?.id || '')} />
       </div>

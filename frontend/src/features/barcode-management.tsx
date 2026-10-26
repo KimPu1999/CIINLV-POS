@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, FileUp, Filter, PackageOpen, Printer, RefreshCw, Rows3, ScanBarcode, Search, Settings2, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, FileUp, Filter, PackageOpen, Printer, RefreshCw, Rows3, ScanBarcode, Settings2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api, request } from '../lib/api'
 import { EmptyState, ErrorState, LoadingState, PageHeader, StatCard, StatusBadge, useConfirmation } from '../components/ui'
-import { PageToolbar } from '../components/toolbar'
+import { PageToolbar, SearchInput } from '../components/toolbar'
 import { openBarcodeLabels, type BarcodeLabel, type BarcodeType } from '../lib/barcode'
 import { useAuth } from '../lib/useAuth'
 
@@ -306,7 +306,7 @@ export function BarcodeManagementPage() {
 
       <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-          <label className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400"><span>Search product, SKU, barcode</span><span className="relative block"><Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search product name, SKU or barcode..." className={controlClass + ' pl-10'} /></span></label>
+          <SearchInput value={searchInput} onChange={setSearchInput} label="Search product, SKU, barcode" placeholder="Search product name, SKU or barcode..." className="min-w-0 flex-1" />
           <label className="w-full xl:w-52 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Brand<select value={filters.brand} onChange={(event) => updateFilters({ brand: event.target.value })} className={controlClass}><option value="">All brands</option><option value="__unbranded__">Unbranded</option>{brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}</select></label>
           <label className="w-full xl:w-52 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Category<select value={filters.category_id} onChange={(event) => updateFilters({ category_id: event.target.value })} className={controlClass}><option value="">All categories</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <label className="w-full xl:w-44 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Barcode status<select value={filters.barcode_status} onChange={(event) => updateFilters({ barcode_status: event.target.value })} className={controlClass}><option value="all">All</option><option value="assigned">Assigned</option><option value="missing">Missing</option></select></label>

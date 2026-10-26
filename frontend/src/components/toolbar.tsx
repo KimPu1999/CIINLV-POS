@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode, type Ref } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type KeyboardEventHandler, type ReactNode, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { CircleX, Filter, MoreHorizontal, Search, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -16,7 +16,7 @@ function announceToolbarPanel(type: ToolbarPanel, source?: symbol, anchor?: DOMR
 }
 
 export function PageToolbar({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div data-page-toolbar="true" className={`flex w-full flex-wrap items-center justify-end gap-4 ${className}`}>{children}</div>
+  return <div data-page-toolbar="true" className={`flex w-full flex-wrap items-center justify-end gap-2 ${className}`}>{children}</div>
 }
 
 export function ToolbarTooltip({ label, children }: { label: string; children: ReactNode }) {
@@ -32,17 +32,28 @@ export function ToolbarTooltip({ label, children }: { label: string; children: R
 export function IconActionButton({ icon: Icon, label, onClick, active = false, disabled = false, buttonRef }: { icon: ToolbarIcon; label: string; onClick: () => void; active?: boolean; disabled?: boolean; buttonRef?: Ref<HTMLButtonElement> }) {
   const { t } = useTranslation()
   const translatedLabel = translateStatic(t, label)
-  return <ToolbarTooltip label={label}><button ref={buttonRef} type="button" aria-label={translatedLabel} onClick={onClick} disabled={disabled} className={`toolbar-icon-button relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Icon size={22} aria-hidden="true" />{active && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-blue-300 ring-2 ring-white" aria-hidden="true" />}</button></ToolbarTooltip>
+  return <ToolbarTooltip label={label}><button ref={buttonRef} type="button" aria-label={translatedLabel} onClick={onClick} disabled={disabled} className={`toolbar-icon-button relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><Icon size={22} aria-hidden="true" />{active && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-blue-300 ring-2 ring-white" aria-hidden="true" />}</button></ToolbarTooltip>
 }
 
 export function SearchToggle({ active = false, label = 'Search', onClick, buttonRef }: { active?: boolean; label?: string; onClick: () => void; buttonRef?: Ref<HTMLButtonElement> }) {
   return <IconActionButton icon={Search} label={active ? `${label} active` : label} onClick={onClick} active={active} buttonRef={buttonRef} />
 }
 
-export function CollapsibleSearch({ value, onChange, placeholder = 'Search', label = 'Search', onClear }: { value: string; onChange: (value: string) => void; placeholder?: string; label?: string; onClear?: () => void }) {
+export function SearchInput({ value, onChange, placeholder = 'Search', label = 'Search', onClear, onKeyDown, inputRef, className = '', size = 'compact' }: { value: string; onChange: (value: string) => void; placeholder?: string; label?: string; onClear?: () => void; onKeyDown?: KeyboardEventHandler<HTMLInputElement>; inputRef?: Ref<HTMLInputElement>; className?: string; size?: 'compact' | 'comfortable' }) {
   const { t } = useTranslation()
   const translatedLabel = translateStatic(t, label)
   const translatedPlaceholder = translateStatic(t, placeholder)
+  const active = value.trim().length > 0
+  const clear = () => onClear ? onClear() : onChange('')
+  return <label className={`search-input-shell compact-search-shell search-input-shell--${size} ${className}`}>
+    <Search className="shrink-0 text-slate-400" size={18} aria-hidden="true" />
+    <span className="sr-only">{translatedLabel}</span>
+    <input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} onKeyDown={onKeyDown} placeholder={translatedPlaceholder} aria-label={translatedLabel} className="search-input-field compact-search-input" />
+    {active && <button type="button" onClick={clear} aria-label={t('text.clear_label', { label: translatedLabel })} title={t('text.clear_label', { label: translatedLabel })} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><CircleX size={16} aria-hidden="true" /></button>}
+  </label>
+}
+
+export function CollapsibleSearch({ value, onChange, placeholder = 'Search', label = 'Search', onClear }: { value: string; onChange: (value: string) => void; placeholder?: string; label?: string; onClear?: () => void }) {
   const [open, setOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -80,12 +91,8 @@ export function CollapsibleSearch({ value, onChange, placeholder = 'Search', lab
 
   if (!open) return <SearchToggle active={active} label={label} buttonRef={triggerRef} onClick={() => { announceToolbarPanel('search', source.current); setOpen(true) }} />
 
-  return <div className="ml-auto flex min-w-0 w-full max-w-xl flex-1 items-center gap-4 animate-[toolbar-search-in_180ms_ease-out] sm:min-w-[280px]">
-    <div className="compact-search-shell min-w-0 flex-1">
-      <Search className="shrink-0 text-slate-400" size={18} aria-hidden="true" />
-      <input ref={inputRef} value={value} onChange={(event) => onChange(event.target.value)} placeholder={translatedPlaceholder} aria-label={translatedLabel} className="compact-search-input" />
-      {active && <button type="button" onClick={clear} aria-label={t('text.clear_label', { label: translatedLabel })} title={t('text.clear_label', { label: translatedLabel })} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100"><CircleX size={16} aria-hidden="true" /></button>}
-    </div>
+  return <div className="toolbar-search-control ml-auto flex min-w-0 flex-1 items-center gap-2 animate-[toolbar-search-in_180ms_ease-out]">
+    <SearchInput value={value} onChange={onChange} placeholder={placeholder} label={label} onClear={clear} inputRef={inputRef} className="min-w-0 flex-1" />
     <IconActionButton icon={X} label={`Close ${label.toLowerCase()}`} onClick={close} />
   </div>
 }
@@ -125,7 +132,7 @@ export function FilterToggle({ open, activeCount = 0, onClick }: { open: boolean
   }, [])
   const active = visibleOpen || activeCount > 0
   return <div className="relative inline-flex flex-col items-center">
-    <ToolbarTooltip label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'} onClick={() => { announceToolbarPanel('filter', undefined, triggerRef.current?.getBoundingClientRect(), triggerRef.current); onClick() }} className={`toolbar-icon-button relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
+    <ToolbarTooltip label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={activeCount > 0 ? `${activeCount} active filters` : 'Filters'} onClick={() => { announceToolbarPanel('filter', undefined, triggerRef.current?.getBoundingClientRect(), triggerRef.current); onClick() }} className={`toolbar-icon-button relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>
     {activeCount > 0 && <LabelBadge tone="info" className="max-w-28 truncate">{statusLabel}</LabelBadge>}
   </div>
 }
@@ -171,7 +178,7 @@ export function FilterPopover({ open, activeCount = 0, statusLabel, statusActive
     }
   }, [onClose, visibleOpen])
 
-  return <div ref={rootRef} className="relative inline-flex flex-col items-center"><ToolbarTooltip label={`Filters: ${statusLabel}`}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={`Filters: ${statusLabel}`} onClick={() => { if (visibleOpen) { onClose(); return } announceToolbarPanel('filter', source.current); setSuppressed(false); onOpen() }} className={`toolbar-icon-button relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>{(statusActive || activeCount > 0) && <LabelBadge tone="info" className="max-w-24 truncate">{statusLabel}</LabelBadge>}{visibleOpen && <div role="dialog" aria-label={`Filter options: ${statusLabel}`} className="absolute right-0 top-full z-50 mt-2.5 w-[min(16rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out]">{children}{onClear && <button type="button" onClick={() => { onClear(); onClose(); window.setTimeout(() => triggerRef.current?.focus(), 0) }} className="mt-3 text-xs font-semibold text-slate-500 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">Clear filter</button>}</div>}</div>
+  return <div ref={rootRef} className="relative inline-flex flex-col items-center"><ToolbarTooltip label={`Filters: ${statusLabel}`}><button ref={triggerRef} type="button" aria-expanded={visibleOpen} aria-haspopup="dialog" aria-label={`Filters: ${statusLabel}`} onClick={() => { if (visibleOpen) { onClose(); return } announceToolbarPanel('filter', source.current); setSuppressed(false); onOpen() }} className={`toolbar-icon-button relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${active ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700'}`}><Filter size={22} aria-hidden="true" />{activeCount > 0 && <span className={`absolute right-1 top-1 min-w-4 rounded-full px-1 text-center text-[10px] font-bold leading-4 ${active ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-700'}`}>{activeCount}</span>}</button></ToolbarTooltip>{(statusActive || activeCount > 0) && <LabelBadge tone="info" className="max-w-24 truncate">{statusLabel}</LabelBadge>}{visibleOpen && <div role="dialog" aria-label={`Filter options: ${statusLabel}`} className="absolute right-0 top-full z-50 mt-2.5 w-[min(16rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white p-4 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out]">{children}{onClear && <button type="button" onClick={() => { onClear(); onClose(); window.setTimeout(() => triggerRef.current?.focus(), 0) }} className="mt-3 text-xs font-semibold text-slate-500 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100">Clear filter</button>}</div>}</div>
 }
 
 export function FilterPanel({ open, children, placement = 'fixed', title, onClose, footer }: { open: boolean; children: ReactNode; placement?: 'fixed' | 'inline'; title?: string; onClose?: () => void; footer?: ReactNode }) {
@@ -316,7 +323,7 @@ export function ToolbarMenu({ items, label = 'More actions' }: { items: ToolbarM
   }, [open])
 
   return <div className="relative inline-flex">
-    <ToolbarTooltip label={label}><button ref={triggerRef} type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!open) announceToolbarPanel('menu', source.current); setOpen((value) => !value) }} className={`toolbar-icon-button inline-flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${open ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><MoreHorizontal size={22} aria-hidden="true" /></button></ToolbarTooltip>
+    <ToolbarTooltip label={label}><button ref={triggerRef} type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!open) announceToolbarPanel('menu', source.current); setOpen((value) => !value) }} className={`toolbar-icon-button inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none ${open ? 'border-blue-600 bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'}`}><MoreHorizontal size={22} aria-hidden="true" /></button></ToolbarTooltip>
     {open && <div ref={menuRef} role="menu" aria-label={label} className="absolute right-0 top-full z-50 mt-2.5 min-w-48 rounded-2xl border border-slate-200 bg-white p-2 premium-shadow-md animate-[toolbar-search-in_180ms_ease-out]">{items.map((item) => { const ItemIcon = item.icon; return <button key={item.label} type="button" role="menuitem" disabled={item.disabled} onClick={() => { item.onClick(); close() }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-blue-50 hover:text-blue-700 focus-visible:bg-blue-50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50">{ItemIcon && <ItemIcon size={19} aria-hidden="true" />}{item.label}</button> })}</div>}
   </div>
 }
