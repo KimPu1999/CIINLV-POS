@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CurrentUserStoreController;
 use App\Http\Controllers\Api\V1\CustomerManagementController;
 use App\Http\Controllers\Api\V1\DashboardOverviewController;
+use App\Http\Controllers\Api\V1\EmployeeManagementController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\HelpPolicyController;
 use App\Http\Controllers\Api\V1\InventoryController;
@@ -375,6 +376,27 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::prefix('business')->middleware('tenant.context.any')->group(function (): void {
+            Route::get('/employees', [EmployeeManagementController::class, 'index']);
+            Route::post('/employees', [EmployeeManagementController::class, 'store']);
+            Route::get('/employees/attendance', [EmployeeManagementController::class, 'attendanceIndex']);
+            Route::get('/employees/leave', [EmployeeManagementController::class, 'leaveIndex']);
+            Route::get('/employees/payroll', [EmployeeManagementController::class, 'payrollIndex']);
+            Route::get('/employees/commissions', [EmployeeManagementController::class, 'commissionIndex']);
+            Route::get('/employees/{employee}', [EmployeeManagementController::class, 'show']);
+            Route::patch('/employees/{employee}', [EmployeeManagementController::class, 'update']);
+            Route::post('/employees/{employee}/update', [EmployeeManagementController::class, 'update']);
+            Route::post('/employees/{employee}/deactivate', [EmployeeManagementController::class, 'deactivate']);
+            Route::post('/employees/{employee}/attendance/clock-in', [EmployeeManagementController::class, 'clockIn']);
+            Route::post('/employees/attendance/{attendance}/clock-out', [EmployeeManagementController::class, 'clockOut']);
+            Route::post('/employees/{employee}/leave', [EmployeeManagementController::class, 'storeLeave']);
+            Route::post('/employees/leave/{leave}/review', [EmployeeManagementController::class, 'reviewLeave']);
+            Route::post('/employees/{employee}/payroll', [EmployeeManagementController::class, 'storePayroll']);
+            Route::post('/employees/payroll/{payroll}/approve', [EmployeeManagementController::class, 'approvePayroll']);
+            Route::post('/employees/{employee}/commissions', [EmployeeManagementController::class, 'storeCommission']);
+            Route::post('/employees/commissions/{commission}/reverse', [EmployeeManagementController::class, 'reverseCommission']);
+            Route::post('/employees/{employee}/documents', [EmployeeManagementController::class, 'uploadDocument']);
+            Route::get('/employees/{employee}/photo', [EmployeeManagementController::class, 'photo'])->name('business.employee.photo');
+            Route::get('/employees/{employee}/documents/{document}/download', [EmployeeManagementController::class, 'downloadDocument'])->name('business.employee.documents.download');
             Route::get('/cash-management/overview', [CashManagementController::class, 'overview']);
             Route::get('/cash-management/history', [CashManagementController::class, 'history']);
             Route::get('/cash-management/history/export', [CashManagementController::class, 'exportHistory']);

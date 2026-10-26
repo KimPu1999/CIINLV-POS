@@ -21,7 +21,7 @@ class StoreMembershipService
                 ->where('tenant_id', $store->tenant_id)
                 ->where('user_id', $data['user_id'])
                 ->where('status', 'active')
-                ->whereHas('role', fn ($query) => $query->whereIn('name', ['business_admin', 'store_manager', 'inventory_manager', 'cashier']))
+                ->whereHas('role', fn ($query) => $query->whereIn('name', ['business_admin', 'store_manager', 'inventory_manager', 'cashier', 'salesperson', 'sales_staff']))
                 ->first();
 
             if (! $tenantMembership) {

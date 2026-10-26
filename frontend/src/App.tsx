@@ -47,7 +47,7 @@ const StockTransfersPage = lazy(() => import('./features/stock-transfers').then(
 const POSCheckoutPage = lazy(() => import('./features/pos-checkout').then(({ POSCheckoutPage: Page }) => ({ default: Page })))
 const RegisterManagementPage = lazy(() => import('./features/pos-management').then(({ RegisterManagementPage: Page }) => ({ default: Page })))
 const CashManagementPage = lazy(() => import('./features/cash-management').then(({ CashManagementPage: Page }) => ({ default: Page })))
-const StaffManagementPage = lazy(() => import('./features/pos-management').then(({ StaffManagementPage: Page }) => ({ default: Page })))
+const StaffManagementPage = lazy(() => import('./features/employee-management').then(({ EmployeeManagementPage: Page }) => ({ default: Page })))
 const SalesHistoryPage = lazy(() => import('./features/sales-history').then(({ SalesHistoryPage: Page }) => ({ default: Page })))
 const ReturnsRefundsPage = lazy(() => import('./features/returns-refunds').then(({ ReturnsRefundsPage: Page }) => ({ default: Page })))
 const ReportsAnalyticsPage = lazy(() => import('./features/reports-analytics').then(({ ReportsAnalyticsPage: Page }) => ({ default: Page })))
