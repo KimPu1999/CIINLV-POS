@@ -87,6 +87,32 @@ class CashManagementTest extends TestCase
         $this->assertDatabaseCount('cash_funds', 2);
     }
 
+    public function test_history_filters_export_and_reconciliation_are_tenant_and_branch_scoped(): void
+    {
+        [$tenant, $admin, , , $store] = $this->fixture('cash-history-filters');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $fundId = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/cash-management/funds', ['name' => 'Filtered Fund', 'store_id' => $store->uuid, 'opening_balance' => 100])->assertCreated()->json('data.id');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'history-filter-entry')->postJson('/api/v1/business/cash-management/entries', ['fund_id' => $fundId, 'entry_type' => 'cash_in', 'amount' => 25, 'category' => 'float', 'reason' => 'Filterable top up'])->assertCreated();
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/cash-management/history?type=cash_in&branch_id='.$store->uuid.'&from='.now()->format('Y-m-d').'&to='.now()->format('Y-m-d').'&per_page=10')->assertOk()->assertJsonPath('data.total', 1);
+        $csv = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->get('/api/v1/business/cash-management/history/export?type=cash_in&branch_id='.$store->uuid);
+        $csv->assertOk()->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString('Transaction ID', $csv->streamedContent());
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'history-reconcile')->postJson('/api/v1/business/cash-management/reconcile', ['source_type' => 'fund', 'source_id' => $fundId, 'actual_amount' => 120, 'notes' => 'Counted cash'])->assertCreated()->assertJsonPath('data.variance', '-5.00');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/cash-management/reconciliations?per_page=10')->assertOk()->assertJsonPath('data.total', 1);
+    }
+
+    public function test_invalid_and_insufficient_cash_movements_are_rejected(): void
+    {
+        [$tenant, $admin, , , $store] = $this->fixture('cash-validation');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $fundId = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/cash-management/funds', ['name' => 'Validation Fund', 'store_id' => $store->uuid, 'opening_balance' => 10])->assertCreated()->json('data.id');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'invalid-amount')->postJson('/api/v1/business/cash-management/entries', ['fund_id' => $fundId, 'entry_type' => 'cash_out', 'amount' => 0, 'reason' => 'Invalid'])->assertUnprocessable();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'insufficient-amount')->postJson('/api/v1/business/cash-management/entries', ['fund_id' => $fundId, 'entry_type' => 'cash_out', 'amount' => 11, 'reason' => 'Too much'])->assertUnprocessable();
+        $this->assertDatabaseCount('cash_management_entries', 0);
+    }
+
     private function fixture(string $suffix): array
     {
         $code = 'CASH-'.strtoupper(substr(md5($suffix), 0, 8));

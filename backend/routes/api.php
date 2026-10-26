@@ -377,6 +377,7 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('business')->middleware('tenant.context.any')->group(function (): void {
             Route::get('/cash-management/overview', [CashManagementController::class, 'overview']);
             Route::get('/cash-management/history', [CashManagementController::class, 'history']);
+            Route::get('/cash-management/history/export', [CashManagementController::class, 'exportHistory']);
             Route::get('/cash-management/reconciliations', [CashManagementController::class, 'reconciliations']);
             Route::post('/cash-management/funds', [CashManagementController::class, 'storeFund']);
             Route::post('/cash-management/entries', [CashManagementController::class, 'storeEntry']);
