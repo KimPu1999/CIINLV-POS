@@ -31,6 +31,14 @@
   z-index: 20;
 }
 
+/* Header actions are intentionally flat; focus rings remain provided by the
+   component classes so keyboard users still get a clear indicator. */
+.header-action {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .min-h-screen.bg-slate-50 > aside {
   transition-property: transform, width;
   transition-duration: 300ms;

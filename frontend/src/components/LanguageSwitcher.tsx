@@ -9,7 +9,7 @@ const options: { code: Language; flag: string; labelKey: 'english' | 'myanmar' }
   { code: 'my', flag: '🇲🇲', labelKey: 'myanmar' },
 ]
 
-export function LanguageSwitcher({ userId, userLanguage }: { userId?: string | number; userLanguage?: Language }) {
+export function LanguageSwitcher({ userId, userLanguage, flat = false }: { userId?: string | number; userLanguage?: Language; flat?: boolean }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -32,7 +32,7 @@ export function LanguageSwitcher({ userId, userLanguage }: { userId?: string | n
   }, [])
 
   return <div ref={rootRef} className="relative">
-    <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" aria-label={t('language.switchTo')} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100 hover:text-blue-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none">
+    <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" aria-label={t('language.switchTo')} className={`${flat ? 'header-action' : 'border border-slate-200 bg-white shadow-sm hover:-translate-y-0.5 hover:shadow-md'} inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none`}>
       <Globe2 size={20} aria-hidden="true" />
       <span className="hidden sm:inline">{selected.flag} {t(`language.${selected.labelKey}`)}</span>
       <span className="sm:hidden">{selected.flag}</span>

@@ -137,7 +137,7 @@ export function NotificationDropdown() {
   }
 
   return <div className="relative">
-    <button type="button" aria-label="Notifications" aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen((current) => !current); if (!open) void refresh(true) }} className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-100 hover:text-blue-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+    <button type="button" aria-label="Notifications" aria-expanded={open} aria-haspopup="dialog" onClick={() => { setOpen((current) => !current); if (!open) void refresh(true) }} className="header-action relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:text-slate-300 dark:hover:bg-slate-800">
       <Bell size={20} aria-hidden="true" />
       {unread > 0 && <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-600 px-1.5 py-0.5 text-center text-[10px] font-bold leading-4 text-white">{unread > 99 ? '99+' : unread}</span>}
     </button>

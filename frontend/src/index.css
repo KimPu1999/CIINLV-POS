@@ -433,8 +433,8 @@ div.mt-3:has(> [data-page-toolbar="true"]) {
    boundary. Inputs, buttons, validation states, sidebar separators and tabs
    are intentionally excluded so functional affordances remain visible. */
 .min-h-screen.bg-slate-50 > aside + div > header {
-  border-bottom: 0 !important;
-  box-shadow: var(--shadow-small);
+  border-bottom: 1px solid var(--theme-border) !important;
+  box-shadow: none;
 }
 
 .min-h-screen.bg-slate-50 > aside + div main :is(div, article, section)[class~="rounded-2xl"][class~="bg-white"][class~="border"]:not([class~="border-dashed"]):not(:has(> [data-page-toolbar="true"])),
