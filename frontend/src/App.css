@@ -2,7 +2,7 @@
 
 :root {
   --dashboard-sidebar-expanded-width: 220px;
-  --dashboard-sidebar-collapsed-width: 60px;
+  --dashboard-sidebar-collapsed-width: 96px;
 }
 
 .dashboard-sidebar {
@@ -22,7 +22,7 @@
 .min-h-screen.bg-slate-50 > aside + div {
   position: relative;
   min-height: 100vh;
-  transition: padding-left 300ms ease-in-out;
+  transition: padding-left 200ms ease-in-out;
 }
 
 .dashboard-header {
@@ -41,8 +41,26 @@
 
 .min-h-screen.bg-slate-50 > aside {
   transition-property: transform, width;
-  transition-duration: 300ms;
+  transition-duration: 200ms;
   transition-timing-function: ease-in-out;
+}
+
+.dashboard-sidebar nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.dashboard-sidebar nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dashboard-sidebar nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-sidebar nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
 }
 
 @media (min-width: 1024px) {
@@ -52,6 +70,12 @@
 
   .dashboard-sidebar.sidebar-collapsed {
     width: var(--dashboard-sidebar-collapsed-width);
+  }
+
+  .dashboard-sidebar.sidebar-collapsed > div:first-child {
+    justify-content: center;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .dashboard-sidebar.sidebar-collapsed nav a,
@@ -70,6 +94,13 @@
   .min-h-screen.bg-slate-50 > aside + div {
     width: 100%;
     padding-left: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .min-h-screen.bg-slate-50 > aside,
+  .min-h-screen.bg-slate-50 > aside + div {
+    transition-duration: 0ms;
   }
 }
 
