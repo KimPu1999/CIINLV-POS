@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Events\CashierShiftClosed;
 use App\Models\CashierShift;
+use App\Models\CashManagementEntry;
 use App\Models\CashMovement;
 use App\Models\PosRegister;
 use App\Models\Store;
@@ -117,6 +118,8 @@ class CashierShiftService
         $opening = (string) $shift->opening_amount;
         $cashIn = (string) CashMovement::where('cashier_shift_id', $shift->id)->whereIn('movement_type', ['cash_sale', 'cash_in'])->sum('amount');
         $cashOut = (string) CashMovement::where('cashier_shift_id', $shift->id)->whereIn('movement_type', ['cash_refund', 'cash_out'])->sum('amount');
+        $cashIn = bcadd($cashIn, (string) CashManagementEntry::where('register_id', $shift->register_id)->where('cashier_shift_id', $shift->id)->where('approval_status', 'approved')->where('direction', 'credit')->sum('amount'), 2);
+        $cashOut = bcadd($cashOut, (string) CashManagementEntry::where('register_id', $shift->register_id)->where('cashier_shift_id', $shift->id)->where('approval_status', 'approved')->where('direction', 'debit')->sum('amount'), 2);
 
         return bcsub(bcadd($opening, $cashIn, 2), $cashOut, 2);
     }

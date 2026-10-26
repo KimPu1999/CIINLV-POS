@@ -46,6 +46,7 @@ const PurchaseOrdersPage = lazy(() => import('./features/purchase-orders').then(
 const StockTransfersPage = lazy(() => import('./features/stock-transfers').then(({ StockTransfersPage: Page }) => ({ default: Page })))
 const POSCheckoutPage = lazy(() => import('./features/pos-checkout').then(({ POSCheckoutPage: Page }) => ({ default: Page })))
 const RegisterManagementPage = lazy(() => import('./features/pos-management').then(({ RegisterManagementPage: Page }) => ({ default: Page })))
+const CashManagementPage = lazy(() => import('./features/cash-management').then(({ CashManagementPage: Page }) => ({ default: Page })))
 const StaffManagementPage = lazy(() => import('./features/pos-management').then(({ StaffManagementPage: Page }) => ({ default: Page })))
 const SalesHistoryPage = lazy(() => import('./features/sales-history').then(({ SalesHistoryPage: Page }) => ({ default: Page })))
 const ReturnsRefundsPage = lazy(() => import('./features/returns-refunds').then(({ ReturnsRefundsPage: Page }) => ({ default: Page })))
@@ -322,6 +323,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="stock-transfers" element={<ResourcePage title="Stock transfers" description="Track branch and warehouse stock transfers." endpoint="/api/v1/stock-transfers" columns={['transfer_number', 'status']} />} />
           <Route path="pos" element={<PosPage />} />
           <Route path="registers" element={<RegisterManagementPage />} />
+          <Route path="cash-management" element={<CashManagementPage />} />
           <Route path="staff" element={<StaffManagementPage />} />
           <Route path="sales" element={<ResourcePage title="Sales history" description="Completed, held and cancelled POS sales." endpoint="/api/v1/pos/sales" columns={['sale_number', 'status', 'grand_total', 'completed_at']} />} />
           <Route path="notifications" element={<BusinessNotificationsPage />} />

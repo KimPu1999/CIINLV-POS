@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\BusinessProfileController;
 use App\Http\Controllers\Api\V1\BusinessRegistrationController;
 use App\Http\Controllers\Api\V1\BusinessSettingsController;
 use App\Http\Controllers\Api\V1\BusinessStoreController;
+use App\Http\Controllers\Api\V1\CashManagementController;
 use App\Http\Controllers\Api\V1\CashierShiftController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CurrentUserStoreController;
@@ -374,6 +375,17 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::prefix('business')->middleware('tenant.context.any')->group(function (): void {
+            Route::get('/cash-management/overview', [CashManagementController::class, 'overview']);
+            Route::get('/cash-management/history', [CashManagementController::class, 'history']);
+            Route::get('/cash-management/reconciliations', [CashManagementController::class, 'reconciliations']);
+            Route::post('/cash-management/funds', [CashManagementController::class, 'storeFund']);
+            Route::post('/cash-management/entries', [CashManagementController::class, 'storeEntry']);
+            Route::post('/cash-management/transfers', [CashManagementController::class, 'storeTransfer']);
+            Route::post('/cash-management/reconcile', [CashManagementController::class, 'reconcile']);
+            Route::post('/cash-management/entries/{entry}/approve', [CashManagementController::class, 'approve']);
+            Route::post('/cash-management/entries/{entry}/reject', [CashManagementController::class, 'reject']);
+            Route::post('/cash-management/entries/{entry}/reverse', [CashManagementController::class, 'reverse']);
+            Route::get('/cash-management/entries/{entry}/attachment', [CashManagementController::class, 'downloadAttachment'])->name('business.cash-management.attachment');
             Route::get('/stores', [BusinessStoreController::class, 'index']);
             Route::post('/stores', [BusinessStoreController::class, 'store']);
             Route::get('/stores/{store}', [BusinessStoreController::class, 'show']);

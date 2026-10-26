@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, HelpCircle, History, LayoutDashboard, Package, Receipt, ScanBarcode, Search, Settings, ShieldCheck, ShoppingCart, Store, Truck } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, HelpCircle, History, LayoutDashboard, Package, Receipt, ScanBarcode, Search, Settings, ShieldCheck, ShoppingCart, Store, Truck, WalletCards } from 'lucide-react'
 import type { ComponentType } from 'react'
 
 export type NavigationItem = {
@@ -48,6 +48,7 @@ export const businessNavigation: NavigationItem[] = [
   { label: 'Stock transfers', path: '/business/stock-transfers', icon: Truck, roles: ['business'] },
   { label: 'POS checkout', path: '/business/pos', icon: ShoppingCart, roles: ['business'] },
   { label: 'Registers', path: '/business/registers', icon: Receipt, roles: ['business'] },
+  { label: 'Cash management', path: '/business/cash-management', icon: WalletCards, roles: ['business'], section: 'Cash & reconciliation' },
   { label: 'Staff & salespeople', path: '/business/staff', icon: CircleUserRound, roles: ['business'] },
   { label: 'Sales history', path: '/business/sales', icon: Receipt, roles: ['business'] },
   { label: 'Returns & refunds', path: '/business/returns', icon: CircleUserRound, roles: ['business'] },
