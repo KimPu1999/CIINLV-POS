@@ -5,13 +5,14 @@ import { useTranslation } from 'react-i18next'
 import { translateStatic } from '../lib/i18n'
 import { BackButton, nestedPageFallback } from './BackButton'
 
-export function PageHeader({ title, description, action, backTo, backLabel = 'Back', onBeforeBack }: { title: string; description?: string; action?: ReactNode; backTo?: string; backLabel?: string; onBeforeBack?: () => boolean }) {
+export function PageHeader({ title, description, action, backTo, backLabel = 'Back', onBeforeBack, showTitle = false, showDescription = false }: { title: string; description?: string; action?: ReactNode; backTo?: string; backLabel?: string; onBeforeBack?: () => boolean; showTitle?: boolean; showDescription?: boolean }) {
   const { t } = useTranslation()
   const location = useLocation()
   const translatedTitle = translateStatic(t, title)
   const translatedDescription = description ? translateStatic(t, description) : undefined
   const fallback = backTo || nestedPageFallback(location.pathname)
-  return <><ConfirmationLayer /><div className="dashboard-page-actions mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div className="min-w-0"><BackButton fallbackTo={fallback} label={backLabel} onBeforeNavigate={onBeforeBack} /><h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 dark:text-white">{translatedTitle}</h1>{translatedDescription && <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">{translatedDescription}</p>}</div>{action && <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">{action}</div>}</div></>
+  if (!action && !fallback && !showTitle && !showDescription) return null
+  return <><ConfirmationLayer /><div className={`dashboard-page-actions flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between ${showTitle || showDescription ? 'mb-6' : 'mb-3'}`}><div className="min-w-0"><BackButton fallbackTo={fallback} label={backLabel} onBeforeNavigate={onBeforeBack} />{showTitle ? <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 dark:text-white">{translatedTitle}</h1> : <h1 className="sr-only">{translatedTitle}</h1>}{showDescription && translatedDescription && <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">{translatedDescription}</p>}</div>{action && <div className="flex shrink-0 flex-wrap items-center justify-start gap-2 sm:justify-end">{action}</div>}</div></>
 }
 
 export type LabelBadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
