@@ -49,17 +49,23 @@ class MarketplaceVendorController
 {
     public function dashboardSummary(Request $request, TenantContext $context): JsonResponse
     {
+        $request->validate([
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'store_id' => ['nullable', 'string', 'max:80'],
+        ]);
         $tenant = $context->tenant();
         $hasStore = MarketplaceStore::query()->where('tenant_id', $tenant->id)->exists();
         if (! $hasStore) {
             return response()->json(['success' => true, 'data' => [
                 'available' => false,
-                'metrics' => ['pending_orders' => null, 'completed_orders' => null],
+                'metrics' => ['total_orders' => null, 'pending_orders' => null, 'completed_orders' => null],
                 'recent_orders' => [],
             ]]);
         }
 
         $orders = $this->marketplaceOverviewOrdersQuery($request, $context);
+        $total = (clone $orders)->count();
         $pendingStatuses = ['pending', 'confirmed', 'processing', 'partially_shipped', 'shipped'];
         $pending = (clone $orders)->where(function (Builder $query) use ($pendingStatuses): void {
             $query->whereIn('marketplace_vendor_orders.status', $pendingStatuses)
@@ -72,7 +78,7 @@ class MarketplaceVendorController
         $recentOrders = (clone $orders)
             ->with(['store', 'tenant', 'items.reservations.balance.location.store', 'order.customer', 'order.payments', 'shipments'])
             ->latest('marketplace_vendor_orders.created_at')
-            ->limit(6)
+            ->limit(8)
             ->get()
             ->map(fn (MarketplaceVendorOrder $order): array => (new MarketplaceVendorOrderResource($order))->resolve($request))
             ->values()
@@ -80,7 +86,7 @@ class MarketplaceVendorController
 
         return response()->json(['success' => true, 'data' => [
             'available' => true,
-            'metrics' => ['pending_orders' => $pending, 'completed_orders' => $completed],
+            'metrics' => ['total_orders' => $total, 'pending_orders' => $pending, 'completed_orders' => $completed],
             'recent_orders' => $recentOrders,
         ]]);
     }

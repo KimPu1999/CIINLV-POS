@@ -10,6 +10,7 @@ use App\Services\ReportScopeService;
 use App\Services\SalesAnalyticsService;
 use App\Services\TenantContext;
 use App\Services\TranslationService;
+use App\Support\PublicMediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,7 +34,7 @@ class DashboardOverviewController
     public function lowStock(Request $request, TenantContext $context): JsonResponse
     {
         $locations = app(ReportScopeService::class)->locationIds($request->user(), $context->tenant(), $request->input('store_id'));
-        $query = InventoryBalance::with(['location', 'variant.product'])
+        $query = InventoryBalance::with(['location', 'variant.product.images'])
             ->join('product_variants', function ($join): void {
                 $join->on('product_variants.id', '=', 'inventory_balances.product_variant_id')
                     ->on('product_variants.tenant_id', '=', 'inventory_balances.tenant_id');
@@ -46,24 +47,30 @@ class DashboardOverviewController
         $rows = $query->paginate(50);
         $translations = app(TranslationService::class);
         $locale = $translations->locale($request);
-        $rows->getCollection()->transform(fn (InventoryBalance $balance): array => [
-            'id' => $balance->uuid,
-            'product_variant_id' => $balance->product_variant_id,
-            'location' => $balance->location ? ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale)] : null,
-            'variant' => $balance->variant ? ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $balance->variant->product ? ['name' => $translations->localizedValue($balance->variant->product, 'name', $locale)] : null] : null,
-            'on_hand_quantity' => $balance->on_hand_quantity,
-            'reserved_quantity' => $balance->reserved_quantity,
-            'available_quantity' => $balance->available_quantity,
-            'reorder_level' => $balance->variant?->reorder_level,
-        ]);
+        $rows->getCollection()->transform(function (InventoryBalance $balance) use ($translations, $locale): array {
+            $product = $balance->variant?->product;
+            $image = $product?->images?->sortBy('sort_order')->first();
+
+            return [
+                'id' => $balance->uuid,
+                'product_variant_id' => $balance->product_variant_id,
+                'location' => $balance->location ? ['id' => $balance->location->uuid, 'name' => $translations->localizedValue($balance->location, 'name', $locale)] : null,
+                'variant' => $balance->variant ? ['id' => $balance->variant->uuid, 'sku' => $balance->variant->sku, 'product' => $product ? ['id' => $product->uuid, 'name' => $translations->localizedValue($product, 'name', $locale), 'image_url' => PublicMediaUrl::make($image?->storage_path)] : null] : null,
+                'on_hand_quantity' => $balance->on_hand_quantity,
+                'reserved_quantity' => $balance->reserved_quantity,
+                'available_quantity' => $balance->available_quantity,
+                'reorder_level' => $balance->variant?->reorder_level,
+            ];
+        });
 
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
     public function recentSales(Request $request, TenantContext $context): JsonResponse
     {
+        [$from, $to] = app(SalesAnalyticsService::class)->range($context->tenant(), $request->input('from'), $request->input('to'));
         $stores = app(ReportScopeService::class)->storeIds($request->user(), $context->tenant(), $request->input('store_id'));
-        $rows = Sale::with(['store', 'cashier'])->where('tenant_id', $context->tenant()->id)->whereIn('store_id', $stores)->where('status', 'completed')->latest('completed_at')->paginate(20);
+        $rows = Sale::with(['store', 'cashier'])->where('tenant_id', $context->tenant()->id)->whereIn('store_id', $stores)->where('status', 'completed')->whereBetween('completed_at', [$from, $to])->latest('completed_at')->paginate(20);
 
         return response()->json(['success' => true, 'data' => $rows]);
     }

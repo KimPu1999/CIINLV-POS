@@ -7,7 +7,9 @@ use App\Models\Refund;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SaleReturnItem;
+use App\Models\Store;
 use App\Models\Tenant;
+use App\Support\PublicMediaUrl;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -18,7 +20,9 @@ class SalesAnalyticsService
 
     public function timezone(Tenant $tenant): string
     {
-        return $tenant->businessSetting?->timezone ?: config('app.timezone', 'UTC');
+        return $tenant->businessSetting?->timezone
+            ?: Store::query()->where('tenant_id', $tenant->id)->value('timezone')
+            ?: config('app.timezone', 'UTC');
     }
 
     public function range(Tenant $tenant, ?string $from = null, ?string $to = null): array
@@ -43,7 +47,14 @@ class SalesAnalyticsService
         $cogs = (float) SaleItem::whereHas('sale', fn ($q) => $q->where('sales.tenant_id', $tenant->id)->whereIn('sales.store_id', $stores)->whereIn('sales.status', ['completed', 'partially_refunded', 'refunded'])->whereBetween('sales.completed_at', [$from, $to]))->selectRaw('COALESCE(SUM(sale_items.quantity * sale_items.unit_cost_at_sale),0) AS c')->value('c');
         $returnedCogs = (float) SaleReturnItem::query()->join('sale_returns', 'sale_returns.id', '=', 'sale_return_items.sale_return_id')->join('sale_items', 'sale_items.id', '=', 'sale_return_items.sale_item_id')->where('sale_return_items.tenant_id', $tenant->id)->where('sale_items.tenant_id', $tenant->id)->whereIn('sale_returns.store_id', $stores)->where('sale_returns.status', 'refunded')->whereBetween('sale_returns.refunded_at', [$from, $to])->selectRaw('COALESCE(SUM(sale_return_items.quantity * sale_items.unit_cost_at_sale),0) AS c')->value('c');
         $cogs = max(0, $cogs - $returnedCogs);
-        $profit = $netRevenue - $cogs;
+        $costCoverage = (clone $sales)
+            ->join('sale_items', 'sale_items.sale_id', '=', 'sales.id')
+            ->selectRaw('COUNT(sale_items.id) AS item_count, SUM(CASE WHEN sale_items.unit_cost_at_sale > 0 THEN 1 ELSE 0 END) AS costed_item_count')
+            ->first();
+        $hasValidCostData = (int) ($costCoverage->item_count ?? 0) > 0
+            && (int) ($costCoverage->item_count ?? 0) === (int) ($costCoverage->costed_item_count ?? 0)
+            && $netRevenue > 0;
+        $profit = $hasValidCostData ? $netRevenue - $cogs : null;
 
         return [
             'basis' => ['sales' => 'completed_at', 'payments' => 'verified_at', 'refunds' => 'processed_at', 'timezone' => $timezone],
@@ -58,9 +69,9 @@ class SalesAnalyticsService
             'collected_payments' => $this->money($collected),
             'refunds' => $this->money($refunds),
             'net_revenue' => $this->money($netRevenue),
-            'cogs' => $this->money($cogs, 4),
-            'gross_profit' => $this->money($profit, 4),
-            'gross_profit_margin' => $netRevenue > 0 ? round(($profit / $netRevenue) * 100, 4) : null,
+            'cogs' => $hasValidCostData ? $this->money($cogs, 4) : null,
+            'gross_profit' => $profit === null ? null : $this->money($profit, 4),
+            'gross_profit_margin' => $profit !== null ? round(($profit / $netRevenue) * 100, 4) : null,
             'average_order_value' => (int) $row->transaction_count > 0 ? $this->money((float) $row->gross_sales / (int) $row->transaction_count) : '0.00',
         ];
     }
@@ -89,14 +100,42 @@ class SalesAnalyticsService
     public function topProducts(Request $request, Tenant $tenant): array
     {
         [$from, $to] = $this->range($tenant, $request->input('from'), $request->input('to'));
-        $rows = SaleItem::with('variant.product')->whereHas('sale', fn ($q) => $q->where('sales.tenant_id', $tenant->id)->whereIn('sales.store_id', $this->scope->storeIds($request->user(), $tenant, $request->input('store_id')))->whereIn('sales.status', ['completed', 'partially_refunded', 'refunded'])->whereBetween('sales.completed_at', [$from, $to]))->selectRaw('sale_items.product_variant_id, SUM(sale_items.quantity) AS quantity_sold, SUM(sale_items.line_total) AS sales_total')->groupBy('sale_items.product_variant_id')->orderByDesc('quantity_sold')->limit(20)->get();
+        $returnedQuantity = '(SELECT COALESCE(SUM(sale_return_items.quantity), 0) FROM sale_return_items INNER JOIN sale_returns ON sale_returns.id = sale_return_items.sale_return_id WHERE sale_return_items.sale_item_id = sale_items.id AND sale_returns.status = \'refunded\')';
+        $refundedAmount = '(SELECT COALESCE(SUM(sale_return_items.refund_amount), 0) FROM sale_return_items INNER JOIN sale_returns ON sale_returns.id = sale_return_items.sale_return_id WHERE sale_return_items.sale_item_id = sale_items.id AND sale_returns.status = \'refunded\')';
+        $rows = SaleItem::with(['variant.product.images'])
+            ->whereHas('sale', fn ($q) => $q->where('sales.tenant_id', $tenant->id)->whereIn('sales.store_id', $this->scope->storeIds($request->user(), $tenant, $request->input('store_id')))->whereIn('sales.status', ['completed', 'partially_refunded', 'refunded'])->whereBetween('sales.completed_at', [$from, $to]))
+            ->selectRaw("sale_items.product_variant_id, SUM(GREATEST(sale_items.quantity - {$returnedQuantity}, 0)) AS quantity_sold, SUM(sale_items.line_total - {$refundedAmount}) AS sales_total")
+            ->groupBy('sale_items.product_variant_id')
+            ->orderByDesc('quantity_sold')
+            ->limit(20)
+            ->get();
+        $translations = app(TranslationService::class);
+        $locale = $translations->locale($request);
 
-        return ['basis' => 'completed_at', 'rows' => $rows];
+        return ['basis' => 'completed_at', 'rows' => $rows->map(function (SaleItem $item) use ($translations, $locale): array {
+            $product = $item->variant?->product;
+            $image = $product?->images?->sortBy('sort_order')->first();
+
+            return [
+                'product_variant_id' => $item->product_variant_id,
+                'quantity_sold' => (float) $item->quantity_sold,
+                'sales_total' => $this->money($item->sales_total),
+                'variant' => $item->variant ? [
+                    'id' => $item->variant->uuid,
+                    'sku' => $item->variant->sku,
+                    'product' => $product ? [
+                        'id' => $product->uuid,
+                        'name' => $translations->localizedValue($product, 'name', $locale),
+                        'image_url' => PublicMediaUrl::make($image?->storage_path),
+                    ] : null,
+                ] : null,
+            ];
+        })->values()];
     }
 
     public function trend(Request $request, Tenant $tenant): array
     {
-        $period = in_array($request->input('period'), ['daily', 'weekly', 'monthly'], true) ? $request->input('period') : 'daily';
+        $period = in_array($request->input('period'), ['daily', 'weekly', 'monthly', 'yearly'], true) ? $request->input('period') : 'daily';
         $timezone = $this->timezone($tenant);
         if ($request->filled('from') || $request->filled('to')) {
             [$fromUtc, $toUtc] = $this->range($tenant, $request->input('from'), $request->input('to'));
@@ -107,25 +146,51 @@ class SalesAnalyticsService
             [$from, $to] = match ($period) {
                 'weekly' => [$now->subWeeks(7)->startOfWeek(), $now->endOfWeek()],
                 'monthly' => [$now->subMonths(5)->startOfMonth(), $now->endOfMonth()],
+                'yearly' => [$now->subYears(4)->startOfYear(), $now->endOfYear()],
                 default => [$now->subDays(6)->startOfDay(), $now->endOfDay()],
             };
         }
         $stores = $this->scope->storeIds($request->user(), $tenant, $request->input('store_id'));
+        $bucket = match ($period) {
+            'weekly' => 'week',
+            'monthly' => 'month',
+            'yearly' => 'year',
+            default => 'day',
+        };
         $rows = $this->salesQuery($tenant, $stores, $from->utc(), $to->utc())
-            ->selectRaw('date_trunc(?, sales.completed_at AT TIME ZONE ?)::date AS bucket, COUNT(sales.id) AS transaction_count, COALESCE(SUM(sales.grand_total), 0) AS gross_sales', [$period === 'daily' ? 'day' : ($period === 'weekly' ? 'week' : 'month'), $timezone])
+            ->selectRaw('date_trunc(?, sales.completed_at AT TIME ZONE ?)::date AS bucket, COUNT(sales.id) AS transaction_count, COALESCE(SUM(sales.grand_total), 0) AS gross_sales', [$bucket, $timezone])
             ->groupBy('bucket')->orderBy('bucket')->get()->keyBy(fn ($row) => (string) $row->bucket);
         $refunds = Refund::where('refunds.tenant_id', $tenant->id)->whereIn('refunds.store_id', $stores)->where('refunds.status', 'succeeded')->whereBetween('refunds.processed_at', [$from->utc(), $to->utc()])
-            ->selectRaw('date_trunc(?, refunds.processed_at AT TIME ZONE ?)::date AS bucket, COALESCE(SUM(refunds.amount), 0) AS refunds', [$period === 'daily' ? 'day' : ($period === 'weekly' ? 'week' : 'month'), $timezone])->groupBy('bucket')->pluck('refunds', 'bucket');
-        $cursor = $period === 'daily' ? $from : ($period === 'weekly' ? $from->startOfWeek() : $from->startOfMonth());
-        $end = $period === 'daily' ? $to->startOfDay() : ($period === 'weekly' ? $to->startOfWeek() : $to->startOfMonth());
+            ->selectRaw('date_trunc(?, refunds.processed_at AT TIME ZONE ?)::date AS bucket, COALESCE(SUM(refunds.amount), 0) AS refunds', [$bucket, $timezone])->groupBy('bucket')->pluck('refunds', 'bucket');
+        $cursor = match ($period) {
+            'weekly' => $from->startOfWeek(),
+            'monthly' => $from->startOfMonth(),
+            'yearly' => $from->startOfYear(),
+            default => $from,
+        };
+        $end = match ($period) {
+            'weekly' => $to->startOfWeek(),
+            'monthly' => $to->startOfMonth(),
+            'yearly' => $to->startOfYear(),
+            default => $to->startOfDay(),
+        };
         $points = [];
         while ($cursor <= $end) {
             $key = $cursor->toDateString();
             $row = $rows->get($key);
             $gross = (float) ($row->gross_sales ?? 0);
             $refund = (float) ($refunds[$key] ?? 0);
-            $points[] = ['label' => $period === 'monthly' ? $cursor->format('M Y') : $cursor->format('d M'), 'date' => $key, 'net_sales' => number_format($gross - $refund, 2, '.', ''), 'transactions' => (int) ($row->transaction_count ?? 0)];
-            $cursor = $period === 'daily' ? $cursor->addDay() : ($period === 'weekly' ? $cursor->addWeek() : $cursor->addMonth());
+            $points[] = ['label' => match ($period) {
+                'monthly' => $cursor->format('M Y'),
+                'yearly' => $cursor->format('Y'),
+                default => $cursor->format('d M'),
+            }, 'date' => $key, 'net_sales' => number_format($gross - $refund, 2, '.', ''), 'transactions' => (int) ($row->transaction_count ?? 0)];
+            $cursor = match ($period) {
+                'weekly' => $cursor->addWeek(),
+                'monthly' => $cursor->addMonth(),
+                'yearly' => $cursor->addYear(),
+                default => $cursor->addDay(),
+            };
         }
 
         return ['period' => $period, 'currency' => $tenant->businessSetting?->currency_code ?: 'MMK', 'points' => $points, 'basis' => ['sales' => 'completed_at', 'refunds' => 'processed_at', 'timezone' => $timezone]];

@@ -6,6 +6,7 @@ use App\Models\InventoryBalance;
 use App\Models\InventoryLocation;
 use App\Models\Product;
 use App\Models\Role;
+use App\Models\SaleItem;
 use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Tenant;
@@ -37,6 +38,52 @@ class PhaseSevenReportingTest extends TestCase
         $response->assertOk()->assertJsonPath('data.total_sales', '20.00')->assertJsonPath('data.total_transactions', 1)->assertJsonPath('data.gross_profit', '10.0000');
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/reports/sales/by-cashier')->assertOk()->assertJsonPath('data.rows.0.transaction_count', 1);
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/reports/sales/by-payment-method')->assertOk()->assertJsonPath('data.rows.0.method', 'cash')->assertJsonPath('data.rows.0.amount', '20.00');
+    }
+
+    public function test_dashboard_trend_supports_yearly_range_and_top_products_are_refund_aware(): void
+    {
+        [$tenant, $admin, $cashier, $store, , $variant] = $this->fixture('REPORT-A', 'dashboard-analytics');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $cashier, $store, $headers);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => 100])->assertCreated();
+        $sale = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'dashboard-analytics-sale')->postJson('/api/v1/pos/sales', ['store_id' => $store->uuid, 'register_id' => $register, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 2]]])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'dashboard-analytics-payment')->postJson('/api/v1/pos/sales/'.$sale->json('data.id').'/payments', ['method' => 'cash', 'amount' => 20])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$sale->json('data.id').'/complete')->assertOk();
+
+        $date = now('Asia/Yangon')->toDateString();
+        $trend = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/dashboard/sales-trend?period=yearly&from='.$date.'&to='.$date);
+        $trend->assertOk()->assertJsonPath('data.period', 'yearly')->assertJsonPath('data.basis.timezone', 'Asia/Yangon')->assertJsonCount(1, 'data.points');
+
+        $top = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/dashboard/top-products?from='.$date.'&to='.$date);
+        $top->assertOk()->assertJsonPath('data.rows.0.variant.sku', $variant->sku)->assertJsonPath('data.rows.0.quantity_sold', 2)->assertJsonPath('data.rows.0.sales_total', '20.00');
+    }
+
+    public function test_dashboard_hides_profit_when_historical_cost_is_unavailable(): void
+    {
+        [$tenant, $admin, $cashier, $store, $location, $variant] = $this->fixture('REPORT-A', 'dashboard-no-cost');
+        $variant->update(['purchase_cost' => 0]);
+        InventoryBalance::where('tenant_id', $tenant->id)->where('inventory_location_id', $location->id)->where('product_variant_id', $variant->id)->update(['average_cost' => 0]);
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = $this->register($admin, $cashier, $store, $headers);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register, 'opening_amount' => 100])->assertCreated();
+        $sale = $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'dashboard-no-cost-sale')->postJson('/api/v1/pos/sales', ['store_id' => $store->uuid, 'register_id' => $register, 'items' => [['variant_id' => $variant->uuid, 'quantity' => 1]]])->assertCreated();
+        SaleItem::whereHas('sale', fn ($query) => $query->where('uuid', $sale->json('data.id')))->update(['unit_cost_at_sale' => 0]);
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'dashboard-no-cost-payment')->postJson('/api/v1/pos/sales/'.$sale->json('data.id').'/payments', ['method' => 'cash', 'amount' => 10])->assertCreated();
+        $this->actingAs($cashier, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/sales/'.$sale->json('data.id').'/complete')->assertOk();
+
+        $summary = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/dashboard/sales-summary');
+        $summary->assertOk()->assertJsonPath('data.net_revenue', '10.00')->assertJsonPath('data.cogs', null)->assertJsonPath('data.gross_profit', null);
+    }
+
+    public function test_marketplace_dashboard_summary_is_safe_when_marketplace_is_not_configured(): void
+    {
+        [$tenant, $admin] = $this->fixture('REPORT-A', 'dashboard-marketplace');
+        [$otherTenant] = $this->fixture('REPORT-B', 'dashboard-marketplace-other');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $response = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/vendor/marketplace/dashboard-summary');
+        $response->assertOk()->assertJsonPath('data.available', false)->assertJsonPath('data.metrics.total_orders', null);
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $otherTenant->uuid)->getJson('/api/v1/vendor/marketplace/dashboard-summary')->assertForbidden();
     }
 
     public function test_business_report_scope_blocks_another_tenant(): void

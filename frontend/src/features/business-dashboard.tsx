@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Package,
+  PackagePlus,
   Receipt,
   ShoppingCart,
   Target,
@@ -43,10 +44,12 @@ type Summary = {
 }
 
 type TrendPoint = { label: string; date: string; net_sales: string | number; transactions: number }
-type Trend = { currency?: string; points?: TrendPoint[] }
+type Trend = { currency?: string; points?: TrendPoint[]; basis?: { timezone?: string } }
 type SalesPage = { data?: Record<string, unknown>[] }
-type TopProducts = { rows?: { quantity_sold: string | number; sales_total: string | number; variant?: { sku?: string; product?: { name?: string } } }[] }
-type LowStockPage = { data?: Record<string, unknown>[] }
+type TopProductRow = { product_variant_id?: string; quantity_sold: string | number; sales_total: string | number; variant?: { id?: string; sku?: string; product?: { id?: string; name?: string; image_url?: string | null } } }
+type TopProducts = { rows?: TopProductRow[] }
+type LowStockRow = { available_quantity?: string | number | null; reorder_level?: string | number | null; location?: { name?: string | null } | null; variant?: { id?: string; sku?: string; product?: { id?: string; name?: string; image_url?: string | null } | null } | null }
+type LowStockPage = { data?: LowStockRow[] }
 type PurchaseStatistics = { pending_approval?: number | null; pending?: number | null; draft?: number | null }
 
 type MarketplaceOrder = {
@@ -67,6 +70,7 @@ type MarketplaceOrder = {
 type MarketplaceOverview = {
   available?: boolean
   metrics?: {
+    total_orders?: number | null
     pending_orders?: number | null
     completed_orders?: number | null
     published_products?: number | null
@@ -75,12 +79,12 @@ type MarketplaceOverview = {
 }
 
 const moduleCategoryOrder = [
-  'Sales & Orders',
-  'Products & Inventory',
+  'Sales and Orders',
+  'Products and Inventory',
   'Business Management',
-  'Marketplace & Fulfillment',
-  'Reports & Analytics',
-  'Settings & Administration',
+  'Marketplace and Fulfillment',
+  'Analytics and Reports',
+  'Settings and Administration',
 ]
 
 const moduleDescriptions: Record<string, string> = {
@@ -110,7 +114,9 @@ const toneClasses = [
 ]
 
 export function BusinessDashboardPage({ navigation }: { navigation: NavigationItem[] }) {
-  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily')
+  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [overview, setOverview] = useState<Overview | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [trend, setTrend] = useState<Trend | null>(null)
@@ -129,15 +135,28 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
     let mounted = true
     setLoading(true)
     setError('')
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      setError('The start date must be before or equal to the end date.')
+      setLoading(false)
+      return () => { mounted = false }
+    }
+    const dateParams = {
+      ...(dateFrom ? { from: dateFrom } : {}),
+      ...(dateTo ? { to: dateTo } : {}),
+    }
+    const marketplaceDateParams = {
+      ...(dateFrom ? { date_from: dateFrom } : {}),
+      ...(dateTo ? { date_to: dateTo } : {}),
+    }
 
     Promise.all([
-      request<Overview>({ method: 'get', url: '/api/v1/dashboard/overview' }),
-      request<Summary>({ method: 'get', url: '/api/v1/dashboard/sales-summary' }),
-      request<Trend>({ method: 'get', url: '/api/v1/dashboard/sales-trend', params: { period } }),
-      request<SalesPage>({ method: 'get', url: '/api/v1/dashboard/recent-sales', params: { per_page: 6 } }),
-      request<TopProducts>({ method: 'get', url: '/api/v1/dashboard/top-products', params: { period } }),
+      request<Overview>({ method: 'get', url: '/api/v1/dashboard/overview', params: dateParams }),
+      request<Summary>({ method: 'get', url: '/api/v1/dashboard/sales-summary', params: dateParams }),
+      request<Trend>({ method: 'get', url: '/api/v1/dashboard/sales-trend', params: { period, ...dateParams } }),
+      request<SalesPage>({ method: 'get', url: '/api/v1/dashboard/recent-sales', params: { per_page: 8, ...dateParams } }),
+      request<TopProducts>({ method: 'get', url: '/api/v1/dashboard/top-products', params: { period, ...dateParams } }),
       request<LowStockPage>({ method: 'get', url: '/api/v1/dashboard/low-stock', params: { per_page: 6 } }),
-      request<MarketplaceOverview>({ method: 'get', url: '/api/v1/vendor/marketplace/dashboard-summary' }).catch(() => null),
+      request<MarketplaceOverview>({ method: 'get', url: '/api/v1/vendor/marketplace/dashboard-summary', params: marketplaceDateParams }).catch(() => null),
       request<PurchaseStatistics>({ method: 'get', url: '/api/v1/purchase-orders/statistics' }).catch(() => null),
     ]).then(([nextOverview, nextSummary, nextTrend, nextRecent, nextTop, nextLow, nextMarketplace, nextPurchaseStatistics]) => {
       if (!mounted) return
@@ -157,7 +176,7 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
     })
 
     return () => { mounted = false }
-  }, [period])
+  }, [dateFrom, dateTo, period])
 
   const currency = overview?.currency || summary?.currency || trend?.currency || 'MMK'
   const formatMoney = (value?: string | number | null) => {
@@ -172,16 +191,38 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
   }
   const formatCount = (value?: number | null) => value === null || value === undefined ? 'Unavailable' : value.toLocaleString()
   const points = trend?.points || []
+  const timeZone = trend?.basis?.timezone || overview?.accounting_basis?.timezone || 'Asia/Yangon'
+  const formatDate = (value: unknown) => {
+    if (!value) return 'Date unavailable'
+    const date = new Date(String(value))
+    if (Number.isNaN(date.getTime())) return 'Date unavailable'
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone }).format(date)
+  }
   const periodNetRevenue = points.reduce((total, point) => total + Number(point.net_sales || 0), 0)
   const maxSales = Math.max(1, ...points.map((point) => Number(point.net_sales || 0)))
   const lowRows = (lowStock?.data || []).map((row) => {
-    const variant = row.variant as Record<string, unknown> | undefined
-    const product = variant?.product as Record<string, unknown> | undefined
-    const available = Number(row.available_quantity ?? row.on_hand_quantity)
-    return { product: String(product?.name || '—'), sku: String(variant?.sku || '—'), available: Number.isFinite(available) ? available.toLocaleString() : 'Unavailable', status: Number.isFinite(available) && available <= 0 ? 'out_of_stock' : 'low_stock' }
+    const available = Number(row.available_quantity)
+    const reorderLevel = Number(row.reorder_level)
+    return {
+      product: row.variant?.product?.name || '—',
+      productId: row.variant?.product?.id,
+      imageUrl: row.variant?.product?.image_url,
+      sku: row.variant?.sku || '—',
+      available: Number.isFinite(available) ? available : null,
+      reorderLevel: Number.isFinite(reorderLevel) ? reorderLevel : null,
+      location: row.location?.name || 'Location unavailable',
+      status: Number.isFinite(available) && available <= 0 ? 'out_of_stock' : 'low_stock',
+    }
   })
-  const topRows = (top?.rows || []).slice(0, 5).map((row) => ({ product: row.variant?.product?.name || '—', sku: row.variant?.sku || '—', units: String(row.quantity_sold), sales: formatMoney(row.sales_total) }))
-  const salesRows = (recent?.data || []).map((row) => ({ sale: row.sale_number, date: row.completed_at ? new Date(String(row.completed_at)).toLocaleString() : '—', store: (row.store as Record<string, unknown> | undefined)?.name || '—', total: formatMoney(String(row.grand_total ?? '')), status: row.status }))
+  const topRows = (top?.rows || []).slice(0, 5).map((row) => ({
+    product: row.variant?.product?.name || '—',
+    productId: row.variant?.product?.id,
+    imageUrl: row.variant?.product?.image_url,
+    sku: row.variant?.sku || '—',
+    units: Number(row.quantity_sold),
+    sales: formatMoney(row.sales_total),
+  }))
+  const salesRows = (recent?.data || []).map((row) => ({ sale: row.sale_number, date: formatDate(row.completed_at), store: (row.store as Record<string, unknown> | undefined)?.name || '—', total: formatMoney(String(row.grand_total ?? '')), status: row.status }))
   const moduleCategories = useMemo(() => ['All', ...moduleCategoryOrder.filter((category) => navigation.some((item) => categoryFor(item) === category))], [navigation])
   const visibleModules = useMemo(() => {
     const query = moduleSearch.trim().toLowerCase()
@@ -198,6 +239,8 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
 
   const pendingOrders = marketplace?.metrics?.pending_orders
   const completedOrders = marketplace?.metrics?.completed_orders
+  const totalOrders = marketplace?.metrics?.total_orders
+  const todaySales = summary?.net_revenue ?? overview?.total_sales
   const pendingPurchaseOrders = purchaseStatistics?.pending_approval ?? purchaseStatistics?.pending
   const marketplaceOrdersAvailable = marketplace?.available === true
 
@@ -205,7 +248,7 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
     {error && <ErrorState message={error} />}
 
     <section aria-label="Business performance" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatCard label="Today's sales" value={formatMoney(overview?.total_sales)} detail="Completed sales, refund-aware period" icon={TrendingUp} tone="blue" to="/business/sales?status=completed" />
+      <StatCard label="Today's sales" value={formatMoney(todaySales)} detail="Net revenue after successful refunds" icon={TrendingUp} tone="blue" to="/business/sales?status=completed" />
       <StatCard label="Total transactions" value={overview?.total_transactions ?? 'Unavailable'} detail="Completed transactions" icon={Receipt} tone="violet" to="/business/sales" />
       <StatCard label="Gross profit" value={formatMoney(summary?.gross_profit ?? overview?.gross_profit)} detail={summary?.gross_profit_margin === null ? 'Cost data unavailable' : `${summary?.gross_profit_margin ?? 'Unavailable'}% margin`} icon={BarChart3} tone="emerald" to="/business/reports" />
       <StatCard label="Total products" value={productCount ?? 'Unavailable'} detail="Catalog records" icon={Package} tone="blue" to="/business/products" />
@@ -213,22 +256,23 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
       <StatCard label="Out of stock products" value={formatCount(overview?.out_of_stock_products)} detail="Requires attention" icon={Boxes} tone="violet" to="/business/inventory" />
       <StatCard label="Pending orders" value={formatCount(pendingOrders)} detail={marketplaceOrdersAvailable ? 'Marketplace orders awaiting action' : 'Marketplace data unavailable'} icon={ClipboardList} tone="amber" to="/business/marketplace/orders" />
       <StatCard label="Completed orders" value={formatCount(completedOrders)} detail={marketplaceOrdersAvailable ? 'Marketplace orders completed' : 'Marketplace data unavailable'} icon={CheckCircle2} tone="emerald" to="/business/marketplace/orders" />
+      <StatCard label="Total orders" value={formatCount(totalOrders)} detail={marketplaceOrdersAvailable ? 'Authorized marketplace orders' : 'Marketplace data unavailable'} icon={ClipboardList} tone="violet" to="/business/marketplace/orders" />
     </section>
 
     <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-      <SalesTrend points={points} period={period} setPeriod={setPeriod} maxSales={maxSales} periodNetRevenue={periodNetRevenue} formatMoney={formatMoney} />
-      <QuickActions />
+      <SalesTrend points={points} period={period} setPeriod={setPeriod} maxSales={maxSales} periodNetRevenue={periodNetRevenue} formatMoney={formatMoney} dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} timeZone={timeZone} />
+      <QuickActions navigation={navigation} />
     </section>
 
     <section className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-      <RecentActivity marketplace={marketplace} marketplaceOrdersAvailable={marketplaceOrdersAvailable} salesRows={salesRows} />
+      <RecentActivity marketplace={marketplace} marketplaceOrdersAvailable={marketplaceOrdersAvailable} salesRows={salesRows} timeZone={timeZone} />
       <InventoryAlerts rows={lowRows} />
     </section>
 
     <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
       <section>
         <PanelHeading title="Top selling products" action={<Link to="/business/reports" className="text-sm font-semibold text-blue-700 dark:text-blue-300">View analytics</Link>} />
-        <DataTable columns={['product', 'sku', 'units', 'sales']} rows={topRows} emptyLabel="No product sales in this period." />
+        <TopProductsPanel rows={topRows} />
       </section>
       <PendingActions pendingOrders={pendingOrders} pendingPurchaseOrders={pendingPurchaseOrders} lowStock={overview?.low_stock_products} outOfStock={overview?.out_of_stock_products} marketplaceAvailable={marketplaceOrdersAvailable} />
     </section>
@@ -251,35 +295,47 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
   </div>
 }
 
-function SalesTrend({ points, period, setPeriod, maxSales, periodNetRevenue, formatMoney }: { points: TrendPoint[]; period: 'daily' | 'weekly' | 'monthly'; setPeriod: (value: 'daily' | 'weekly' | 'monthly') => void; maxSales: number; periodNetRevenue: number; formatMoney: (value: string | number | null | undefined) => string }) {
+function SalesTrend({ points, period, setPeriod, maxSales, periodNetRevenue, formatMoney, dateFrom, dateTo, setDateFrom, setDateTo, timeZone }: { points: TrendPoint[]; period: 'daily' | 'weekly' | 'monthly' | 'yearly'; setPeriod: (value: 'daily' | 'weekly' | 'monthly' | 'yearly') => void; maxSales: number; periodNetRevenue: number; formatMoney: (value: string | number | null | undefined) => string; dateFrom: string; dateTo: string; setDateFrom: (value: string) => void; setDateTo: (value: string) => void; timeZone: string }) {
+  const rangeInvalid = dateFrom && dateTo && dateFrom > dateTo
   return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6" aria-labelledby="sales-overview-heading">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 id="sales-overview-heading" className="font-bold text-slate-950 dark:text-white">Sales trends</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Net sales after successful refunds</p></div><div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">{(['daily', 'weekly', 'monthly'] as const).map((value) => <button key={value} type="button" onClick={() => setPeriod(value)} className={`rounded-lg px-3 py-2 text-xs font-semibold capitalize ${period === value ? 'bg-white text-blue-700 shadow-sm dark:bg-slate-700 dark:text-blue-200' : 'text-slate-500 dark:text-slate-400'}`}>{value}</button>)}</div></div>
-    {points.length ? <><div className="mt-8 flex h-56 items-end gap-2 sm:gap-3" aria-label={`${period} sales trend chart`}>{points.map((point) => <div key={point.date} className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-2"><div className="relative w-full rounded-t-lg bg-blue-500 transition-colors group-hover:bg-blue-600" style={{ height: `${Math.max(4, Number(point.net_sales || 0) / maxSales * 175)}px` }} title={`${point.label}: ${formatMoney(point.net_sales)}`} /><span className="max-w-full truncate text-[10px] text-slate-400">{point.label}</span></div>)}</div><div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4 text-sm dark:border-slate-800"><span className="text-slate-500 dark:text-slate-400">Period net revenue <strong className="text-slate-900 dark:text-white">{formatMoney(periodNetRevenue)}</strong></span><span className="text-slate-400">{points[0]?.label || ''} – {points.at(-1)?.label || ''}</span></div></> : <div className="mt-5"><EmptyState label="No sales trend data is available for this period." /></div>}
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="sales-overview-heading" className="font-bold text-slate-950 dark:text-white">Sales trends</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Net sales after successful refunds · {timeZone}</p></div><div className="flex flex-wrap rounded-xl bg-slate-100 p-1 dark:bg-slate-800">{(['daily', 'weekly', 'monthly', 'yearly'] as const).map((value) => <button key={value} type="button" onClick={() => setPeriod(value)} className={`rounded-lg px-3 py-2 text-xs font-semibold capitalize ${period === value ? 'bg-white text-blue-700 shadow-sm dark:bg-slate-700 dark:text-blue-200' : 'text-slate-500 dark:text-slate-400'}`}>{value}</button>)}</div></div>
+    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end"><label className="text-xs font-semibold text-slate-600 dark:text-slate-300">From<input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="mt-1 block h-10 rounded-[10px] border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-900/50" /></label><label className="text-xs font-semibold text-slate-600 dark:text-slate-300">To<input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="mt-1 block h-10 rounded-[10px] border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-900/50" /></label>{(dateFrom || dateTo) && <button type="button" onClick={() => { setDateFrom(''); setDateTo('') }} className="h-10 rounded-[10px] px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:text-slate-300 dark:hover:bg-slate-800">Clear range</button>}</div>
+    {rangeInvalid && <p className="mt-2 text-xs font-medium text-rose-700 dark:text-rose-300" role="alert">Choose a valid date range.</p>}
+    {points.length ? <><div className="mt-8 flex h-56 items-end gap-2 overflow-hidden sm:gap-3" aria-label={`${period} sales trend chart`}>{points.map((point) => <div key={point.date} className="group flex min-w-0 flex-1 flex-col items-center justify-end gap-2"><div className="relative w-full rounded-t-lg bg-blue-500 transition-colors group-hover:bg-blue-600" style={{ height: `${Math.max(4, Number(point.net_sales || 0) / maxSales * 175)}px` }} title={`${point.label}: ${formatMoney(point.net_sales)}`} /><span className="max-w-full truncate text-[10px] text-slate-400">{point.label}</span></div>)}</div><div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4 text-sm dark:border-slate-800"><span className="text-slate-500 dark:text-slate-400">Period net revenue <strong className="text-slate-900 dark:text-white">{formatMoney(periodNetRevenue)}</strong></span><span className="text-slate-400">{points[0]?.label || ''} – {points.at(-1)?.label || ''}</span></div></> : <div className="mt-5"><EmptyState label="No sales trend data is available for this period." /></div>}
   </section>
 }
 
-function QuickActions() {
+function QuickActions({ navigation }: { navigation: NavigationItem[] }) {
   const actions = [
     { to: '/business/pos', label: 'New sale', detail: 'Open POS checkout', icon: ShoppingCart, tone: 'blue' },
-    { to: '/business/products', label: 'Add product', detail: 'Update your catalog', icon: Package, tone: 'emerald' },
+    { to: '/business/products', label: 'Add product', detail: 'Update your catalog', icon: PackagePlus, tone: 'emerald' },
     { to: '/business/purchase-orders', label: 'Create order', detail: 'Replenish stock', icon: ClipboardList, tone: 'amber' },
     { to: '/business/barcode-management', label: 'Generate barcode', detail: 'Manage barcode batches', icon: Barcode, tone: 'violet' },
     { to: '/business/inventory', label: 'Manage inventory', detail: 'Review stock levels', icon: Warehouse, tone: 'cyan' },
     { to: '/business/reports', label: 'View reports', detail: 'Analyze performance', icon: BarChart3, tone: 'rose' },
   ] as const
-  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"><div className="flex items-center justify-between"><div><h2 className="font-bold text-slate-950 dark:text-white">Quick actions</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Common business tasks</p></div><Target className="text-blue-600" size={22} /></div><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">{actions.map(({ to, label, detail, icon: Icon, tone }) => <Link key={to} to={to} className="group flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:hover:border-blue-700"><span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${toneClasses[{ blue: 0, emerald: 1, amber: 2, violet: 3, rose: 4, cyan: 5 }[tone]]}`}><Icon size={18} /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</span><span className="block truncate text-xs text-slate-500 dark:text-slate-400">{detail}</span></span><ArrowUpRight size={16} className="text-slate-400 transition group-hover:text-blue-600" /></Link>)}</div></section>
+  const visibleActions = actions.filter((action) => navigation.some((item) => item.path === action.to))
+  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6"><div className="flex items-center justify-between"><div><h2 className="font-bold text-slate-950 dark:text-white">Quick actions</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Common business tasks</p></div><Target className="text-blue-600" size={22} /></div>{visibleActions.length ? <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">{visibleActions.map(({ to, label, detail, icon: Icon, tone }) => <Link key={to} to={to} className="group flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:hover:border-blue-700"><span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${toneClasses[{ blue: 0, emerald: 1, amber: 2, violet: 3, rose: 4, cyan: 5 }[tone]]}`}><Icon size={18} /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</span><span className="block truncate text-xs text-slate-500 dark:text-slate-400">{detail}</span></span><ArrowUpRight size={16} className="text-slate-400 transition group-hover:text-blue-600" /></Link>)}</div> : <EmptyState label="No quick actions are available for your role." />}</section>
 }
 
-function RecentActivity({ marketplace, marketplaceOrdersAvailable, salesRows }: { marketplace: MarketplaceOverview | null; marketplaceOrdersAvailable: boolean; salesRows: Record<string, unknown>[] }) {
+function RecentActivity({ marketplace, marketplaceOrdersAvailable, salesRows, timeZone }: { marketplace: MarketplaceOverview | null; marketplaceOrdersAvailable: boolean; salesRows: Record<string, unknown>[]; timeZone: string }) {
   if (marketplaceOrdersAvailable) {
     const orders = marketplace?.recent_orders || []
-    return <section><PanelHeading title="Recent orders" description="Latest marketplace orders in this business." action={<Link to="/business/marketplace/orders" className="text-sm font-semibold text-blue-700 dark:text-blue-300">View all</Link>} />{orders.length ? <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><table className="w-full min-w-[620px] text-left text-sm"><thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"><tr><th className="px-4 py-3 font-semibold">Order</th><th className="px-4 py-3 font-semibold">Customer</th><th className="px-4 py-3 font-semibold">Status</th><th className="px-4 py-3 text-right font-semibold">Total</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{orders.slice(0, 6).map((order, index) => { const orderId = order.id || order.order_id; const destination = orderId ? `/business/marketplace/orders/${orderId}` : '/business/marketplace/orders'; return <tr key={orderId || index} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-4 py-3.5"><Link to={destination} className="font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200">{order.vendor_order_number || order.order_number || 'Order'}</Link><span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Date unavailable'}</span></td><td className="px-4 py-3.5 text-slate-700 dark:text-slate-200">{order.customer_name || 'Marketplace customer'}</td><td className="px-4 py-3.5"><StatusBadge status={order.fulfillment_status || order.order_status || order.status} variant="fulfillment" /></td><td className="px-4 py-3.5 text-right font-semibold text-slate-900 dark:text-white">{order.total === null || order.total === undefined ? 'Unavailable' : `${order.currency_code || ''} ${Number(order.total).toLocaleString()}`}</td></tr>})}</tbody></table></div> : <EmptyState label="No marketplace orders are available yet." />}</section>
+    return <section><PanelHeading title="Recent orders" description="Latest marketplace orders in this business." action={<Link to="/business/marketplace/orders" className="text-sm font-semibold text-blue-700 dark:text-blue-300">View all</Link>} />{orders.length ? <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><table className="w-full min-w-[620px] text-left text-sm"><thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"><tr><th className="px-4 py-3 font-semibold">Order</th><th className="px-4 py-3 font-semibold">Customer</th><th className="px-4 py-3 font-semibold">Status</th><th className="px-4 py-3 text-right font-semibold">Total</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{orders.slice(0, 8).map((order, index) => { const orderId = order.id || order.order_id; const destination = orderId ? `/business/marketplace/orders/${orderId}` : '/business/marketplace/orders'; return <tr key={orderId || index} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-4 py-3.5"><Link to={destination} className="font-semibold text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200">{order.vendor_order_number || order.order_number || 'Order'}</Link><span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{order.created_at ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone }).format(new Date(order.created_at)) : 'Date unavailable'}</span></td><td className="px-4 py-3.5 text-slate-700 dark:text-slate-200">{order.customer_name || 'Marketplace customer'}</td><td className="px-4 py-3.5"><StatusBadge status={order.fulfillment_status || order.order_status || order.status} variant="fulfillment" /></td><td className="px-4 py-3.5 text-right font-semibold text-slate-900 dark:text-white">{order.total === null || order.total === undefined ? 'Unavailable' : `${order.currency_code || ''} ${Number(order.total).toLocaleString()}`}</td></tr>})}</tbody></table></div> : <EmptyState label="No marketplace orders are available yet." />}</section>
   }
   return <section><PanelHeading title="Recent sales" description="Latest completed POS sales in this business." action={<Link to="/business/sales" className="text-sm font-semibold text-blue-700 dark:text-blue-300">View all</Link>} /><DataTable columns={['sale', 'date', 'store', 'total', 'status']} rows={salesRows} emptyLabel="No completed transactions yet." /></section>
 }
 
-function InventoryAlerts({ rows }: { rows: Record<string, unknown>[] }) {
-  return <section><PanelHeading title="Inventory alerts" description="Products at or below their reorder level." action={<Link to="/business/alerts" className="text-sm font-semibold text-blue-700 dark:text-blue-300">View all</Link>} /><DataTable columns={['product', 'sku', 'available', 'status']} rows={rows} emptyLabel="Inventory levels look healthy." /></section>
+function InventoryAlerts({ rows }: { rows: Array<{ product: string; productId?: string; imageUrl?: string | null; sku: string; available: number | null; reorderLevel: number | null; location: string; status: string }> }) {
+  return <section><PanelHeading title="Inventory alerts" description="Products at or below their reorder level." action={<Link to="/business/alerts" className="text-sm font-semibold text-blue-700 dark:text-blue-300">View all</Link>} />{rows.length ? <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">{rows.map((row) => <div key={`${row.sku}-${row.location}`} className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-3 dark:border-slate-800"><ProductThumb src={row.imageUrl} label={row.product} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{row.product}</p><p className="truncate text-xs text-slate-500 dark:text-slate-400">{row.sku} · {row.location}</p></div><div className="text-right"><StatusBadge status={row.status} /><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{row.available === null ? 'Unavailable' : `${row.available.toLocaleString()} available`}{row.reorderLevel !== null ? ` · reorder at ${row.reorderLevel.toLocaleString()}` : ''}</p></div><Link to={`/business/inventory${row.sku !== '—' ? `?search=${encodeURIComponent(row.sku)}` : ''}`} className="shrink-0 rounded-lg px-2.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/40">Restock</Link></div>)}</div> : <EmptyState label="Inventory levels look healthy." />}</section>
+}
+
+function TopProductsPanel({ rows }: { rows: Array<{ product: string; productId?: string; imageUrl?: string | null; sku: string; units: number; sales: string }> }) {
+  return rows.length ? <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><table className="w-full min-w-[520px] text-left text-sm"><thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"><tr><th className="px-4 py-3 font-semibold">Product</th><th className="px-4 py-3 font-semibold">SKU</th><th className="px-4 py-3 text-right font-semibold">Units sold</th><th className="px-4 py-3 text-right font-semibold">Revenue</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{rows.map((row, index) => <tr key={`${row.sku}-${index}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/60"><td className="px-4 py-3"><Link to={`/business/products${row.productId ? `?product_id=${encodeURIComponent(row.productId)}` : `?search=${encodeURIComponent(row.sku)}`}`} className="flex items-center gap-3 font-semibold text-slate-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-300"><ProductThumb src={row.imageUrl} label={row.product} /><span className="truncate">{row.product}</span></Link></td><td className="px-4 py-3 text-slate-500 dark:text-slate-400">{row.sku}</td><td className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-100">{Number.isFinite(row.units) ? row.units.toLocaleString() : 'Unavailable'}</td><td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">{row.sales}</td></tr>)}</tbody></table></div> : <EmptyState label="No product sales in this period." />
+}
+
+function ProductThumb({ src, label }: { src?: string | null; label: string }) {
+  return src ? <img src={src} alt="" className="size-10 shrink-0 rounded-lg border border-slate-200 object-cover dark:border-slate-700" /> : <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500" aria-label={`${label} image unavailable`}><Package size={18} aria-hidden="true" /></span>
 }
 
 function PendingActions({ pendingOrders, pendingPurchaseOrders, lowStock, outOfStock, marketplaceAvailable }: { pendingOrders?: number | null; pendingPurchaseOrders?: number | null; lowStock?: number | null; outOfStock?: number | null; marketplaceAvailable: boolean }) {
@@ -312,11 +368,11 @@ function PanelHeading({ title, description, action }: { title: string; descripti
 
 function categoryFor(item: NavigationItem): string {
   const path = item.path.toLowerCase()
-  if (path.includes('/marketplace/')) return 'Marketplace & Fulfillment'
-  if (['/business/pos', '/business/registers', '/business/sales', '/business/returns', '/business/customers', '/business/purchase-orders'].some((value) => path === value)) return 'Sales & Orders'
-  if (['products', 'barcode', 'categories', 'suppliers', 'warehouses', 'inventory', 'stock-transfers'].some((value) => path.includes(`/${value}`))) return 'Products & Inventory'
-  if (path.includes('/reports')) return 'Reports & Analytics'
-  if (['settings', 'verification', 'help', 'branches', 'staff'].some((value) => path.includes(`/${value}`))) return 'Settings & Administration'
+  if (path.includes('/marketplace/')) return 'Marketplace and Fulfillment'
+  if (['/business/pos', '/business/registers', '/business/sales', '/business/returns', '/business/customers', '/business/purchase-orders'].some((value) => path === value)) return 'Sales and Orders'
+  if (['products', 'barcode', 'categories', 'suppliers', 'warehouses', 'inventory', 'stock-transfers'].some((value) => path.includes(`/${value}`))) return 'Products and Inventory'
+  if (path.includes('/reports')) return 'Analytics and Reports'
+  if (['settings', 'verification', 'help', 'branches', 'staff'].some((value) => path.includes(`/${value}`))) return 'Settings and Administration'
   return 'Business Management'
 }
 

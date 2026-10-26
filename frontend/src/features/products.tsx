@@ -58,7 +58,7 @@ export function ProductManagementPage() {
   const requestSequence = useRef(0)
   const detailSequence = useRef(0)
   const filters = useMemo(() => readFilters(searchParams), [searchParams])
-  const products = page?.data || []
+  const products = useMemo(() => page?.data || [], [page])
   const selectedTenantId = window.localStorage.getItem('ciinlv_tenant_id')
   const businessName = user?.memberships?.find((membership) => membership.business.id === selectedTenantId)?.business.name || user?.memberships?.[0]?.business.name || ''
 
@@ -135,6 +135,31 @@ export function ProductManagementPage() {
       if (sequence === detailSequence.current) setDetailData({ balances: [], movements: [], alerts: [], loading: false, error: message(err, 'Unable to load authorized inventory detail.') })
     }
   }
+
+  const closeDetail = () => {
+    detailSequence.current += 1
+    setDetail(null)
+    if (searchParams.has('product_id')) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('product_id')
+      setSearchParams(next, { replace: true })
+    }
+  }
+
+  useEffect(() => {
+    const requestedProductId = searchParams.get('product_id')
+    if (!requestedProductId || detail?.id === requestedProductId) return
+    let cancelled = false
+    const listedProduct = products.find((product) => product.id === requestedProductId)
+    if (listedProduct) {
+      void openDetail(listedProduct)
+      return () => { cancelled = true }
+    }
+    api.get<{ data: Product }>(`/api/v1/products/${requestedProductId}`).then((response) => {
+      if (!cancelled) void openDetail(response.data.data)
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [detail?.id, products, searchParams])
 
   useEffect(() => {
     if (detail && !detailData.loading) void openDetail(detail)
@@ -271,8 +296,8 @@ export function ProductManagementPage() {
     {success && <div role="status" className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700"><CheckCircle2 size={17} />{success}</div>}
     {loading ? <div className="mt-6"><LoadingState /></div> : !products.length ? <div className="mt-6"><EmptyState label={filters.search || activeFilterCount ? 'No products match these filters.' : 'No products have been created yet.'} /></div> : <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><table className="w-full min-w-[1050px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-800"><tr>{['Product', 'SKU', 'Category', 'Brand', 'Selling price', 'Available stock', 'Status', 'Actions'].map((heading) => <th key={heading} className="px-4 py-3 font-semibold">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{products.map((product) => <tr key={product.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/70"><td className="px-4 py-3"><button type="button" onClick={() => setDetail(product)} className="flex items-center gap-3 text-left font-semibold text-slate-900 hover:text-blue-700 dark:text-white"><CatalogImage src={product.images?.[0]?.url} label={product.name} size="sm" /><span>{product.name}</span></button></td><td className="px-4 py-3 text-slate-500">{product.sku || product.variants?.[0]?.sku || '—'}</td><td className="px-4 py-3 text-slate-500">{product.category?.name || 'Uncategorized'}</td><td className="px-4 py-3 text-slate-500">{product.brand || '—'}</td><td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-100">{product.selling_price ? formatMoney(product.selling_price) : '—'}</td><td className="px-4 py-3 text-slate-700 dark:text-slate-300">{product.track_inventory ? String(product.available_stock ?? 0) : 'Not tracked'}</td><td className="px-4 py-3"><StatusBadge status={product.status} /></td><td className="px-4 py-3"><div className="flex gap-1"><button type="button" title="View" aria-label={`View ${product.name}`} onClick={() => setDetail(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Eye size={16} /></button><button type="button" title="Edit" aria-label={`Edit ${product.name}`} onClick={() => setEditing(product)} className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"><Edit3 size={16} /></button><button type="button" title="Activate or deactivate" aria-label={`Change status for ${product.name}`} onClick={() => { void changeStatus(product) }} className="rounded-lg p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-700"><Archive size={16} /></button></div></td></tr>)}</tbody></table></div>}
     <div className="mt-4 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-x-4 gap-y-2"><span>{t('text.showing_products', { from: firstResult.toLocaleString(), to: lastResult.toLocaleString(), total: pageMeta.total.toLocaleString() })}</span><span>{t('text.page_of', { current: pageMeta.current_page, total: pageMeta.last_page })}</span></div><div className="flex items-center justify-between gap-1 sm:justify-end"><button type="button" aria-label={t('text.first_page')} disabled={pageMeta.current_page <= 1} onClick={() => goToPage(1)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.first_page')}</button><button type="button" aria-label={t('text.previous_page')} disabled={pageMeta.current_page <= 1} onClick={() => goToPage(pageMeta.current_page - 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><ChevronLeft size={15} /><span className="hidden sm:inline">{t('text.previous')}</span></button><span className="px-2 text-xs font-semibold md:hidden">{t('text.page')} {pageMeta.current_page}</span><div className="hidden items-center gap-1 md:flex">{pages.map((item, index) => item === 'ellipsis' ? <span key={`ellipsis-${index}`} className="px-1">…</span> : <button type="button" key={item} aria-current={item === pageMeta.current_page ? 'page' : undefined} onClick={() => goToPage(item)} className={`min-w-8 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${item === pageMeta.current_page ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300'}`}>{item}</button>)}</div><button type="button" aria-label={t('text.next_page')} disabled={pageMeta.current_page >= pageMeta.last_page} onClick={() => goToPage(pageMeta.current_page + 1)} className="inline-flex items-center rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"><span className="hidden sm:inline">{t('text.next')}</span><ChevronRight size={15} /></button><button type="button" aria-label={t('text.last_page')} disabled={pageMeta.current_page >= pageMeta.last_page} onClick={() => goToPage(pageMeta.last_page)} className="hidden rounded-lg border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40 md:inline-flex">{t('text.last_page')}</button></div></div>
-    {(editing || detail) && (editing ? <ProductForm product={editing.id ? editing : null} saving={saving} uploadProgress={uploadProgress} onClose={() => setEditing(null)} onSave={(form, images) => { void save(form, images) }} /> : <ProductDetail product={detail!} onClose={() => { detailSequence.current += 1; setDetail(null) }} />)}
-    {detail && <ProductInventoryPanel product={detail} data={detailData} locations={locations} onRefresh={() => { void openDetail(detail) }} onClose={() => { detailSequence.current += 1; setDetail(null) }} />}
+    {(editing || detail) && (editing ? <ProductForm product={editing.id ? editing : null} saving={saving} uploadProgress={uploadProgress} onClose={() => setEditing(null)} onSave={(form, images) => { void save(form, images) }} /> : <ProductDetail product={detail!} onClose={closeDetail} />)}
+    {detail && <ProductInventoryPanel product={detail} data={detailData} locations={locations} onRefresh={() => { void openDetail(detail) }} onClose={closeDetail} />}
   </>
 }
 
