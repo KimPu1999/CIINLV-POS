@@ -113,6 +113,24 @@ const toneClasses = [
   'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-200',
 ]
 
+const moduleTileClasses = [
+  'border-[#B8D3F5] bg-[#DCEBFF] dark:border-[#315A86] dark:bg-[#1E3A5F]',
+  'border-[#B9E6CC] bg-[#DCF6E9] dark:border-[#2D7254] dark:bg-[#164A36]',
+  'border-[#F3D0A8] bg-[#FFEDD8] dark:border-[#8A5B2E] dark:bg-[#5A3A1E]',
+  'border-[#D4C3F5] bg-[#EBE2FF] dark:border-[#5B4596] dark:bg-[#39286B]',
+  'border-[#F0BDD3] bg-[#FCE2EC] dark:border-[#884362] dark:bg-[#5A2A42]',
+  'border-[#B2E1E4] bg-[#D9F3F5] dark:border-[#347A80] dark:bg-[#174A4F]',
+]
+
+const moduleIconClasses = [
+  'text-[#1D4ED8] dark:text-[#9CC5FF]',
+  'text-[#047857] dark:text-[#72E1B2]',
+  'text-[#C2410C] dark:text-[#FDBA74]',
+  'text-[#6D28D9] dark:text-[#C4B5FD]',
+  'text-[#BE185D] dark:text-[#FDA4AF]',
+  'text-[#0F766E] dark:text-[#7DD3D8]',
+]
+
 export function BusinessDashboardPage({ navigation }: { navigation: NavigationItem[] }) {
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily')
   const [dateFrom, setDateFrom] = useState('')
@@ -290,7 +308,7 @@ export function BusinessDashboardPage({ navigation }: { navigation: NavigationIt
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Filter modules by category">
         {moduleCategories.map((category) => <button key={category} type="button" onClick={() => setModuleCategory(category)} className={`whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:focus-visible:ring-blue-900 ${moduleCategory === category ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-700 dark:hover:text-blue-300'}`}>{category}</button>)}
       </div>
-      {visibleModules.length ? <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">{visibleModules.map((item, index) => <ModuleCard key={`${item.path}-${item.label}-${index}`} item={item} index={index} />)}</div> : <div className="mt-5"><EmptyState label="No authorized modules match your search." /></div>}
+      {visibleModules.length ? <div className="mt-5 grid grid-cols-2 gap-3 max-[360px]:grid-cols-1 sm:gap-4 md:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-6">{visibleModules.map((item, index) => <ModuleCard key={`${item.path}-${item.label}-${index}`} item={item} index={index} />)}</div> : <div className="mt-5"><EmptyState label="No authorized modules match your search." /></div>}
     </section>
   </div>
 }
@@ -359,7 +377,9 @@ function Checklist({ label, to, done }: { label: string; to: string; done: boole
 function ModuleCard({ item, index }: { item: NavigationItem; index: number }) {
   const Icon = item.icon
   const category = categoryFor(item)
-  return <Link to={item.path} aria-label={`Open ${item.label}`} className="group flex min-h-[132px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-700 dark:focus-visible:ring-blue-900"><div className="flex items-start justify-between gap-3"><span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${toneClasses[index % toneClasses.length]}`}><Icon size={20} aria-hidden="true" /></span><ArrowUpRight size={17} className="text-slate-300 transition group-hover:text-blue-600 dark:text-slate-600" aria-hidden="true" /></div><span className="mt-4"><span className="block text-sm font-bold text-slate-900 dark:text-white">{item.label}</span><span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{moduleDescriptions[item.label] || category}</span></span></Link>
+  const description = moduleDescriptions[item.label] || category
+  const toneIndex = index % moduleTileClasses.length
+  return <Link to={item.path} aria-label={`Open ${item.label}. ${description}`} className={`group flex h-[118px] min-h-0 flex-col items-center justify-center gap-3 overflow-hidden rounded-[15px] border p-3 text-center text-[#1E293B] transition duration-200 hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-sm focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 motion-reduce:transform-none motion-reduce:transition-none dark:text-slate-100 dark:hover:border-blue-500 dark:focus-visible:ring-blue-900 ${moduleTileClasses[toneIndex]}`}><span className={`flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/90 shadow-sm dark:bg-slate-900/80 ${moduleIconClasses[toneIndex]}`}><Icon size={20} aria-hidden="true" /></span><span className="flex min-h-10 max-w-full items-center justify-center text-center text-xs font-bold leading-4 sm:text-sm">{item.label}</span><span className="sr-only">{description}</span></Link>
 }
 
 function PanelHeading({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {

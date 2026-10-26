@@ -292,15 +292,11 @@ export function BarcodeManagementPage() {
 
   return (
     <>
-      <PageHeader title="Barcode Management" description="Manage variant barcodes, queue large generation jobs, and print labels from one tenant-scoped workspace." />
-      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0">
-          <nav aria-label="Breadcrumb" className="mb-2 text-xs font-bold uppercase tracking-[.16em] text-slate-500 dark:text-slate-400"><Link to="/business/products" className="hover:text-blue-600">Products</Link><span className="px-2">/</span><span aria-current="page">Barcode Management</span></nav>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">Barcode Management</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">Manage variant barcodes, queue large generation jobs, and print labels from one tenant-scoped workspace.</p>
-        </div>
-        <PageToolbar><button type="button" onClick={() => setGeneratorOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700"><ScanBarcode size={17} />Generate barcodes</button><button type="button" disabled={!selected.size || allMatching} title={allMatching ? 'Use a batch for all matching results; direct printing is limited to the loaded page.' : undefined} onClick={printSelected} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-950/30"><Printer size={17} />Print selected</button><button type="button" onClick={() => { setMode('manual_csv'); setGeneratorOpen(true) }} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><FileUp size={17} />Import CSV</button></PageToolbar>
-      </div>
+      <PageHeader
+        title="Barcode Management"
+        backTo="/business/products"
+        action={<PageToolbar><button type="button" onClick={() => setGeneratorOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700"><ScanBarcode size={17} />Generate barcodes</button><button type="button" disabled={!selected.size || allMatching} title={allMatching ? 'Use a batch for all matching results; direct printing is limited to the loaded page.' : undefined} onClick={printSelected} className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-950/30"><Printer size={17} />Print selected</button><button type="button" onClick={() => { setMode('manual_csv'); setGeneratorOpen(true) }} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"><FileUp size={17} />Import CSV</button></PageToolbar>}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard compact label="Total variants" value={stats?.total_variants ?? '—'} detail="Tenant catalog scope" icon={PackageOpen} tone="blue" /><StatCard compact label="Barcodes assigned" value={stats?.with_barcode ?? '—'} detail="Existing saved identifiers" icon={CheckCircle2} tone="emerald" /><StatCard compact label="Missing barcodes" value={stats?.missing_barcode ?? '—'} detail="Eligible for generation" icon={AlertTriangle} tone="amber" /><StatCard compact label="Active batches" value={activeBatches} detail="Queued or processing" icon={RefreshCw} tone="violet" /></div>
 
