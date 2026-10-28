@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { AtSign, Camera, Facebook, Heart, Instagram, Link2, LogOut, MapPin, Menu, MessageCircle, Moon, Music2, Package, Play, Search, Send, ShoppingBag, Sparkles, Sun, UserCircle, UserRound, X, Youtube } from 'lucide-react'
+import { AtSign, Camera, Heart, Link2, LogOut, MapPin, Menu, MessageCircle, Moon, Music2, Package, Play, Search, Send, ShoppingBag, Sparkles, Sun, UserCircle, UserRound, X } from 'lucide-react'
 import type { Customer, Locale, MarketplaceAppearance, Theme, TranslationKey } from '../lib/marketplace'
 import { translate } from '../lib/marketplace'
 import { BrandLogo } from './BrandLogo'
@@ -151,7 +151,7 @@ function FooterSocialLinks({ t, footer }: { t: (key: TranslationKey) => string; 
   if (!footer?.show_social_icons) return null
   type SocialLink = { key: string; label: string; url?: string; icon: ReactNode }
   const labels: Record<string, string> = { facebook: t('socialFacebook'), instagram: t('socialInstagram'), youtube: t('socialYoutube'), tiktok: t('socialTiktok'), x: 'X', telegram: 'Telegram', whatsapp: 'WhatsApp', custom: 'Social link' }
-  const defaults: Record<string, ReactNode> = { facebook: <Facebook size={19} />, instagram: <Instagram size={19} />, youtube: <Youtube size={19} />, tiktok: <Music2 size={19} />, x: <AtSign size={19} />, telegram: <Send size={19} />, whatsapp: <MessageCircle size={19} />, custom: <Link2 size={19} /> }
+  const defaults: Record<string, ReactNode> = { facebook: <MessageCircle size={19} />, instagram: <Camera size={19} />, youtube: <Play size={19} />, tiktok: <Music2 size={19} />, x: <AtSign size={19} />, telegram: <Send size={19} />, whatsapp: <MessageCircle size={19} />, custom: <Link2 size={19} /> }
   const configured = footer.social_links?.length ? footer.social_links.map((link) => ({ key: link.id, label: labels[link.platform] || 'Social link', url: link.url, icon: link.icon_mode === 'custom' && link.custom_icon_url ? <img src={link.custom_icon_url} alt="" className="size-5 object-contain" /> : defaults[link.platform] || defaults.custom })).filter((link) => link.url) : ([
     { key: 'facebook', label: t('socialFacebook'), url: footer.facebook_url || undefined, icon: <MessageCircle size={17} /> },
     { key: 'instagram', label: t('socialInstagram'), url: footer.instagram_url || undefined, icon: <Camera size={17} /> },
