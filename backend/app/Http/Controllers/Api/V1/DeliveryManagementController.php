@@ -6,8 +6,11 @@ use App\Models\DeliveryAssignmentEvent;
 use App\Models\DeliveryCourierPartner;
 use App\Models\DeliveryStaffProfile;
 use App\Models\EmployeeProfile;
+use App\Models\EmployeeBranchAssignment;
 use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceVendorOrder;
+use App\Models\StoreMembership;
+use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\MarketplaceFulfillmentService;
 use App\Services\TenantContext;
@@ -28,6 +31,7 @@ class DeliveryManagementController
     public function dashboard(TenantContext $context): JsonResponse
     {
         $tenantId = $context->tenant()->id;
+        $this->authorizeDeliveryView(request()->user(), $tenantId);
         $activeStaff = DeliveryStaffProfile::query()->where('tenant_id', $tenantId)->where('status', 'active');
         $shipments = MarketplaceShipment::query()->where('tenant_id', $tenantId);
         $eligible = MarketplaceVendorOrder::query()->where('tenant_id', $tenantId)->whereIn('status', ['pending', 'processing'])->whereHas('order', fn (Builder $order) => $order->whereIn('status', ['confirmed', 'processing']))->whereDoesntHave('shipments')->count();
@@ -52,21 +56,31 @@ class DeliveryManagementController
     public function lookup(TenantContext $context): JsonResponse
     {
         $tenant = $context->tenant();
+        $user = request()->user();
+        $this->authorizeDeliveryView($user, $tenant->id);
+        $branchIds = $this->accessibleBranchIds($user, $tenant->id);
         $employees = EmployeeProfile::query()
             ->where('tenant_id', $tenant->id)
             ->where('employment_status', 'active')
-            ->with(['user', 'deliveryStaff'])
+            ->where(fn (Builder $query) => $query->whereNull('user_id')->orWhereHas('user', fn (Builder $user) => $user->where('status', User::STATUS_ACTIVE)))
+            ->when($branchIds !== null, fn (Builder $query) => $query->where(fn (Builder $scope) => $scope->whereHas('user.storeMemberships', fn (Builder $membership) => $membership->whereIn('store_id', $branchIds)->where('status', 'active')->whereNull('revoked_at'))->orWhereHas('branchAssignments', fn (Builder $assignment) => $assignment->whereIn('store_id', $branchIds)->where('status', 'active'))))
+            ->with(['user.storeMemberships' => fn ($query) => $query->where('tenant_id', $tenant->id)->where('status', 'active')->whereNull('revoked_at')->with('store'), 'branchAssignments' => fn ($query) => $query->where('status', 'active')->with('store'), 'deliveryStaff'])
             ->whereDoesntHave('deliveryStaff')
             ->orderBy('employee_number')
             ->get()
             ->map(fn (EmployeeProfile $employee): array => [
                 'id' => $employee->uuid,
                 'employee_number' => $employee->employee_number,
-                'name' => $employee->user?->name ?: $employee->employee_number,
+                'name' => $employee->name ?: $employee->user?->name ?: $employee->employee_number,
                 'email' => $employee->user?->email,
+                'phone' => $employee->phone,
+                'job_role' => $employee->job_title,
+                'department' => $employee->department,
+                'photo_available' => (bool) $employee->photo_path,
+                'branches' => collect($employee->user?->storeMemberships?->map(fn (StoreMembership $membership): array => ['id' => $membership->store?->uuid, 'name' => $membership->store?->name, 'role' => $membership->role])->filter(fn (array $branch): bool => $branch['id'] !== null)->values()->all() ?? [])->merge($employee->branchAssignments?->map(fn (EmployeeBranchAssignment $assignment): array => ['id' => $assignment->store?->uuid, 'name' => $assignment->store?->name, 'role' => $assignment->role])->filter(fn (array $branch): bool => $branch['id'] !== null)->values()->all() ?? [])->unique('id')->values()->all(),
             ])->values();
 
-        $stores = $tenant->stores()->where('status', 'active')->orderBy('name')->get()->map(fn ($store): array => [
+        $stores = $tenant->stores()->where('status', 'active')->when($branchIds !== null, fn ($query) => $query->whereIn('id', $branchIds))->orderBy('name')->get()->map(fn ($store): array => [
             'id' => $store->uuid, 'name' => $store->name, 'code' => $store->code,
         ])->values();
 
@@ -79,6 +93,7 @@ class DeliveryManagementController
 
     public function staffIndex(Request $request, TenantContext $context): JsonResponse
     {
+        $this->authorizeDeliveryView($request->user(), $context->tenant()->id);
         $data = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'in:active,inactive'],
@@ -104,10 +119,12 @@ class DeliveryManagementController
     public function staffStore(Request $request, TenantContext $context, AuditLogger $audit): JsonResponse
     {
         $tenant = $context->tenant();
+        $this->authorizeDeliveryManage($request->user(), $tenant->id);
         $data = $request->validate($this->staffRules($tenant->id));
         $employee = EmployeeProfile::query()->where('tenant_id', $tenant->id)->where('uuid', $data['employee_profile_id'])->with('user')->firstOrFail();
-        if ($employee->employment_status !== 'active' || ! $employee->user?->isActive()) throw new UnprocessableEntityHttpException('Only active employee profiles can be registered as delivery staff.');
+        if ($employee->employment_status !== 'active' || ($employee->user && ! $employee->user->isActive())) throw new UnprocessableEntityHttpException('Only active employee profiles can be registered as delivery staff.');
         $storeId = $this->storeId($data['store_id'] ?? null, $tenant->id);
+        $this->assertEmployeeBranchAccess($request->user(), $employee, $storeId);
         if (DeliveryStaffProfile::query()->where('tenant_id', $tenant->id)->where('employee_profile_id', $employee->id)->exists()) throw new ConflictHttpException('This employee is already registered as delivery staff.');
         if (! empty($data['staff_code']) && DeliveryStaffProfile::query()->where('tenant_id', $tenant->id)->where('staff_code', $data['staff_code'])->exists()) throw new ConflictHttpException('This delivery staff ID is already in use.');
         $staff = DB::transaction(function () use ($request, $tenant, $employee, $storeId, $data, $audit): DeliveryStaffProfile {
@@ -115,7 +132,8 @@ class DeliveryManagementController
                 'tenant_id' => $tenant->id, 'employee_profile_id' => $employee->id, 'store_id' => $storeId,
                 'staff_code' => $data['staff_code'] ?? $this->nextStaffCode($tenant->id),
                 'vehicle_type' => $data['vehicle_type'] ?? null, 'vehicle_plate' => $data['vehicle_plate'] ?? null,
-                'availability_status' => $data['availability_status'] ?? 'available', 'status' => 'active', 'created_by' => $request->user()->id,
+                'availability_status' => $data['availability_status'] ?? 'available', 'delivery_role' => $data['delivery_role'] ?? 'delivery_staff',
+                'assignment_eligibility' => $data['assignment_eligibility'] ?? true, 'approval_status' => 'approved', 'status' => 'active', 'created_by' => $request->user()->id,
             ]);
             $audit->record('delivery.staff_created', $request->user(), $tenant, $staff, ['employee_id' => $employee->uuid, 'store_id' => $storeId]);
             return $staff->fresh(['employee.user', 'store']);
@@ -126,12 +144,17 @@ class DeliveryManagementController
     public function staffUpdate(Request $request, DeliveryStaffProfile $staff, TenantContext $context, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($staff, $context);
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         $data = $request->validate($this->staffRules($context->tenant()->id, false));
         $storeId = array_key_exists('store_id', $data) ? $this->storeId($data['store_id'], $context->tenant()->id) : $staff->store_id;
+        $staff->load('employee');
+        $this->assertEmployeeBranchAccess($request->user(), $staff->employee, $storeId);
         if (! empty($data['staff_code']) && DeliveryStaffProfile::query()->where('tenant_id', $context->tenant()->id)->where('staff_code', $data['staff_code'])->where('id', '!=', $staff->id)->exists()) throw new ConflictHttpException('This delivery staff ID is already in use.');
         $staff->update(array_filter([
             'store_id' => $storeId, 'staff_code' => $data['staff_code'] ?? null, 'vehicle_type' => $data['vehicle_type'] ?? null,
             'vehicle_plate' => $data['vehicle_plate'] ?? null, 'availability_status' => $data['availability_status'] ?? null,
+            'delivery_role' => $data['delivery_role'] ?? null, 'assignment_eligibility' => $data['assignment_eligibility'] ?? null,
+            'approval_status' => $data['approval_status'] ?? null,
         ], fn ($value): bool => $value !== null));
         $audit->record('delivery.staff_updated', $request->user(), $context->tenant(), $staff, ['changed_fields' => array_keys($data)]);
         return response()->json(['success' => true, 'message' => 'Delivery staff updated.', 'data' => $this->staffData($staff->fresh(['employee.user', 'store']))]);
@@ -140,6 +163,7 @@ class DeliveryManagementController
     public function staffDeactivate(Request $request, DeliveryStaffProfile $staff, TenantContext $context, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($staff, $context);
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         DB::transaction(function () use ($staff, $request, $context, $audit): void {
             $locked = DeliveryStaffProfile::query()->whereKey($staff->id)->lockForUpdate()->firstOrFail();
             if ($locked->shipments()->whereNotIn('status', self::TERMINAL_SHIPMENT_STATUSES)->exists()) throw new ConflictHttpException('Reassign active deliveries before deactivating this staff member.');
@@ -152,6 +176,7 @@ class DeliveryManagementController
     public function staffAvailability(Request $request, DeliveryStaffProfile $staff, TenantContext $context, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($staff, $context);
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         $data = $request->validate(['availability_status' => ['required', 'in:available,busy,off_duty']]);
         if ($staff->status !== 'active' && $data['availability_status'] === 'available') throw new UnprocessableEntityHttpException('Inactive delivery staff cannot be made available.');
         $staff->update(['availability_status' => $data['availability_status']]);
@@ -161,6 +186,7 @@ class DeliveryManagementController
 
     public function eligibleOrders(Request $request, TenantContext $context): JsonResponse
     {
+        $this->authorizeDeliveryView($request->user(), $context->tenant()->id);
         $data = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'per_page' => ['nullable', 'integer', 'in:10,20,50,100']]);
         $query = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->whereIn('status', ['pending', 'processing'])->whereHas('order', fn (Builder $order) => $order->whereIn('status', ['confirmed', 'processing']))->whereDoesntHave('shipments')->with(['order.customer', 'store', 'items.reservations.balance.location.store']);
         if (! empty($data['search'])) {
@@ -176,6 +202,7 @@ class DeliveryManagementController
 
     public function assign(Request $request, TenantContext $context, MarketplaceFulfillmentService $fulfillment, AuditLogger $audit): JsonResponse
     {
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         $data = $request->validate([
             'order_id' => ['required', 'string'], 'delivery_type' => ['required', 'in:self_delivery,external_courier,customer_pickup'],
             'staff_id' => ['nullable', 'string', 'required_if:delivery_type,self_delivery'], 'courier_partner_id' => ['nullable', 'string', 'required_if:delivery_type,external_courier'],
@@ -197,7 +224,7 @@ class DeliveryManagementController
                 $partner = null;
                 if ($data['delivery_type'] === 'self_delivery') {
                     $staff = DeliveryStaffProfile::query()->where('tenant_id', $tenant->id)->where('uuid', $data['staff_id'])->lockForUpdate()->firstOrFail();
-                    if ($staff->status !== 'active' || $staff->availability_status !== 'available') throw new ConflictHttpException('The selected delivery staff member is not available.');
+                    if ($staff->status !== 'active' || $staff->availability_status !== 'available' || $staff->approval_status !== 'approved' || ! $staff->assignment_eligibility) throw new ConflictHttpException('The selected delivery staff member is not approved and eligible for delivery assignments.');
                     $branches = $order->branchAttributionData()['branches'];
                     if ($staff->store_id && $branches !== [] && ! in_array((int) $staff->store_id, array_map('intval', array_column($branches, 'key')), true)) throw new ConflictHttpException('The selected delivery staff member is assigned to a different branch than this order.');
                 }
@@ -230,17 +257,20 @@ class DeliveryManagementController
 
     public function active(Request $request, TenantContext $context): JsonResponse
     {
+        $this->authorizeDeliveryView($request->user(), $context->tenant()->id);
         return $this->shipmentList($request, $context, false);
     }
 
     public function history(Request $request, TenantContext $context): JsonResponse
     {
+        $this->authorizeDeliveryView($request->user(), $context->tenant()->id);
         return $this->shipmentList($request, $context, true);
     }
 
     public function reassign(Request $request, MarketplaceShipment $shipment, TenantContext $context, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($shipment, $context);
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         $data = $request->validate(['staff_id' => ['required', 'string'], 'reason' => ['required', 'string', 'max:2000']]);
         $updated = DB::transaction(function () use ($request, $context, $shipment, $data, $audit): MarketplaceShipment {
             $locked = MarketplaceShipment::query()->whereKey($shipment->id)->lockForUpdate()->firstOrFail();
@@ -262,6 +292,7 @@ class DeliveryManagementController
     public function status(Request $request, MarketplaceShipment $shipment, TenantContext $context, MarketplaceFulfillmentService $fulfillment, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($shipment, $context);
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         $data = $request->validate(['status' => ['required', 'in:accepted,picked_up,in_transit,delivered,failed,returned,cancelled'], 'description' => ['nullable', 'string', 'max:2000'], 'proof_of_delivery_note' => ['nullable', 'string', 'max:2000'], 'proof_of_delivery' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120']]);
         $mapped = ['picked_up' => 'shipped', 'in_transit' => 'in_transit', 'delivered' => 'delivered', 'failed' => 'delivery_failed', 'returned' => 'returned', 'cancelled' => 'cancelled'];
         if ($data['status'] === 'accepted') {
@@ -293,12 +324,14 @@ class DeliveryManagementController
     public function proof(MarketplaceShipment $shipment, TenantContext $context)
     {
         $this->assertTenant($shipment, $context);
+        $this->authorizeDeliveryView(request()->user(), $context->tenant()->id);
         abort_if(! $shipment->proof_of_delivery_path || ! Storage::disk('private')->exists($shipment->proof_of_delivery_path), 404);
         return Storage::disk('private')->download($shipment->proof_of_delivery_path);
     }
 
     public function reports(Request $request, TenantContext $context): JsonResponse
     {
+        $this->authorizeDeliveryView($request->user(), $context->tenant()->id);
         $query = MarketplaceShipment::query()->where('tenant_id', $context->tenant()->id);
         if ($request->filled('from')) $query->whereDate('created_at', '>=', $request->date('from'));
         if ($request->filled('to')) $query->whereDate('created_at', '<=', $request->date('to'));
@@ -311,6 +344,7 @@ class DeliveryManagementController
 
     public function courierPartners(Request $request, TenantContext $context, AuditLogger $audit): JsonResponse
     {
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         if ($request->isMethod('get')) return response()->json(['success' => true, 'data' => DeliveryCourierPartner::query()->where('tenant_id', $context->tenant()->id)->orderBy('name')->get()->map(fn (DeliveryCourierPartner $partner): array => ['id' => $partner->uuid, 'name' => $partner->name, 'phone' => $partner->phone, 'email' => $partner->email, 'status' => $partner->status, 'notes' => $partner->notes])]);
         $data = $request->validate(['name' => ['required', 'string', 'max:160'], 'phone' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email', 'max:255'], 'notes' => ['nullable', 'string', 'max:2000']]);
         if (DeliveryCourierPartner::query()->where('tenant_id', $context->tenant()->id)->where('name', $data['name'])->exists()) throw new ConflictHttpException('This courier partner already exists.');
@@ -322,6 +356,7 @@ class DeliveryManagementController
     public function courierPartnerUpdate(Request $request, DeliveryCourierPartner $partner, TenantContext $context, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($partner, $context);
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         $data = $request->validate(['name' => ['required', 'string', 'max:160'], 'phone' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email', 'max:255'], 'notes' => ['nullable', 'string', 'max:2000'], 'status' => ['nullable', 'in:active,inactive']]);
         if (DeliveryCourierPartner::query()->where('tenant_id', $context->tenant()->id)->where('name', $data['name'])->where('id', '!=', $partner->id)->exists()) throw new ConflictHttpException('This courier partner already exists.');
         $partner->update($data);
@@ -332,6 +367,7 @@ class DeliveryManagementController
     public function courierPartnerDeactivate(Request $request, DeliveryCourierPartner $partner, TenantContext $context, AuditLogger $audit): JsonResponse
     {
         $this->assertTenant($partner, $context);
+        $this->authorizeDeliveryManage($request->user(), $context->tenant()->id);
         $partner->update(['status' => 'inactive']);
         $audit->record('delivery.courier_partner_deactivated', $request->user(), $context->tenant(), $partner);
         return response()->json(['success' => true, 'message' => 'Courier partner deactivated.']);
@@ -358,12 +394,14 @@ class DeliveryManagementController
             'employee_profile_id' => [$creating ? 'required' : 'sometimes', 'string'],
             'store_id' => ['nullable', 'string'], 'staff_code' => ['nullable', 'string', 'max:50'], 'vehicle_type' => ['nullable', 'string', 'max:50'],
             'vehicle_plate' => ['nullable', 'string', 'max:50'], 'availability_status' => ['nullable', 'in:available,busy,off_duty'],
+            'delivery_role' => ['nullable', 'in:delivery_staff,delivery_lead,dispatcher'],
+            'assignment_eligibility' => ['nullable', 'boolean'], 'approval_status' => ['nullable', 'in:pending,rejected,approved'],
         ];
     }
 
     private function staffData(DeliveryStaffProfile $staff): array
     {
-        return ['id' => $staff->uuid, 'staff_code' => $staff->staff_code, 'status' => $staff->status, 'availability_status' => $staff->availability_status, 'vehicle_type' => $staff->vehicle_type, 'vehicle_plate' => $staff->vehicle_plate, 'store' => $staff->store ? ['id' => $staff->store->uuid, 'name' => $staff->store->name] : null, 'employee' => ['id' => $staff->employee?->uuid, 'name' => $staff->employee?->user?->name ?: $staff->staff_code, 'email' => $staff->employee?->user?->email, 'phone' => $staff->employee?->phone, 'emergency_contact' => $staff->employee?->emergency_contact_phone]];
+        return ['id' => $staff->uuid, 'staff_code' => $staff->staff_code, 'status' => $staff->status, 'availability_status' => $staff->availability_status, 'vehicle_type' => $staff->vehicle_type, 'vehicle_plate' => $staff->vehicle_plate, 'delivery_role' => $staff->delivery_role, 'assignment_eligibility' => (bool) $staff->assignment_eligibility, 'approval_status' => $staff->approval_status, 'store' => $staff->store ? ['id' => $staff->store->uuid, 'name' => $staff->store->name] : null, 'employee' => ['id' => $staff->employee?->uuid, 'name' => $staff->employee?->name ?: $staff->employee?->user?->name ?: $staff->staff_code, 'email' => $staff->employee?->user?->email, 'phone' => $staff->employee?->phone, 'emergency_contact' => $staff->employee?->emergency_contact_phone]];
     }
 
     private function orderData(MarketplaceVendorOrder $order): array
@@ -402,5 +440,37 @@ class DeliveryManagementController
         $number = (int) DeliveryStaffProfile::query()->where('tenant_id', $tenantId)->lockForUpdate()->get(['id'])->count() + 1;
         do { $code = 'DLV-'.str_pad((string) $number++, 4, '0', STR_PAD_LEFT); } while (DeliveryStaffProfile::query()->where('tenant_id', $tenantId)->where('staff_code', $code)->exists());
         return $code;
+    }
+
+    private function authorizeDeliveryView(?User $user, int $tenantId): void
+    {
+        if (! $user || ! $this->hasDeliveryRole($user, $tenantId, ['business_admin', 'store_manager'])) abort(403, 'You are not authorized to view delivery management.');
+    }
+
+    private function authorizeDeliveryManage(?User $user, int $tenantId): void
+    {
+        if (! $user || ! $this->hasDeliveryRole($user, $tenantId, ['business_admin', 'store_manager'])) abort(403, 'Manager approval is required to manage delivery staff.');
+    }
+
+    private function hasDeliveryRole(User $user, int $tenantId, array $roles): bool
+    {
+        return $user->isSuperAdmin() || $user->memberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereHas('role', fn ($query) => $query->whereIn('name', $roles))->exists();
+    }
+
+    private function accessibleBranchIds(User $user, int $tenantId): ?array
+    {
+        if ($user->isSuperAdmin() || $user->memberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))->exists()) return null;
+        return StoreMembership::query()->where('tenant_id', $tenantId)->where('user_id', $user->id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id')->all();
+    }
+
+    private function assertEmployeeBranchAccess(User $actor, EmployeeProfile $employee, ?int $storeId): void
+    {
+        if ($this->accessibleBranchIds($actor, $employee->tenant_id) === null) return;
+        if ($storeId === null) abort(403, 'Select a branch within your authorized delivery scope.');
+        $branchIds = $this->accessibleBranchIds($actor, $employee->tenant_id);
+        $employeeHasBranch = $employee->user_id
+            ? $employee->user()->firstOrFail()->storeMemberships()->where('store_id', $storeId)->where('status', 'active')->whereNull('revoked_at')->exists()
+            : $employee->branchAssignments()->where('store_id', $storeId)->where('status', 'active')->exists();
+        if (! in_array($storeId, $branchIds, true) || ! $employeeHasBranch) abort(403, 'The employee is not authorized for the selected branch.');
     }
 }

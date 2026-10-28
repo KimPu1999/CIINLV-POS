@@ -112,13 +112,15 @@ class BusinessInvitationService
 
             $membership->forceFill(['status' => 'active', 'joined_at' => now()])->save();
             $invitation->forceFill(['accepted_at' => now()])->save();
-            $invitation->tenant->forceFill([
-                'email_verified_at' => now(),
-                'email_verification_status' => 'verified',
-                'status' => config('business.require_super_admin_approval') ? 'pending' : 'active',
-                'approval_status' => config('business.require_super_admin_approval') ? 'pending' : 'approved',
-                'approved_at' => config('business.require_super_admin_approval') ? null : now(),
-            ])->save();
+            if ($invitation->role === 'business_admin') {
+                $invitation->tenant->forceFill([
+                    'email_verified_at' => now(),
+                    'email_verification_status' => 'verified',
+                    'status' => config('business.require_super_admin_approval') ? 'pending' : 'active',
+                    'approval_status' => config('business.require_super_admin_approval') ? 'pending' : 'approved',
+                    'approved_at' => config('business.require_super_admin_approval') ? null : now(),
+                ])->save();
+            }
             $auditLogger->record('business.invitation_accepted', $user, $invitation->tenant, $user);
 
             return [$user->refresh(), $invitation->tenant->refresh()];

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\EmployeeCommission;
+use App\Models\BusinessInvitation;
+use App\Models\EmployeeBranchAssignment;
 use App\Models\EmployeeProfile;
 use App\Models\PosRegister;
 use App\Models\PosRegisterMembership;
@@ -19,6 +21,30 @@ use Tests\TestCase;
 class EmployeeManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_business_admin_can_create_employee_record_without_login_account(): void
+    {
+        [$tenant, $admin, , $store] = $this->fixture('record-only');
+        $response = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/employees', [
+            'account_mode' => 'record_only', 'name' => 'Warehouse Worker', 'employee_number' => 'EMP-RO-001', 'job_title' => 'Warehouse worker', 'phone' => '0911111111', 'branch_id' => $store->uuid, 'branch_role' => 'sales_staff',
+        ])->assertCreated();
+        $profile = EmployeeProfile::where('employee_number', 'EMP-RO-001')->firstOrFail();
+        $response->assertJsonPath('data.name', 'Warehouse Worker')->assertJsonPath('data.user', null);
+        $this->assertNull($profile->user_id);
+        $this->assertDatabaseHas('employee_branch_assignments', ['employee_profile_id' => $profile->id, 'store_id' => $store->id, 'status' => 'active']);
+    }
+
+    public function test_business_admin_can_invite_new_login_without_plaintext_password(): void
+    {
+        [$tenant, $admin] = $this->fixture('invite-login');
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/employees', [
+            'account_mode' => 'create_login', 'name' => 'Sales Invite', 'login_email' => 'sales-invite@example.com', 'account_role' => 'salesperson', 'employee_number' => 'EMP-INV-001',
+        ])->assertCreated()->assertJsonPath('data.name', 'Sales Invite')->assertJsonPath('data.user.status', 'invited');
+        $user = User::where('email', 'sales-invite@example.com')->firstOrFail();
+        $this->assertDatabaseHas('tenant_memberships', ['tenant_id' => $tenant->id, 'user_id' => $user->id, 'status' => 'pending']);
+        $this->assertDatabaseHas('business_invitations', ['tenant_id' => $tenant->id, 'email' => 'sales-invite@example.com', 'role' => 'salesperson']);
+        $this->assertDatabaseMissing('users', ['email' => 'sales-invite@example.com', 'password' => 'SalesInvitePassword']);
+    }
 
     public function test_business_admin_can_create_existing_user_profile_and_duplicate_is_rejected(): void
     {

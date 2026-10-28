@@ -7,12 +7,14 @@ use App\Models\EmployeeCommission;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeePayrollRecord;
 use App\Models\EmployeeProfile;
+use App\Models\EmployeeBranchAssignment;
 use App\Models\LeaveRequest;
 use App\Models\PosRegisterMembership;
 use App\Models\Sale;
 use App\Models\StoreMembership;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\BusinessMembershipService;
 use App\Services\StoreMembershipService;
 use App\Services\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -38,7 +40,7 @@ class EmployeeManagementController
             'branch_id' => ['nullable', 'string'],
             'per_page' => ['nullable', 'integer', 'in:10,20,50,100'],
         ]);
-        $query = EmployeeProfile::query()->where('tenant_id', $tenant->id)->with(['user', 'user.storeMemberships' => fn ($query) => $query->where('tenant_id', $tenant->id)->where('status', 'active')->whereNull('revoked_at')->with('store')]);
+        $query = EmployeeProfile::query()->where('tenant_id', $tenant->id)->with(['user', 'user.storeMemberships' => fn ($query) => $query->where('tenant_id', $tenant->id)->where('status', 'active')->whereNull('revoked_at')->with('store'), 'branchAssignments' => fn ($query) => $query->where('status', 'active')->with('store')]);
         $this->scopeEmployeesForUser($query, $request->user(), $tenant->id);
 
         if (! empty($validated['search'])) {
@@ -63,29 +65,37 @@ class EmployeeManagementController
         return response()->json(['success' => true, 'data' => $paginator]);
     }
 
-    public function store(Request $request, TenantContext $context, AuditLogger $audit, StoreMembershipService $memberships): JsonResponse
+    public function store(Request $request, TenantContext $context, AuditLogger $audit, StoreMembershipService $memberships, BusinessMembershipService $businessMemberships): JsonResponse
     {
         $tenant = $context->tenant();
         $this->authorizeTenantManage($request->user(), $tenant->id);
         $data = $request->validate($this->profileRules(true));
-        $user = $tenant->users()->whereKey($data['user_id'])->wherePivot('status', 'active')->first();
-        if (! $user || ! $user->isActive()) {
-            throw new UnprocessableEntityHttpException('Select an active user who already belongs to this business.');
+        $data['account_mode'] = $data['account_mode'] ?? (! empty($data['user_id']) ? 'link_existing' : 'record_only');
+        if ($data['account_mode'] === 'create_login' && blank($data['name'] ?? null)) throw new UnprocessableEntityHttpException('Employee name is required to create a login invitation.');
+        $user = null;
+        if ($data['account_mode'] === 'link_existing') {
+            $user = $tenant->users()->whereKey($data['user_id'])->wherePivot('status', 'active')->first();
+            if (! $user || ! $user->isActive()) throw new UnprocessableEntityHttpException('Select an active user who already belongs to this business.');
+            $data['name'] = $data['name'] ?? $user->name;
+        } elseif ($data['account_mode'] === 'create_login') {
+            [$user] = $businessMemberships->inviteMember($tenant, $data['name'], $data['login_email'], $data['account_role'], $request->user());
         }
-        if (EmployeeProfile::where('tenant_id', $tenant->id)->where('user_id', $user->id)->exists()) {
+        if (blank($data['name'] ?? null)) throw new UnprocessableEntityHttpException('Employee name is required.');
+        if ($user && EmployeeProfile::where('tenant_id', $tenant->id)->where('user_id', $user->id)->exists()) {
             throw new ConflictHttpException('This user already has an employee profile in this business.');
         }
 
         $profile = DB::transaction(function () use ($request, $tenant, $data, $user, $audit, $memberships): EmployeeProfile {
             $profile = EmployeeProfile::create(array_merge($this->profileAttributes($data), [
                 'tenant_id' => $tenant->id,
-                'user_id' => $user->id,
+                'user_id' => $user?->id,
+                'name' => $data['name'],
                 'created_by' => $request->user()->id,
             ]));
             $this->storePhoto($request, $profile, $tenant->id);
-            $this->assignBranchIfRequested($data, $tenant, $user, $request->user(), $memberships);
-            $audit->record('employee.profile_created', $request->user(), $tenant, $profile, ['user_id' => $user->id, 'employee_number' => $profile->employee_number]);
-            return $profile->fresh(['user', 'user.storeMemberships.store']);
+            $this->assignBranchIfRequested($data, $tenant, $profile, $user, $request->user(), $memberships);
+            $audit->record('employee.profile_created', $request->user(), $tenant, $profile, ['user_id' => $user?->id, 'employee_number' => $profile->employee_number, 'account_mode' => $data['account_mode']]);
+            return $profile->fresh(['user', 'user.storeMemberships.store', 'branchAssignments.store']);
         });
 
         return response()->json(['success' => true, 'message' => 'Employee profile created.', 'data' => $this->employeeData($profile)], 201);
@@ -117,7 +127,7 @@ class EmployeeManagementController
         $this->storePhoto($request, $employee, $employee->tenant_id);
         $audit->record('employee.profile_updated', $request->user(), $context->tenant(), $employee, ['changed_fields' => array_keys($this->profileAttributes($data))]);
 
-        return response()->json(['success' => true, 'message' => 'Employee profile updated.', 'data' => $this->employeeData($employee->fresh(['user', 'user.storeMemberships.store']))]);
+        return response()->json(['success' => true, 'message' => 'Employee profile updated.', 'data' => $this->employeeData($employee->fresh(['user', 'user.storeMemberships.store', 'branchAssignments.store']))]);
     }
 
     public function deactivate(EmployeeProfile $employee, Request $request, TenantContext $context, AuditLogger $audit): JsonResponse
@@ -324,17 +334,19 @@ class EmployeeManagementController
 
     private function profileRules(bool $creating, ?EmployeeProfile $employee = null): array
     {
-        return ['user_id' => [$creating ? 'required' : 'sometimes', 'integer', 'exists:users,id'], 'employee_number' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/'], 'job_title' => ['nullable', 'string', 'max:120'], 'department' => ['nullable', 'string', 'max:120'], 'employment_type' => ['nullable', 'in:full_time,part_time,contract,temporary'], 'hire_date' => ['nullable', 'date'], 'employment_status' => ['nullable', 'in:active,on_leave,suspended,terminated'], 'phone' => ['nullable', 'string', 'max:50'], 'address' => ['nullable', 'string', 'max:500'], 'emergency_contact_name' => ['nullable', 'string', 'max:120'], 'emergency_contact_phone' => ['nullable', 'string', 'max:50'], 'notes' => ['nullable', 'string', 'max:2000'], 'branch_id' => ['nullable', 'string'], 'branch_role' => ['nullable', 'in:store_manager,inventory_manager,cashier,salesperson,sales_staff'], 'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120']];
+        return ['account_mode' => ['sometimes', 'in:record_only,link_existing,create_login'], 'name' => ['nullable', 'string', 'max:160'], 'user_id' => ['nullable', 'integer', 'exists:users,id'], 'login_email' => ['required_if:account_mode,create_login', 'nullable', 'email', 'max:255'], 'account_role' => ['required_if:account_mode,create_login', 'nullable', 'in:sales_staff,salesperson,cashier,inventory_manager'], 'employee_number' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/'], 'job_title' => ['nullable', 'string', 'max:120'], 'department' => ['nullable', 'string', 'max:120'], 'employment_type' => ['nullable', 'in:full_time,part_time,contract,temporary'], 'hire_date' => ['nullable', 'date'], 'employment_status' => ['nullable', 'in:active,on_leave,suspended,terminated'], 'phone' => ['nullable', 'string', 'max:50'], 'address' => ['nullable', 'string', 'max:500'], 'emergency_contact_name' => ['nullable', 'string', 'max:120'], 'emergency_contact_phone' => ['nullable', 'string', 'max:50'], 'notes' => ['nullable', 'string', 'max:2000'], 'branch_id' => ['nullable', 'string'], 'branch_role' => ['nullable', 'in:store_manager,inventory_manager,cashier,salesperson,sales_staff'], 'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120']];
     }
 
     private function profileAttributes(array $data): array
     {
-        return array_intersect_key($data, array_flip(['employee_number', 'job_title', 'department', 'employment_type', 'hire_date', 'employment_status', 'phone', 'address', 'emergency_contact_name', 'emergency_contact_phone', 'notes']));
+        return array_intersect_key($data, array_flip(['employee_number', 'job_title', 'department', 'employment_type', 'hire_date', 'employment_status', 'phone', 'address', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'name']));
     }
 
     private function employeeData(EmployeeProfile $employee): array
     {
-        return ['id' => $employee->uuid, 'employee_number' => $employee->employee_number, 'job_title' => $employee->job_title, 'department' => $employee->department, 'employment_type' => $employee->employment_type, 'hire_date' => $employee->hire_date?->toDateString(), 'employment_status' => $employee->employment_status, 'phone' => $employee->phone, 'address' => $employee->address, 'emergency_contact_name' => $employee->emergency_contact_name, 'emergency_contact_phone' => $employee->emergency_contact_phone, 'notes' => $employee->notes, 'photo_available' => (bool) $employee->photo_path, 'photo_url' => $employee->photo_path ? route('business.employee.photo', ['employee' => $employee->uuid], false) : null, 'user' => ['id' => $employee->user?->id, 'name' => $employee->user?->name, 'email' => $employee->user?->email, 'status' => $employee->user?->status, 'profile_image_url' => $employee->user?->profile_image_path ? route('me.profile-image', [], false) : null], 'branches' => $employee->user?->storeMemberships?->map(fn (StoreMembership $membership): array => ['membership_id' => $membership->id, 'id' => $membership->store?->uuid, 'name' => $membership->store?->name, 'role' => $membership->role, 'status' => $membership->status])->filter(fn (array $branch): bool => $branch['id'] !== null)->values()->all() ?? []];
+        $userBranches = $employee->user?->storeMemberships?->map(fn (StoreMembership $membership): array => ['membership_id' => $membership->id, 'id' => $membership->store?->uuid, 'name' => $membership->store?->name, 'role' => $membership->role, 'status' => $membership->status])->filter(fn (array $branch): bool => $branch['id'] !== null)->values()->all() ?? [];
+        $employeeBranches = $employee->branchAssignments?->map(fn (EmployeeBranchAssignment $assignment): array => ['membership_id' => null, 'id' => $assignment->store?->uuid, 'name' => $assignment->store?->name, 'role' => $assignment->role, 'status' => $assignment->status])->filter(fn (array $branch): bool => $branch['id'] !== null)->values()->all() ?? [];
+        return ['id' => $employee->uuid, 'name' => $employee->name ?: $employee->user?->name, 'employee_number' => $employee->employee_number, 'job_title' => $employee->job_title, 'department' => $employee->department, 'employment_type' => $employee->employment_type, 'hire_date' => $employee->hire_date?->toDateString(), 'employment_status' => $employee->employment_status, 'phone' => $employee->phone, 'address' => $employee->address, 'emergency_contact_name' => $employee->emergency_contact_name, 'emergency_contact_phone' => $employee->emergency_contact_phone, 'notes' => $employee->notes, 'photo_available' => (bool) $employee->photo_path, 'photo_url' => $employee->photo_path ? route('business.employee.photo', ['employee' => $employee->uuid], false) : null, 'user' => $employee->user ? ['id' => $employee->user->id, 'name' => $employee->user->name, 'email' => $employee->user->email, 'status' => $employee->user->status, 'profile_image_url' => $employee->user->profile_image_path ? route('me.profile-image', [], false) : null] : null, 'branches' => collect($userBranches)->merge($employeeBranches)->unique('id')->values()->all()];
     }
 
     private function attendanceData(AttendanceRecord $record): array { return ['id' => $record->uuid, 'employee_id' => $record->employee?->uuid, 'employee_name' => $record->employee?->user?->name, 'store' => $record->store?->name, 'work_date' => $record->work_date?->toDateString(), 'clock_in' => $record->clock_in?->toIso8601String(), 'clock_out' => $record->clock_out?->toIso8601String(), 'status' => $record->status, 'overtime_minutes' => $record->overtime_minutes, 'notes' => $record->notes]; }
@@ -342,11 +354,12 @@ class EmployeeManagementController
     private function payrollData(EmployeePayrollRecord $record): array { return ['id' => $record->uuid, 'employee_id' => $record->employee?->uuid, 'employee_name' => $record->employee?->user?->name, 'period_start' => $record->period_start?->toDateString(), 'period_end' => $record->period_end?->toDateString(), 'base_salary' => $record->base_salary, 'allowances' => $record->allowances, 'deductions' => $record->deductions, 'net_salary' => $record->net_salary, 'currency_code' => $record->currency_code, 'status' => $record->status, 'approved_at' => $record->approved_at?->toIso8601String()]; }
     private function commissionData(EmployeeCommission $commission): array { return ['id' => $commission->uuid, 'employee_id' => $commission->employee?->uuid, 'employee_name' => $commission->employee?->user?->name, 'sale_id' => $commission->sale_id, 'commission_rate' => $commission->commission_rate, 'base_amount' => $commission->base_amount, 'commission_amount' => $commission->commission_amount, 'status' => $commission->status, 'source_reference' => $commission->source_reference, 'adjustment_reason' => $commission->adjustment_reason, 'created_at' => $commission->created_at?->toIso8601String()]; }
 
-    private function assignBranchIfRequested(array $data, $tenant, User $user, User $actor, StoreMembershipService $memberships): void
+    private function assignBranchIfRequested(array $data, $tenant, EmployeeProfile $employee, ?User $user, User $actor, StoreMembershipService $memberships): void
     {
         if (! empty($data['branch_id'])) {
             $store = $tenant->stores()->where('uuid', $data['branch_id'])->firstOrFail();
-            $memberships->assign($store, ['user_id' => $user->id, 'role' => $data['branch_role'] ?? 'sales_staff'], $actor);
+            EmployeeBranchAssignment::updateOrCreate(['employee_profile_id' => $employee->id, 'store_id' => $store->id], ['tenant_id' => $tenant->id, 'role' => $data['branch_role'] ?? 'sales_staff', 'status' => 'active', 'assigned_by' => $actor->id, 'assigned_at' => now(), 'revoked_at' => null]);
+            if ($user?->isActive() && $data['account_mode'] === 'link_existing' && ! StoreMembership::query()->where('tenant_id', $tenant->id)->where('store_id', $store->id)->where('user_id', $user->id)->where('status', 'active')->whereNull('revoked_at')->exists()) $memberships->assign($store, ['user_id' => $user->id, 'role' => $data['branch_role'] ?? 'sales_staff'], $actor);
         }
     }
 
@@ -372,9 +385,9 @@ class EmployeeManagementController
     private function isBusinessAdmin(User $user, int $tenantId): bool { return $user->isSuperAdmin() || $user->memberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereHas('role', fn ($query) => $query->where('name', 'business_admin'))->exists(); }
     private function authorizeEmployeeView(User $user, EmployeeProfile $employee): void { if ($this->isBusinessAdmin($user, $employee->tenant_id) || (int) $employee->user_id === (int) $user->id || $this->employeeSharesStore($user, $employee)) return; throw new AccessDeniedHttpException('You are not authorized to view this employee.'); }
     private function authorizeEmployeeWrite(User $user, EmployeeProfile $employee): void { if ($this->isBusinessAdmin($user, $employee->tenant_id) || (int) $employee->user_id === (int) $user->id || $this->employeeSharesStoreAsManager($user, $employee)) return; throw new AccessDeniedHttpException('You are not authorized to update this employee record.'); }
-    private function employeeSharesStore(User $user, EmployeeProfile $employee): bool { return $employee->user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('status', 'active')->whereNull('revoked_at')->whereIn('store_id', $user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'))->exists(); }
-    private function employeeSharesStoreAsManager(User $user, EmployeeProfile $employee): bool { return $user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('role', 'store_manager')->where('status', 'active')->whereNull('revoked_at')->whereIn('store_id', $employee->user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'))->exists(); }
+    private function employeeSharesStore(User $user, EmployeeProfile $employee): bool { if (! $employee->user_id) return $employee->branchAssignments()->whereIn('store_id', $user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'))->where('status', 'active')->exists(); return $employee->user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('status', 'active')->whereNull('revoked_at')->whereIn('store_id', $user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'))->exists(); }
+    private function employeeSharesStoreAsManager(User $user, EmployeeProfile $employee): bool { $employeeStoreIds = $employee->user_id ? $employee->user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id') : $employee->branchAssignments()->where('status', 'active')->pluck('store_id'); return $user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('role', 'store_manager')->where('status', 'active')->whereNull('revoked_at')->whereIn('store_id', $employeeStoreIds)->exists(); }
     private function assertEmployeeStoreAccess(User $actor, EmployeeProfile $employee, ?int $storeId): void { if ($storeId === null || $this->isBusinessAdmin($actor, $employee->tenant_id)) return; if ((int) $actor->id === (int) $employee->user_id && $employee->user->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('store_id', $storeId)->where('status', 'active')->whereNull('revoked_at')->exists()) return; if ($this->employeeSharesStoreAsManager($actor, $employee) && $actor->storeMemberships()->where('tenant_id', $employee->tenant_id)->where('store_id', $storeId)->where('role', 'store_manager')->where('status', 'active')->whereNull('revoked_at')->exists()) return; throw new AccessDeniedHttpException('The employee is not assigned to the selected branch.'); }
-    private function scopeEmployeesForUser($query, User $user, int $tenantId): void { if ($this->isBusinessAdmin($user, $tenantId)) return; $storeIds = $user->storeMemberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'); $query->whereHas('user.storeMemberships', fn ($membership) => $membership->where('tenant_id', $tenantId)->whereIn('store_id', $storeIds)->where('status', 'active')->whereNull('revoked_at')); }
+    private function scopeEmployeesForUser($query, User $user, int $tenantId): void { if ($this->isBusinessAdmin($user, $tenantId)) return; $storeIds = $user->storeMemberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'); $query->where(fn ($scope) => $scope->whereHas('user.storeMemberships', fn ($membership) => $membership->where('tenant_id', $tenantId)->whereIn('store_id', $storeIds)->where('status', 'active')->whereNull('revoked_at'))->orWhereHas('branchAssignments', fn ($assignment) => $assignment->whereIn('store_id', $storeIds)->where('status', 'active'))); }
     private function scopeAttendanceForUser($query, User $user, int $tenantId): void { if ($this->isBusinessAdmin($user, $tenantId)) return; $storeIds = $user->storeMemberships()->where('tenant_id', $tenantId)->where('status', 'active')->whereNull('revoked_at')->pluck('store_id'); $query->where(function ($builder) use ($storeIds, $user): void { $builder->whereIn('store_id', $storeIds)->orWhereHas('employee', fn ($employee) => $employee->where('user_id', $user->id)); }); }
 }

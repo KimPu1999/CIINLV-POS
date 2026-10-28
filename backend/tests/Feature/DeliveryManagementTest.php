@@ -16,6 +16,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\Store;
+use App\Models\StoreMembership;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -26,6 +27,35 @@ use Tests\TestCase;
 class DeliveryManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_lookup_is_search_ready_and_excludes_inactive_profiles(): void
+    {
+        [$tenant, $admin, $rider, $store] = $this->business('DELIVERY-LOOKUP');
+        $active = EmployeeProfile::create(['tenant_id' => $tenant->id, 'user_id' => $rider->id, 'employee_number' => 'EMP-LOOKUP-001', 'job_title' => 'Salesperson', 'phone' => '0912345678', 'employment_status' => 'active']);
+        StoreMembership::create(['tenant_id' => $tenant->id, 'store_id' => $store->id, 'user_id' => $rider->id, 'role' => 'salesperson', 'status' => 'active', 'assigned_by' => $admin->id, 'assigned_at' => now()]);
+        $inactiveUser = $this->userWithMembership($tenant, 'inactive-delivery@example.com', 'salesperson');
+        EmployeeProfile::create(['tenant_id' => $tenant->id, 'user_id' => $inactiveUser->id, 'employee_number' => 'EMP-LOOKUP-002', 'employment_status' => 'terminated']);
+
+        $response = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->getJson('/api/v1/business/delivery-management/lookup')->assertOk();
+        $response->assertJsonPath('data.employees.0.id', $active->uuid)->assertJsonPath('data.employees.0.employee_number', 'EMP-LOOKUP-001')->assertJsonPath('data.employees.0.job_role', 'Salesperson')->assertJsonPath('data.employees.0.branches.0.name', $store->name);
+        $this->assertCount(1, $response->json('data.employees'));
+        $this->actingAs($rider, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->getJson('/api/v1/business/delivery-management/lookup')->assertForbidden();
+    }
+
+    public function test_unlinked_employee_record_can_be_registered_as_delivery_staff(): void
+    {
+        [$tenant, $admin, , $store] = $this->business('DELIVERY-RECORD-ONLY');
+        $profile = EmployeeProfile::create(['tenant_id' => $tenant->id, 'name' => 'Delivery Worker', 'employee_number' => 'EMP-DLV-RECORD', 'employment_status' => 'active']);
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/delivery-management/staff', ['employee_profile_id' => $profile->uuid, 'store_id' => $store->uuid, 'vehicle_type' => 'Bike'])->assertCreated()->assertJsonPath('data.employee.name', 'Delivery Worker');
+    }
+
+    public function test_inactive_employee_cannot_be_registered_as_delivery_staff(): void
+    {
+        [$tenant, $admin, $rider] = $this->business('DELIVERY-INACTIVE');
+        $profile = EmployeeProfile::create(['tenant_id' => $tenant->id, 'user_id' => $rider->id, 'employee_number' => 'EMP-INACTIVE', 'employment_status' => 'terminated']);
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/delivery-management/staff', ['employee_profile_id' => $profile->uuid])->assertUnprocessable();
+        $this->assertDatabaseCount('delivery_staff_profiles', 0);
+    }
 
     public function test_staff_directory_reuses_employee_identity_and_is_tenant_scoped(): void
     {

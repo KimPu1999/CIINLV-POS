@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class DeliveryStaffProfile extends Model
 {
-    protected $fillable = ['uuid', 'tenant_id', 'employee_profile_id', 'store_id', 'staff_code', 'vehicle_type', 'vehicle_plate', 'availability_status', 'status', 'created_by'];
+    protected $fillable = ['uuid', 'tenant_id', 'employee_profile_id', 'store_id', 'staff_code', 'vehicle_type', 'vehicle_plate', 'availability_status', 'delivery_role', 'assignment_eligibility', 'approval_status', 'status', 'created_by'];
 
     protected static function booted(): void
     {

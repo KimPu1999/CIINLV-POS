@@ -14,7 +14,7 @@ class EmployeeProfile extends Model
     use HasFactory;
 
     protected $fillable = [
-        'uuid', 'tenant_id', 'user_id', 'employee_number', 'job_title', 'department', 'employment_type',
+        'uuid', 'tenant_id', 'user_id', 'name', 'employee_number', 'job_title', 'department', 'employment_type',
         'hire_date', 'employment_status', 'phone', 'address', 'emergency_contact_name', 'emergency_contact_phone',
         'notes', 'photo_path', 'created_by',
     ];
@@ -39,4 +39,5 @@ class EmployeeProfile extends Model
     public function payrollRecords(): HasMany { return $this->hasMany(EmployeePayrollRecord::class); }
     public function commissions(): HasMany { return $this->hasMany(EmployeeCommission::class); }
     public function deliveryStaff(): HasOne { return $this->hasOne(DeliveryStaffProfile::class, 'employee_profile_id'); }
+    public function branchAssignments(): HasMany { return $this->hasMany(EmployeeBranchAssignment::class, 'employee_profile_id'); }
 }

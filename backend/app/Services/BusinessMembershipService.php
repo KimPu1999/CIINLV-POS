@@ -13,6 +13,24 @@ use Illuminate\Validation\ValidationException;
 
 class BusinessMembershipService
 {
+    public function inviteMember(Tenant $tenant, string $name, string $email, string $role, User $inviter): array
+    {
+        return DB::transaction(function () use ($tenant, $name, $email, $role, $inviter): array {
+            $email = strtolower(trim($email));
+            $roleModel = Role::firstOrCreate(['tenant_id' => $tenant->getKey(), 'name' => $role]);
+            $user = User::query()->where('email', $email)->lockForUpdate()->first();
+            if ($user?->isSuperAdmin()) throw ValidationException::withMessages(['login_email' => ['A platform administrator cannot be invited into this business.']]);
+            $membership = $user?->memberships()->where('tenant_id', $tenant->getKey())->lockForUpdate()->first();
+            if ($membership && $membership->status !== 'revoked') throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('This user already has a pending or active membership in the business.');
+            if (! $user) $user = User::create(['name' => trim($name), 'email' => $email, 'password' => Hash::make(Str::random(64)), 'status' => User::STATUS_INVITED]);
+            else $user->forceFill(['name' => trim($name)])->save();
+            $membership ??= TenantMembership::create(['tenant_id' => $tenant->getKey(), 'user_id' => $user->getKey(), 'role_id' => $roleModel->getKey(), 'status' => 'pending', 'invited_by' => $inviter->getKey(), 'joined_at' => null]);
+            if ($membership->wasRecentlyCreated === false) $membership->forceFill(['role_id' => $roleModel->getKey(), 'status' => 'pending', 'invited_by' => $inviter->getKey(), 'joined_at' => null])->save();
+            [$invitation] = app(BusinessInvitationService::class)->createPending($tenant, $email, $role, $inviter);
+            return [$user->refresh(), $membership->refresh(), $invitation];
+        });
+    }
+
     public function inviteBusinessAdmin(Tenant $tenant, string $name, string $email, User $inviter): array
     {
         return DB::transaction(function () use ($tenant, $name, $email, $inviter): array {
