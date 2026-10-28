@@ -11,6 +11,7 @@ const api = await readFile(new URL('../src/lib/marketplace.ts', import.meta.url)
 const policy = await readFile(new URL('../src/privacy-policy.ts', import.meta.url), 'utf8')
 const terms = await readFile(new URL('../src/terms-and-conditions.ts', import.meta.url), 'utf8')
 const aboutContact = await readFile(new URL('../src/about-contact-content.ts', import.meta.url), 'utf8')
+const marketplaceValues = await readFile(new URL('../src/components/MarketplaceValues.tsx', import.meta.url), 'utf8')
 
 test('checkout page uses server quote and idempotent COD checkout', () => {
   assert.match(app, /fetchCheckoutQuote\(/)
@@ -277,4 +278,17 @@ test('about and contact pages are bilingual and contact submission is server-bac
   assert.match(aboutContact, /const myContact/)
   assert.match(api, /submitMarketplaceContact/)
   assert.match(api, /\/contact/)
+})
+
+test('about values section provides an animated accessible six-card journey', () => {
+  assert.match(app, /<MarketplaceValues locale=\{locale\} \/>/)
+  for (const title of ['Our Mission', 'Our Vision', 'Customer First', 'Trust & Transparency', 'Quality & Reliability', 'Innovation']) {
+    assert.match(marketplaceValues, new RegExp(title.replace(/[&]/g, '\\&')))
+  }
+  assert.match(marketplaceValues, /IntersectionObserver/)
+  assert.match(marketplaceValues, /aria-pressed=\{active\}/)
+  assert.match(marketplaceValues, /ArrowLeft/)
+  assert.match(marketplaceValues, /ArrowRight/)
+  assert.match(marketplaceValues, /prefers-reduced-motion/)
+  assert.match(marketplaceValues, /setAutoPlaying/)
 })
