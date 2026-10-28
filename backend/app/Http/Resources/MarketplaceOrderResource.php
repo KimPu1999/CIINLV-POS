@@ -37,7 +37,7 @@ class MarketplaceOrderResource extends JsonResource
             'payments' => MarketplacePaymentResource::collection($this->whenLoaded('payments')),
             'vendor_orders' => MarketplaceVendorOrderResource::collection($this->whenLoaded('vendorOrders')),
             'events' => MarketplaceOrderEventResource::collection($this->whenLoaded('events')),
-            'cancellation_requests' => $this->whenLoaded('cancellationRequests', fn () => $this->cancellationRequests->map(fn ($request): array => ['id' => $request->uuid, 'status' => $request->status, 'reason' => $request->reason, 'created_at' => $request->created_at?->toIso8601String()])),
+            'cancellation_requests' => $this->whenLoaded('cancellationRequests', fn () => MarketplaceCancellationRequestResource::collection($this->cancellationRequests)),
             'return_requests' => $this->whenLoaded('returnRequests', fn () => $this->returnRequests->map(fn ($request): array => ['id' => $request->uuid, 'status' => $request->status, 'reason' => $request->reason, 'created_at' => $request->created_at?->toIso8601String()])),
             'refund_requests' => $this->whenLoaded('refundRequests', fn () => $this->refundRequests->map(fn ($request): array => ['id' => $request->uuid, 'status' => $request->status, 'reason' => $request->reason, 'requested_amount' => $request->requested_amount, 'approved_amount' => $request->approved_amount, 'created_at' => $request->created_at?->toIso8601String()])),
         ];

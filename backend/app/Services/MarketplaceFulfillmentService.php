@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MarketplaceOrder;
+use App\Models\MarketplaceCancellationRequest;
 use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceVendorOrder;
 use App\Models\User;
@@ -26,6 +27,7 @@ class MarketplaceFulfillmentService
             if ($lockedOrder->order?->admin_hold) {
                 throw new ConflictHttpException('This order is on administrative hold and cannot enter fulfillment.');
             }
+            $this->assertNoPendingCancellation($lockedOrder->order);
 
             if ($lockedOrder->shipments()->exists()) {
                 throw new ConflictHttpException('A shipment already exists for this vendor order.');
@@ -73,6 +75,9 @@ class MarketplaceFulfillmentService
             $lockedShipment->load(['vendorOrder.order.payments', 'vendorOrder.store']);
             if ($lockedShipment->vendorOrder->order?->admin_hold) {
                 throw new ConflictHttpException('This order is on administrative hold and shipment status cannot change.');
+            }
+            if ($nextStatus !== 'cancelled') {
+                $this->assertNoPendingCancellation($lockedShipment->vendorOrder->order);
             }
             $current = $lockedShipment->status;
             $allowed = [
@@ -178,6 +183,13 @@ class MarketplaceFulfillmentService
         }
 
         throw new ConflictHttpException('This order cannot ship until its payment is verified.');
+    }
+
+    private function assertNoPendingCancellation(?MarketplaceOrder $order): void
+    {
+        if ($order && MarketplaceCancellationRequest::query()->where('marketplace_order_id', $order->id)->where('status', 'pending')->exists()) {
+            throw new ConflictHttpException('This order has a pending customer cancellation request and is locked until it is reviewed.');
+        }
     }
 
     private function updateVendorStatus(MarketplaceVendorOrder $order, string $next, User $actor, string $event): void

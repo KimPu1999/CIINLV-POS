@@ -15,4 +15,13 @@ class MarketplaceCancellationRequest extends FormRequest
     {
         return ['reason' => ['required', 'string', 'min:3', 'max:2000']];
     }
+
+    public function originalReason(): string
+    {
+        $payload = json_decode($this->getContent(), true);
+
+        return is_array($payload) && is_string($payload['reason'] ?? null)
+            ? $payload['reason']
+            : (string) $this->input('reason');
+    }
 }

@@ -52,6 +52,9 @@ class MarketplaceVendorOrderResource extends JsonResource
             'delivery_address' => $this->order?->delivery_address,
             'items' => MarketplaceOrderItemResource::collection($this->whenLoaded('items')),
             'shipments' => MarketplaceShipmentResource::collection($this->whenLoaded('shipments')),
+            'cancellation_requests' => $this->order?->relationLoaded('cancellationRequests')
+                ? MarketplaceCancellationRequestResource::collection($this->order->cancellationRequests)
+                : [],
         ];
     }
 }

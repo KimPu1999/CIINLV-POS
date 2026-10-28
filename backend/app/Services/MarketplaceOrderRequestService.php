@@ -87,6 +87,9 @@ class MarketplaceOrderRequestService
             if ($locked->status !== 'pending') {
                 throw new ConflictHttpException('This cancellation request has already been decided.');
             }
+            if ($decision === 'rejected' && trim((string) $note) === '') {
+                throw new UnprocessableEntityHttpException('A rejection reason is required.');
+            }
             $order = MarketplaceOrder::whereKey($locked->marketplace_order_id)->lockForUpdate()->with(['payments', 'vendorOrders.shipments'])->firstOrFail();
             if ($decision === 'approved') {
                 if ($order->payments->contains(fn ($payment): bool => $payment->status === 'paid')) {
@@ -113,6 +116,13 @@ class MarketplaceOrderRequestService
                 $order->events()->create(['actor_user_id' => $actor->id, 'event' => 'cancellation_approved', 'from_status' => 'confirmed', 'to_status' => 'cancelled', 'metadata' => ['request_id' => $locked->uuid]]);
             }
             $locked->update(['status' => $decision, 'decision_note' => $note, 'decided_by' => $actor->id, 'decided_at' => now()]);
+            if ($decision === 'rejected') {
+                $order->events()->create([
+                    'actor_user_id' => $actor->id,
+                    'event' => 'cancellation_rejected',
+                    'metadata' => ['request_id' => $locked->uuid, 'decision_note' => $note],
+                ]);
+            }
 
             return $locked->refresh()->load('order');
         });

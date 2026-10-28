@@ -276,6 +276,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/sales-history/{order}', [MarketplaceVendorController::class, 'salesHistoryDetail']);
             Route::get('/orders', [MarketplaceVendorController::class, 'orders']);
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
+            Route::get('/cancellation-requests', [MarketplaceVendorController::class, 'cancellationRequests']);
+            Route::patch('/cancellation-requests/{cancellation}/decision', [MarketplaceVendorController::class, 'decideCancellation']);
             Route::get('/orders/{order}/invoice', [MarketplaceVendorController::class, 'invoice']);
             Route::get('/orders/{order}/invoice/pdf', [MarketplaceVendorController::class, 'invoicePdf']);
             Route::get('/orders/{order}/receipt', [MarketplaceVendorController::class, 'receipt']);

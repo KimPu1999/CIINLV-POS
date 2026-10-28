@@ -8,6 +8,7 @@ use App\Http\Requests\Marketplace\UpdateMarketplaceStoreRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceListingImagesRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceStoreMediaRequest;
 use App\Http\Resources\MarketplaceListingResource;
+use App\Http\Resources\MarketplaceCancellationRequestResource;
 use App\Http\Resources\MarketplaceProductResource;
 use App\Http\Resources\MarketplaceStoreResource;
 use App\Http\Resources\MarketplaceVendorOrderResource;
@@ -19,6 +20,7 @@ use App\Models\MarketplaceAuditLog;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceListingImage;
 use App\Models\MarketplaceOrder;
+use App\Models\MarketplaceCancellationRequest;
 use App\Models\MarketplaceOrderCommission;
 use App\Models\MarketplacePayment;
 use App\Models\MarketplaceRefundRequest;
@@ -29,12 +31,14 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\MarketplaceAuditLogger;
 use App\Services\MarketplaceCommissionService;
+use App\Services\MarketplaceOrderRequestService;
 use App\Services\MarketplaceDocumentService;
 use App\Services\MarketplacePaymentService;
 use App\Services\MarketplaceSettingsService;
 use App\Services\PosAccessService;
 use App\Services\ReportScopeService;
 use App\Services\TenantContext;
+use App\Http\Requests\Marketplace\MarketplaceRequestDecisionRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -481,6 +485,7 @@ class MarketplaceVendorController
             'sort' => ['nullable', 'in:newest,oldest'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
+            'cancellation_status' => ['nullable', 'string', 'in:pending,approved,rejected'],
         ]);
         $tenant = $context->tenant();
         $query = MarketplaceVendorOrder::query()->where('tenant_id', $tenant->id);
@@ -505,6 +510,7 @@ class MarketplaceVendorController
             });
         }
         $this->applyMarketplaceVendorOrderFilters($query, $request);
+        $query->when($filters['cancellation_status'] ?? null, fn (Builder $builder, string $status): Builder => $builder->whereHas('order.cancellationRequests', fn (Builder $cancellation): Builder => $cancellation->where('status', $status)));
 
         $summaryQuery = clone $query;
         $summary = [
@@ -517,7 +523,7 @@ class MarketplaceVendorController
         ];
 
         $orders = $query
-            ->with(['store', 'tenant', 'items.reservations.balance.location.store', 'order.customer', 'order.payments', 'shipments.events'])
+            ->with(['store', 'tenant', 'items.reservations.balance.location.store', 'order.customer', 'order.payments', 'order.cancellationRequests.decider', 'shipments.events'])
             ->when(($filters['sort'] ?? 'newest') === 'oldest', fn (Builder $builder): Builder => $builder->orderBy('created_at')->orderBy('id'))
             ->when(($filters['sort'] ?? 'newest') !== 'oldest', fn (Builder $builder): Builder => $builder->orderByDesc('created_at')->orderByDesc('id'))
             ->paginate((int) ($filters['per_page'] ?? 25));
@@ -635,9 +641,53 @@ class MarketplaceVendorController
 
     public function order(Request $request, string $order, TenantContext $context): JsonResponse
     {
-        $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items.variant', 'order.customer', 'order.payments', 'shipments.events.actor'])->firstOrFail();
+        $model = MarketplaceVendorOrder::query()->where('tenant_id', $context->tenant()->id)->where('uuid', $order)->with(['store', 'tenant', 'items.variant', 'order.customer', 'order.payments', 'order.cancellationRequests.decider', 'order.events', 'shipments.events.actor'])->firstOrFail();
 
         return response()->json(['success' => true, 'data' => new MarketplaceVendorOrderResource($model)]);
+    }
+
+    public function cancellationRequests(Request $request, TenantContext $context): JsonResponse
+    {
+        $validated = $request->validate([
+            'status' => ['nullable', 'in:pending,approved,rejected'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'per_page' => ['nullable', 'integer', 'in:10,25,50,100'],
+        ]);
+        $requests = MarketplaceCancellationRequest::query()
+            ->whereHas('order.vendorOrders', fn (Builder $vendor): Builder => $vendor->where('tenant_id', $context->tenant()->id))
+            ->with(['order.events', 'decider'])
+            ->when($validated['status'] ?? null, fn (Builder $query, string $status): Builder => $query->where('status', $status))
+            ->when($validated['search'] ?? null, function (Builder $query, string $term): void {
+                $like = '%'.$term.'%';
+                $query->where(function (Builder $search) use ($like): void {
+                    $search->whereHas('order', fn (Builder $order): Builder => $order->where('order_number', 'ilike', $like))
+                        ->orWhere('reason', 'ilike', $like);
+                });
+            })
+            ->latest()
+            ->paginate((int) ($validated['per_page'] ?? 25));
+
+        return response()->json(['success' => true, 'data' => MarketplaceCancellationRequestResource::collection($requests), 'meta' => [
+            'total' => $requests->total(), 'per_page' => $requests->perPage(), 'current_page' => $requests->currentPage(), 'last_page' => $requests->lastPage(),
+        ]]);
+    }
+
+    public function decideCancellation(MarketplaceRequestDecisionRequest $request, string $cancellation, TenantContext $context, MarketplaceOrderRequestService $service, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $model = MarketplaceCancellationRequest::query()
+            ->where('uuid', $cancellation)
+            ->whereHas('order.vendorOrders', fn (Builder $vendor): Builder => $vendor->where('tenant_id', $context->tenant()->id))
+            ->with(['order.vendorOrders', 'order.customer'])
+            ->firstOrFail();
+        $decided = $service->decideCancellation($model, $request->user(), $request->string('decision')->toString(), $request->input('note'));
+        $decided->load(['order.customer', 'order.events', 'decider']);
+        $audit->record('marketplace.cancellation_request_decided', $request->user(), $context->tenant(), $decided, ['decision' => $decided->status, 'order_number' => $decided->order?->order_number]);
+
+        if ($decided->order?->customer) {
+            $decided->order->customer->notify(new \App\Notifications\MarketplaceCancellationDecisionNotification($decided));
+        }
+
+        return response()->json(['success' => true, 'data' => new MarketplaceCancellationRequestResource($decided)]);
     }
 
     public function invoice(string $order, TenantContext $context, MarketplaceDocumentService $documents): JsonResponse

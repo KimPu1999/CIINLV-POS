@@ -18,6 +18,8 @@ use App\Models\TenantMembership;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\MarketplaceCancellationDecisionNotification;
 use Tests\TestCase;
 
 class MarketplaceFulfillmentTest extends TestCase
@@ -205,6 +207,49 @@ class MarketplaceFulfillmentTest extends TestCase
         $this->assertDatabaseHas('marketplace_inventory_reservations', ['marketplace_order_id' => $order->id, 'status' => 'released']);
         $this->assertSame('0.000', (string) InventoryBalance::where('product_variant_id', $variant->id)->value('reserved_quantity'));
         $this->actingAs($superAdmin, 'sanctum')->patchJson('/api/v1/admin/marketplace/cancellation-requests/'.$request['id'].'/decision', ['decision' => 'rejected'])->assertConflict();
+    }
+
+    public function test_business_admin_can_read_and_decide_only_their_tenant_cancellation_request_and_pending_request_locks_fulfillment(): void
+    {
+        Notification::fake();
+        [$tenant, , $listing, $variant, $admin] = $this->vendor('FULFILLMENT-CANCEL-BUSINESS', 1000, 2);
+        [$otherTenant, , , , $otherAdmin] = $this->vendor('FULFILLMENT-CANCEL-OTHER', 1000, 2);
+        $customer = $this->customer('fulfillment-cancel-business@example.com');
+        $address = $this->address($customer);
+        $this->addToCart($customer, $listing, $variant);
+        $order = $this->checkout($customer, $address, 'fulfillment-cancel-business-checkout');
+        $vendorOrder = $order->vendorOrders()->firstOrFail();
+        $reason = "  Please cancel this order.\nI selected the wrong address.  ";
+        $request = $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/orders/'.$order->uuid.'/cancellation-requests', ['reason' => $reason])->assertCreated()->json('data');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid)
+            ->assertOk()
+            ->assertJsonPath('data.cancellation_requests.0.reason', $reason)
+            ->assertJsonPath('data.cancellation_requests.0.status', 'pending');
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/orders?cancellation_status=pending')
+            ->assertOk()->assertJsonPath('data.0.cancellation_requests.0.id', $request['id']);
+        $this->actingAs($otherAdmin, 'sanctum')->withHeader('X-Tenant-Id', $otherTenant->uuid)
+            ->getJson('/api/v1/vendor/marketplace/cancellation-requests')
+            ->assertOk()->assertJsonCount(0, 'data');
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])
+            ->assertConflict()
+            ->assertJsonPath('message', 'This order has a pending customer cancellation request and is locked until it is reviewed.');
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->patchJson('/api/v1/vendor/marketplace/cancellation-requests/'.$request['id'].'/decision', ['decision' => 'rejected'])
+            ->assertUnprocessable();
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->patchJson('/api/v1/vendor/marketplace/cancellation-requests/'.$request['id'].'/decision', ['decision' => 'rejected', 'note' => 'The order has already entered the review queue.'])
+            ->assertOk()->assertJsonPath('data.status', 'rejected')->assertJsonPath('data.decision_note', 'The order has already entered the review queue.');
+        $this->assertDatabaseHas('marketplace_cancellation_requests', ['uuid' => $request['id'], 'status' => 'rejected', 'decision_note' => 'The order has already entered the review queue.']);
+        Notification::assertSentTo($customer, MarketplaceCancellationDecisionNotification::class);
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->postJson('/api/v1/vendor/marketplace/orders/'.$vendorOrder->uuid.'/shipments', ['delivery_type' => 'self_delivery'])
+            ->assertCreated();
     }
 
     public function test_return_approval_blocks_real_money_refund_until_provider_is_configured(): void

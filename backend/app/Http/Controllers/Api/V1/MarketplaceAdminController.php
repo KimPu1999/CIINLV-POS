@@ -35,6 +35,7 @@ use App\Models\MarketplaceShipment;
 use App\Models\MarketplaceStore;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Notifications\MarketplaceCancellationDecisionNotification;
 use App\Models\Tenant;
 use App\Services\BusinessNotificationService;
 use App\Services\MarketplaceAuditLogger;
@@ -572,6 +573,10 @@ class MarketplaceAdminController
         $model = MarketplaceCancellationRequest::where('uuid', $cancellation)->firstOrFail();
         $decided = $service->decideCancellation($model, $request->user(), $request->string('decision')->toString(), $request->input('note'));
         $audit->record('marketplace.cancellation_request_decided', $request->user(), entity: $decided, metadata: ['decision' => $decided->status]);
+        $decided->load(['order.customer']);
+        if ($decided->order?->customer) {
+            $decided->order->customer->notify(new MarketplaceCancellationDecisionNotification($decided));
+        }
 
         return response()->json(['success' => true, 'data' => new MarketplaceCancellationRequestResource($decided)]);
     }

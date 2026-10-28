@@ -109,7 +109,7 @@ class MarketplaceCustomerCheckoutController
     public function requestCancellation(MarketplaceCancellationRequest $request, string $order, MarketplaceOrderRequestService $service): JsonResponse
     {
         $model = MarketplaceOrder::where('customer_user_id', $request->user()->id)->where('uuid', $order)->firstOrFail();
-        $created = $service->createCancellation($model, $request->user(), $request->string('reason')->toString());
+        $created = $service->createCancellation($model, $request->user(), $request->originalReason());
 
         return response()->json(['success' => true, 'data' => new MarketplaceCancellationRequestResource($created)], 201);
     }
