@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Models\BusinessInvitation;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -24,7 +25,12 @@ class WorkspaceAccessTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.access_mode', 'both')
             ->assertJsonPath('data.can_manage', true);
-        $this->assertSame('both', collect($initial->json('data.members'))->firstWhere('user_id', $staff->id)['access_mode']);
+        $this->assertSame([], $initial->json('data.members'));
+        $member = $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->getJson('/api/v1/business/workspace-access?email='.rawurlencode($staff->email))
+            ->assertOk()
+            ->json('data.members.0');
+        $this->assertSame('both', $member['access_mode']);
 
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)
             ->patchJson('/api/v1/business/workspace-access/users/'.$staff->id, ['access_mode' => 'business_only'])
@@ -93,6 +99,80 @@ class WorkspaceAccessTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)
             ->patchJson('/api/v1/business/workspace-access/users/'.$admin->id, ['access_mode' => 'business_only'])->assertForbidden();
         $this->assertDatabaseMissing('workspace_access_controls', ['tenant_id' => $tenant->id, 'user_id' => $staff->id]);
+    }
+
+    public function test_business_admin_searches_members_by_email_without_initial_enumeration(): void
+    {
+        [$tenant, $admin, $staff] = $this->fixture('workspace-email-search');
+        $staff->forceFill(['email' => 'staff@workspace.test'])->save();
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->getJson('/api/v1/business/workspace-access')
+            ->assertOk()
+            ->assertJsonPath('data.members', []);
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->getJson('/api/v1/business/workspace-access?email=staff%40workspace.test')
+            ->assertOk()
+            ->assertJsonPath('data.members.0.user_id', $staff->id)
+            ->assertJsonPath('data.members.0.email', 'staff@workspace.test')
+            ->assertJsonPath('data.members.0.membership_status', 'active')
+            ->assertJsonPath('data.members.0.role', 'store_manager');
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->getJson('/api/v1/business/workspace-access?email=not-a-member%40workspace.test')
+            ->assertOk()
+            ->assertJsonPath('data.members', []);
+    }
+
+    public function test_pending_invitation_is_searchable_but_has_no_assignable_user_id(): void
+    {
+        [$tenant, $admin] = $this->fixture('workspace-invitation-search');
+        $email = 'invited@workspace.test';
+        $invited = User::factory()->create(['email' => $email, 'status' => User::STATUS_INVITED]);
+        $role = Role::create(['tenant_id' => $tenant->id, 'name' => 'sales_staff']);
+        TenantMembership::create(['tenant_id' => $tenant->id, 'user_id' => $invited->id, 'role_id' => $role->id, 'status' => 'pending']);
+        BusinessInvitation::create([
+            'tenant_id' => $tenant->id,
+            'email' => $email,
+            'role' => 'sales_staff',
+            'token_hash' => hash('sha256', 'workspace-invitation-'.$tenant->id),
+            'expires_at' => now()->addDay(),
+            'invited_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->getJson('/api/v1/business/workspace-access?email=invited%40workspace.test')
+            ->assertOk()
+            ->assertJsonPath('data.members.0.user_id', $invited->id)
+            ->assertJsonPath('data.members.0.membership_status', 'invited')
+            ->assertJsonPath('data.members.0.invitation_status', 'pending')
+            ->assertJsonPath('data.members.0.access_mode', null);
+    }
+
+    public function test_admin_personal_view_can_be_restricted_without_restricting_admin_recovery_access(): void
+    {
+        [$tenant, $admin] = $this->fixture('workspace-admin-view');
+        WorkspaceAccessControl::create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $admin->id,
+            'access_mode' => WorkspaceAccessControl::MODE_BUSINESS_ONLY,
+            'preferred_view' => WorkspaceAccessControl::VIEW_BUSINESS,
+        ]);
+
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)
+            ->patchJson('/api/v1/business/workspace-access/preference', ['preferred_view' => 'marketplace'])
+            ->assertOk()
+            ->assertJsonPath('data.access_mode', 'both')
+            ->assertJsonPath('data.preferred_view', 'marketplace');
+
+        $this->assertDatabaseHas('workspace_access_controls', [
+            'tenant_id' => $tenant->id,
+            'user_id' => $admin->id,
+            'access_mode' => WorkspaceAccessControl::MODE_BOTH,
+            'preferred_view' => WorkspaceAccessControl::VIEW_MARKETPLACE,
+        ]);
     }
 
     private function fixture(string $suffix): array
