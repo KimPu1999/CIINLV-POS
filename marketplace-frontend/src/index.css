@@ -179,6 +179,14 @@ select:focus-visible {
   color: var(--brand-header-muted);
 }
 
+/* Navigation links keep a single, stable button edge. Active state is carried
+   by the existing background/text colors; focus is reserved for keyboard use. */
+.marketplace-header-nav,
+.marketplace-header-mobile-link {
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
 .marketplace-header-muted {
   color: var(--brand-header-muted);
 }
@@ -193,7 +201,15 @@ select:focus-visible {
 .marketplace-header-control:focus-visible,
 .marketplace-header-nav:focus-visible,
 .marketplace-header-mobile-link:focus-visible {
-  outline-color: var(--brand-accent);
+  outline: 2px solid color-mix(in srgb, var(--brand-accent) 68%, white);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.marketplace-header-nav:focus:not(:focus-visible),
+.marketplace-header-mobile-link:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
 }
 
 .marketplace-header-nav-active,
@@ -202,8 +218,10 @@ select:focus-visible {
   color: var(--brand-header-text);
 }
 
-.marketplace-header-nav-active {
-  box-shadow: inset 0 -2px 0 var(--brand-secondary);
+.marketplace-header-nav-active,
+.marketplace-header-mobile-link-active {
+  border-color: var(--brand-header-border);
+  box-shadow: none;
 }
 
 .marketplace-header-mobile {
