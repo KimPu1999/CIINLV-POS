@@ -358,6 +358,10 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="marketplace/reports" element={<MarketplaceAdminPage tab="reports" />} />
           <Route path="marketplace/audit" element={<MarketplaceAdminPage tab="audit" />} />
           <Route path="marketplace/settings" element={<MarketplaceAdminPage tab="settings" />} />
+          <Route path="marketplace/settings/appearance" element={<MarketplaceAdminPage tab="settings" settingsSection="appearance" />} />
+          <Route path="marketplace/settings/banners" element={<MarketplaceAdminPage tab="settings" settingsSection="banners" />} />
+          <Route path="marketplace/settings/discover" element={<MarketplaceAdminPage tab="settings" settingsSection="discover" />} />
+          <Route path="marketplace/settings/footer" element={<MarketplaceAdminPage tab="settings" settingsSection="footer" />} />
           <Route path="branches" element={<BranchListPage />} />
           <Route path="branches/:id/dashboard" element={<BranchDashboardPage />} />
           <Route path="store-manager" element={<BranchDashboardPage />} />
