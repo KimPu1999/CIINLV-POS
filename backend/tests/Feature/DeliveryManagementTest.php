@@ -92,11 +92,18 @@ class DeliveryManagementTest extends TestCase
         $staff = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff', ['full_name' => 'Existing Shipment Rider', 'phone' => '0999000333', 'branch_ids' => [$store->uuid]])->assertCreated()->json('data');
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff/'.$staff['id'].'/approve')->assertOk();
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/delivery-management/shipments/assignable')->assertOk()->assertJsonPath('data.data.0.id', $shipment->uuid);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/delivery-management/shipments/'.$shipment->uuid.'/eligible-staff')->assertOk()->assertJsonPath('data.0.id', $staff['id'])->assertJsonPath('data.0.staff_code', $staff['staff_code']);
         $assigned = $this->actingAs($admin, 'sanctum')->withHeaders(array_merge($headers, ['Idempotency-Key' => 'existing-shipment-assignment']))->postJson('/api/v1/business/delivery-management/shipment-assignments', ['shipment_id' => $shipment->uuid, 'staff_id' => $staff['id']])->assertCreated()->json('data');
         $this->assertSame($staff['id'], $assigned['staff']['id']);
         $this->assertDatabaseHas('marketplace_shipments', ['id' => $shipment->id, 'delivery_staff_profile_id' => DeliveryStaffProfile::where('uuid', $staff['id'])->value('id'), 'assignment_status' => 'assigned']);
         $this->assertDatabaseHas('delivery_assignment_events', ['marketplace_shipment_id' => $shipment->id, 'event_type' => 'assigned']);
         $this->actingAs($admin, 'sanctum')->withHeaders(array_merge($headers, ['Idempotency-Key' => 'existing-shipment-assignment']))->postJson('/api/v1/business/delivery-management/shipment-assignments', ['shipment_id' => $shipment->uuid, 'staff_id' => $staff['id']])->assertOk()->assertJsonPath('idempotent_replay', true);
+        $this->actingAs($admin, 'sanctum')->withHeaders(array_merge($headers, ['Idempotency-Key' => 'existing-shipment-assignment-duplicate']))->postJson('/api/v1/business/delivery-management/shipment-assignments', ['shipment_id' => $shipment->uuid, 'staff_id' => $staff['id']])->assertConflict();
+
+        $replacement = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff', ['full_name' => 'Replacement Rider', 'phone' => '0999000444', 'branch_ids' => [$store->uuid]])->assertCreated()->json('data');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff/'.$replacement['id'].'/approve')->assertOk();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/shipments/'.$shipment->uuid.'/reassign', ['staff_id' => $replacement['id'], 'reason' => 'Coverage change'])->assertOk()->assertJsonPath('data.staff.id', $replacement['id']);
+        $this->assertDatabaseHas('delivery_assignment_events', ['marketplace_shipment_id' => $shipment->id, 'event_type' => 'reassigned', 'reason' => 'Coverage change']);
     }
 
     public function test_inactive_employee_cannot_be_registered_as_delivery_staff(): void

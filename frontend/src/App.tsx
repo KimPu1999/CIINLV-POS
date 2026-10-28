@@ -327,6 +327,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
           <Route path="cash-management" element={<CashManagementPage />} />
           <Route path="staff" element={<StaffManagementPage />} />
           <Route path="delivery-management" element={<DeliveryManagementPage />} />
+          <Route path="delivery-management/assign" element={<DeliveryManagementPage />} />
           <Route path="sales" element={<ResourcePage title="Sales history" description="Completed, held and cancelled POS sales." endpoint="/api/v1/pos/sales" columns={['sale_number', 'status', 'grand_total', 'completed_at']} />} />
           <Route path="notifications" element={<BusinessNotificationsPage />} />
           <Route path="returns" element={<ResourcePage title="Returns & refunds" description="Review return requests and refund states." endpoint="/api/v1/pos/returns" columns={['return_number', 'status', 'refund_total']} />} />

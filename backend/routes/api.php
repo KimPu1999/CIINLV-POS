@@ -356,6 +356,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/delivery-management/staff/{staff}/availability', [DeliveryManagementController::class, 'staffAvailability']);
             Route::get('/delivery-management/orders/eligible', [DeliveryManagementController::class, 'eligibleOrders']);
             Route::get('/delivery-management/shipments/assignable', [DeliveryManagementController::class, 'assignableShipments']);
+            Route::get('/delivery-management/shipments/{shipment}/eligible-staff', [DeliveryManagementController::class, 'eligibleStaff'])->whereUuid('shipment');
             Route::post('/delivery-management/assignments', [DeliveryManagementController::class, 'assign']);
             Route::post('/delivery-management/shipment-assignments', [DeliveryManagementController::class, 'assignShipment']);
             Route::get('/delivery-management/active', [DeliveryManagementController::class, 'active']);
