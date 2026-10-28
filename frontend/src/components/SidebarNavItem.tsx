@@ -93,7 +93,7 @@ export function SidebarNavItem({ label, path, icon: Icon, collapsed, onNavigate,
         onBlur={hideTooltip}
         aria-label={translatedLabel}
         aria-describedby={collapsed && open ? tooltipId : undefined}
-        className={({ isActive }) => `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/40 ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30' : 'text-slate-400 hover:bg-white/10 hover:text-white hover:shadow-md'}`}
+        className={({ isActive }) => `glass-nav-item flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300/40 ${isActive ? 'glass-nav-item--active bg-blue-600 text-white shadow-lg shadow-blue-900/30' : 'text-slate-400 hover:bg-white/10 hover:text-white hover:shadow-md'}`}
       >
         <Icon size={20} className="shrink-0" aria-hidden="true" />
         {!collapsed && <span>{translatedLabel}</span>}

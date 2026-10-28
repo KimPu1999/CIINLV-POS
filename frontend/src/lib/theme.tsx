@@ -26,6 +26,7 @@ function initialTheme(): Theme {
 
 function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme
+  document.documentElement.dataset.design = import.meta.env.VITE_LIQUID_GLASS === 'false' ? 'classic' : 'liquid-glass'
   document.documentElement.style.colorScheme = theme
 }
 
