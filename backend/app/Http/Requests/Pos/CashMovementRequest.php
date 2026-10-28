@@ -13,6 +13,6 @@ class CashMovementRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['type' => ['required', 'in:cash_in,cash_out'], 'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'], 'reason' => ['required', 'string', 'max:500']];
+        return ['type' => ['required', 'in:cash_in,cash_out'], 'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'], 'reason' => ['required', 'string', 'max:500', 'not_regex:/^\s*$/']];
     }
 }

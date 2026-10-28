@@ -93,15 +93,18 @@ class CashierShiftService
     {
         return DB::transaction(function () use ($shift, $actor, $type, $amount, $reason, $idempotencyKey): CashMovement {
             $shift = CashierShift::whereKey($shift->id)->lockForUpdate()->with('store', 'register')->firstOrFail();
+            if (! $this->access->canManage($actor, $shift->store) && $shift->cashier_user_id !== $actor->id) {
+                throw new AccessDeniedHttpException('You cannot add cash movements to this shift.');
+            }
             $existing = CashMovement::where('tenant_id', $shift->tenant_id)->where('idempotency_key', $idempotencyKey)->first();
             if ($existing) {
+                if ((int) $existing->cashier_shift_id !== (int) $shift->id) {
+                    throw new ConflictHttpException('This Idempotency-Key belongs to a different cashier shift.');
+                }
                 return $existing;
             }
             if ($shift->status !== 'open') {
                 throw new ConflictHttpException('Cash movements cannot be added to a closed shift.');
-            }
-            if (! $this->access->canManage($actor, $shift->store) && $shift->cashier_user_id !== $actor->id) {
-                throw new AccessDeniedHttpException('You cannot add cash movements to this shift.');
             }
             if ($type === 'cash_out' && bccomp($amount, $this->expected($shift), 2) > 0) {
                 throw new UnprocessableEntityHttpException('Cash out exceeds the expected cash balance.');

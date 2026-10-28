@@ -113,6 +113,30 @@ class CashManagementTest extends TestCase
         $this->assertDatabaseCount('cash_management_entries', 0);
     }
 
+    public function test_register_cash_in_and_cash_out_persist_balance_idempotently_and_require_an_open_shift(): void
+    {
+        [$tenant, $admin, , , $store] = $this->fixture('cash-register-movements');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = PosRegister::create(['tenant_id' => $tenant->id, 'store_id' => $store->id, 'name' => 'Main Register', 'code' => 'REG-CASH-MOVEMENTS', 'status' => 'active', 'created_by' => $admin->id]);
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-register-open')->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register->uuid, 'opening_amount' => '0.00'])->assertCreated();
+        $shift = CashierShift::where('tenant_id', $tenant->id)->where('register_id', $register->id)->where('status', 'open')->firstOrFail();
+
+        $cashIn = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-in-10000')->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/cash-movements', ['type' => 'cash_in', 'amount' => '10000.00', 'reason' => 'Additional cash float'])->assertCreated();
+        $cashIn->assertJsonPath('data.movement_type', 'cash_in');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-in-10000')->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/cash-movements', ['type' => 'cash_in', 'amount' => '10000.00', 'reason' => 'Additional cash float'])->assertCreated()->assertJsonPath('data.id', $cashIn->json('data.id'));
+        $this->assertDatabaseCount('cash_movements', 1);
+        $this->assertSame('10000.00', app(\App\Services\CashierShiftService::class)->expected($shift->fresh()));
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-out-5000')->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/cash-movements', ['type' => 'cash_out', 'amount' => '5000.00', 'reason' => 'Petty cash withdrawal'])->assertCreated();
+        $this->assertSame('5000.00', app(\App\Services\CashierShiftService::class)->expected($shift->fresh()));
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-out-too-large')->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/cash-movements', ['type' => 'cash_out', 'amount' => '5000.01', 'reason' => 'Over balance'])->assertUnprocessable();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-invalid-reason')->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/cash-movements', ['type' => 'cash_in', 'amount' => '1.001', 'reason' => '   '])->assertUnprocessable();
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/close', ['actual_amount' => '5000.00'])->assertOk();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-after-close')->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/cash-movements', ['type' => 'cash_in', 'amount' => '1.00', 'reason' => 'Closed shift'])->assertConflict();
+    }
+
     private function fixture(string $suffix): array
     {
         $code = 'CASH-'.strtoupper(substr(md5($suffix), 0, 8));

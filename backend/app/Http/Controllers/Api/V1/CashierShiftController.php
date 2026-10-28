@@ -87,9 +87,9 @@ class CashierShiftController
     public function movement(CashMovementRequest $request, CashierShift $shift, TenantContext $context, CashierShiftService $service): JsonResponse
     {
         $this->assertTenant($shift, $context);
-        $key = $request->header('Idempotency-Key');
-        if (! $key) {
-            throw new UnprocessableEntityHttpException('Idempotency-Key is required for cash movements.');
+        $key = trim((string) $request->header('Idempotency-Key'));
+        if ($key === '' || strlen($key) > 120) {
+            throw new UnprocessableEntityHttpException('Idempotency-Key is required and must be at most 120 characters.');
         }
         $movement = $service->movement($shift, $request->user(), $request->input('type'), (string) $request->input('amount'), $request->input('reason'), $key);
 
