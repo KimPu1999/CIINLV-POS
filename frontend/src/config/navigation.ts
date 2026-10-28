@@ -7,7 +7,6 @@ export type NavigationItem = {
   icon: ComponentType<{ size?: number; className?: string }>
   roles?: ('super_admin' | 'business')[]
   workspace?: 'business' | 'marketplace' | 'shared'
-  section?: string
   end?: boolean
 }
 
@@ -20,7 +19,7 @@ export const platformNavigation: NavigationItem[] = [
   { label: 'Customers', path: '/platform/customers', icon: CircleUserRound, roles: ['super_admin'] },
   { label: 'Business registration', path: '/platform/businesses/new', icon: ClipboardList, roles: ['super_admin'] },
   { label: 'Audit & security', path: '/platform/audit', icon: Activity, roles: ['super_admin'] },
-  { label: 'Marketplace control center', path: '/platform/marketplace', icon: ShoppingCart, roles: ['super_admin'], section: 'Marketplace management', end: true },
+  { label: 'Marketplace control center', path: '/platform/marketplace', icon: ShoppingCart, roles: ['super_admin'], end: true },
   { label: 'Vendor management', path: '/platform/marketplace/vendors', icon: Store, roles: ['super_admin'] },
   { label: 'Product moderation', path: '/platform/marketplace/listings', icon: Package, roles: ['super_admin'] },
   { label: 'Marketplace orders', path: '/platform/marketplace/orders', icon: Receipt, roles: ['super_admin'] },
@@ -31,7 +30,7 @@ export const platformNavigation: NavigationItem[] = [
   { label: 'Reports & analytics', path: '/platform/marketplace/reports', icon: BarChart3, roles: ['super_admin'] },
   { label: 'Marketplace audit logs', path: '/platform/marketplace/audit', icon: Activity, roles: ['super_admin'] },
   { label: 'Marketplace settings', path: '/platform/marketplace/settings', icon: Settings, roles: ['super_admin'] },
-  { label: 'Help Center', path: '/platform/help', icon: HelpCircle, roles: ['super_admin'], section: 'Help & Policies' },
+  { label: 'Help Center', path: '/platform/help', icon: HelpCircle, roles: ['super_admin'] },
 ]
 
 export const businessNavigation: NavigationItem[] = [
@@ -49,18 +48,18 @@ export const businessNavigation: NavigationItem[] = [
   { label: 'Stock transfers', path: '/business/stock-transfers', icon: Truck, roles: ['business'] },
   { label: 'POS checkout', path: '/business/pos', icon: ShoppingCart, roles: ['business'] },
   { label: 'Registers', path: '/business/registers', icon: Receipt, roles: ['business'] },
-  { label: 'Cash management', path: '/business/cash-management', icon: WalletCards, roles: ['business'], section: 'Cash & reconciliation' },
+  { label: 'Cash management', path: '/business/cash-management', icon: WalletCards, roles: ['business'] },
   { label: 'Staff & salespeople', path: '/business/staff', icon: CircleUserRound, roles: ['business'] },
-  { label: 'Delivery management', path: '/business/delivery-management', icon: Truck, roles: ['business'], workspace: 'marketplace', section: 'Delivery management' },
-  { label: 'Assign delivery', path: '/business/delivery-management/assign', icon: ClipboardList, roles: ['business'], workspace: 'marketplace', section: 'Delivery management' },
+  { label: 'Delivery management', path: '/business/delivery-management', icon: Truck, roles: ['business'], workspace: 'marketplace' },
+  { label: 'Assign delivery', path: '/business/delivery-management/assign', icon: ClipboardList, roles: ['business'], workspace: 'marketplace' },
   { label: 'Sales history', path: '/business/sales', icon: Receipt, roles: ['business'] },
   { label: 'Returns & refunds', path: '/business/returns', icon: CircleUserRound, roles: ['business'] },
   { label: 'Reports & analytics', path: '/business/reports', icon: BarChart3, roles: ['business'] },
   { label: 'Low-stock alerts', path: '/business/alerts', icon: AlertTriangle, roles: ['business'] },
   { label: 'Identity & verification', path: '/business/verification', icon: ShieldCheck, roles: ['business'] },
-  { label: 'Settings', path: '/business/settings', icon: Settings, roles: ['business'], workspace: 'shared', section: 'Settings', end: true },
-  { label: 'Business Information', path: '/business/settings/business-information', icon: Building2, roles: ['business'], workspace: 'shared', section: 'Settings', end: true },
-  { label: 'Marketplace overview', path: '/business/marketplace/overview', icon: Store, roles: ['business'], workspace: 'marketplace', section: 'Marketplace management' },
+  { label: 'Settings', path: '/business/settings', icon: Settings, roles: ['business'], workspace: 'shared', end: true },
+  { label: 'Business Information', path: '/business/settings/business-information', icon: Building2, roles: ['business'], workspace: 'shared', end: true },
+  { label: 'Marketplace overview', path: '/business/marketplace/overview', icon: Store, roles: ['business'], workspace: 'marketplace' },
   { label: 'Earnings & commissions', path: '/business/marketplace/earnings', icon: BarChart3, roles: ['business'], workspace: 'marketplace' },
   { label: 'My store', path: '/business/marketplace/store', icon: Building2, roles: ['business'], workspace: 'marketplace' },
   { label: 'Marketplace products', path: '/business/marketplace/products', icon: Package, roles: ['business'], workspace: 'marketplace' },
@@ -70,7 +69,7 @@ export const businessNavigation: NavigationItem[] = [
   { label: 'Delivery history', path: '/business/marketplace/delivery-history', icon: History, roles: ['business'], workspace: 'marketplace' },
   { label: 'Customer reviews', path: '/business/marketplace/reviews', icon: CircleUserRound, roles: ['business'], workspace: 'marketplace' },
   { label: 'Marketplace settings', path: '/business/marketplace/settings', icon: Settings, roles: ['business'], workspace: 'marketplace' },
-  { label: 'Help Center', path: '/business/help', icon: HelpCircle, roles: ['business'], workspace: 'shared', section: 'Help & Policies' },
+  { label: 'Help Center', path: '/business/help', icon: HelpCircle, roles: ['business'], workspace: 'shared' },
 ]
 
 export const platformBusinessNavigation = businessNavigation.filter(({ path }) => [

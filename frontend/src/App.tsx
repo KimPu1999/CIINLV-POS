@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown, Eye, EyeOff, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Store, Sun, X } from 'lucide-react'
@@ -293,8 +293,8 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
         <BrandLogo showName={!collapsed} className="min-w-0 overflow-hidden" imageClassName="h-10 w-10" nameClassName="text-lg font-bold text-white" />
         <button className="lg:hidden" onClick={() => setMobile(false)} aria-label="Close navigation"><X size={20} /></button>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon, section, end }, index) => <Fragment key={`${path}-${label}-${index}-${collapsed ? 'collapsed' : 'expanded'}`}>{section && !collapsed && <p className="mb-2 mt-5 px-4 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{translateStatic(t, section)}</p>}<SidebarNavItem label={label} path={path} icon={Icon} collapsed={collapsed} end={end} onNavigate={() => setMobile(false)} /></Fragment>)}</nav>
-      <div className="border-t border-white/10 p-3"><button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white"><LogOut size={19} />{!collapsed && 'Sign out'}</button></div>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon, end }, index) => <SidebarNavItem key={`${path}-${label}-${index}-${collapsed ? 'collapsed' : 'expanded'}`} label={label} path={path} icon={Icon} collapsed={collapsed} end={end} onNavigate={() => setMobile(false)} />)}</nav>
+      <div className="border-t border-white/10 p-3"><button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-normal text-slate-400 hover:bg-white/10 hover:text-white"><LogOut size={19} />{!collapsed && 'Sign out'}</button></div>
     </aside>
     {mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}
     <div className="min-h-screen transition-[padding]">
