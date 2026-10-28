@@ -111,7 +111,7 @@ const enContact: ContactContent = {
   title: 'How can we help?',
   intro: 'Send a message to the marketplace support team. Your inquiry is recorded securely for review; a response is not promised until an authorized support workflow is configured.',
   methodsTitle: 'Public contact methods',
-  methodsUnavailable: 'Public support email, phone, address and business hours have not been configured for this marketplace yet.',
+  methodsUnavailable: 'Choose a business to send your inquiry to its secure support queue. Email notification is attempted only when that business has configured mail delivery.',
   formTitle: 'Send an inquiry',
   formIntro: 'Please avoid sending passwords, payment credentials or other sensitive information.',
   faqTitle: 'Frequently asked questions',
@@ -125,7 +125,7 @@ const enContact: ContactContent = {
   subjects: [
     { value: 'general', label: 'General inquiry' }, { value: 'order', label: 'Order support' }, { value: 'payment', label: 'Payment support' }, { value: 'delivery', label: 'Delivery support' }, { value: 'seller', label: 'Seller inquiry' }, { value: 'technical', label: 'Technical support' }, { value: 'other', label: 'Other' },
   ],
-  reviewNotice: 'Contact submissions are stored as pending inquiries. Email delivery or a support inbox is not claimed unless configured by the business.',
+  reviewNotice: 'Your inquiry is stored as a pending support record for the selected business. The confirmation will show whether email notification is queued, sent, failed or not configured.',
 }
 
 const myContact: ContactContent = {
@@ -133,7 +133,7 @@ const myContact: ContactContent = {
   title: 'မည်သို့ ကူညီပေးရမလဲ။',
   intro: 'Marketplace အကူအညီအဖွဲ့ထံ စာပို့ပါ။ သင့်မေးမြန်းမှုကို စိစစ်ရန် လုံခြုံစွာ သိမ်းဆည်းမည်ဖြစ်ပြီး ခွင့်ပြုထားသော အကူအညီလုပ်ငန်းစဉ် မသတ်မှတ်မချင်း ပြန်ကြားမည်ဟု အာမမခံပါ။',
   methodsTitle: 'အများပြည်သူဆိုင်ရာ ဆက်သွယ်ရန်နည်းလမ်းများ',
-  methodsUnavailable: 'အများပြည်သူကြည့်ရှုနိုင်သော အကူအညီအီးမေးလ်၊ ဖုန်း၊ လိပ်စာနှင့် လုပ်ငန်းချိန်များကို Marketplace တွင် မသတ်မှတ်ရသေးပါ။',
+  methodsUnavailable: 'မေးမြန်းချက်ကို ရွေးချယ်ထားသော လုပ်ငန်း၏ လုံခြုံသော အကူအညီစာရင်းသို့ ပို့ပါမည်။ လုပ်ငန်းက mail ပို့ခြင်းကို သတ်မှတ်ထားမှသာ အီးမေးလ်အသိပေးချက်ကို ကြိုးစားပို့ပါမည်။',
   formTitle: 'မေးမြန်းချက် ပို့ရန်',
   formIntro: 'စကားဝှက်၊ ငွေပေးချေမှုအချက်အလက် သို့မဟုတ် အခြားလျှို့ဝှက်အချက်အလက်များကို မပို့ပါနှင့်။',
   faqTitle: 'မကြာခဏမေးသော မေးခွန်းများ',
@@ -147,7 +147,7 @@ const myContact: ContactContent = {
   subjects: [
     { value: 'general', label: 'အထွေထွေမေးမြန်းချက်' }, { value: 'order', label: 'အော်ဒါအကူအညီ' }, { value: 'payment', label: 'ငွေပေးချေမှုအကူအညီ' }, { value: 'delivery', label: 'ပို့ဆောင်မှုအကူအညီ' }, { value: 'seller', label: 'ရောင်းချသူမေးမြန်းချက်' }, { value: 'technical', label: 'နည်းပညာအကူအညီ' }, { value: 'other', label: 'အခြား' },
   ],
-  reviewNotice: 'ဆက်သွယ်မေးမြန်းမှုများကို စောင့်ဆိုင်းနေသော မေးမြန်းချက်များအဖြစ် သိမ်းဆည်းပါမည်။ လုပ်ငန်းက သတ်မှတ်မထားပါက အီးမေးလ်ပို့ခြင်း သို့မဟုတ် အကူအညီ inbox ရှိသည်ဟု မဆိုလိုပါ။',
+  reviewNotice: 'သင့်မေးမြန်းချက်ကို ရွေးချယ်ထားသော လုပ်ငန်းအတွက် စောင့်ဆိုင်းနေသော အကူအညီမှတ်တမ်းအဖြစ် သိမ်းဆည်းပါမည်။ အတည်ပြုချက်တွင် အီးမေးလ်အသိပေးချက် အခြေအနေကို တိတိကျကျ ပြသပါမည်။',
 }
 
 export function aboutContent(locale: Locale): AboutContent { return locale === 'my' ? myAbout : enAbout }

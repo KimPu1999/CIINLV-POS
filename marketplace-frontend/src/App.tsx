@@ -1593,19 +1593,50 @@ function AboutUsPage({ locale }: AppServices) {
   </PageContainer>
 }
 
-function ContactUsPage({ locale, t }: AppServices) {
+function ContactUsPage({ locale, t, catalog }: AppServices) {
   const content = contactContent(locale)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', website: '' })
+  const stores = catalog.data.stores
+  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', store: stores[0]?.slug || stores[0]?.id || '', website: '' })
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const [error, setError] = useState('')
+  const [deliveryStatus, setDeliveryStatus] = useState('')
+  useEffect(() => { if (!form.store && stores.length === 1) setForm((current) => ({ ...current, store: stores[0].slug || stores[0].id })) }, [form.store, stores])
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setStatus('sending'); setError('')
+    try {
+      const result = await submitMarketplaceContact(form, locale)
+      setDeliveryStatus(result.email_delivery_status || 'not_configured'); setStatus('success')
+      setForm({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', store: stores[0]?.slug || stores[0]?.id || '', website: '' })
+    } catch (reason: unknown) { setStatus('error'); setError(apiErrorMessage(reason, t('contactFailure'))) }
+  }
+  return <PageContainer compact wide>
+    <header className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-6 shadow-sm dark:border-blue-950/60 dark:from-blue-950/30 dark:via-slate-900 dark:to-slate-900 sm:p-8"><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">{content.eyebrow}</p><h1 className="mt-1 text-3xl font-black tracking-tight text-slate-950 dark:text-white">{content.title}</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300">{content.intro}</p></header>
+    <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]"><section className="space-y-4"><div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h2 className="text-lg font-black text-slate-950 dark:text-white">{content.methodsTitle}</h2><p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{content.methodsUnavailable}</p></div><div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">{content.reviewNotice}</div></section><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7"><h2 className="text-xl font-black text-slate-950 dark:text-white">{content.formTitle}</h2><p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{content.formIntro}</p><form onSubmit={submit} className="mt-5 grid gap-4 sm:grid-cols-2">{stores.length > 1 && <label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 sm:col-span-2"><span>{locale === 'my' ? 'လုပ်ငန်း / ဆိုင်' : 'Business / Store'}</span><select required value={form.store} onChange={(event) => setForm({ ...form, store: event.target.value })} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-950"><option value="">{locale === 'my' ? 'လုပ်ငန်းရွေးပါ' : 'Select a business'}</option>{stores.map((store) => <option key={store.id} value={store.slug || store.id}>{store.name}</option>)}</select></label>}{!stores.length && <p className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20">{catalog.status === 'loading' ? 'Loading businesses…' : 'No approved businesses are available yet.'}</p>}<ContactField label={t('contactName')} value={form.name} onChange={(value) => setForm({ ...form, name: value })} required /><ContactField label={t('contactEmail')} value={form.email} onChange={(value) => setForm({ ...form, email: value })} type="email" required /><ContactField label={t('contactPhone')} value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} /><label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300"><span>{t('contactSubject')}</span><select value={form.subject} onChange={(event) => setForm({ ...form, subject: event.target.value })} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-950">{content.subjects.map((subject) => <option key={subject.value} value={subject.value}>{subject.label}</option>)}</select></label><label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 sm:col-span-2"><span>{t('contactMessage')}</span><textarea required minLength={10} maxLength={5000} rows={6} value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-800 dark:bg-slate-950" /></label><input tabIndex={-1} autoComplete="off" aria-hidden="true" value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} className="absolute -left-[9999px] h-px w-px opacity-0" /><div className="sm:col-span-2">{status === 'success' && <p className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">{t('contactSuccess')} <span className="block text-xs font-semibold">{locale === 'my' ? 'အီးမေးလ်အခြေအနေ: ' : 'Email notification: '}{deliveryStatus.replaceAll('_', ' ')}</span></p>}{status === 'error' && <p role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{error}</p>}<button type="submit" disabled={status === 'sending' || !stores.length} className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white disabled:opacity-60">{status === 'sending' ? t('contactSending') : t('contactSend')}</button></div></form></section></div>
+  </PageContainer>
+}
+
+function ContactField({ label, value, onChange, type = 'text', required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) { return <label className="grid gap-2 text-sm font-bold text-slate-700 dark:text-slate-300"><span>{label}</span><input required={required} type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-slate-800 dark:bg-slate-950" /></label> }
+
+function LegacyContactUsPage({ locale, t, catalog }: AppServices) {
+  const content = contactContent(locale)
+  const stores = catalog.data.stores
+  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', store: stores[0]?.slug || stores[0]?.id || '', website: '' })
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [error, setError] = useState('')
+  const [deliveryStatus, setDeliveryStatus] = useState('')
+  void deliveryStatus
+  useEffect(() => {
+    if (!form.store && stores.length === 1) setForm((current) => ({ ...current, store: stores[0].slug || stores[0].id }))
+  }, [form.store, stores])
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setStatus('sending')
     setError('')
     try {
-      await submitMarketplaceContact(form, locale)
+      const result = await submitMarketplaceContact(form, locale)
       setStatus('success')
-      setForm({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', website: '' })
+      setDeliveryStatus(result.email_delivery_status || 'not_configured')
+      setForm({ name: '', email: '', phone: '', subject: content.subjects[0]?.value ?? 'general', message: '', store: stores[0]?.slug || stores[0]?.id || '', website: '' })
     } catch (reason: unknown) {
       setStatus('error')
       setError(apiErrorMessage(reason, t('contactFailure')))
@@ -1618,6 +1649,8 @@ function ContactUsPage({ locale, t }: AppServices) {
     <section className="mt-8"><h2 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">{content.faqTitle}</h2><div className="mt-4 grid gap-3 md:grid-cols-2">{content.faqs.map((faq) => <article key={faq.question} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"><h3 className="text-sm font-black text-slate-950 dark:text-white">{faq.question}</h3><p className="mt-2 text-xs leading-6 text-slate-500 dark:text-slate-400">{faq.answer}</p>{faq.link && <Link to={faq.link.href} className="mt-3 inline-flex items-center gap-1 text-xs font-black text-blue-600 hover:gap-2 dark:text-blue-300">{faq.link.label} <ArrowRight size={14} /></Link>}</article>)}</div></section>
   </PageContainer>
 }
+
+void LegacyContactUsPage
 
 function PrivacyPolicyPage({ locale }: AppServices) {
   const policy = privacyPolicyContent(locale)

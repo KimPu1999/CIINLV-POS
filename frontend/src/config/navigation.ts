@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, HelpCircle, History, LayoutDashboard, Package, Receipt, ScanBarcode, Search, Settings, ShieldCheck, ShoppingCart, Store, Truck, WalletCards } from 'lucide-react'
+import { Activity, AlertTriangle, BarChart3, Boxes, Building2, CircleUserRound, ClipboardList, HelpCircle, History, LayoutDashboard, MessageCircle, Package, Receipt, ScanBarcode, Search, Settings, ShieldCheck, ShoppingCart, Store, Truck, WalletCards } from 'lucide-react'
 import type { ComponentType } from 'react'
 
 export type NavigationItem = {
@@ -64,6 +64,7 @@ export const businessNavigation: NavigationItem[] = [
   { label: 'My store', path: '/business/marketplace/store', icon: Building2, roles: ['business'], workspace: 'marketplace' },
   { label: 'Marketplace products', path: '/business/marketplace/products', icon: Package, roles: ['business'], workspace: 'marketplace' },
   { label: 'Marketplace orders', path: '/business/marketplace/orders', icon: ShoppingCart, roles: ['business'], workspace: 'marketplace' },
+  { label: 'Customer support', path: '/business/marketplace/support', icon: MessageCircle, roles: ['business'], workspace: 'marketplace' },
   { label: 'Shipping & fulfillment', path: '/business/marketplace/shipping', icon: Truck, roles: ['business'], workspace: 'marketplace' },
   { label: 'Sales history', path: '/business/marketplace/sales-history', icon: History, roles: ['business'], workspace: 'marketplace' },
   { label: 'Delivery history', path: '/business/marketplace/delivery-history', icon: History, roles: ['business'], workspace: 'marketplace' },

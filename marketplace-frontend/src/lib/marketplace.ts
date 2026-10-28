@@ -338,7 +338,15 @@ export interface MarketplaceContactPayload {
   phone?: string
   subject: string
   message: string
+  store?: string
   website?: string
+}
+
+export interface MarketplaceContactResult {
+  accepted: boolean
+  id?: number
+  email_delivery_status?: 'not_configured' | 'queued' | 'sent' | 'failed'
+  duplicate?: boolean
 }
 
 export const localeStorageKey = 'ciinlv_marketplace_language'
@@ -465,8 +473,10 @@ async function requestJson(path: string, init: RequestInit = {}, locale?: Locale
   return payload
 }
 
-export async function submitMarketplaceContact(payload: MarketplaceContactPayload, locale: Locale): Promise<void> {
-  await requestJson(`${apiBase()}/contact`, { method: 'POST', body: JSON.stringify(payload) }, locale, true)
+export async function submitMarketplaceContact(payload: MarketplaceContactPayload, locale: Locale): Promise<MarketplaceContactResult> {
+  const response = await requestJson(`${apiBase()}/contact`, { method: 'POST', body: JSON.stringify(payload) }, locale, true)
+  const data = unwrap<unknown>(response)
+  return (data && typeof data === 'object' ? data : {}) as MarketplaceContactResult
 }
 
 function unwrap<T>(payload: unknown): T {

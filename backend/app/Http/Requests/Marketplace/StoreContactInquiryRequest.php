@@ -19,6 +19,7 @@ class StoreContactInquiryRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:50'],
             'subject' => ['required', 'string', 'max:80'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
+            'store' => ['nullable', 'string', 'max:120'],
             'website' => ['nullable', 'string', 'max:100'],
         ];
     }

@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\InventoryReportController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\MarketplaceAdminController;
 use App\Http\Controllers\Api\V1\MarketplaceContactController;
+use App\Http\Controllers\Api\V1\MarketplaceContactInquiryController;
 use App\Http\Controllers\Api\V1\MarketplaceDisputeController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAddressController;
 use App\Http\Controllers\Api\V1\MarketplaceCustomerAuthController;
@@ -93,7 +94,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/products/{listing:slug}/reviews', [MarketplaceReviewController::class, 'publicIndex']);
         Route::get('/categories', [MarketplacePublicController::class, 'categories']);
         Route::get('/search', [MarketplacePublicController::class, 'search']);
-        Route::post('/contact', [MarketplaceContactController::class, 'store']);
+        Route::post('/contact', [MarketplaceContactController::class, 'store'])->middleware('throttle:10,1');
         Route::post('/payments/webhook/{provider}', MarketplacePaymentWebhookController::class)->middleware('throttle:payments');
     });
 
@@ -279,6 +280,12 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/orders/{order}', [MarketplaceVendorController::class, 'order']);
             Route::get('/cancellation-requests', [MarketplaceVendorController::class, 'cancellationRequests']);
             Route::patch('/cancellation-requests/{cancellation}/decision', [MarketplaceVendorController::class, 'decideCancellation']);
+            Route::get('/contact-inquiries', [MarketplaceContactInquiryController::class, 'index']);
+            Route::get('/contact-inquiries/{inquiry}', [MarketplaceContactInquiryController::class, 'show']);
+            Route::patch('/contact-inquiries/{inquiry}/status', [MarketplaceContactInquiryController::class, 'status']);
+            Route::patch('/contact-inquiries/{inquiry}/assignment', [MarketplaceContactInquiryController::class, 'assign']);
+            Route::post('/contact-inquiries/{inquiry}/notes', [MarketplaceContactInquiryController::class, 'note']);
+            Route::post('/contact-inquiries/{inquiry}/replies', [MarketplaceContactInquiryController::class, 'reply']);
             Route::get('/orders/{order}/invoice', [MarketplaceVendorController::class, 'invoice']);
             Route::get('/orders/{order}/invoice/pdf', [MarketplaceVendorController::class, 'invoicePdf']);
             Route::get('/orders/{order}/receipt', [MarketplaceVendorController::class, 'receipt']);

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BusinessNotification;
+use App\Models\MarketplaceContactInquiry;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplacePayment;
 use App\Models\MarketplaceVendorOrder;
@@ -11,6 +12,26 @@ use App\Models\TenantMembership;
 
 class BusinessNotificationService
 {
+    public function contactInquiryCreated(MarketplaceContactInquiry $inquiry): void
+    {
+        $inquiry->loadMissing('store');
+        $this->notifyTenant(
+            (int) $inquiry->tenant_id,
+            $inquiry->marketplace_store_id,
+            'marketplace_contact_inquiry',
+            'New customer support inquiry',
+            sprintf('%s sent a support inquiry: %s.', $inquiry->name, $inquiry->subject),
+            [
+                'inquiry_id' => $inquiry->getKey(),
+                'customer_name' => $inquiry->name,
+                'subject' => $inquiry->subject,
+                'related_url' => '/business/marketplace/support?inquiry='.$inquiry->getKey(),
+            ],
+            'normal',
+            'marketplace_contact_inquiry:'.$inquiry->getKey(),
+        );
+    }
+
     public function orderCreated(MarketplaceOrder $order): void
     {
         $order->loadMissing(['customer', 'vendorOrders.store']);
