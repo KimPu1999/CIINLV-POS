@@ -84,11 +84,14 @@ class MarketplaceSettingsService
         // Preserve an older flat banner collection, if one was stored before
         // page-specific collections were introduced.
         if (array_is_list($value)) {
-            foreach ($value as $item) {
+            foreach (array_slice($value, 0, 7) as $index => $item) {
                 if (! is_array($item)) continue;
                 $page = (string) ($item['page'] ?? 'home');
                 if (array_key_exists($page, $defaults['pages'])) {
-                    $defaults['pages'][$page]['items'][] = $item;
+                    $defaults['pages'][$page]['items'][] = array_merge([
+                        'id' => (string) Str::uuid(), 'enabled' => true, 'alt_text_en' => null, 'alt_text_my' => null,
+                        'text_align' => 'left', 'overlay' => 'gradient', 'sort_order' => $index,
+                    ], $item);
                 }
             }
             return $defaults;
@@ -98,7 +101,31 @@ class MarketplaceSettingsService
         foreach ($defaults['pages'] as $page => $pageDefault) {
             $source = is_array($pages[$page] ?? null) ? $pages[$page] : [];
             $items = is_array($source['items'] ?? null) ? $source['items'] : [];
-            $defaults['pages'][$page] = array_merge($pageDefault, $source, ['items' => array_values($items)]);
+            $defaults['pages'][$page] = array_merge($pageDefault, $source, ['items' => collect($items)
+                ->take(7)
+                ->values()
+                ->map(function (array $item, int $index): array {
+                    return array_merge([
+                        'id' => (string) Str::uuid(),
+                        'enabled' => true,
+                        'title_en' => null,
+                        'title_my' => null,
+                        'subtitle_en' => null,
+                        'subtitle_my' => null,
+                        'cta_text_en' => null,
+                        'cta_text_my' => null,
+                        'cta_url' => null,
+                        'alt_text_en' => null,
+                        'alt_text_my' => null,
+                        'text_align' => 'left',
+                        'overlay' => 'gradient',
+                        'desktop_image_path' => null,
+                        'mobile_image_path' => null,
+                        'sort_order' => $index,
+                        'starts_at' => null,
+                        'ends_at' => null,
+                    ], $item, ['sort_order' => (int) ($item['sort_order'] ?? $index)]);
+                })->all()]);
         }
         if (is_array($value['settings'] ?? null)) {
             $defaults['settings'] = $value['settings'];

@@ -27,6 +27,10 @@ export interface MarketplaceBannerItem {
   cta_text_en?: string | null
   cta_text_my?: string | null
   cta_url?: string | null
+  alt_text_en?: string | null
+  alt_text_my?: string | null
+  text_align?: 'left' | 'center' | 'right'
+  overlay?: 'dark' | 'gradient' | 'none'
   desktop_image_path?: string | null
   mobile_image_path?: string | null
   desktop_image_url?: string | null
