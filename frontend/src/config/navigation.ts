@@ -56,7 +56,7 @@ export const businessNavigation: NavigationItem[] = [
   { label: 'Returns & refunds', path: '/business/returns', icon: CircleUserRound, roles: ['business'] },
   { label: 'Reports & analytics', path: '/business/reports', icon: BarChart3, roles: ['business'] },
   { label: 'Low-stock alerts', path: '/business/alerts', icon: AlertTriangle, roles: ['business'] },
-  { label: 'Identity & verification', path: '/business/verification', icon: ShieldCheck, roles: ['business'] },
+  { label: 'Profile', path: '/business/verification', icon: ShieldCheck, roles: ['business'], workspace: 'shared' },
   { label: 'Settings', path: '/business/settings', icon: Settings, roles: ['business'], workspace: 'shared', end: true },
   { label: 'Business Information', path: '/business/settings/business-information', icon: Building2, roles: ['business'], workspace: 'shared', end: true },
   { label: 'Marketplace overview', path: '/business/marketplace/overview', icon: Store, roles: ['business'], workspace: 'marketplace' },

@@ -1,13 +1,14 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, Eye, EyeOff, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Store, Sun, X } from 'lucide-react'
+import { ChevronDown, Eye, EyeOff, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, ShoppingBag, Store, Sun, X } from 'lucide-react'
 import { request, type BusinessMembership, type User } from './lib/api'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/useAuth'
 import { DataTable, ErrorState, LabelBadge, LoadingState, PageHeader, StatCard } from './components/ui'
 import { NavigationHistoryProvider } from './components/BackButton'
 import { SidebarNavItem } from './components/SidebarNavItem'
+import { SidebarSection } from './components/SidebarSection'
 import { LanguageSwitcher } from './components/LanguageSwitcher'
 import { LegacyStaticTextLocalizer } from './components/LegacyStaticTextLocalizer'
 import { ThemeProvider, useTheme } from './lib/theme'
@@ -94,6 +95,8 @@ const platformBusinessNav = platformBusinessNavigation
 type WorkspaceMode = 'business_only' | 'marketplace_only' | 'both'
 type WorkspaceView = 'business' | 'marketplace' | 'combined'
 type WorkspaceAccess = { access_mode: WorkspaceMode; preferred_view: WorkspaceView; available_views: WorkspaceView[]; can_manage: boolean }
+type SidebarSite = 'business' | 'marketplace'
+type SidebarGroups = Record<SidebarSite, NavigationItem[]> & { common: NavigationItem[] }
 // Route audit markers: the shared navigation config is the source of truth for these paths.
 // path: '/platform/help' · path: '/business/help' · path: '/business/barcode-management'
 // path: '/platform/business-products' · path: '/platform/monitoring' · path: '/platform/customers' · path: '/business/customers'
@@ -234,7 +237,10 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const platformBusinessWorkspace = user.platform_role === 'super_admin' && businessWorkspace
   const role = businessWorkspace ? 'business' : user.platform_role === 'super_admin' ? 'super_admin' : 'business'
   const baseNav = role === 'super_admin' ? platformNav : platformBusinessWorkspace ? platformBusinessNav : businessNav
-  const nav = businessWorkspace && !workspaceAccess ? [] : filterNavigation(baseNav, workspaceAccess?.preferred_view)
+  const preferredView = workspaceAccess?.preferred_view
+  const nav = useMemo(() => businessWorkspace && !workspaceAccess ? [] : filterNavigation(baseNav, preferredView), [baseNav, businessWorkspace, preferredView, workspaceAccess])
+  const sidebarGroups = useMemo(() => splitSidebarNavigation(nav), [nav])
+  const [expandedSite, setExpandedSite] = useState<SidebarSite | null>(() => initialSidebarSite(nav, location.pathname))
   const platformLanding = location.pathname === '/platform/dashboard'
   const memberships = activeBusinessMemberships(user)
   const selectTenant = (tenantId: string) => { window.localStorage.setItem('ciinlv_tenant_id', tenantId); setSelectedTenant(tenantId) }
@@ -287,13 +293,27 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
     return () => { window.removeEventListener('ciinlv:profile-updated', handleProfileUpdated); window.removeEventListener('ciinlv:workspace-updated', handleWorkspaceUpdated) }
   }, [refreshUser])
 
+  useEffect(() => {
+    const activeSite = activeSidebarSite(nav, location.pathname)
+    if (activeSite) setExpandedSite(activeSite)
+  }, [location.pathname, nav])
+
+  useEffect(() => {
+    if (expandedSite === 'business' && sidebarGroups.business.length === 0) setExpandedSite(sidebarGroups.marketplace.length ? 'marketplace' : null)
+    if (expandedSite === 'marketplace' && sidebarGroups.marketplace.length === 0) setExpandedSite(sidebarGroups.business.length ? 'business' : null)
+  }, [expandedSite, sidebarGroups])
+
   return <NavigationHistoryProvider><div className="min-h-screen bg-slate-50">
     <aside className={`fixed inset-y-0 left-0 z-40 flex dashboard-sidebar flex-col bg-slate-950 text-white transition-transform lg:translate-x-0 ${mobile ? 'translate-x-0' : '-translate-x-full'} ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
         <BrandLogo showName={!collapsed} className="min-w-0 overflow-hidden" imageClassName="h-10 w-10" nameClassName="text-lg font-bold text-white" />
         <button className="lg:hidden" onClick={() => setMobile(false)} aria-label="Close navigation"><X size={20} /></button>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">{nav.map(({ label, path, icon: Icon, end }, index) => <SidebarNavItem key={`${path}-${label}-${index}-${collapsed ? 'collapsed' : 'expanded'}`} label={label} path={path} icon={Icon} collapsed={collapsed} end={end} onNavigate={() => setMobile(false)} />)}</nav>
+      <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-5">
+        {sidebarGroups.business.length > 0 && <SidebarSection id="business-site" label="Business Site" icon={Store} items={sidebarGroups.business} collapsed={collapsed} expanded={expandedSite === 'business'} onToggle={() => setExpandedSite((current) => current === 'business' ? null : 'business')} onNavigate={() => setMobile(false)} />}
+        {sidebarGroups.marketplace.length > 0 && <SidebarSection id="marketplace-site" label="Marketplace Site" icon={ShoppingBag} items={sidebarGroups.marketplace} collapsed={collapsed} expanded={expandedSite === 'marketplace'} onToggle={() => setExpandedSite((current) => current === 'marketplace' ? null : 'marketplace')} onNavigate={() => setMobile(false)} />}
+        {sidebarGroups.common.length > 0 && <div className="sidebar-common-links space-y-1 border-t border-white/10 pt-3">{sidebarGroups.common.map((item, index) => <SidebarNavItem key={`${item.path}-${item.label}-${index}`} label={item.label} path={item.path} icon={item.icon} collapsed={collapsed} end={item.end} onNavigate={() => setMobile(false)} />)}</div>}
+      </nav>
       <div className="border-t border-white/10 p-3"><button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-normal text-slate-400 hover:bg-white/10 hover:text-white"><LogOut size={19} />{!collapsed && 'Sign out'}</button></div>
     </aside>
     {mobile && <div onClick={() => setMobile(false)} className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" />}
@@ -399,6 +419,34 @@ function ThemeToggle() {
 function filterNavigation(items: NavigationItem[], view?: WorkspaceView): NavigationItem[] {
   if (!view || view === 'combined') return items
   return items.filter((item) => item.workspace === 'shared' || (item.workspace || 'business') === view)
+}
+
+function sidebarSiteForItem(item: NavigationItem): SidebarSite | 'common' {
+  if (item.workspace === 'shared') return 'common'
+  if (item.workspace === 'marketplace' || item.path.startsWith('/platform/marketplace')) return 'marketplace'
+  return 'business'
+}
+
+function splitSidebarNavigation(items: NavigationItem[]): SidebarGroups {
+  return items.reduce<SidebarGroups>((groups, item) => {
+    const site = sidebarSiteForItem(item)
+    groups[site].push(item)
+    return groups
+  }, { business: [], marketplace: [], common: [] })
+}
+
+function activeSidebarSite(items: NavigationItem[], currentPath: string): SidebarSite | null {
+  const normalizedPath = currentPath.startsWith('/app/') ? currentPath.replace(/^\/app/, '/business') : currentPath
+  const activeItem = items
+    .filter((item) => normalizedPath === item.path || normalizedPath.startsWith(`${item.path}/`))
+    .sort((left, right) => right.path.length - left.path.length)[0]
+  if (!activeItem) return null
+  const site = sidebarSiteForItem(activeItem)
+  return site === 'common' ? null : site
+}
+
+function initialSidebarSite(items: NavigationItem[], currentPath: string): SidebarSite | null {
+  return activeSidebarSite(items, currentPath) || (items.some((item) => sidebarSiteForItem(item) === 'business') ? 'business' : items.some((item) => sidebarSiteForItem(item) === 'marketplace') ? 'marketplace' : null)
 }
 
 function workspaceRouteAllowed(path: string, access?: WorkspaceAccess | null): boolean {
