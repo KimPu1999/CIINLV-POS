@@ -12,6 +12,7 @@ use App\Models\InventoryLocation;
 use App\Models\MarketplaceListing;
 use App\Models\MarketplaceOrder;
 use App\Models\MarketplaceStore;
+use App\Models\MarketplaceShipment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Role;
@@ -47,6 +48,55 @@ class DeliveryManagementTest extends TestCase
         [$tenant, $admin, , $store] = $this->business('DELIVERY-RECORD-ONLY');
         $profile = EmployeeProfile::create(['tenant_id' => $tenant->id, 'name' => 'Delivery Worker', 'employee_number' => 'EMP-DLV-RECORD', 'employment_status' => 'active']);
         $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/delivery-management/staff', ['employee_profile_id' => $profile->uuid, 'store_id' => $store->uuid, 'vehicle_type' => 'Bike'])->assertCreated()->assertJsonPath('data.employee.name', 'Delivery Worker');
+    }
+
+    public function test_delivery_personnel_can_be_registered_without_employee_or_user_records(): void
+    {
+        [$tenant, $admin, , $store] = $this->business('DELIVERY-STANDALONE');
+        $response = $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/delivery-management/staff', [
+            'full_name' => 'Independent Rider', 'phone' => '0999000111', 'email' => 'rider@example.com',
+            'vehicle_type' => 'Motorbike', 'vehicle_plate' => '9Q-0090', 'branch_ids' => [$store->uuid],
+            'employment_type' => 'contractor', 'availability_status' => 'available',
+        ])->assertCreated()->assertJsonPath('data.full_name', 'Independent Rider')->assertJsonPath('data.employee', null)->json('data');
+
+        $this->assertStringStartsWith('DLV-', $response['staff_code']);
+        $this->assertDatabaseHas('delivery_staff_profiles', ['tenant_id' => $tenant->id, 'employee_profile_id' => null, 'full_name' => 'Independent Rider', 'phone' => '0999000111']);
+        $this->assertDatabaseHas('delivery_staff_branch_assignments', ['tenant_id' => $tenant->id, 'store_id' => $store->id, 'status' => 'active']);
+    }
+
+    public function test_standalone_delivery_personnel_status_and_availability_are_independent(): void
+    {
+        [$tenant, $admin, , $store] = $this->business('DELIVERY-LIFECYCLE');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $staff = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff', [
+            'full_name' => 'Lifecycle Rider', 'phone' => '0999000222', 'branch_ids' => [$store->uuid],
+        ])->assertCreated()->json('data');
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff/'.$staff['id'].'/approve')->assertOk()->assertJsonPath('data.approval_status', 'approved');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff/'.$staff['id'].'/availability', ['availability_status' => 'off_duty'])->assertOk()->assertJsonPath('data.availability_status', 'off_duty');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff/'.$staff['id'].'/status', ['status' => 'suspended'])->assertOk()->assertJsonPath('data.status', 'suspended');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff/'.$staff['id'].'/availability', ['availability_status' => 'available'])->assertUnprocessable();
+        $this->assertDatabaseHas('delivery_staff_profiles', ['uuid' => $staff['id'], 'status' => 'suspended', 'availability_status' => 'off_duty']);
+    }
+
+    public function test_existing_shipment_can_be_selected_and_assigned_to_standalone_personnel(): void
+    {
+        [$tenant, $admin, $listing, $variant, $store] = $this->vendor('DELIVERY-EXISTING-SHIPMENT', 1000, 2);
+        $customer = $this->customer('existing-shipment-customer@example.com');
+        $address = CustomerAddress::create(['customer_profile_id' => $customer->customerProfile->id, 'recipient_name' => $customer->name, 'address_line_1' => 'Existing Shipment Street', 'city' => 'Yangon', 'country' => 'MM', 'is_default' => true]);
+        $this->actingAs($customer, 'sanctum')->postJson('/api/v1/marketplace/cart/items', ['listing_id' => $listing->uuid, 'variant_id' => $variant->uuid, 'quantity' => 1])->assertCreated();
+        $orderId = $this->actingAs($customer, 'sanctum')->withHeader('Idempotency-Key', 'existing-shipment-order')->postJson('/api/v1/marketplace/checkout', ['address_id' => $address->id, 'payment_method' => 'cod'])->assertCreated()->json('data.id');
+        $vendorOrder = MarketplaceOrder::query()->where('uuid', $orderId)->firstOrFail()->vendorOrders()->firstOrFail();
+        $shipment = MarketplaceShipment::create(['marketplace_vendor_order_id' => $vendorOrder->id, 'tenant_id' => $tenant->id, 'delivery_type' => 'self_delivery', 'internal_tracking_id' => 'INT-EXISTING-001', 'status' => 'ready', 'assignment_status' => 'pending_assignment']);
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $staff = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff', ['full_name' => 'Existing Shipment Rider', 'phone' => '0999000333', 'branch_ids' => [$store->uuid]])->assertCreated()->json('data');
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/staff/'.$staff['id'].'/approve')->assertOk();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/delivery-management/shipments/assignable')->assertOk()->assertJsonPath('data.data.0.id', $shipment->uuid);
+        $assigned = $this->actingAs($admin, 'sanctum')->withHeaders(array_merge($headers, ['Idempotency-Key' => 'existing-shipment-assignment']))->postJson('/api/v1/business/delivery-management/shipment-assignments', ['shipment_id' => $shipment->uuid, 'staff_id' => $staff['id']])->assertCreated()->json('data');
+        $this->assertSame($staff['id'], $assigned['staff']['id']);
+        $this->assertDatabaseHas('marketplace_shipments', ['id' => $shipment->id, 'delivery_staff_profile_id' => DeliveryStaffProfile::where('uuid', $staff['id'])->value('id'), 'assignment_status' => 'assigned']);
+        $this->assertDatabaseHas('delivery_assignment_events', ['marketplace_shipment_id' => $shipment->id, 'event_type' => 'assigned']);
+        $this->actingAs($admin, 'sanctum')->withHeaders(array_merge($headers, ['Idempotency-Key' => 'existing-shipment-assignment']))->postJson('/api/v1/business/delivery-management/shipment-assignments', ['shipment_id' => $shipment->uuid, 'staff_id' => $staff['id']])->assertOk()->assertJsonPath('idempotent_replay', true);
     }
 
     public function test_inactive_employee_cannot_be_registered_as_delivery_staff(): void
@@ -90,7 +140,9 @@ class DeliveryManagementTest extends TestCase
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/delivery-management/assignments', ['order_id' => $vendorOrder->uuid, 'delivery_type' => 'self_delivery', 'staff_id' => $staffId])->assertOk()->assertJsonPath('idempotent_replay', true);
         $this->assertDatabaseCount('marketplace_shipments', 1);
 
-        foreach ([['accepted', 'ready'], ['picked_up', 'shipped'], ['in_transit', 'in_transit'], ['delivered', 'delivered']] as [$deliveryStatus, $shipmentStatus]) {
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/delivery-management/shipments/'.$assignment['id'].'/status', ['status' => 'accepted'])->assertOk()->assertJsonPath('data.assignment_status', 'accepted');
+        $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/delivery-management/shipments/'.$assignment['id'].'/activate')->assertOk()->assertJsonPath('data.assignment_status', 'picked_up')->assertJsonPath('data.status', 'shipped');
+        foreach ([['in_transit', 'in_transit'], ['delivered', 'delivered']] as [$deliveryStatus, $shipmentStatus]) {
             $this->actingAs($admin, 'sanctum')->withHeader('X-Tenant-Id', $tenant->uuid)->postJson('/api/v1/business/delivery-management/shipments/'.$assignment['id'].'/status', ['status' => $deliveryStatus])->assertOk()->assertJsonPath('data.assignment_status', $deliveryStatus)->assertJsonPath('data.status', $shipmentStatus);
         }
         $this->assertDatabaseHas('delivery_assignment_events', ['event_type' => 'accepted']);
