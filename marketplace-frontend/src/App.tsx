@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
+  Compass,
   Copy,
   Eye,
   EyeOff,
@@ -412,6 +413,7 @@ function App() {
       </div>}
       <Routes>
         <Route path="/" element={<HomePage {...services} />} />
+        <Route path="/discover" element={<DiscoverPage {...services} />} />
         <Route path="/shop" element={<ShopPage {...services} />} />
         <Route path="/product/:slug" element={<ProductPage {...services} />} />
         <Route path="/stores" element={<StoresPage {...services} />} />
@@ -444,7 +446,7 @@ function App() {
   )
 }
 
-function HomePage({ locale, home, appearance, t, addToCart, wishlist, toggleWishlist }: AppServices) {
+function HomePage({ locale, home, t, addToCart, wishlist, toggleWishlist }: AppServices) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const { data, status } = home
@@ -506,9 +508,7 @@ function HomePage({ locale, home, appearance, t, addToCart, wishlist, toggleWish
 
       <PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('popularCategories')} title={t('browseCategories')} link="/categories" linkLabel={t('viewAll')} />{status === 'loading' ? <CategorySkeletonGrid /> : status === 'error' ? <CatalogEmpty status={status} t={t} /> : <HomepageCategoryGrid categories={data.categories} t={t} />}</PageWidth>
 
-      <DiscoverSection page="home" appearance={appearance} locale={locale} cards={[...data.featuredProducts, ...data.newArrivals, ...data.bestSellers].slice(0, 8).map((listing) => ({ id: listing.id, title: listing.name, description: listing.description, meta: listing.storeName || listing.categoryName, imageUrl: listing.imageUrl, href: `/product/${listing.slug ?? listing.id}` }))} />
-
-      {data.featuredAvailable && <section className="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40"><PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('featuredProducts')} title={t('browseCollection')} link="/shop" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : data.featuredProducts.length > 0 ? <ProductGrid compact listings={data.featuredProducts} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <CatalogEmpty status={status} t={t} />}</PageWidth></section>}
+      <section aria-label={locale === 'my' ? 'အထူးကမ်းလှမ်းမှုများ' : 'Special offers'} className="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40"><PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={locale === 'my' ? 'အထူးကမ်းလှမ်းမှု' : 'Special offers'} title={locale === 'my' ? 'Flash Sale / အထူးကမ်းလှမ်းမှုများ' : 'Flash Sale / Special Offers'} link="/shop" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : data.featuredAvailable && data.featuredProducts.length > 0 ? <ProductGrid compact listings={data.featuredProducts} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} /> : <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-dashed border-blue-200 bg-blue-50/70 p-5 dark:border-blue-900/60 dark:bg-blue-950/20 sm:flex-row sm:items-center"><div><p className="text-sm font-black text-slate-900 dark:text-white">{locale === 'my' ? 'လက်ရှိအထူးကမ်းလှမ်းမှုများကို ဈေးဝယ်ရန် စူးစမ်းပါ။' : 'Explore the shop for current prices and special offers.'}</p><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{locale === 'my' ? 'အသစ်ရောက်ပစ္စည်းများနှင့် ရရှိနိုင်သော ပစ္စည်းများကို ကြည့်ရှုပါ။' : 'Browse the latest available products from trusted stores.'}</p></div><Link to="/shop" className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white transition hover:bg-blue-500">{t('exploreShop')} <ArrowRight size={16} /></Link></div>}</PageWidth></section>
 
       {(status === 'loading' || data.newArrivals.length > 0) && <PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('newFinds')} title={t('newFinds')} link="/shop?sort=newest" linkLabel={t('viewAll')} />{status === 'loading' ? <ProductSkeletonGrid compact /> : <ProductGrid compact listings={data.newArrivals} wishlist={wishlist} locale={locale} t={t} addToCart={addToCart} toggleWishlist={toggleWishlist} />}</PageWidth>}
 
@@ -517,6 +517,15 @@ function HomePage({ locale, home, appearance, t, addToCart, wishlist, toggleWish
       {data.stores.length > 0 && <section className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40"><PageWidth className="py-10 lg:py-12"><SectionHeading eyebrow={t('verifiedBusinesses')} title={t('shopByStore')} link="/stores" linkLabel={t('viewAll')} /><SellerSpotlight store={data.stores[0]} t={t} /><div className="mt-6"><StoreGrid stores={data.stores.slice(1)} t={t} /></div></PageWidth></section>}
     </main>
   )
+}
+
+function DiscoverPage({ appearance, home, locale, t }: AppServices) {
+  const sections = (appearance?.discover_sections ?? []).filter((section) => section.enabled !== false)
+  const products = [...home.data.featuredProducts, ...home.data.newArrivals, ...home.data.bestSellers].filter((listing, index, all) => all.findIndex((item) => item.id === listing.id) === index)
+  const title = locale === 'my' ? 'ရှာဖွေမှုများ' : 'Discover'
+  const body = locale === 'my' ? 'Super Admin မှ စီမံထားသော collection များကို တစ်နေရာတည်းတွင် ရှာဖွေပါ။' : 'Explore active collections curated and managed by the Super Admin.'
+
+  return <main className="bg-[#F8FAFC] dark:bg-slate-950"><PageContainer compact wide><PageIntro eyebrow={title} title={title} body={body} />{sections.length === 0 ? <div className="mt-10"><EmptyState icon={<Compass size={28} />} title={t('noListings')} body={t('noListingsBody')} /></div> : <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{sections.map((section, index) => { const product = products[index]; const href = section.cta_url && (section.cta_url.startsWith('/') || /^https?:\/\//i.test(section.cta_url)) ? section.cta_url : null; const sectionTitle = locale === 'my' ? section.title_my || section.title_en : section.title_en; const sectionBody = locale === 'my' ? section.body_my || section.body_en : section.body_en; const eyebrow = locale === 'my' ? section.eyebrow_my || section.eyebrow_en : section.eyebrow_en; const cta = locale === 'my' ? section.cta_label_my || section.cta_label_en : section.cta_label_en || section.cta_label_my; const content = <><div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-blue-100 via-cyan-50 to-white dark:from-blue-950/60 dark:via-slate-900 dark:to-slate-950">{product?.imageUrl ? <img src={product.imageUrl} alt="" loading="lazy" decoding="async" className="size-full object-cover" /> : <div className="grid size-full place-items-center text-blue-400"><Compass size={40} strokeWidth={1.2} /></div>}</div><div className="p-5"><p className="text-[11px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">{eyebrow || title}</p><h2 className="mt-2 text-xl font-black tracking-tight text-slate-950 dark:text-white">{sectionTitle}</h2>{sectionBody && <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-500 dark:text-slate-400">{sectionBody}</p>}{cta && href && <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-600 dark:text-blue-300">{cta}<ArrowRight size={16} /></span>}</div></>; return <article key={`${section.page}-${section.title_en}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">{href ? href.startsWith('/') ? <Link to={href}>{content}</Link> : <a href={href} target="_blank" rel="noreferrer">{content}</a> : content}</article> })}</div>}</PageContainer></main>
 }
 
 function TrustItem({ icon, label }: { icon: ReactNode; label: string }) {
