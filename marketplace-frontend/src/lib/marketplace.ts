@@ -1,6 +1,51 @@
 export type Locale = 'en' | 'my'
 export type Theme = 'light' | 'dark'
 
+export interface MarketplaceDiscoverSection {
+  page: 'home' | 'shop' | 'categories' | 'stores' | 'about' | 'contact'
+  enabled: boolean
+  eyebrow_en?: string | null
+  eyebrow_my?: string | null
+  title_en: string
+  title_my?: string | null
+  body_en?: string | null
+  body_my?: string | null
+  cta_label_en?: string | null
+  cta_label_my?: string | null
+  cta_url?: string | null
+  layout?: 'grid' | 'carousel'
+}
+
+export type MarketplaceBannerPage = 'home' | 'shop' | 'categories' | 'stores' | 'about' | 'contact'
+export interface MarketplaceBannerItem {
+  id: string
+  enabled?: boolean
+  title_en?: string | null
+  title_my?: string | null
+  subtitle_en?: string | null
+  subtitle_my?: string | null
+  cta_text_en?: string | null
+  cta_text_my?: string | null
+  cta_url?: string | null
+  desktop_image_path?: string | null
+  mobile_image_path?: string | null
+  desktop_image_url?: string | null
+  mobile_image_url?: string | null
+  sort_order?: number
+  starts_at?: string | null
+  ends_at?: string | null
+}
+export interface MarketplaceBannerPageConfig {
+  enabled?: boolean
+  auto_slide?: boolean
+  interval_ms?: number
+  animation?: 'slide' | 'fade'
+  items: MarketplaceBannerItem[]
+}
+export interface MarketplaceBanners {
+  pages: Partial<Record<MarketplaceBannerPage, MarketplaceBannerPageConfig>>
+}
+
 export interface MarketplaceAppearance {
   font_family: string
   nav_font_size: number
@@ -11,6 +56,8 @@ export interface MarketplaceAppearance {
   footer_font_size: number
   light: Record<string, string>
   dark: Record<string, string>
+  discover_sections?: MarketplaceDiscoverSection[]
+  banners?: MarketplaceBanners
   footer?: {
     show_social_icons?: boolean
     facebook_url?: string | null

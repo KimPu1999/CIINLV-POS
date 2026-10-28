@@ -21,7 +21,7 @@ class MarketplacePublicController
 {
     public function appearance(MarketplaceSettingsService $settings): JsonResponse
     {
-        $appearance = $settings->appearance();
+        $appearance = $settings->publicAppearance();
 
         return response()->json(['success' => true, 'data' => ['appearance' => $appearance['published']]]);
     }

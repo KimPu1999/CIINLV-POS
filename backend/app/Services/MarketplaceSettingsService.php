@@ -60,7 +60,94 @@ class MarketplaceSettingsService
                 'description_en' => 'A customer-first marketplace for CIINLV POS businesses.',
                 'description_my' => 'CIINLV POS လုပ်ငန်းများအတွက် ဖောက်သည်ကို ဦးစားပေးထားသော Marketplace။',
             ],
+            'discover_sections' => $this->defaultDiscoverSections(),
+            'banners' => $this->defaultBanners(),
         ];
+    }
+
+    private function defaultBanners(): array
+    {
+        $pages = collect(['home', 'shop', 'categories', 'stores', 'about', 'contact'])
+            ->mapWithKeys(fn (string $page): array => [$page => ['enabled' => true, 'auto_slide' => true, 'interval_ms' => 5000, 'animation' => 'slide', 'items' => []]])
+            ->all();
+
+        return ['pages' => $pages];
+    }
+
+    private function normalizeBanners(mixed $value): array
+    {
+        $defaults = $this->defaultBanners();
+        if (! is_array($value)) {
+            return $defaults;
+        }
+
+        // Preserve an older flat banner collection, if one was stored before
+        // page-specific collections were introduced.
+        if (array_is_list($value)) {
+            foreach ($value as $item) {
+                if (! is_array($item)) continue;
+                $page = (string) ($item['page'] ?? 'home');
+                if (array_key_exists($page, $defaults['pages'])) {
+                    $defaults['pages'][$page]['items'][] = $item;
+                }
+            }
+            return $defaults;
+        }
+
+        $pages = is_array($value['pages'] ?? null) ? $value['pages'] : [];
+        foreach ($defaults['pages'] as $page => $pageDefault) {
+            $source = is_array($pages[$page] ?? null) ? $pages[$page] : [];
+            $items = is_array($source['items'] ?? null) ? $source['items'] : [];
+            $defaults['pages'][$page] = array_merge($pageDefault, $source, ['items' => array_values($items)]);
+        }
+        if (is_array($value['settings'] ?? null)) {
+            $defaults['settings'] = $value['settings'];
+        }
+        return $defaults;
+    }
+
+    private function bannersWithUrls(array $banners, bool $publicOnly = false): array
+    {
+        $normalized = $this->normalizeBanners($banners);
+        $now = now();
+        foreach ($normalized['pages'] as $page => &$pageConfig) {
+            $items = collect($pageConfig['items'] ?? [])->filter(fn (array $item): bool => ! $publicOnly || (
+                ($pageConfig['enabled'] ?? true) && ($item['enabled'] ?? false)
+                && (! filled($item['starts_at'] ?? null) || CarbonImmutable::parse($item['starts_at'])->lte($now))
+                && (! filled($item['ends_at'] ?? null) || CarbonImmutable::parse($item['ends_at'])->gte($now))
+                && (filled($item['desktop_image_path'] ?? null) || filled($item['mobile_image_path'] ?? null))
+            ))->sortBy(fn (array $item): int => (int) ($item['sort_order'] ?? 0))->values();
+            $pageConfig['items'] = $items->map(function (array $item): array {
+                $item['desktop_image_url'] = filled($item['desktop_image_path'] ?? null) ? Storage::disk('public')->url($item['desktop_image_path']) : null;
+                $item['mobile_image_url'] = filled($item['mobile_image_path'] ?? null) ? Storage::disk('public')->url($item['mobile_image_path']) : null;
+                return $item;
+            })->all();
+        }
+        unset($pageConfig);
+        return $normalized;
+    }
+
+    public function publicAppearance(): array
+    {
+        $appearance = $this->appearance();
+        $appearance['banners'] = $this->bannersWithUrls($appearance['banners'] ?? [], true);
+        return $appearance;
+    }
+
+    private function defaultDiscoverSections(): array
+    {
+        return collect([
+            ['page' => 'home', 'title_en' => "Discover What's New", 'title_my' => 'အသစ်များကို ရှာဖွေပါ', 'cta_label_en' => 'Explore the shop', 'cta_label_my' => 'ဈေးဝယ်ရန်', 'cta_url' => '/shop'],
+            ['page' => 'shop', 'title_en' => 'Discover More Products', 'title_my' => 'ထုတ်ကုန်များကို ဆက်လက်ရှာဖွေပါ'],
+            ['page' => 'categories', 'title_en' => 'Discover Categories', 'title_my' => 'အမျိုးအစားများကို ရှာဖွေပါ', 'cta_label_en' => 'View all categories', 'cta_label_my' => 'အမျိုးအစားအားလုံးကြည့်ရန်', 'cta_url' => '/categories'],
+            ['page' => 'stores', 'title_en' => 'Discover Stores', 'title_my' => 'ဆိုင်များကို ရှာဖွေပါ', 'cta_label_en' => 'View all stores', 'cta_label_my' => 'ဆိုင်အားလုံးကြည့်ရန်', 'cta_url' => '/stores'],
+            ['page' => 'about', 'title_en' => 'Discover Our Story', 'title_my' => 'CIINLV ၏အကြောင်းကို ရှာဖွေပါ'],
+            ['page' => 'contact', 'title_en' => 'Discover Support', 'title_my' => 'အကူအညီကို ရှာဖွေပါ'],
+        ])->map(fn (array $section): array => array_merge([
+            'enabled' => true, 'eyebrow_en' => 'Discover', 'eyebrow_my' => 'ရှာဖွေပါ',
+            'body_en' => null, 'body_my' => null, 'cta_label_en' => null, 'cta_label_my' => null,
+            'cta_url' => null, 'layout' => 'grid',
+        ], $section))->all();
     }
 
     public function appearance(): array
@@ -72,6 +159,8 @@ class MarketplaceSettingsService
         $setting = MarketplaceSetting::query()->first();
         $draft = array_replace_recursive($defaults, $setting?->appearance_draft ?: $defaults);
         $published = array_replace_recursive($defaults, $setting?->appearance_published ?: $defaults);
+        $draft['banners'] = $this->bannersWithUrls($draft['banners'] ?? []);
+        $published['banners'] = $this->bannersWithUrls($published['banners'] ?? []);
 
         return ['configured' => true, 'draft' => $draft, 'published' => $published, 'revision' => (int) ($setting?->appearance_revision ?: 1), 'published_at' => $setting?->appearance_published_at?->toIso8601String()];
     }
@@ -85,6 +174,72 @@ class MarketplaceSettingsService
         $setting->forceFill(['appearance_draft' => array_replace_recursive($this->appearanceDefaults(), $appearance), 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
         $audit->record('marketplace.appearance_draft_updated', $actor, entity: $setting, metadata: ['appearance_revision' => $setting->appearance_revision]);
 
+        return $this->appearance();
+    }
+
+    public function updateBanners(array $banners, User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->appearanceStorageAvailable()) {
+            throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available.');
+        }
+        $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
+        $appearance = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_draft ?: $this->appearanceDefaults());
+        $appearance['banners'] = $this->normalizeBanners($banners);
+        $setting->forceFill(['appearance_draft' => $appearance, 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        $audit->record('marketplace.banners_draft_updated', $actor, entity: $setting, metadata: ['changed_fields' => ['banners']]);
+        return $this->appearance();
+    }
+
+    public function publishBanners(User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->appearanceStorageAvailable()) {
+            throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available.');
+        }
+        $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
+        $draft = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_draft ?: $this->appearanceDefaults());
+        $published = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_published ?: $this->appearanceDefaults());
+        $published['banners'] = $this->normalizeBanners($draft['banners'] ?? []);
+        $setting->forceFill(['appearance_published' => $published, 'appearance_published_at' => now(), 'appearance_published_by' => $actor->id, 'updated_by' => $actor->id])->save();
+        $audit->record('marketplace.banners_published', $actor, entity: $setting, metadata: ['changed_fields' => ['banners']]);
+        return $this->appearance();
+    }
+
+    public function uploadBannerImage(UploadedFile $file, string $page, string $bannerId, string $device, User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->appearanceStorageAvailable()) {
+            throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available.');
+        }
+        $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
+        $appearance = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_draft ?: $this->appearanceDefaults());
+        $banners = $this->normalizeBanners($appearance['banners'] ?? []);
+        $index = collect($banners['pages'][$page]['items'] ?? [])->search(fn (array $item): bool => (string) ($item['id'] ?? '') === $bannerId);
+        if ($index === false) abort(422, 'The selected banner does not exist in the draft collection.');
+        $path = $file->storeAs("marketplace/banners/{$page}", Str::uuid().'.'.$file->extension(), 'public');
+        $key = $device === 'mobile' ? 'mobile_image_path' : 'desktop_image_path';
+        $oldPath = $banners['pages'][$page]['items'][$index][$key] ?? null;
+        $banners['pages'][$page]['items'][$index][$key] = $path;
+        $appearance['banners'] = $banners;
+        $setting->forceFill(['appearance_draft' => $appearance, 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        if ($oldPath && $oldPath !== $path) Storage::disk('public')->delete($oldPath);
+        $audit->record('marketplace.banner_image_updated', $actor, entity: $setting, metadata: ['page' => $page, 'banner_id' => $bannerId, 'device' => $device]);
+        return $this->appearance();
+    }
+
+    public function removeBannerImage(string $page, string $bannerId, string $device, User $actor, MarketplaceAuditLogger $audit): array
+    {
+        $setting = MarketplaceSetting::query()->first();
+        if (! $setting) return $this->appearance();
+        $appearance = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_draft ?: $this->appearanceDefaults());
+        $banners = $this->normalizeBanners($appearance['banners'] ?? []);
+        $index = collect($banners['pages'][$page]['items'] ?? [])->search(fn (array $item): bool => (string) ($item['id'] ?? '') === $bannerId);
+        if ($index === false) abort(422, 'The selected banner does not exist in the draft collection.');
+        $key = $device === 'mobile' ? 'mobile_image_path' : 'desktop_image_path';
+        $oldPath = $banners['pages'][$page]['items'][$index][$key] ?? null;
+        $banners['pages'][$page]['items'][$index][$key] = null;
+        $appearance['banners'] = $banners;
+        $setting->forceFill(['appearance_draft' => $appearance, 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        if ($oldPath) Storage::disk('public')->delete($oldPath);
+        $audit->record('marketplace.banner_image_removed', $actor, entity: $setting, metadata: ['page' => $page, 'banner_id' => $bannerId, 'device' => $device]);
         return $this->appearance();
     }
 

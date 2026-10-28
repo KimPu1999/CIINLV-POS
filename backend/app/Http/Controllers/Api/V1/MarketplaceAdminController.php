@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Marketplace\CollectMarketplaceCodPaymentRequest;
 use App\Http\Requests\Marketplace\MarketplaceAppearanceUpdateRequest;
+use App\Http\Requests\Marketplace\MarketplaceBannersUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceApprovalRequest;
 use App\Http\Requests\Marketplace\MarketplaceCommissionRuleRequest;
 use App\Http\Requests\Marketplace\MarketplaceListingModerationRequest;
@@ -11,6 +12,7 @@ use App\Http\Requests\Marketplace\MarketplaceRequestDecisionRequest;
 use App\Http\Requests\Marketplace\MarketplaceSettingsUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceStoreStatusRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceQrPaymentImageRequest;
+use App\Http\Requests\Marketplace\UploadMarketplaceBannerImageRequest;
 use App\Http\Resources\MarketplaceCancellationRequestResource;
 use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceOrderListResource;
@@ -680,6 +682,27 @@ class MarketplaceAdminController
     public function resetAppearance(Request $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
     {
         return response()->json(['success' => true, 'data' => $settings->resetAppearance($request->user(), $audit)]);
+    }
+
+    public function updateBanners(MarketplaceBannersUpdateRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->updateBanners($request->validated('banners'), $request->user(), $audit)]);
+    }
+
+    public function publishBanners(Request $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->publishBanners($request->user(), $audit)]);
+    }
+
+    public function uploadBannerImage(UploadMarketplaceBannerImageRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->uploadBannerImage($request->file('image'), $request->string('page')->toString(), $request->string('banner_id')->toString(), $request->string('device')->toString(), $request->user(), $audit)]);
+    }
+
+    public function removeBannerImage(Request $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $data = $request->validate(['page' => ['required', 'in:home,shop,categories,stores,about,contact'], 'banner_id' => ['required', 'string', 'max:80'], 'device' => ['required', 'in:desktop,mobile']]);
+        return response()->json(['success' => true, 'data' => $settings->removeBannerImage($data['page'], $data['banner_id'], $data['device'], $request->user(), $audit)]);
     }
 
     public function updateSettings(MarketplaceSettingsUpdateRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse

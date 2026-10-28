@@ -4,6 +4,7 @@ import { Camera, Heart, LogOut, MapPin, Menu, MessageCircle, Moon, Music2, Packa
 import type { Customer, Locale, MarketplaceAppearance, Theme, TranslationKey } from '../lib/marketplace'
 import { translate } from '../lib/marketplace'
 import { BrandLogo } from './BrandLogo'
+import { PageBannerCarousel } from './PageBannerCarousel'
 
 const currentYear = new Date().getFullYear()
 
@@ -97,7 +98,7 @@ export function MarketplaceShell({ locale, theme, customer, appearance, cartCoun
         {searchOpen && <div id="marketplace-search-panel" className="marketplace-header-search-panel border-t px-4 py-3 sm:px-6 lg:px-8"><form onSubmit={submitSearch} className="mx-auto flex max-w-[1536px] items-center gap-2" role="search"><label className="relative min-w-0 flex-1"><span className="sr-only">{t('searchPlaceholder')}</span><Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-cyan-200" size={17} /><input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchPlaceholder')} className="marketplace-header-search h-11 w-full rounded-xl border pl-10 pr-3 text-sm font-medium outline-none transition" aria-label={t('searchPlaceholder')} /></label><button type="submit" aria-label={t('search')} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-blue-500 px-4 text-sm font-black text-white transition hover:bg-blue-400 focus:outline-none focus:ring-4 focus:ring-cyan-300/30"><Search size={16} />{t('search')}</button><button type="button" onClick={() => { setSearchOpen(false); searchButtonRef.current?.focus() }} className="marketplace-header-control grid size-11 shrink-0 place-items-center rounded-xl" aria-label={t('close')}><X size={18} /></button></form></div>}
         {mobileOpen && <div className="marketplace-header-mobile border-t px-4 py-4 xl:hidden"><nav className="grid gap-1" aria-label={t('mobileNavigation')}><MobileNavItem to="/" label={t('home')} onClick={closeMobile} /><MobileNavItem to="/shop" label={t('shop')} onClick={closeMobile} /><MobileNavItem to="/categories" label={t('categories')} onClick={closeMobile} /><MobileNavItem to="/stores" label={t('stores')} onClick={closeMobile} /><MobileNavItem to="/about" label={t('about')} onClick={closeMobile} /><MobileNavItem to="/contact" label={t('contact')} onClick={closeMobile} /><MobileNavItem to={customer ? '/account' : '/login'} label={customer ? t('account') : t('signIn')} onClick={closeMobile} /></nav><div className="marketplace-header-mobile-divider mt-4 flex items-center justify-between border-t pt-4"><span className="marketplace-header-muted text-sm font-semibold">{t('language')}</span><button type="button" onClick={switchLocale} className="marketplace-header-control rounded-xl px-3 py-2 text-xs font-bold">{locale === 'en' ? t('burmese') : t('english')}</button></div></div>}
       </header>
-      <main>{children}</main>
+      <main><PageBannerCarousel appearance={appearance} locale={locale} />{children}</main>
       <footer className="marketplace-footer border-t">
         <div className="mx-auto grid max-w-[1536px] gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1fr] lg:gap-10 lg:px-8 lg:py-12">
           <div>

@@ -248,6 +248,10 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/settings/appearance', [MarketplaceAdminController::class, 'updateAppearance']);
             Route::post('/settings/appearance/publish', [MarketplaceAdminController::class, 'publishAppearance']);
             Route::post('/settings/appearance/reset', [MarketplaceAdminController::class, 'resetAppearance']);
+            Route::patch('/settings/appearance/banners', [MarketplaceAdminController::class, 'updateBanners']);
+            Route::post('/settings/appearance/banners/publish', [MarketplaceAdminController::class, 'publishBanners']);
+            Route::post('/settings/appearance/banners/upload', [MarketplaceAdminController::class, 'uploadBannerImage']);
+            Route::delete('/settings/appearance/banners/image', [MarketplaceAdminController::class, 'removeBannerImage']);
             Route::patch('/settings', [MarketplaceAdminController::class, 'updateSettings']);
             Route::post('/settings/qr-payment-image', [MarketplaceAdminController::class, 'uploadQrPaymentImage']);
             Route::delete('/settings/qr-payment-image', [MarketplaceAdminController::class, 'removeQrPaymentImage']);

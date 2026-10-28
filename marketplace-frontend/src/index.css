@@ -249,6 +249,14 @@ select:focus-visible {
   }
 }
 
+@keyframes marketplaceBannerFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes marketplaceBannerSlide { from { opacity: 0; transform: translateX(1.5%); } to { opacity: 1; transform: translateX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="marketplaceBannerFade"],
+  [class*="marketplaceBannerSlide"] { animation: none !important; }
+}
+
 @media print {
   @page { size: A4; margin: 12mm; }
   body * { visibility: hidden !important; }
@@ -672,4 +680,24 @@ select:focus-visible {
 .marketplace-app-shell .border-slate-100,
 .marketplace-app-shell .border-blue-100 { border-color: var(--marketplace-border); }
 .marketplace-app-shell button { font-size: var(--marketplace-button-font-size, inherit); }
+
+.discover-card {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 420ms ease, transform 420ms ease, box-shadow 220ms ease;
+}
+
+.discover-card[data-revealed="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discover-card,
+  .discover-card[data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
 
