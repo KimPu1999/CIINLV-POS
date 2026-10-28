@@ -9,8 +9,8 @@ use Illuminate\Support\Str;
 class CashManagementEntry extends Model
 {
     protected $fillable = [
-        'tenant_id', 'store_id', 'fund_id', 'register_id', 'cashier_shift_id', 'entry_type', 'direction', 'amount',
-        'category', 'reason', 'reference', 'transfer_group_uuid', 'approval_status', 'created_by', 'approved_by',
+        'tenant_id', 'store_id', 'fund_id', 'register_id', 'cashier_shift_id', 'purchase_order_id', 'entry_type', 'direction', 'amount',
+        'category', 'paid_to', 'received_from', 'transaction_date', 'reason', 'notes', 'reference', 'transfer_group_uuid', 'approval_status', 'created_by', 'approved_by',
         'approved_at', 'reversed_entry_id', 'attachment_path', 'attachment_name', 'attachment_mime', 'attachment_size',
         'idempotency_key', 'created_at', 'updated_at',
     ];
@@ -22,7 +22,7 @@ class CashManagementEntry extends Model
 
     protected function casts(): array
     {
-        return ['amount' => 'decimal:2', 'approved_at' => 'datetime', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
+        return ['amount' => 'decimal:2', 'transaction_date' => 'date:Y-m-d', 'approved_at' => 'datetime', 'created_at' => 'datetime', 'updated_at' => 'datetime'];
     }
 
     public function getRouteKeyName(): string
@@ -53,6 +53,11 @@ class CashManagementEntry extends Model
     public function shift(): BelongsTo
     {
         return $this->belongsTo(CashierShift::class, 'cashier_shift_id');
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
     public function creator(): BelongsTo

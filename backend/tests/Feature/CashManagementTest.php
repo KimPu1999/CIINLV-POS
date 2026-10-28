@@ -5,10 +5,13 @@ namespace Tests\Feature;
 use App\Models\CashFund;
 use App\Models\CashManagementEntry;
 use App\Models\CashierShift;
+use App\Models\InventoryLocation;
 use App\Models\PosRegister;
+use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\StoreMembership;
+use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\TenantMembership;
 use App\Models\User;
@@ -135,6 +138,52 @@ class CashManagementTest extends TestCase
 
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/close', ['actual_amount' => '5000.00'])->assertOk();
         $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cash-after-close')->postJson('/api/v1/pos/shifts/'.$shift->uuid.'/cash-movements', ['type' => 'cash_in', 'amount' => '1.00', 'reason' => 'Closed shift'])->assertConflict();
+    }
+
+    public function test_business_cash_transaction_fields_update_balance_report_and_link_purchase_order_once(): void
+    {
+        [$tenant, $admin, , , $store] = $this->fixture('cash-business-entry');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $fundId = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->postJson('/api/v1/business/cash-management/funds', ['name' => 'Business Expense Fund', 'store_id' => $store->uuid, 'opening_balance' => 1000, 'approval_limit' => 100])->assertCreated()->json('data.id');
+
+        $supplier = Supplier::create(['tenant_id' => $tenant->id, 'supplier_code' => 'SUP-CASH-1', 'name' => 'Cash Supplier', 'status' => 'active']);
+        $location = InventoryLocation::create(['tenant_id' => $tenant->id, 'location_type' => 'warehouse', 'store_id' => null, 'name' => 'Main Warehouse', 'code' => 'WH-CASH-1', 'status' => 'active']);
+        $purchaseOrder = PurchaseOrder::create(['tenant_id' => $tenant->id, 'supplier_id' => $supplier->id, 'destination_location_id' => $location->id, 'purchase_order_number' => 'PO-CASH-1', 'status' => 'approved', 'ordered_at' => now(), 'created_by' => $admin->id]);
+
+        $payload = ['source_type' => 'fund', 'source_id' => $fundId, 'entry_type' => 'cash_out', 'amount' => '75.00', 'category' => 'inventory_purchase', 'paid_to' => 'Cash Supplier', 'reason' => 'Inventory stock purchase', 'transaction_date' => now()->subDay()->format('Y-m-d'), 'reference' => 'VCH-1001', 'notes' => 'Linked to approved purchase order', 'purchase_order_id' => $purchaseOrder->uuid];
+        $entry = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'business-entry-po-1')->postJson('/api/v1/business/cash-management/entries', $payload)->assertCreated()->assertJsonPath('data.category', 'inventory_purchase')->assertJsonPath('data.purchase_order_id', $purchaseOrder->id);
+        $this->assertDatabaseHas('cash_management_entries', ['purchase_order_id' => $purchaseOrder->id, 'paid_to' => 'Cash Supplier', 'transaction_date' => now()->subDay()->format('Y-m-d')]);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/cash-management/overview')->assertOk()->assertJsonPath('data.funds.0.balance', '925.00');
+        $history = $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/cash-management/history?category=inventory_purchase&per_page=10')->assertOk()->assertJsonPath('data.total', 1);
+        $history->assertJsonPath('data.data.0.id', $entry->json('data.id'));
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->getJson('/api/v1/business/cash-management/expense-report?from='.now()->subDays(2)->format('Y-m-d').'&to='.now()->format('Y-m-d'))->assertOk()->assertJsonPath('data.total_expenses', '75.00')->assertJsonPath('data.rows.0.category', 'inventory_purchase');
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'business-entry-po-2')->postJson('/api/v1/business/cash-management/entries', $payload)->assertConflict();
+        $this->assertDatabaseCount('cash_management_entries', 1);
+        $this->assertSame($entry->json('data.id'), CashManagementEntry::first()->uuid);
+    }
+
+    public function test_cash_entry_actions_reject_an_invalid_uuid_instead_of_querying_postgres(): void
+    {
+        [$tenant, $admin] = $this->fixture('cash-invalid-entry-route');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)
+            ->postJson('/api/v1/business/cash-management/entries/undefined/approve')
+            ->assertNotFound();
+    }
+
+    public function test_register_source_business_entry_is_shift_scoped_and_cross_tenant_source_is_rejected(): void
+    {
+        [$tenant, $admin, , , $store] = $this->fixture('cash-register-entry');
+        [$otherTenant, $otherAdmin, , , $otherStore] = $this->fixture('cash-register-entry-other');
+        $headers = ['X-Tenant-Id' => $tenant->uuid];
+        $register = PosRegister::create(['tenant_id' => $tenant->id, 'store_id' => $store->id, 'name' => 'Business Register', 'code' => 'REG-BUSINESS-ENTRY', 'status' => 'active', 'created_by' => $admin->id]);
+        $otherRegister = PosRegister::create(['tenant_id' => $otherTenant->id, 'store_id' => $otherStore->id, 'name' => 'Other Register', 'code' => 'REG-OTHER-ENTRY', 'status' => 'active', 'created_by' => $otherAdmin->id]);
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'register-entry-open')->postJson('/api/v1/pos/shifts/open', ['store_id' => $store->uuid, 'register_id' => $register->uuid, 'opening_amount' => 100])->assertCreated();
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'register-business-entry')->postJson('/api/v1/business/cash-management/entries', ['source_type' => 'register', 'source_id' => $register->uuid, 'entry_type' => 'cash_in', 'amount' => 50, 'category' => 'cash_float', 'received_from' => 'Owner', 'reason' => 'Additional register float'])->assertCreated();
+        $this->assertSame('150.00', app(\App\Services\CashierShiftService::class)->expected(CashierShift::where('register_id', $register->id)->firstOrFail()));
+        $this->actingAs($admin, 'sanctum')->withHeaders($headers)->withHeader('Idempotency-Key', 'cross-tenant-register-entry')->postJson('/api/v1/business/cash-management/entries', ['source_type' => 'register', 'source_id' => $otherRegister->uuid, 'entry_type' => 'cash_in', 'amount' => 10, 'category' => 'cash_float', 'reason' => 'Unauthorized'])->assertNotFound();
     }
 
     private function fixture(string $suffix): array

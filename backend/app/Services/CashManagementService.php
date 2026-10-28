@@ -7,12 +7,14 @@ use App\Models\CashManagementEntry;
 use App\Models\CashMovement;
 use App\Models\CashierShift;
 use App\Models\CashReconciliation;
+use App\Models\PurchaseOrder;
 use App\Models\PosRegister;
 use App\Models\Store;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -21,6 +23,11 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class CashManagementService
 {
+    public const BUSINESS_CATEGORIES = [
+        'office_supplies', 'cleaning', 'transport_delivery', 'utilities', 'staff_advance',
+        'inventory_purchase', 'cash_float', 'fund_transfer', 'other',
+    ];
+
     public function __construct(private readonly PosAccessService $access, private readonly AuditLogger $audit) {}
 
     public function createFund(Tenant $tenant, User $actor, array $data): CashFund
@@ -50,34 +57,77 @@ class CashManagementService
         $path = null;
         try {
             return DB::transaction(function () use ($tenant, $actor, $data, $idempotencyKey, $attachment, &$path): CashManagementEntry {
+                [$sourceType, $sourceId] = $this->source($data);
+                $fund = null;
+                $register = null;
+                $shift = null;
+                if ($sourceType === 'fund') {
+                    $fund = CashFund::where('tenant_id', $tenant->id)->where('uuid', $sourceId)->lockForUpdate()->firstOrFail();
+                    if ($fund->status !== 'active') {
+                        throw new ConflictHttpException('This petty cash fund is closed.');
+                    }
+                    $this->assertFundAccess($actor, $fund->store, (int) $tenant->id);
+                } else {
+                    $register = PosRegister::where('tenant_id', $tenant->id)->where('uuid', $sourceId)->where('status', 'active')->lockForUpdate()->firstOrFail();
+                    $this->assertFundAccess($actor, $register->store, (int) $tenant->id);
+                    $shift = CashierShift::where('tenant_id', $tenant->id)->where('register_id', $register->id)->where('status', 'open')->lockForUpdate()->first();
+                    if (! $shift) {
+                        throw new ConflictHttpException('An open cashier shift is required for register cash entries.');
+                    }
+                }
                 $existing = CashManagementEntry::where('tenant_id', $tenant->id)->where('idempotency_key', $idempotencyKey)->first();
                 if ($existing) {
+                    if (($fund && (int) $existing->fund_id !== (int) $fund->id) || ($register && (int) $existing->register_id !== (int) $register->id)) {
+                        throw new ConflictHttpException('This Idempotency-Key belongs to a different cash account.');
+                    }
                     return $existing;
                 }
-
-                $fund = CashFund::where('tenant_id', $tenant->id)->where('uuid', $data['fund_id'])->lockForUpdate()->firstOrFail();
-                if ($fund->status !== 'active') {
-                    throw new ConflictHttpException('This petty cash fund is closed.');
-                }
-                $this->assertFundAccess($actor, $fund->store, (int) $tenant->id);
                 $direction = in_array($data['entry_type'], ['cash_out', 'petty_expense'], true) ? 'debit' : 'credit';
                 $amount = (string) $data['amount'];
-                if ($direction === 'debit' && bccomp($amount, $this->fundBalance($fund), 2) > 0) {
-                    throw new UnprocessableEntityHttpException('The petty cash fund has insufficient available cash.');
+                $available = $fund ? $this->fundBalance($fund) : $this->registerBalance($shift);
+                if ($direction === 'debit' && bccomp($amount, $available, 2) > 0) {
+                    throw new UnprocessableEntityHttpException($fund ? 'The petty cash fund has insufficient available cash.' : 'The register has insufficient expected cash.');
                 }
-                $status = $this->approvalStatus($actor, $fund, $amount, (int) $tenant->id);
+                $purchaseOrder = null;
+                if (! empty($data['purchase_order_id'])) {
+                    if ($data['category'] !== 'inventory_purchase' || $direction !== 'debit') {
+                        throw new UnprocessableEntityHttpException('Purchase orders can only be linked to inventory purchase cash-out entries.');
+                    }
+                    $purchaseOrder = PurchaseOrder::with('destination.store')->where('tenant_id', $tenant->id)->where('uuid', $data['purchase_order_id'])->lockForUpdate()->firstOrFail();
+                    if (in_array($purchaseOrder->status, ['draft', 'cancelled'], true)) {
+                        throw new ConflictHttpException('Only submitted, approved, or received purchase orders can be linked to a cash entry.');
+                    }
+                    if ($purchaseOrder->destination) {
+                        Gate::forUser($actor)->authorize('write', $purchaseOrder->destination);
+                    }
+                    if (($fund?->store_id || $register?->store_id) && $purchaseOrder->destination?->store_id && (int) ($fund?->store_id ?: $register?->store_id) !== (int) $purchaseOrder->destination->store_id) {
+                        throw new AccessDeniedHttpException('The purchase order belongs to a different branch than the selected cash account.');
+                    }
+                    if (CashManagementEntry::where('tenant_id', $tenant->id)->where('purchase_order_id', $purchaseOrder->id)->where('approval_status', '!=', 'rejected')->exists()) {
+                        throw new ConflictHttpException('This purchase order already has a linked cash expense.');
+                    }
+                }
+                $account = $fund ? ['fund' => $fund] : ['register' => $register];
+                $status = $this->approvalStatusForAccount($actor, $account, $amount, (int) $tenant->id);
                 if ($attachment) {
-                    $path = $attachment->storeAs('businesses/'.$tenant->uuid.'/cash-management/'.$fund->uuid, Str::uuid().'.'.$attachment->extension(), 'private');
+                    $path = $attachment->storeAs('businesses/'.$tenant->uuid.'/cash-management/'.($fund?->uuid ?: $register?->uuid), Str::uuid().'.'.$attachment->extension(), 'private');
                 }
                 $entry = CashManagementEntry::create([
                     'tenant_id' => $tenant->id,
-                    'store_id' => $fund->store_id,
-                    'fund_id' => $fund->id,
+                    'store_id' => $fund?->store_id ?: $register?->store_id,
+                    'fund_id' => $fund?->id,
+                    'register_id' => $register?->id,
+                    'cashier_shift_id' => $shift?->id,
+                    'purchase_order_id' => $purchaseOrder?->id,
                     'entry_type' => $data['entry_type'],
                     'direction' => $direction,
                     'amount' => $amount,
                     'category' => $data['category'] ?? null,
+                    'paid_to' => $data['paid_to'] ?? null,
+                    'received_from' => $data['received_from'] ?? null,
+                    'transaction_date' => $data['transaction_date'] ?? now()->toDateString(),
                     'reason' => $data['reason'],
+                    'notes' => $data['notes'] ?? null,
                     'reference' => $data['reference'] ?? null,
                     'approval_status' => $status,
                     'created_by' => $actor->id,
@@ -99,6 +149,20 @@ class CashManagementService
             }
             throw $exception;
         }
+    }
+
+    private function source(array $data): array
+    {
+        if (! empty($data['source_type']) && ! empty($data['source_id'])) {
+            return [$data['source_type'], $data['source_id']];
+        }
+        if (! empty($data['fund_id'])) {
+            return ['fund', $data['fund_id']];
+        }
+        if (! empty($data['register_id'])) {
+            return ['register', $data['register_id']];
+        }
+        throw new UnprocessableEntityHttpException('A register or petty cash account is required.');
     }
 
     public function transfer(Tenant $tenant, User $actor, array $data, string $idempotencyKey): array
@@ -134,7 +198,7 @@ class CashManagementService
                 'store_id' => $from['store_id'] ?? $to['store_id'],
                 'entry_type' => 'transfer',
                 'amount' => $amount,
-                'category' => $data['category'] ?? 'internal_transfer',
+                'category' => 'fund_transfer',
                 'reason' => $data['reason'],
                 'reference' => $data['reference'] ?? null,
                 'transfer_group_uuid' => $group,

@@ -12,6 +12,7 @@ use App\Models\CashMovement;
 use App\Models\CashReconciliation;
 use App\Models\CashierShift;
 use App\Models\PosRegister;
+use App\Models\PurchaseOrder;
 use App\Models\Store;
 use App\Models\Tenant;
 use App\Services\CashManagementService;
@@ -83,19 +84,23 @@ class CashManagementController
 
         return response()->streamDownload(function () use ($rows): void {
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Transaction ID', 'Date and Time', 'Type', 'Category', 'Amount', 'Fund / Register', 'Branch', 'Created By', 'Approval Status', 'Reason']);
+            fputcsv($output, ['Transaction ID', 'Transaction Date', 'Created At', 'Type', 'Category', 'Amount', 'Fund / Register', 'Branch', 'Paid To / Received From', 'Reference', 'Created By', 'Approval Status', 'Reason', 'Notes']);
             foreach ($rows->cursor() as $row) {
                 fputcsv($output, [
                     $row->uuid,
+                    $row->transaction_date,
                     $row->created_at,
                     $this->csvCell(str_replace('_', ' ', (string) $row->entry_type)),
                     $this->csvCell($row->category),
                     $row->amount,
                     $this->csvCell($row->fund_name ?: $row->register_name ?: 'POS register'),
                     $this->csvCell($row->store_name ?: 'Business-wide'),
+                    $this->csvCell($row->direction === 'credit' ? $row->received_from : $row->paid_to),
+                    $this->csvCell($row->reference),
                     $this->csvCell($row->creator_name),
                     $this->csvCell($row->approval_status),
                     $this->csvCell($row->reason),
+                    $this->csvCell($row->notes),
                 ]);
             }
             fclose($output);
@@ -122,6 +127,41 @@ class CashManagementController
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
+    public function expenseReport(Request $request, TenantContext $context, PosAccessService $access): JsonResponse
+    {
+        $tenant = $context->tenant();
+        $this->assertManager($request, $tenant->id, $access);
+        $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'branch_id' => ['nullable', 'uuid'],
+        ]);
+        $stores = $this->authorizedStoreIds($request, $tenant->id, $access);
+        if ($request->filled('branch_id')) {
+            $branch = Store::where('tenant_id', $tenant->id)->where('uuid', $request->input('branch_id'))->firstOrFail();
+            abort_unless($stores->contains($branch->id), 404, 'The requested branch was not found.');
+            $stores = collect([$branch->id]);
+        }
+        $from = $request->input('from', now()->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
+        $includeBusinesswide = $access->role($request->user(), $tenant->id) === 'business_admin' && ! $request->filled('branch_id');
+        $query = CashManagementEntry::query()->where('cash_management_entries.tenant_id', $tenant->id)
+            ->where(function ($inner) use ($stores, $includeBusinesswide): void {
+                if ($includeBusinesswide) {
+                    $inner->whereNull('cash_management_entries.store_id')->orWhereIn('cash_management_entries.store_id', $stores);
+                } else {
+                    $inner->whereIn('cash_management_entries.store_id', $stores);
+                }
+            })
+            ->where('cash_management_entries.direction', 'debit')
+            ->whereIn('cash_management_entries.entry_type', ['cash_out', 'petty_expense'])
+            ->where('cash_management_entries.approval_status', 'approved')
+            ->whereRaw('COALESCE(cash_management_entries.transaction_date, cash_management_entries.created_at::date) BETWEEN ? AND ?', [$from, $to]);
+        $rows = (clone $query)->selectRaw("COALESCE(category, 'other') AS category, COUNT(*)::int AS transaction_count, SUM(amount) AS amount")->groupByRaw("COALESCE(category, 'other')")->orderByDesc('amount')->get()->map(fn ($row): array => ['category' => $row->category, 'transaction_count' => (int) $row->transaction_count, 'amount' => number_format((float) $row->amount, 2, '.', '')])->values();
+
+        return response()->json(['success' => true, 'data' => ['from' => $from, 'to' => $to, 'total_expenses' => number_format((float) $query->sum('amount'), 2, '.', ''), 'rows' => $rows]]);
+    }
+
     public function storeFund(CreateCashFundRequest $request, TenantContext $context, CashManagementService $service): JsonResponse
     {
         $fund = $service->createFund($context->tenant(), $request->user(), $request->validated());
@@ -131,8 +171,9 @@ class CashManagementController
     public function storeEntry(CreateCashManagementEntryRequest $request, TenantContext $context, CashManagementService $service): JsonResponse
     {
         $key = $this->idempotencyKey($request);
-        $entry = $service->createFundEntry($context->tenant(), $request->user(), $request->validated(), $key, $request->file('attachment'));
-        return response()->json(['success' => true, 'data' => $this->entryPayload($entry->load(['fund', 'register']))], 201);
+        $data = $request->validated();
+        $entry = $service->createFundEntry($context->tenant(), $request->user(), $data, $key, $request->file('attachment'));
+        return response()->json(['success' => true, 'data' => $this->entryPayload($entry->load(['fund', 'register', 'purchaseOrder']))], 201);
     }
 
     public function storeTransfer(CreateCashTransferRequest $request, TenantContext $context, CashManagementService $service): JsonResponse
@@ -189,7 +230,7 @@ class CashManagementController
             ->when($filters['from'], fn ($query) => $query->whereDate('cash_movements.created_at', '>=', $filters['from']))
             ->when($filters['to'], fn ($query) => $query->whereDate('cash_movements.created_at', '<=', $filters['to']))
             ->when($filters['types'], fn ($query) => $query->whereIn('cash_movements.movement_type', $filters['types']))
-            ->selectRaw("cash_movements.uuid, cash_movements.tenant_id, cash_movements.store_id, NULL::bigint AS fund_id, cash_movements.register_id, cash_movements.cashier_shift_id, cash_movements.movement_type AS entry_type, CASE WHEN cash_movements.movement_type IN ('cash_sale','cash_in','opening_float') THEN 'credit' ELSE 'debit' END AS direction, cash_movements.amount, NULL::varchar AS category, cash_movements.reason, cash_movements.reference_id AS reference, NULL::uuid AS transfer_group_uuid, 'approved' AS approval_status, cash_movements.created_by, cash_movements.created_at, movement_register.name AS register_name, NULL::varchar AS fund_name, movement_store.name AS store_name, movement_creator.name AS creator_name");
+            ->selectRaw("cash_movements.uuid, cash_movements.uuid AS id, cash_movements.tenant_id, cash_movements.store_id, NULL::bigint AS fund_id, cash_movements.register_id, cash_movements.cashier_shift_id, NULL::bigint AS purchase_order_id, cash_movements.movement_type AS entry_type, CASE WHEN cash_movements.movement_type IN ('cash_sale','cash_in','opening_float') THEN 'credit' ELSE 'debit' END AS direction, cash_movements.amount, NULL::varchar AS category, NULL::varchar AS paid_to, NULL::varchar AS received_from, cash_movements.created_at::date AS transaction_date, cash_movements.reason, NULL::text AS notes, cash_movements.reference_id AS reference, NULL::uuid AS transfer_group_uuid, 'approved' AS approval_status, cash_movements.created_by, cash_movements.created_at, movement_register.name AS register_name, NULL::varchar AS fund_name, movement_store.name AS store_name, movement_creator.name AS creator_name, NULL::varchar AS purchase_order_number");
         $isBusinessAdmin = $access->role($request->user(), $tenantId) === 'business_admin';
         $entryQuery = DB::table('cash_management_entries')
             ->where('cash_management_entries.tenant_id', $tenantId)->where(function ($query) use ($storeIds, $isBusinessAdmin): void {
@@ -204,11 +245,13 @@ class CashManagementController
             ->leftJoin('pos_registers as history_register', 'history_register.id', '=', 'cash_management_entries.register_id')
             ->leftJoin('stores as history_store', 'history_store.id', '=', 'cash_management_entries.store_id')
             ->leftJoin('users as history_creator', 'history_creator.id', '=', 'cash_management_entries.created_by')
-            ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void { $inner->where('cash_management_entries.reason', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.reference', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.entry_type', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.category', 'ilike', '%'.$search.'%'); }))
-            ->when($filters['from'], fn ($query) => $query->whereDate('cash_management_entries.created_at', '>=', $filters['from']))
-            ->when($filters['to'], fn ($query) => $query->whereDate('cash_management_entries.created_at', '<=', $filters['to']))
+            ->when($search !== '', fn ($query) => $query->where(function ($inner) use ($search): void { $inner->where('cash_management_entries.reason', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.paid_to', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.received_from', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.reference', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.entry_type', 'ilike', '%'.$search.'%')->orWhere('cash_management_entries.category', 'ilike', '%'.$search.'%'); }))
+            ->when($filters['from'], fn ($query) => $query->whereRaw('COALESCE(cash_management_entries.transaction_date, cash_management_entries.created_at::date) >= ?', [$filters['from']]))
+            ->when($filters['to'], fn ($query) => $query->whereRaw('COALESCE(cash_management_entries.transaction_date, cash_management_entries.created_at::date) <= ?', [$filters['to']]))
             ->when($filters['types'], fn ($query) => $query->whereIn('cash_management_entries.entry_type', $filters['types']))
-            ->selectRaw("cash_management_entries.uuid, cash_management_entries.tenant_id, cash_management_entries.store_id, cash_management_entries.fund_id, cash_management_entries.register_id, cash_management_entries.cashier_shift_id, cash_management_entries.entry_type, cash_management_entries.direction, cash_management_entries.amount, cash_management_entries.category, cash_management_entries.reason, cash_management_entries.reference, cash_management_entries.transfer_group_uuid, cash_management_entries.approval_status, cash_management_entries.created_by, cash_management_entries.created_at, history_register.name AS register_name, history_fund.name AS fund_name, history_store.name AS store_name, history_creator.name AS creator_name");
+            ->when($filters['category'], fn ($query) => $query->where('cash_management_entries.category', $filters['category']))
+            ->leftJoin('purchase_orders as history_purchase_order', 'history_purchase_order.id', '=', 'cash_management_entries.purchase_order_id')
+            ->selectRaw("cash_management_entries.uuid, cash_management_entries.uuid AS id, cash_management_entries.tenant_id, cash_management_entries.store_id, cash_management_entries.fund_id, cash_management_entries.register_id, cash_management_entries.cashier_shift_id, cash_management_entries.purchase_order_id, cash_management_entries.entry_type, cash_management_entries.direction, cash_management_entries.amount, cash_management_entries.category, cash_management_entries.paid_to, cash_management_entries.received_from, cash_management_entries.transaction_date, cash_management_entries.reason, cash_management_entries.notes, cash_management_entries.reference, cash_management_entries.transfer_group_uuid, cash_management_entries.approval_status, cash_management_entries.created_by, cash_management_entries.created_at, history_register.name AS register_name, history_fund.name AS fund_name, history_store.name AS store_name, history_creator.name AS creator_name, history_purchase_order.purchase_order_number");
 
         return DB::query()->fromSub($movementQuery->unionAll($entryQuery), 'cash_history');
     }
@@ -220,6 +263,7 @@ class CashManagementController
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'branch_id' => ['nullable', 'uuid'],
             'type' => ['nullable', 'string'],
+            'category' => ['nullable', 'string', 'max:80'],
         ]);
         $types = array_values(array_filter(array_map('trim', explode(',', (string) $request->input('type', '')))));
         $allowed = ['opening_float', 'cash_sale', 'cash_refund', 'cash_in', 'cash_out', 'petty_expense', 'transfer', 'reversal'];
@@ -233,7 +277,7 @@ class CashManagementController
             abort_unless($storeIds->contains($branch->id), 404, 'The requested branch was not found.');
             $branchId = $branch->id;
         }
-        return ['store_ids' => $storeIds, 'branch_id' => $branchId, 'search' => trim((string) $request->input('search', '')), 'from' => $request->input('from'), 'to' => $request->input('to'), 'types' => $types];
+        return ['store_ids' => $storeIds, 'branch_id' => $branchId, 'search' => trim((string) $request->input('search', '')), 'from' => $request->input('from'), 'to' => $request->input('to'), 'types' => $types, 'category' => $request->input('category')];
     }
 
     private function authorizedStoreIds(Request $request, int $tenantId, PosAccessService $access): Collection
@@ -254,7 +298,7 @@ class CashManagementController
 
     private function entryPayload(CashManagementEntry $entry): array
     {
-        return ['id' => $entry->uuid, 'entry_type' => $entry->entry_type, 'direction' => $entry->direction, 'amount' => $entry->amount, 'category' => $entry->category, 'reason' => $entry->reason, 'reference' => $entry->reference, 'transfer_group_id' => $entry->transfer_group_uuid, 'approval_status' => $entry->approval_status, 'fund_name' => $entry->fund?->name, 'register_name' => $entry->register?->name, 'attachment_name' => $entry->attachment_name, 'created_by' => $entry->created_by, 'created_at' => $entry->created_at];
+        return ['id' => $entry->uuid, 'entry_type' => $entry->entry_type, 'direction' => $entry->direction, 'amount' => $entry->amount, 'category' => $entry->category, 'paid_to' => $entry->paid_to, 'received_from' => $entry->received_from, 'transaction_date' => $entry->transaction_date?->format('Y-m-d'), 'reason' => $entry->reason, 'notes' => $entry->notes, 'reference' => $entry->reference, 'purchase_order_id' => $entry->purchase_order_id, 'purchase_order_number' => $entry->purchaseOrder?->purchase_order_number, 'transfer_group_id' => $entry->transfer_group_uuid, 'approval_status' => $entry->approval_status, 'fund_name' => $entry->fund?->name, 'register_name' => $entry->register?->name, 'attachment_name' => $entry->attachment_name, 'created_by' => $entry->created_by, 'created_at' => $entry->created_at];
     }
 
     private function idempotencyKey(Request $request): string
