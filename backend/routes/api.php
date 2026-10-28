@@ -252,6 +252,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/settings/appearance/banners/publish', [MarketplaceAdminController::class, 'publishBanners']);
             Route::post('/settings/appearance/banners/upload', [MarketplaceAdminController::class, 'uploadBannerImage']);
             Route::delete('/settings/appearance/banners/image', [MarketplaceAdminController::class, 'removeBannerImage']);
+            Route::post('/settings/appearance/footer-media', [MarketplaceAdminController::class, 'uploadFooterMedia']);
+            Route::delete('/settings/appearance/footer-media', [MarketplaceAdminController::class, 'removeFooterMedia']);
             Route::patch('/settings', [MarketplaceAdminController::class, 'updateSettings']);
             Route::post('/settings/qr-payment-image', [MarketplaceAdminController::class, 'uploadQrPaymentImage']);
             Route::delete('/settings/qr-payment-image', [MarketplaceAdminController::class, 'removeQrPaymentImage']);

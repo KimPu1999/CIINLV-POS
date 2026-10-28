@@ -50,6 +50,18 @@ export interface MarketplaceBanners {
   pages: Partial<Record<MarketplaceBannerPage, MarketplaceBannerPageConfig>>
 }
 
+export type MarketplaceSocialPlatform = 'facebook' | 'instagram' | 'youtube' | 'tiktok' | 'x' | 'telegram' | 'whatsapp' | 'custom'
+export interface MarketplaceSocialLink {
+  id: string
+  platform: MarketplaceSocialPlatform
+  url: string
+  enabled?: boolean
+  icon_mode?: 'default' | 'custom'
+  custom_icon_path?: string | null
+  custom_icon_url?: string | null
+  sort_order?: number
+}
+
 export interface MarketplaceAppearance {
   font_family: string
   nav_font_size: number
@@ -64,10 +76,13 @@ export interface MarketplaceAppearance {
   banners?: MarketplaceBanners
   footer?: {
     show_social_icons?: boolean
+    logo_path?: string | null
+    logo_url?: string | null
     facebook_url?: string | null
     instagram_url?: string | null
     youtube_url?: string | null
     tiktok_url?: string | null
+    social_links?: MarketplaceSocialLink[]
     description_en?: string | null
     description_my?: string | null
   }

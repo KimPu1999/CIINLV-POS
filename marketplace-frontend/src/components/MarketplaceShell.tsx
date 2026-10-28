@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Camera, Heart, LogOut, MapPin, Menu, MessageCircle, Moon, Music2, Package, Play, Search, ShoppingBag, Sparkles, Sun, UserCircle, UserRound, X } from 'lucide-react'
+import { AtSign, Camera, Facebook, Heart, Instagram, Link2, LogOut, MapPin, Menu, MessageCircle, Moon, Music2, Package, Play, Search, Send, ShoppingBag, Sparkles, Sun, UserCircle, UserRound, X, Youtube } from 'lucide-react'
 import type { Customer, Locale, MarketplaceAppearance, Theme, TranslationKey } from '../lib/marketplace'
 import { translate } from '../lib/marketplace'
 import { BrandLogo } from './BrandLogo'
@@ -102,7 +102,7 @@ export function MarketplaceShell({ locale, theme, customer, appearance, cartCoun
       <footer className="marketplace-footer border-t">
         <div className="mx-auto grid max-w-[1536px] gap-8 px-4 py-10 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1fr] lg:gap-10 lg:px-8 lg:py-12">
           <div>
-            <BrandLogo label={t('marketplace')} imageClassName="h-10 w-10" nameClassName="text-white" labelClassName="marketplace-footer-logo-label" />
+            {appearance?.footer?.logo_url ? <img src={appearance.footer.logo_url} alt={t('marketplace')} className="h-10 w-10 rounded-xl object-cover" /> : <BrandLogo label={t('marketplace')} imageClassName="h-10 w-10" nameClassName="text-white" labelClassName="marketplace-footer-logo-label" />}
             <p className="marketplace-footer-copy mt-4 max-w-sm text-sm leading-7">{locale === 'my' ? (appearance?.footer?.description_my || t('footerBody')) : (appearance?.footer?.description_en || t('footerBody'))}</p>
             <div className="marketplace-footer-muted mt-5 flex items-center gap-2 text-xs font-semibold"><Sparkles size={14} className="marketplace-footer-accent" /> {t('builtForCommunity')}</div>
             <FooterSocialLinks t={t} footer={appearance?.footer} />
@@ -150,12 +150,15 @@ function FooterColumn({ title, links }: { title: string; links: Array<[string, s
 function FooterSocialLinks({ t, footer }: { t: (key: TranslationKey) => string; footer?: MarketplaceAppearance['footer'] }) {
   if (!footer?.show_social_icons) return null
   type SocialLink = { key: string; label: string; url?: string; icon: ReactNode }
-  const links = ([
+  const labels: Record<string, string> = { facebook: t('socialFacebook'), instagram: t('socialInstagram'), youtube: t('socialYoutube'), tiktok: t('socialTiktok'), x: 'X', telegram: 'Telegram', whatsapp: 'WhatsApp', custom: 'Social link' }
+  const defaults: Record<string, ReactNode> = { facebook: <Facebook size={19} />, instagram: <Instagram size={19} />, youtube: <Youtube size={19} />, tiktok: <Music2 size={19} />, x: <AtSign size={19} />, telegram: <Send size={19} />, whatsapp: <MessageCircle size={19} />, custom: <Link2 size={19} /> }
+  const configured = footer.social_links?.length ? footer.social_links.map((link) => ({ key: link.id, label: labels[link.platform] || 'Social link', url: link.url, icon: link.icon_mode === 'custom' && link.custom_icon_url ? <img src={link.custom_icon_url} alt="" className="size-5 object-contain" /> : defaults[link.platform] || defaults.custom })).filter((link) => link.url) : ([
     { key: 'facebook', label: t('socialFacebook'), url: footer.facebook_url || undefined, icon: <MessageCircle size={17} /> },
     { key: 'instagram', label: t('socialInstagram'), url: footer.instagram_url || undefined, icon: <Camera size={17} /> },
     { key: 'youtube', label: t('socialYoutube'), url: footer.youtube_url || undefined, icon: <Play size={17} /> },
     { key: 'tiktok', label: t('socialTiktok'), url: footer.tiktok_url || undefined, icon: <Music2 size={17} /> },
-  ] as SocialLink[]).filter((link): link is SocialLink & { url: string } => typeof link.url === 'string' && /^https:\/\//i.test(link.url))
+  ] as SocialLink[])
+  const links = configured.filter((link): link is SocialLink & { url: string } => typeof link.url === 'string' && /^https:\/\//i.test(link.url))
 
   if (links.length === 0) return null
   return <div className="mt-6"><p className="marketplace-footer-heading text-xs font-semibold uppercase tracking-[0.16em]">{t('followUs')}</p><div className="mt-3 flex flex-wrap gap-2">{links.map((link) => <a key={link.key} href={link.url} target="_blank" rel="noopener noreferrer" aria-label={link.label} className="marketplace-footer-social grid size-10 place-items-center rounded-xl border transition focus:outline-none focus:ring-4 focus:ring-blue-400/30">{link.icon}</a>)}</div></div>

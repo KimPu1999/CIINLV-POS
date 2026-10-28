@@ -53,10 +53,12 @@ class MarketplaceSettingsService
             'dark' => ['primary' => '#47bfff', 'secondary' => '#f86820', 'accent' => '#7dd3fc', 'header_bg' => '#002850', 'nav_text' => '#ffffff', 'nav_hover' => '#164f7d', 'nav_active' => '#1f6ea8', 'button_bg' => '#2563eb', 'button_text' => '#ffffff', 'page_bg' => '#020617', 'card_bg' => '#0f172a', 'border' => '#334155', 'footer_bg' => '#020617', 'footer_text' => '#ffffff'],
             'footer' => [
                 'show_social_icons' => false,
+                'logo_path' => null,
                 'facebook_url' => null,
                 'instagram_url' => null,
                 'youtube_url' => null,
                 'tiktok_url' => null,
+                'social_links' => [],
                 'description_en' => 'A customer-first marketplace for CIINLV POS businesses.',
                 'description_my' => 'CIINLV POS လုပ်ငန်းများအတွက် ဖောက်သည်ကို ဦးစားပေးထားသော Marketplace။',
             ],
@@ -72,6 +74,36 @@ class MarketplaceSettingsService
             ->all();
 
         return ['pages' => $pages];
+    }
+
+    private function normalizeFooter(mixed $value): array
+    {
+        $defaults = $this->appearanceDefaults()['footer'];
+        $footer = is_array($value) ? array_merge($defaults, $value) : $defaults;
+        $links = is_array($footer['social_links'] ?? null) ? $footer['social_links'] : [];
+        foreach (['facebook', 'instagram', 'youtube', 'tiktok'] as $platform) {
+            $url = $footer[$platform.'_url'] ?? null;
+            if (filled($url) && ! collect($links)->contains('platform', $platform)) {
+                $links[] = ['id' => 'legacy-'.$platform, 'platform' => $platform, 'url' => $url, 'enabled' => true, 'icon_mode' => 'default', 'custom_icon_path' => null, 'sort_order' => count($links)];
+            }
+        }
+        $footer['social_links'] = collect($links)->values()->map(function (array $link, int $index): array {
+            return array_merge(['id' => 'social-'.Str::uuid(), 'platform' => 'custom', 'url' => null, 'enabled' => true, 'icon_mode' => 'default', 'custom_icon_path' => null, 'sort_order' => $index], $link, ['sort_order' => (int) ($link['sort_order'] ?? $index)]);
+        })->sortBy('sort_order')->values()->all();
+        return $footer;
+    }
+
+    private function footerWithUrls(array $footer, bool $publicOnly = false): array
+    {
+        $normalized = $this->normalizeFooter($footer);
+        $normalized['logo_url'] = filled($normalized['logo_path'] ?? null) ? Storage::disk('public')->url($normalized['logo_path']) : null;
+        $normalized['social_links'] = collect($normalized['social_links'])->filter(function (array $link) use ($normalized, $publicOnly): bool {
+            return ! $publicOnly || (($normalized['show_social_icons'] ?? false) && ($link['enabled'] ?? false) && is_string($link['url'] ?? null) && preg_match('/^https:\/\//i', $link['url']));
+        })->map(function (array $link): array {
+            $link['custom_icon_url'] = filled($link['custom_icon_path'] ?? null) ? Storage::disk('public')->url($link['custom_icon_path']) : null;
+            return $link;
+        })->values()->all();
+        return $normalized;
     }
 
     private function normalizeBanners(mixed $value): array
@@ -158,6 +190,7 @@ class MarketplaceSettingsService
     {
         $appearance = $this->appearance();
         $appearance['banners'] = $this->bannersWithUrls($appearance['banners'] ?? [], true);
+        $appearance['published']['footer'] = $this->footerWithUrls($appearance['published']['footer'] ?? [], true);
         return $appearance;
     }
 
@@ -186,6 +219,8 @@ class MarketplaceSettingsService
         $setting = MarketplaceSetting::query()->first();
         $draft = array_replace_recursive($defaults, $setting?->appearance_draft ?: $defaults);
         $published = array_replace_recursive($defaults, $setting?->appearance_published ?: $defaults);
+        $draft['footer'] = $this->footerWithUrls($draft['footer'] ?? []);
+        $published['footer'] = $this->footerWithUrls($published['footer'] ?? []);
         $draft['banners'] = $this->bannersWithUrls($draft['banners'] ?? []);
         $published['banners'] = $this->bannersWithUrls($published['banners'] ?? []);
 
@@ -198,7 +233,9 @@ class MarketplaceSettingsService
             throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available. Apply the reviewed marketplace settings migration before saving appearance changes.');
         }
         $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
-        $setting->forceFill(['appearance_draft' => array_replace_recursive($this->appearanceDefaults(), $appearance), 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        $appearance = array_replace_recursive($this->appearanceDefaults(), $appearance);
+        $appearance['footer'] = $this->normalizeFooter($appearance['footer'] ?? []);
+        $setting->forceFill(['appearance_draft' => $appearance, 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
         $audit->record('marketplace.appearance_draft_updated', $actor, entity: $setting, metadata: ['appearance_revision' => $setting->appearance_revision]);
 
         return $this->appearance();
@@ -267,6 +304,54 @@ class MarketplaceSettingsService
         $setting->forceFill(['appearance_draft' => $appearance, 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
         if ($oldPath) Storage::disk('public')->delete($oldPath);
         $audit->record('marketplace.banner_image_removed', $actor, entity: $setting, metadata: ['page' => $page, 'banner_id' => $bannerId, 'device' => $device]);
+        return $this->appearance();
+    }
+
+    public function uploadFooterMedia(UploadedFile $file, string $kind, ?string $socialLinkId, User $actor, MarketplaceAuditLogger $audit): array
+    {
+        if (! $this->appearanceStorageAvailable()) throw new ServiceUnavailableHttpException(null, 'Marketplace appearance storage is not available.');
+        if (strtolower($file->extension()) === 'svg' && preg_match('/<script|on[a-z]+\s*=|javascript:|<foreignObject|data:text\/html/i', (string) $file->get())) abort(422, 'The SVG contains unsafe content.');
+        $setting = MarketplaceSetting::query()->first() ?: MarketplaceSetting::create($this->defaults());
+        $appearance = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_draft ?: $this->appearanceDefaults());
+        $footer = $this->normalizeFooter($appearance['footer'] ?? []);
+        $path = $file->storeAs("marketplace/footer/{$kind}", Str::uuid().'.'.$file->extension(), 'public');
+        if ($kind === 'logo') {
+            $oldPath = $footer['logo_path'] ?? null;
+            $footer['logo_path'] = $path;
+        } else {
+            $index = collect($footer['social_links'])->search(fn (array $link): bool => (string) ($link['id'] ?? '') === (string) $socialLinkId);
+            if ($index === false) { Storage::disk('public')->delete($path); abort(422, 'The selected social link does not exist in the draft collection.'); }
+            $oldPath = $footer['social_links'][$index]['custom_icon_path'] ?? null;
+            $footer['social_links'][$index]['custom_icon_path'] = $path;
+            $footer['social_links'][$index]['icon_mode'] = 'custom';
+        }
+        $appearance['footer'] = $footer;
+        $setting->forceFill(['appearance_draft' => $appearance, 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        if ($oldPath && $oldPath !== $path) Storage::disk('public')->delete($oldPath);
+        $audit->record('marketplace.footer_media_updated', $actor, entity: $setting, metadata: ['kind' => $kind, 'social_link_id' => $socialLinkId]);
+        return $this->appearance();
+    }
+
+    public function removeFooterMedia(string $kind, ?string $socialLinkId, User $actor, MarketplaceAuditLogger $audit): array
+    {
+        $setting = MarketplaceSetting::query()->first();
+        if (! $setting) return $this->appearance();
+        $appearance = array_replace_recursive($this->appearanceDefaults(), $setting->appearance_draft ?: $this->appearanceDefaults());
+        $footer = $this->normalizeFooter($appearance['footer'] ?? []);
+        if ($kind === 'logo') {
+            $oldPath = $footer['logo_path'] ?? null;
+            $footer['logo_path'] = null;
+        } else {
+            $index = collect($footer['social_links'])->search(fn (array $link): bool => (string) ($link['id'] ?? '') === (string) $socialLinkId);
+            if ($index === false) abort(422, 'The selected social link does not exist in the draft collection.');
+            $oldPath = $footer['social_links'][$index]['custom_icon_path'] ?? null;
+            $footer['social_links'][$index]['custom_icon_path'] = null;
+            $footer['social_links'][$index]['icon_mode'] = 'default';
+        }
+        $appearance['footer'] = $footer;
+        $setting->forceFill(['appearance_draft' => $appearance, 'appearance_revision' => (int) $setting->appearance_revision + 1, 'updated_by' => $actor->id])->save();
+        if ($oldPath) Storage::disk('public')->delete($oldPath);
+        $audit->record('marketplace.footer_media_removed', $actor, entity: $setting, metadata: ['kind' => $kind, 'social_link_id' => $socialLinkId]);
         return $this->appearance();
     }
 

@@ -13,6 +13,7 @@ use App\Http\Requests\Marketplace\MarketplaceSettingsUpdateRequest;
 use App\Http\Requests\Marketplace\MarketplaceStoreStatusRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceQrPaymentImageRequest;
 use App\Http\Requests\Marketplace\UploadMarketplaceBannerImageRequest;
+use App\Http\Requests\Marketplace\UploadMarketplaceFooterMediaRequest;
 use App\Http\Resources\MarketplaceCancellationRequestResource;
 use App\Http\Resources\MarketplaceListingResource;
 use App\Http\Resources\MarketplaceOrderListResource;
@@ -703,6 +704,17 @@ class MarketplaceAdminController
     {
         $data = $request->validate(['page' => ['required', 'in:home,shop,categories,stores,about,contact'], 'banner_id' => ['required', 'string', 'max:80'], 'device' => ['required', 'in:desktop,mobile']]);
         return response()->json(['success' => true, 'data' => $settings->removeBannerImage($data['page'], $data['banner_id'], $data['device'], $request->user(), $audit)]);
+    }
+
+    public function uploadFooterMedia(UploadMarketplaceFooterMediaRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $settings->uploadFooterMedia($request->file('image'), $request->string('kind')->toString(), $request->input('social_link_id'), $request->user(), $audit)]);
+    }
+
+    public function removeFooterMedia(Request $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
+    {
+        $data = $request->validate(['kind' => ['required', 'in:logo,social_icon'], 'social_link_id' => ['nullable', 'string', 'max:80', 'required_if:kind,social_icon']]);
+        return response()->json(['success' => true, 'data' => $settings->removeFooterMedia($data['kind'], $data['social_link_id'] ?? null, $request->user(), $audit)]);
     }
 
     public function updateSettings(MarketplaceSettingsUpdateRequest $request, MarketplaceSettingsService $settings, MarketplaceAuditLogger $audit): JsonResponse
