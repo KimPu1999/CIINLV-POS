@@ -90,6 +90,10 @@ function BrandLogo({ showName = true, className = '', imageClassName = 'h-10 w-1
 const platformNav = platformNavigation
 const businessNav = businessNavigation
 const platformBusinessNav = platformBusinessNavigation
+
+type WorkspaceMode = 'business_only' | 'marketplace_only' | 'both'
+type WorkspaceView = 'business' | 'marketplace' | 'combined'
+type WorkspaceAccess = { access_mode: WorkspaceMode; preferred_view: WorkspaceView; available_views: WorkspaceView[]; can_manage: boolean }
 // Route audit markers: the shared navigation config is the source of truth for these paths.
 // path: '/platform/help' · path: '/business/help' · path: '/business/barcode-management'
 // path: '/platform/business-products' · path: '/platform/monitoring' · path: '/platform/customers' · path: '/business/customers'
@@ -144,22 +148,18 @@ function ProtectedRoute({ children, allow }: { children: React.ReactNode; allow?
   return <>{children}</>
 }
 
-function hasBusinessAdminAccess(user: User): boolean {
-  return businessAdminMemberships(user).length > 0
-}
-
 function hasBusinessWorkspaceAccess(user: User): boolean {
-  return user.platform_role === 'super_admin' || hasBusinessAdminAccess(user)
+  return user.platform_role === 'super_admin' || activeBusinessMemberships(user).length > 0
 }
 
-function businessAdminMemberships(user: User): BusinessMembership[] {
-  return (user.memberships ?? []).filter((membership) => membership.status === 'active' && membership.role === 'business_admin')
+function activeBusinessMemberships(user: User): BusinessMembership[] {
+  return (user.memberships ?? []).filter((membership) => membership.status === 'active')
 }
 
 function userHomePath(user: User | null): string {
   if (!user) return '/login'
   if (user?.platform_role === 'super_admin') return '/platform/dashboard'
-  return hasBusinessAdminAccess(user) ? '/business/dashboard' : '/access-denied'
+  return hasBusinessWorkspaceAccess(user) ? '/business/dashboard' : '/access-denied'
 }
 
 function AccessDeniedPage() {
@@ -226,13 +226,17 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobile, setMobile] = useState(false)
   const [selectedTenant, setSelectedTenant] = useState(() => window.localStorage.getItem('ciinlv_tenant_id'))
+  const [workspaceAccess, setWorkspaceAccess] = useState<WorkspaceAccess | null>(null)
+  const [workspaceLoading, setWorkspaceLoading] = useState(false)
+  const [workspaceError, setWorkspaceError] = useState('')
   const location = useLocation()
   const businessWorkspace = location.pathname.startsWith('/business/') || location.pathname.startsWith('/app/')
   const platformBusinessWorkspace = user.platform_role === 'super_admin' && businessWorkspace
   const role = businessWorkspace ? 'business' : user.platform_role === 'super_admin' ? 'super_admin' : 'business'
-  const nav = role === 'super_admin' ? platformNav : platformBusinessWorkspace ? platformBusinessNav : businessNav
+  const baseNav = role === 'super_admin' ? platformNav : platformBusinessWorkspace ? platformBusinessNav : businessNav
+  const nav = businessWorkspace && !workspaceAccess ? [] : filterNavigation(baseNav, workspaceAccess?.preferred_view)
   const platformLanding = location.pathname === '/platform/dashboard'
-  const memberships = businessAdminMemberships(user)
+  const memberships = activeBusinessMemberships(user)
   const selectTenant = (tenantId: string) => { window.localStorage.setItem('ciinlv_tenant_id', tenantId); setSelectedTenant(tenantId) }
   const needsTenantSelection = role === 'business' && memberships.length > 1 && !memberships.some((membership) => membership.business.id === selectedTenant)
   const needsPlatformBusinessSelection = platformBusinessWorkspace && !selectedTenant
@@ -255,9 +259,32 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
   }, [memberships, role])
 
   useEffect(() => {
+    if (role !== 'business' || !selectedTenant || needsTenantSelection) {
+      setWorkspaceAccess(null)
+      setWorkspaceError('')
+      return
+    }
+
+    let cancelled = false
+    setWorkspaceLoading(true)
+    setWorkspaceError('')
+    request<WorkspaceAccess>({ method: 'get', url: '/api/v1/business/workspace-access' })
+      .then((value) => { if (!cancelled) setWorkspaceAccess(value) })
+      .catch(() => { if (!cancelled) { setWorkspaceAccess(null); setWorkspaceError('Unable to load workspace access. Refresh and try again.') } })
+      .finally(() => { if (!cancelled) setWorkspaceLoading(false) })
+    return () => { cancelled = true }
+  }, [needsTenantSelection, role, selectedTenant])
+
+  useEffect(() => {
     const handleProfileUpdated = () => { void refreshUser() }
+    const handleWorkspaceUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<WorkspaceAccess>>).detail
+      if (!detail) return
+      setWorkspaceAccess((current) => current ? { ...current, ...detail } : current)
+    }
     window.addEventListener('ciinlv:profile-updated', handleProfileUpdated)
-    return () => window.removeEventListener('ciinlv:profile-updated', handleProfileUpdated)
+    window.addEventListener('ciinlv:workspace-updated', handleWorkspaceUpdated)
+    return () => { window.removeEventListener('ciinlv:profile-updated', handleProfileUpdated); window.removeEventListener('ciinlv:workspace-updated', handleWorkspaceUpdated) }
   }, [refreshUser])
 
   return <NavigationHistoryProvider><div className="min-h-screen bg-slate-50">
@@ -277,7 +304,7 @@ function Shell({ user, onLogout }: { user: User; onLogout: () => void }) {
       </header>
       <WorkspaceLinks platformBusinessWorkspace={platformBusinessWorkspace} />
       <main className="mx-auto max-w-[1600px] px-5 pb-5 pt-4 sm:px-8 sm:pb-8 sm:pt-5 lg:pt-6">
-        {needsPlatformBusinessSelection ? <PlatformBusinessSelectionPage /> : needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} navigation={nav} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
+        {needsPlatformBusinessSelection ? <PlatformBusinessSelectionPage /> : needsTenantSelection ? <TenantSelectionPage memberships={memberships} onSelect={selectTenant} /> : businessWorkspace && workspaceLoading ? <LoadingState /> : businessWorkspace && workspaceError ? <><ErrorState message={workspaceError} /><button type="button" onClick={() => window.location.reload()} className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Refresh</button></> : !workspaceRouteAllowed(location.pathname, workspaceAccess) ? <Navigate to={workspaceHomePath(workspaceAccess)} replace /> : platformLanding ? <Suspense fallback={<RouteLoadingScreen />}><OverviewPage user={user} navigation={nav} /></Suspense> : <Suspense fallback={<RouteLoadingScreen />}><Routes key={selectedTenant ?? 'tenant'}>
           <Route index element={<OverviewPage user={user} navigation={nav} />} />
           <Route path="dashboard" element={<OverviewPage user={user} navigation={nav} />} />
           <Route path="monitoring" element={<PlatformMonitoringPage />} />
@@ -369,9 +396,31 @@ function ThemeToggle() {
   return <button type="button" onClick={toggleTheme} aria-label={t(dark ? 'text.switch_to_light_mode' : 'text.switch_to_dark_mode')} aria-pressed={dark} title={t(dark ? 'text.switch_to_light_mode' : 'text.switch_to_dark_mode')} className="header-action inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 transition duration-200 hover:bg-slate-100 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-100 motion-reduce:transform-none">{dark ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}</button>
 }
 
+function filterNavigation(items: NavigationItem[], view?: WorkspaceView): NavigationItem[] {
+  if (!view || view === 'combined') return items
+  return items.filter((item) => item.workspace === 'shared' || (item.workspace || 'business') === view)
+}
+
+function workspaceRouteAllowed(path: string, access?: WorkspaceAccess | null): boolean {
+  const normalizedPath = path.startsWith('/app/') ? path.replace(/^\/app/, '/business') : path
+  if (!access || !normalizedPath.startsWith('/business/')) return true
+  const item = businessNav
+    .filter((candidate) => normalizedPath === candidate.path || normalizedPath.startsWith(`${candidate.path}/`))
+    .sort((left, right) => right.path.length - left.path.length)[0]
+  if (!item || item.workspace === 'shared') return true
+  const itemWorkspace = item.workspace || 'business'
+  const accessAllows = access.access_mode === 'both' || itemWorkspace === (access.access_mode === 'business_only' ? 'business' : 'marketplace')
+  const viewAllows = access.preferred_view === 'combined' || itemWorkspace === access.preferred_view
+  return accessAllows && viewAllows
+}
+
+function workspaceHomePath(access?: WorkspaceAccess | null): string {
+  return access?.preferred_view === 'marketplace' ? '/business/marketplace/overview' : '/business/dashboard'
+}
+
 function TenantSwitcher({ user, onChange }: { user: User; onChange: (tenantId: string) => void }) {
   const { t } = useTranslation()
-  const memberships = businessAdminMemberships(user)
+  const memberships = activeBusinessMemberships(user)
   if (!memberships.length) return null
   const selected = window.localStorage.getItem('ciinlv_tenant_id') || memberships[0].business.id
   if (memberships.length === 1) return <LabelBadge tone="info" className="max-w-48 truncate">{memberships[0].business.name}</LabelBadge>

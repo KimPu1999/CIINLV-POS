@@ -74,6 +74,7 @@ use App\Http\Controllers\Api\V1\StoreSettingsController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\TranslationController;
 use App\Http\Controllers\Api\V1\WarehouseController;
+use App\Http\Controllers\Api\V1\WorkspaceAccessController;
 use App\Http\Middleware\SetApiLocale;
 use Illuminate\Support\Facades\Route;
 
@@ -265,7 +266,7 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/payouts/{payout}/reject', [MarketplaceAdminController::class, 'rejectPayout']);
         });
 
-        Route::prefix('vendor/marketplace')->middleware('tenant.context')->group(function (): void {
+        Route::prefix('vendor/marketplace')->middleware(['tenant.context', 'workspace.access'])->group(function (): void {
             Route::get('/dashboard-summary', [MarketplaceVendorController::class, 'dashboardSummary']);
             Route::get('/overview', [MarketplaceVendorController::class, 'overview']);
             Route::get('/products', [MarketplaceVendorController::class, 'products']);
@@ -342,7 +343,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/marketplace/dispute-evidence/{evidence}', [MarketplaceDisputeController::class, 'download'])->middleware('auth:sanctum');
 
-        Route::prefix('business')->middleware('tenant.context')->group(function (): void {
+        Route::prefix('business')->middleware(['tenant.context', 'workspace.access'])->group(function (): void {
             Route::get('/delivery-management/dashboard', [DeliveryManagementController::class, 'dashboard']);
             Route::get('/delivery-management/lookup', [DeliveryManagementController::class, 'lookup']);
             Route::get('/delivery-management/staff', [DeliveryManagementController::class, 'staffIndex']);
@@ -404,7 +405,16 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/customers/{customer}', [CustomerManagementController::class, 'businessShow']);
         });
 
+        // Workspace preference is a shared Settings concern. It must remain
+        // available to any active tenant member, while team access changes
+        // still enforce Business Admin authorization in the controller.
         Route::prefix('business')->middleware('tenant.context.any')->group(function (): void {
+            Route::get('/workspace-access', [WorkspaceAccessController::class, 'show']);
+            Route::patch('/workspace-access/preference', [WorkspaceAccessController::class, 'updatePreference']);
+            Route::patch('/workspace-access/users/{user}', [WorkspaceAccessController::class, 'updateMember'])->whereNumber('user');
+        });
+
+        Route::prefix('business')->middleware(['tenant.context.any', 'workspace.access'])->group(function (): void {
             Route::get('/employees', [EmployeeManagementController::class, 'index']);
             Route::post('/employees', [EmployeeManagementController::class, 'store']);
             Route::get('/employees/attendance', [EmployeeManagementController::class, 'attendanceIndex']);
@@ -461,7 +471,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/help/faqs', [HelpPolicyController::class, 'faqs']);
         });
 
-        Route::middleware('tenant.context.any')->group(function (): void {
+        Route::middleware(['tenant.context.any', 'workspace.access'])->group(function (): void {
             Route::get('/dashboard/overview', [DashboardOverviewController::class, 'overview']);
             Route::get('/dashboard/sales-summary', [DashboardOverviewController::class, 'salesSummary']);
             Route::get('/dashboard/inventory-summary', [DashboardOverviewController::class, 'inventorySummary']);

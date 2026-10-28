@@ -8,6 +8,7 @@ use App\Http\Middleware\RequestCorrelationId;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\ResolveTenantAnyRole;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\WorkspaceAccess;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -49,6 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.admin' => PlatformAdmin::class,
             'tenant.context' => ResolveTenant::class,
             'tenant.context.any' => ResolveTenantAnyRole::class,
+            'workspace.access' => WorkspaceAccess::class,
         ]);
         $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('api/*') ? null : route('login'));
     })

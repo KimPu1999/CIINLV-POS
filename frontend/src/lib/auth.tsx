@@ -14,14 +14,14 @@ function syncTenantSelection(user: User): void {
   // Do not replace or infer it from tenant memberships.
   if (user.platform_role === 'super_admin') return
 
-  const activeBusinessAdminIds = (user.memberships ?? [])
-    .filter((membership) => membership.status === 'active' && membership.role === 'business_admin')
+  const activeBusinessIds = (user.memberships ?? [])
+    .filter((membership) => membership.status === 'active')
     .map((membership) => membership.business.id)
   const selected = window.localStorage.getItem('ciinlv_tenant_id')
 
-  if (selected && activeBusinessAdminIds.includes(selected)) return
-  if (activeBusinessAdminIds.length === 1) {
-    window.localStorage.setItem('ciinlv_tenant_id', activeBusinessAdminIds[0])
+  if (selected && activeBusinessIds.includes(selected)) return
+  if (activeBusinessIds.length === 1) {
+    window.localStorage.setItem('ciinlv_tenant_id', activeBusinessIds[0])
   } else {
     window.localStorage.removeItem('ciinlv_tenant_id')
   }
